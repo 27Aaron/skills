@@ -56,6 +56,14 @@ Breaking changes may be expressed in either valid form:
 
 Use a breaking-change marker only when the change breaks an API, contract, interface, or expected behavior.
 
+## Workflow
+
+When this skill is invoked:
+
+1. Check if there are staged changes in git (`git diff --cached`).
+2. **If staged changes exist**: Generate the commit message and directly execute `git commit -m "<message>"`.
+3. **If no staged changes**: Inform the user that files need to be added to the staging area first with `git add`, then provide the recommended commit message for later use.
+
 ## Working Heuristics
 
 - Infer the type from the diff, changed files, and user description before asking questions.
