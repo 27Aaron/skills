@@ -19,17 +19,14 @@ import sys
 from collections import defaultdict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-CAPABILITY_BOUNDARY = (
-    "安全往往不是最显眼的需求，却是产品长期稳定运行的底线。"
-    "补天会优先帮助你发现依赖漏洞、过期依赖和仓库卫生风险，"
-    "让容易被忽视的供应链问题更早暴露出来。"
-    "但它不能替代代码审计、渗透测试或部署安全评估；"
-    "代码层面的权限、业务逻辑、SQL 注入、XSS 等问题仍需单独复核。"
-)
-HYGIENE_ONLY_NOTICE = (
-    "当前项目没有发现补天支持的依赖文件，暂不支持依赖漏洞扫描；"
-    "本次只做仓库卫生扫描，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。"
-)
+
+try:
+    from .scan import CAPABILITY_BOUNDARY, HYGIENE_ONLY_NOTICE
+except ImportError:
+    from scan import (  # pyright: ignore[reportMissingImports]
+        CAPABILITY_BOUNDARY,
+        HYGIENE_ONLY_NOTICE,
+    )
 
 
 def script_path(name):
@@ -610,19 +607,21 @@ def main():
 
     # Exit code based on severity threshold
     if args.severity_threshold:
-        from importlib import import_module
-
-        scan_mod = import_module("butian.scripts.scan")
-        vulns = analysis.get("top_issues") or []
-        should_fail, count = scan_mod.evaluate_severity_threshold(
-            vulns, args.severity_threshold
-        )
-        if should_fail:
-            print(
-                f"发现 {count} 个不低于 {args.severity_threshold} 等级的漏洞",
-                file=sys.stderr,
-            )
-            return 1
+        _SEVERITY_ORDER = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
+        threshold_rank = _SEVERITY_ORDER.get(args.severity_threshold.lower(), 0)
+        if threshold_rank:
+            vulns = analysis.get("top_issues") or []
+            count = 0
+            for vuln in vulns:
+                vuln_sev = str(vuln.get("severity") or "info").lower()
+                if _SEVERITY_ORDER.get(vuln_sev, 0) >= threshold_rank:
+                    count += 1
+            if count > 0:
+                print(
+                    f"发现 {count} 个不低于 {args.severity_threshold} 等级的漏洞",
+                    file=sys.stderr,
+                )
+                return 1
 
     return 0
 

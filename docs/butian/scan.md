@@ -10,7 +10,7 @@
 
 | #   | 职责         | 说明                                                                                    |
 | --- | ------------ | --------------------------------------------------------------------------------------- |
-| 1   | 仓库卫生检查 | `.gitignore` 状态、敏感文件跟踪、硬编码密钥扫描（98 个正则 + Shannon entropy 熵值分析） |
+| 1   | 仓库卫生检查 | `.gitignore` 状态、敏感文件跟踪、硬编码密钥扫描（95 个正则 + Shannon entropy 熵值分析） |
 | 2   | 依赖生态检测 | 识别 lockfile 类型，提取包名和版本号                                                    |
 | 3   | 漏洞查询     | 调用 OSV、NVD、CISA KEV、FIRST EPSS 四个官方数据源                                      |
 | 4   | 过期依赖检测 | 通过各语言包管理器获取最新版本信息                                                      |
@@ -279,10 +279,10 @@ main()
 
 | 阶段    | 机制                      | 置信度        | 说明                                                   |
 | ------- | ------------------------- | ------------- | ------------------------------------------------------ |
-| Phase 1 | 正则模式匹配（98 个模式） | high / medium | 精确匹配已知格式的密钥和 token                         |
+| Phase 1 | 正则模式匹配（95 个模式） | high / medium | 精确匹配已知格式的密钥和 token                         |
 | Phase 2 | Shannon entropy 熵值分析  | low           | 对无已知前缀的高随机性字符串进行可疑标记，用户自行判断 |
 
-两阶段结果自动交叉去重：若同一行已被正则匹配命中，entropy 不再重复报告。
+两阶段结果自动交叉去重：若同一行已被正则匹配命中，entropy 不再重复报告。同一行内，高可信度匹配（如 `aws_access_key`）会抑制低可信度匹配（如 `generic_api_key`），避免重复告警。
 
 ### 云厂商密钥（21 个模式）
 
@@ -344,7 +344,6 @@ main()
 | **LLM / AI**             |                                            |        |
 | `openai_key`             | OpenAI API Key（`sk-...` / `sk-proj-...`） | high   |
 | `anthropic_key`          | Anthropic API Key（`sk-ant-...`）          | high   |
-| `google_ai_key`          | Google AI Key（`AIza...`）                 | high   |
 | `huggingface_token`      | Hugging Face Token（`hf_...`）             | high   |
 | `replicate_token`        | Replicate Token（`r8_...`）                | high   |
 | **包管理**               |                                            |        |
@@ -358,7 +357,6 @@ main()
 | `datadog_api_key`        | Datadog API Key（需上下文）                | medium |
 | `datadog_app_key`        | Datadog App Key（需上下文）                | medium |
 | `newrelic_key`           | New Relic Key（`NRAK...`）                 | high   |
-| `sentry_dsn`             | Sentry DSN URL                             | high   |
 | `sentry_token`           | Sentry Token（`sntrys_...`）               | high   |
 | `grafana_api_key`        | Grafana API Key（JWT 格式，需上下文）      | medium |
 | `sonar_token`            | SonarQube Token（`squ_...`）               | high   |
@@ -374,11 +372,10 @@ main()
 | `notion_token`           | Notion Token（`secret_...` / `ntn_...`）   | medium |
 | `linear_api_key`         | Linear API Key（`lin_api_...`）            | medium |
 | `airtable_api_key`       | Airtable API Key（`key...`）               | medium |
-| `asana_token`            | Asana Token                                | medium |
+| `asana_token`            | Asana Token（需 `asana` 上下文）           | medium |
 | `pagerduty_token`        | PagerDuty Token（需上下文）                | medium |
 | `postman_api_key`        | Postman API Key（`PMAK-...`）              | medium |
 | **云服务**               |                                            |        |
-| `firebase_url`           | Firebase Realtime Database URL             | high   |
 | `firebase_key`           | Firebase API Key                           | medium |
 | `databricks_token`       | Databricks Token（`dapi...`）              | high   |
 | `fastly_api_key`         | Fastly API Key（需上下文）                 | medium |
@@ -393,20 +390,20 @@ main()
 
 ### 通用 / 启发式模式（12 个模式）
 
-| 类型                | 说明                                                   | 置信度 |
-| ------------------- | ------------------------------------------------------ | ------ |
-| `private_key`       | RSA / EC / OpenSSH / DSA / PGP 私钥                    | high   |
-| `generic_password`  | 通用密码赋值（`password = "..."`）                     | medium |
-| `generic_api_key`   | 通用 API Key 赋值（`api_key = "..."`）                 | medium |
-| `generic_token`     | 通用 Token 赋值（`access_token = "..."`）              | medium |
-| `generic_secret`    | 通用密钥赋值（`secret_key = "..."`）                   | medium |
-| `generic_sk_key`    | `sk-` 前缀通用捕获（MiniMax / DeepSeek / Moonshot 等） | medium |
-| `bearer_token`      | Authorization: Bearer ...                              | high   |
-| `jwt_token`         | JWT Token（`eyJ....`）                                 | high   |
-| `base64_secret`     | Base64 编码密钥                                        | medium |
-| `connection_string` | 通用连接字符串                                         | medium |
-| `encryption_key`    | 加密密钥（`aes_key = "..."`）                          | medium |
-| `webhook_url`       | Webhook URL（含密钥路径）                              | high   |
+| 类型                | 说明                                                                                      | 置信度 |
+| ------------------- | ----------------------------------------------------------------------------------------- | ------ |
+| `private_key`       | RSA / EC / OpenSSH / DSA / PGP 私钥                                                       | high   |
+| `generic_password`  | 通用密码赋值（`password = "..."`）                                                        | medium |
+| `generic_api_key`   | 通用 API Key 赋值（`api_key = "..."`）                                                    | medium |
+| `generic_token`     | 通用 Token 赋值（`access_token = "..."`）                                                 | medium |
+| `generic_secret`    | 通用密钥赋值（`secret_key = "..."`）                                                      | medium |
+| `generic_sk_key`    | `sk-` 前缀通用捕获（排除 `sk-proj-` / `sk-ant-`，避免与 openai_key / anthropic_key 重复） | medium |
+| `bearer_token`      | Authorization: Bearer ...                                                                 | high   |
+| `jwt_token`         | JWT Token（`eyJ....`）                                                                    | high   |
+| `base64_secret`     | Base64 编码密钥                                                                           | medium |
+| `connection_string` | 通用连接字符串                                                                            | medium |
+| `encryption_key`    | 加密密钥（`aes_key = "..."`）                                                             | medium |
+| `webhook_url`       | Webhook URL（含密钥路径）                                                                 | high   |
 
 ### Entropy 熵值检测
 
@@ -461,11 +458,11 @@ main()
 
 ### 误报过滤
 
-#### 子串匹配跳过标记（16 个）
+#### 子串匹配跳过标记（21 个）
 
 包含以下关键词的行将被跳过：
 
-`example`、`placeholder`、`your_`、`todo`、`sample`、`changeme`、`replace_`、`insert_`、`put_your`、`FIXME`、`REPLACE`、`<your`、`dummy`、`fake`、`mock`、`stub`
+`example`、`placeholder`、`your_`、`todo`、`sample`、`changeme`、`replace_`、`insert_`、`put_your`、`FIXME`、`REPLACE`、`<your`、`dummy`、`fake`、`mock`、`stub`、`redacted`、`<masked>`、`********`、`sanitized`、`[secret]`
 
 #### 词边界跳过标记（3 个）
 

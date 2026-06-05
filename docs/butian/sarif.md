@@ -57,7 +57,6 @@ python3 sarif.py analysis.json output.sarif.json
       "driver": {
         "name": "补天 (Butian)",
         "version": "1.0.0",
-        "informationUri": "https://github.com/nicepkg/butian",
         "rules": [...]
       }
     },

@@ -228,7 +228,6 @@ def build_sarif(analysis):
                         "name": "补天 (Butian)",
                         "version": "1.0.0",
                         "semanticVersion": "1.0.0",
-                        "informationUri": "https://github.com/nicepkg/butian",
                         "rules": rules,
                     }
                 },

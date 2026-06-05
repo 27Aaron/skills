@@ -16,6 +16,14 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_PATH = os.path.join(HERE, "..", "templates", "report.md")
 
+try:
+    from .scan import CAPABILITY_BOUNDARY, HYGIENE_ONLY_NOTICE
+except ImportError:
+    from scan import (  # pyright: ignore[reportMissingImports]
+        CAPABILITY_BOUNDARY,
+        HYGIENE_ONLY_NOTICE,
+    )
+
 SEVERITY_LABELS = {
     "critical": "紧急",
     "high": "高风险",
@@ -23,17 +31,6 @@ SEVERITY_LABELS = {
     "low": "低风险",
     "info": "待确认",
 }
-CAPABILITY_BOUNDARY = (
-    "安全往往不是最显眼的需求，却是产品长期稳定运行的底线。"
-    "补天会优先帮助你发现依赖漏洞、过期依赖和仓库卫生风险，"
-    "让容易被忽视的供应链问题更早暴露出来。"
-    "但它不能替代代码审计、渗透测试或部署安全评估；"
-    "代码层面的权限、业务逻辑、SQL 注入、XSS 等问题仍需单独复核。"
-)
-HYGIENE_ONLY_NOTICE = (
-    "当前项目没有发现补天支持的依赖文件，暂不支持依赖漏洞扫描；"
-    "本次只做仓库卫生扫描，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。"
-)
 
 
 def to_list(value):

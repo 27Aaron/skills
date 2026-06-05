@@ -166,6 +166,7 @@ py -3 scripts/visualize.py .butian/<timestamp>/assets/analysis.json
 ## 依赖与运行前提
 
 - 全部脚本是 Python 3 标准库，零第三方依赖（不用 pip install）。
+- 最低 Python 3.8；Python 3.11+ 可使用内置 `tomllib` 解析 TOML lockfile，3.8–3.10 自动回退到正则提取（覆盖绝大多数 lockfile 格式）。
 - macOS/Linux 自带 python3；Windows 需先装 Python 3，并使用 `py -3` 执行上述 Windows 示例。
 - 依赖扫描支持：JavaScript/TypeScript（`package-lock.json` / `pnpm-lock.yaml` / `yarn.lock`）、Python（`poetry.lock` / `uv.lock` / `Pipfile.lock` / `requirements.txt`）、Go（`go.sum`）、Rust（`Cargo.lock`）。`requirements.txt` 只用 `==` / `===` 精确版本做漏洞匹配；支持 `-r` 文件包含和行续行符。
 

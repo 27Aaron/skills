@@ -17,9 +17,13 @@ import re
 import sys
 
 try:
-    from .scan import run_dir_from_output_file
+    from .scan import CAPABILITY_BOUNDARY, HYGIENE_ONLY_NOTICE, run_dir_from_output_file
 except ImportError:
-    from scan import run_dir_from_output_file  # pyright: ignore[reportMissingImports]
+    from scan import (  # pyright: ignore[reportMissingImports]
+        CAPABILITY_BOUNDARY,
+        HYGIENE_ONLY_NOTICE,
+        run_dir_from_output_file,
+    )
 
 SEVERITY_ORDER = {
     "critical": 5,
@@ -54,10 +58,6 @@ SENSITIVE_TYPE_LABELS = {
     "credentials": "凭证文件",
     "ssh_key": "SSH 私钥",
 }
-HYGIENE_ONLY_NOTICE = (
-    "当前项目没有发现补天支持的依赖文件，暂不支持依赖漏洞扫描；"
-    "本次只做仓库卫生扫描，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。"
-)
 
 
 def normalize_severity(value):

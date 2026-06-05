@@ -24,7 +24,7 @@ Official vulnerability sources:
   OSV       GET  https://api.osv.dev/v1/vulns/{id}
   NVD       GET  https://services.nvd.nist.gov/rest/json/cves/2.0?cveIds=...
   CISA KEV  GET  https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
-  EPSS      GET  https://api.first.org/epss/?cve=...
+  EPSS      GET  https://api.first.org/data/v1/epss?cve=...
 
   OSV query example: {"queries": [{"package": {"ecosystem":"npm","name":"next"}, "version":"15.5.1"}]}
   Supported ecosystems: JavaScript/TypeScript (npm/pnpm/yarn), Python (pypi), Go, Rust (crates-io)
@@ -79,6 +79,13 @@ _GITIGNORE_STATUS_BY_PROJECT = {}
 HYGIENE_ONLY_NOTICE = (
     "当前项目没有发现补天支持的依赖文件，暂不支持依赖漏洞扫描；"
     "本次只做仓库卫生扫描，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。"
+)
+CAPABILITY_BOUNDARY = (
+    "安全往往不是最显眼的需求，却是产品长期稳定运行的底线。"
+    "补天会优先帮助你发现依赖漏洞、过期依赖和仓库卫生风险，"
+    "让容易被忽视的供应链问题更早暴露出来。"
+    "但它不能替代代码审计、渗透测试或部署安全评估；"
+    "代码层面的权限、业务逻辑、SQL 注入、XSS 等问题仍需单独复核。"
 )
 
 
@@ -328,10 +335,9 @@ _SAAS_PATTERNS = [
     # Braintree
     ("braintree_token", r"access_token\$production\$[a-z0-9]{20,}\$[a-f0-9]{32}"),
     # Firebase / Google
-    ("firebase_url", r"https://[a-z0-9-]+\.firebaseio\.com"),
     (
         "firebase_key",
-        r"(?:AIza[0-9A-Za-z_-]{35})|(?:[Ff]irebase[_\s-]?[Kk]ey\s*[:=]\s*[\"']?[A-Za-z0-9_-]{20,})",
+        r"[Ff]irebase[_\s-]?[Kk]ey\s*[:=]\s*[\"']?[A-Za-z0-9_-]{20,}",
     ),
     # Datadog (requires context)
     (
@@ -382,7 +388,7 @@ _SAAS_PATTERNS = [
     # OpenAI / LLM Providers
     ("openai_key", r"sk-(?:proj-)?[A-Za-z0-9_-]{20,}"),
     ("anthropic_key", r"sk-ant-[A-Za-z0-9_-]{20,}"),
-    ("google_ai_key", r"AIza[0-9A-Za-z_-]{35}"),
+    # Note: google_ai_key uses same AIza prefix as gcp_api_key — already covered above
     ("huggingface_token", r"hf_[A-Za-z0-9]{34}"),
     ("replicate_token", r"r8_[A-Za-z0-9]{30,}"),
     # PyPI
@@ -404,8 +410,11 @@ _SAAS_PATTERNS = [
     ("linear_api_key", r"lin_api_[A-Za-z0-9_]{30,}"),
     # Airtable
     ("airtable_api_key", r"key[A-Za-z0-9]{14}"),
-    # Asana
-    ("asana_token", r"(?:1|2)/[0-9]+:[A-Za-z0-9]+"),
+    # Asana (requires context to avoid matching version strings)
+    (
+        "asana_token",
+        r"(?:asana|ASANA)[_\s-]?(?:token|api|key|pat)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?(?:1|2)/[0-9]+:[A-Za-z0-9]+[\"']?",
+    ),
     # Fastly (requires context)
     (
         "fastly_api_key",
@@ -417,7 +426,6 @@ _SAAS_PATTERNS = [
         r"(?:ngrok|NGROK)[_\s-]?(?:token|api|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[A-Za-z0-9_-]{30,}[\"']?",
     ),
     # Sentry
-    ("sentry_dsn", r"https://[a-f0-9]+@[a-z0-9]+\.ingest\.sentry\.io/[0-9]+"),
     ("sentry_token", r"sntrys_[A-Za-z0-9_-]{40,}"),
     # Databricks
     ("databricks_token", r"dapi[a-f0-9]{32}"),
@@ -503,9 +511,10 @@ _GENERIC_PATTERNS = [
     ),
     # Generic sk- prefix catch-all (MiniMax, DeepSeek, Moonshot, Zhipu, etc.)
     # Many LLM/API providers use sk- as key prefix; medium confidence, user judges
+    # Excludes sk-proj- (openai_key) and sk-ant- (anthropic_key) already matched above
     (
         "generic_sk_key",
-        r"""sk-[A-Za-z0-9_-]{8,}""",
+        r"""sk-(?!proj-|ant-)[A-Za-z0-9_-]{8,}""",
     ),
 ]
 
@@ -528,6 +537,11 @@ SECRET_SKIP_MARKERS = (
     "fake",
     "mock",
     "stub",
+    "redacted",
+    "<masked>",
+    "********",
+    "sanitized",
+    "[secret]",
 )
 # Markers that are too short / ambiguous — require word boundary check
 SECRET_SKIP_WORD_MARKERS = (
@@ -572,7 +586,6 @@ HIGH_CONFIDENCE_SECRET_TYPES = {
     "square_access_token",
     "square_oauth_secret",
     "shopify_token",
-    "firebase_url",
     "newrelic_key",
     "npm_token",
     "npmrc_auth_token",
@@ -583,7 +596,6 @@ HIGH_CONFIDENCE_SECRET_TYPES = {
     "replicate_token",
     "pypi_token",
     "sonar_token",
-    "sentry_dsn",
     "sentry_token",
     "databricks_token",
     "mongodb_connection",
@@ -1634,14 +1646,24 @@ def scan_secrets(
                 continue
             count += 1
 
-    # Merge: deduplicate regex findings
+    # Merge: deduplicate regex findings.
+    # Same (file, line) already matched by a high-confidence pattern suppresses
+    # lower-confidence matches on that line to avoid duplicate reports.
     seen = set()
+    high_conf_locations = set()
     deduped = []
     for f in findings:
         key = (f["file"], f["line"], f["type"])
-        if key not in seen:
-            seen.add(key)
-            deduped.append(f)
+        loc = (f["file"], f["line"])
+        if key in seen:
+            continue
+        # Skip low/medium confidence if a high-confidence match already covers this line
+        if f.get("confidence") != "high" and loc in high_conf_locations:
+            continue
+        seen.add(key)
+        if f.get("confidence") == "high":
+            high_conf_locations.add(loc)
+        deduped.append(f)
 
     # Deduplicate entropy findings and suppress those already caught by regex
     regex_hit_keys = {(f["file"], f["line"]) for f in deduped}
@@ -3797,10 +3819,11 @@ def main():
             return "vulnerabilities", [], [], round(time.time() - step_started, 3)
         step_errors = []
         try:
+            api_workers = min(4, (os.cpu_count() or 1))
             result = check_vulnerabilities(
                 packages,
                 errors=step_errors,
-                concurrency=1,
+                concurrency=api_workers,
             )
         except Exception as e:
             result = []
@@ -3818,11 +3841,12 @@ def main():
             return "outdated", [], [], round(time.time() - step_started, 3)
         step_errors = []
         try:
+            outdated_workers = min(4, (os.cpu_count() or 1))
             result = check_outdated(
                 project_path,
                 ecosystems,
                 errors=step_errors,
-                concurrency=1,
+                concurrency=outdated_workers,
                 packages=packages,
             )
         except Exception as e:
@@ -3866,8 +3890,8 @@ def main():
             "total_vulnerabilities": len(vulnerabilities),
         },
         "scan_config": {
-            "api_concurrency": 1,
-            "outdated_concurrency": 1,
+            "api_concurrency": min(4, (os.cpu_count() or 1)),
+            "outdated_concurrency": min(4, (os.cpu_count() or 1)),
             "preflight_file": os.path.abspath(args.preflight)
             if args.preflight
             else None,
