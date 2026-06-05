@@ -882,17 +882,12 @@ td.summary-cell {
     font-size: 11px;
 }
 
-/* fix action buttons */
-.fix-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-top: 4px;
-}
+/* expand / collapse toggle */
 .fix-btn {
-    border: 1px solid transparent;
+    border: 1px solid var(--pill-border);
     border-radius: var(--radius-pill);
+    background: var(--pill-bg);
+    color: var(--ink);
     padding: 7px 15px;
     cursor: pointer;
     font-size: 13px;
@@ -901,62 +896,11 @@ td.summary-cell {
     transition:
         background-color 0.16s,
         border-color 0.16s,
-        color 0.16s,
-        transform 0.12s;
+        color 0.16s;
 }
-.fix-btn:active:not(:disabled) {
-    transform: translateY(1px);
-}
-.fix-btn.safe {
-    border-color: rgba(4, 120, 87, 0.16);
-    background: var(--green-bg);
-    color: var(--accent);
-}
-.fix-btn.safe:hover {
-    background: #d1fae5;
-    border-color: rgba(4, 120, 87, 0.24);
-}
-.fix-btn.open {
-    border-color: var(--pill-border);
-    background: var(--pill-bg);
-    color: var(--ink);
-}
-.fix-btn.open:hover {
+.fix-btn:hover {
     border-color: rgba(4, 120, 87, 0.18);
     background: #ffffff;
-}
-.fix-btn.danger {
-    border-color: rgba(185, 28, 28, 0.12);
-    background: var(--red-bg);
-    color: #b91c1c;
-}
-.fix-btn.danger:hover {
-    background: #fee2e2;
-}
-.fix-btn:disabled {
-    opacity: 0.45;
-    cursor: default;
-    transform: none;
-}
-.fix-status {
-    color: var(--sub);
-    font-size: 13px;
-}
-.fix-status.ok {
-    color: var(--green);
-    font-weight: 650;
-}
-.fix-status.err {
-    color: var(--red);
-}
-.fix-note {
-    margin-top: 8px;
-    color: var(--sub);
-    font-size: 12px;
-    line-height: 1.6;
-}
-.fix-note b {
-    color: var(--ink);
 }
 
 /* summary */
@@ -1239,13 +1183,12 @@ footer {
         background: rgba(110, 231, 183, 0.1);
         color: var(--accent-ink);
     }
-    .fix-btn.open:hover {
+    .fix-btn:hover {
         border-color: rgba(110, 231, 183, 0.2);
         background: rgba(255, 255, 255, 0.08);
     }
     .sev-critical,
-    .risk,
-    .fix-btn.danger {
+    .risk {
         border-color: rgba(248, 113, 113, 0.24);
         background: rgba(248, 113, 113, 0.14);
         color: #fecaca;
@@ -1262,7 +1205,6 @@ footer {
     }
     .sev-low,
     .item-badge,
-    .fix-btn.safe,
     .tier-badge.green {
         border-color: rgba(52, 211, 153, 0.22);
         background: rgba(16, 185, 129, 0.14);
@@ -1277,13 +1219,6 @@ footer {
         border-color: rgba(248, 113, 113, 0.24);
         background: rgba(248, 113, 113, 0.14);
         color: #fecaca;
-    }
-    .fix-btn.safe:hover {
-        border-color: rgba(52, 211, 153, 0.32);
-        background: rgba(16, 185, 129, 0.2);
-    }
-    .fix-btn.danger:hover {
-        background: rgba(248, 113, 113, 0.2);
     }
     .denied {
         border-color: rgba(245, 158, 11, 0.22);
@@ -1373,7 +1308,6 @@ footer {
         box-shadow: none;
     }
     .copy,
-    .fix-actions,
     .sec-actions {
         display: none !important;
     }

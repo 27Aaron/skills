@@ -124,15 +124,15 @@ const DATA = (() => {
       (rs.critical || 0) + (rs.high || 0) + (rs.medium || 0) + (rs.low || 0);
     if (rs.critical || 0 || rs.high || 0) {
       d.summary.tldr =
-        "这次扫描发现会影响发布判断的高优先级风险，建议先安排紧急和高风险项。";
+        "发现多项已确认依赖漏洞，可能影响发布判断；建议先处理紧急和高风险项，再评估其余。";
     } else if (riskTotal) {
       d.summary.tldr =
-        "这次扫描发现一些中风险或低风险项，建议按影响范围分批处理。";
+        "发现一些中风险或低风险项，建议按影响范围分批处理。";
     } else if (d.errors && d.errors.length) {
-      d.summary.tldr = "这次扫描暂未确认风险，但有部分检查失败，结论需要复核。";
+      d.summary.tldr = "暂未确认风险，但有部分检查失败，结论需要复核。";
     } else {
       d.summary.tldr =
-        "这次扫描没有发现明确风险，可以把这份报告作为当前项目安全状态记录。";
+        "本次扫描未发现明确风险。这份报告可以作为当前项目安全状态的基线记录。";
     }
   }
   if (!d.summary.detail) {
@@ -1300,7 +1300,7 @@ function renderYellow(items) {
       return card("yellow", it.name, it.severity, it.path || "", inner);
     })
     .join("");
-  return section("人工复核", items.length, cards, "", "review");
+  return section("待确认事项", items.length, cards, "", "review");
 }
 
 // ---- Red: high-risk ----
@@ -1315,7 +1315,7 @@ function renderRed(items) {
       return card("red", it.name, it.severity, it.path || "", inner);
     })
     .join("");
-  return section("优先处理的高风险项", items.length, cards, "", "risk");
+  return section("优先处理", items.length, cards, "", "risk");
 }
 
 // ---- Errors ----

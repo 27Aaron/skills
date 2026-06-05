@@ -14,8 +14,7 @@ Usage:
     python3 scan.py --preflight <preflight_json>
     python3 scan.py [project_path]              # 默认向上识别项目根目录
     python3 scan.py --no-root-discovery <path>  # 严格扫描传入目录
-    python3 scan.py --api-concurrency 1 <path>  # 覆盖默认官方漏洞源并发
-    python3 scan.py --outdated-concurrency 4 <path>
+    python3 scan.py <path>
     python3 scan.py --skip-outdated <path>      # 跳过较慢的过旧依赖检查
     python3 scan.py --include-packages <path>   # 输出完整包清单
     python3 scan.py                             # 等同于 python3 scan.py .
@@ -2375,18 +2374,6 @@ def parse_args(argv):
         help="scan the provided path directly instead of walking up to a repo root",
     )
     parser.add_argument(
-        "--api-concurrency",
-        type=int,
-        default=1,
-        help="number of concurrent official vulnerability source batch requests",
-    )
-    parser.add_argument(
-        "--outdated-concurrency",
-        type=int,
-        default=None,
-        help="number of concurrent outdated dependency checks",
-    )
-    parser.add_argument(
         "--skip-outdated",
         action="store_true",
         help="skip package-manager outdated checks for faster vulnerability-only scans",
@@ -2413,16 +2400,6 @@ def parse_args(argv):
         help="emit compact JSON instead of pretty-printed JSON",
     )
     return parser.parse_args(argv)
-
-
-def default_concurrency(cap):
-    return max(1, min(os.cpu_count() or 4, cap))
-
-
-def bounded_concurrency(value, cap):
-    if value is None:
-        value = default_concurrency(cap)
-    return max(1, min(int(value or 1), cap))
 
 
 def load_preflight(path):
@@ -2464,8 +2441,6 @@ def main():
         )
     preflight_scan_mode = (preflight or {}).get("recommended_scan_mode")
     preflight_hygiene_only = preflight_scan_mode == "hygiene_only"
-    api_concurrency = bounded_concurrency(args.api_concurrency, 16)
-    outdated_concurrency = bounded_concurrency(args.outdated_concurrency, 8)
     output_file = args.output or default_output_path(project_path, preflight=preflight)
     errors = []
     step_seconds = {}
@@ -2534,7 +2509,7 @@ def main():
             result = check_vulnerabilities(
                 packages,
                 errors=step_errors,
-                concurrency=api_concurrency,
+                concurrency=1,
             )
         except Exception as e:
             result = []
@@ -2556,7 +2531,7 @@ def main():
                 project_path,
                 ecosystems,
                 errors=step_errors,
-                concurrency=outdated_concurrency,
+                concurrency=1,
                 packages=packages,
             )
         except Exception as e:
@@ -2600,8 +2575,8 @@ def main():
             "total_vulnerabilities": len(vulnerabilities),
         },
         "scan_config": {
-            "api_concurrency": api_concurrency,
-            "outdated_concurrency": outdated_concurrency,
+            "api_concurrency": 1,
+            "outdated_concurrency": 1,
             "preflight_file": os.path.abspath(args.preflight)
             if args.preflight
             else None,

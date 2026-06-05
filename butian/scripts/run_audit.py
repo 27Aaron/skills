@@ -55,18 +55,6 @@ def parse_args(argv):
         help="skip gitignore, tracked sensitive file, and hardcoded secret checks",
     )
     parser.add_argument(
-        "--api-concurrency",
-        type=int,
-        default=None,
-        help="number of concurrent official vulnerability source batch requests",
-    )
-    parser.add_argument(
-        "--outdated-concurrency",
-        type=int,
-        default=None,
-        help="number of concurrent outdated dependency checks",
-    )
-    parser.add_argument(
         "--max-secret-files",
         type=int,
         default=None,
@@ -436,10 +424,6 @@ def build_scan_cmd(args, preflight_file):
         cmd.append("--skip-hygiene")
     if args.include_packages:
         cmd.append("--include-packages")
-    if args.api_concurrency is not None:
-        cmd.extend(["--api-concurrency", str(args.api_concurrency)])
-    if args.outdated_concurrency is not None:
-        cmd.extend(["--outdated-concurrency", str(args.outdated_concurrency)])
     if args.max_secret_files is not None:
         cmd.extend(["--max-secret-files", str(args.max_secret_files)])
     return cmd
