@@ -19,11 +19,11 @@ class ButianReportAssetTests(unittest.TestCase):
             "generated_at": "2026-06-05 09:05:50",
             "project": {"name": "demo", "path": "/tmp/demo", "ecosystems": ["npm"]},
             "risk_summary": {
-                "critical": 0,
+                "critical": 1,
                 "high": 1,
-                "medium": 0,
-                "low": 0,
-                "info": 0,
+                "medium": 1,
+                "low": 1,
+                "info": 1,
             },
             "summary": {"tldr": "demo", "detail": "demo", "priority": ["demo"]},
             "top_issues": [
@@ -42,7 +42,22 @@ class ButianReportAssetTests(unittest.TestCase):
                     "current": "4.12.14",
                     "latest": "4.12.21",
                     "ecosystem": "npm",
-                }
+                },
+                *[
+                    {
+                        "package": f"demo-lib-{idx}",
+                        "current": "1.0.0",
+                        "latest": "1.0.1",
+                        "ecosystem": "npm",
+                    }
+                    for idx in range(6)
+                ],
+                {
+                    "package": "@scope/very-long-hidden-package-name",
+                    "current": "2026.10.100",
+                    "latest": "2026.11.101",
+                    "ecosystem": "npm",
+                },
             ],
         }
         code = textwrap.dedent(
@@ -83,10 +98,32 @@ class ButianReportAssetTests(unittest.TestCase):
         )
         html = result.stdout
 
-        self.assertIn("<th>严重程度</th>", html)
+        self.assertIn('<div class="k">风险等级</div>', html)
+        self.assertIn("风险项分布", html)
+        self.assertIn("<th>影响程度</th>", html)
+        self.assertNotIn("风险等级分布", html)
+        self.assertNotIn("<th>严重程度</th>", html)
         self.assertIn("<th>依赖名称</th>", html)
         self.assertIn("<th>当前版本</th>", html)
         self.assertIn("<th>最近版本</th>", html)
+        self.assertNotIn("<th>生态</th>", html)
+        self.assertNotIn("<td>npm</td>", html)
+        self.assertIn("--outdated-current-col:", html)
+        self.assertIn("--outdated-latest-col:", html)
+        self.assertIn('class="outdated-extra"', html)
+        self.assertIn("@scope/very-long-hidden-package-name", html)
+        self.assertNotIn("信息 <b>", html)
+        self.assertNotIn("sev-info", html)
+        self.assertIn('class="sev-badge sev-critical">紧急</span>', html)
+        self.assertIn('class="sev-badge sev-high">高风险</span>', html)
+        self.assertIn("紧急 <b>1</b>", html)
+        self.assertIn("高风险 <b>1</b>", html)
+        self.assertIn("中风险 <b>1</b>", html)
+        self.assertIn("低风险 <b>1</b>", html)
+        self.assertNotIn(">严重</span>", html)
+        self.assertNotIn(">高危</span>", html)
+        self.assertNotIn(">中危", html)
+        self.assertNotIn(">低危", html)
         self.assertNotIn("<span>能力边界</span>", html)
         self.assertNotIn("并跑一次测试", html)
         self.assertNotIn("可更新到", html)
@@ -104,6 +141,10 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn(".fixed-list", css)
         self.assertIn("grid-template-columns: repeat(2, max-content)", css)
         self.assertIn("td.fixed-cell", css)
+        self.assertIn(".outdated-table .col-current", css)
+        self.assertIn(".outdated-table .col-latest", css)
+        self.assertNotIn("border-left-width: 4px", css)
+        self.assertNotIn("border-left-color: var(--warning-ink)", css)
 
 
 if __name__ == "__main__":

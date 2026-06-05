@@ -418,7 +418,13 @@ tbody tr:hover {
     min-width: max(820px, calc(620px + var(--package-col, 160px)));
 }
 .outdated-table {
-    min-width: max(760px, calc(520px + var(--package-col, 160px)));
+    min-width: max(
+        860px,
+        calc(
+            var(--package-col, 160px) + var(--outdated-current-col, 150px) +
+                var(--outdated-latest-col, 150px) + 360px
+        )
+    );
 }
 .col-severity {
     width: 72px;
@@ -436,11 +442,14 @@ tbody tr:hover {
 .col-latest {
     width: 112px;
 }
+.outdated-table .col-current {
+    width: var(--outdated-current-col, 150px);
+}
+.outdated-table .col-latest {
+    width: var(--outdated-latest-col, 150px);
+}
 .col-advisory {
     width: 180px;
-}
-.col-ecosystem {
-    width: 92px;
 }
 tr:last-child td {
     border-bottom: none;
@@ -630,12 +639,6 @@ td.summary-cell {
     background: var(--green-bg);
     color: var(--accent);
 }
-.sev-info {
-    border-color: rgba(15, 23, 42, 0.06);
-    background: #eef2f7;
-    color: #475569;
-}
-
 /* item cards */
 .item {
     overflow: hidden;
@@ -987,14 +990,12 @@ td.summary-cell {
 .summary-boundary {
     margin: 12px 0;
     border: 1px solid var(--field-border);
-    border-left-width: 4px;
     border-radius: var(--radius-field);
     background: var(--field-bg);
     padding: 11px 14px;
 }
 .summary-boundary.warning {
     border-color: var(--warning-border);
-    border-left-color: var(--warning-ink);
     background: var(--warning-bg);
 }
 .summary-boundary p {
@@ -1276,11 +1277,6 @@ footer {
         border-color: rgba(248, 113, 113, 0.24);
         background: rgba(248, 113, 113, 0.14);
         color: #fecaca;
-    }
-    .sev-info {
-        border-color: rgba(255, 255, 255, 0.08);
-        background: rgba(148, 163, 184, 0.14);
-        color: #cbd5e1;
     }
     .fix-btn.safe:hover {
         border-color: rgba(52, 211, 153, 0.32);

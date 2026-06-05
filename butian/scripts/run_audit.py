@@ -268,11 +268,10 @@ def quote_line(text):
 
 def format_risk_rows(risk_summary):
     labels = [
-        ("critical", "🔴 严重 (Critical)"),
-        ("high", "🟠 高危 (High)"),
-        ("medium", "🟡 中危 (Medium)"),
-        ("low", "🔵 低危 (Low)"),
-        ("info", "⚪ 信息 (Info)"),
+        ("critical", "🔴 紧急 (Critical)"),
+        ("high", "🟠 高风险 (High)"),
+        ("medium", "🟡 中风险 (Medium)"),
+        ("low", "🔵 低风险 (Low)"),
     ]
     rows = [
         [label, str(int(risk_summary.get(key) or 0))]
@@ -309,7 +308,7 @@ def format_focus(analysis):
     )[:6]
     selected_count = sum(len(items) for _, items in ranked)
     total_priority = len(priority) if priority else len(issues)
-    noun = "严重/高危项" if priority else "已确认漏洞"
+    noun = "紧急/高风险项" if priority else "已确认漏洞"
     lines = [
         f"核心风险集中在 {len(ranked)} 个包（{total_priority} 个{noun}中它们占 {selected_count} 个）：",
         "",
@@ -337,7 +336,7 @@ def format_focus(analysis):
         lines.extend(
             [
                 "",
-                f"中危 {len(medium)} 个集中在 {', '.join(medium_packages[:6])}。",
+                f"中风险 {len(medium)} 个集中在 {', '.join(medium_packages[:6])}。",
             ]
         )
     return "\n".join(lines)
@@ -374,7 +373,7 @@ def format_human_summary(summary, scan, analysis, args):
         "📊 风险总览",
         "",
         table(
-            ["严重度", "数量"],
+            ["影响程度", "数量"],
             format_risk_rows(risk_summary),
             min_widths=[20, 6],
             aligns=["center", "left"],
@@ -401,11 +400,11 @@ def format_human_summary(summary, scan, analysis, args):
         f"- analysis JSON：{relative_path(summary.get('analysis_file'), project_path)}",
         "",
         quote_line(
-            "如果存在严重/高危项，建议先处理有明确修复版本的依赖；过期依赖作为维护信号，放在漏洞修复验证之后排期。"
+            "如果存在紧急/高风险项，建议先处理有明确修复版本的依赖；过期依赖作为维护信号，放在漏洞修复验证之后排期。"
         ),
         "",
         "---",
-        '如果你想继续修复，在对话里回 修复 / OK / 可以修 即可。我会按"主要修复（严重/高危有明确修复版本）→ 次要修复（过期依赖与中危）"的顺序处理，每步执行后跑构建验证。',
+        '如果你想继续修复，在对话里回 修复 / OK / 可以修 即可。我会按"主要修复（紧急/高风险有明确修复版本）→ 次要修复（过期依赖与中风险）"的顺序处理，每步执行后跑构建验证。',
     ]
     return "\n".join(lines)
 

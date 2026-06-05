@@ -29,11 +29,10 @@ SEVERITY_ORDER = {
 }
 
 SEVERITY_LABELS = {
-    "critical": "严重",
-    "high": "高危",
-    "medium": "中危",
-    "low": "低危",
-    "info": "信息",
+    "critical": "紧急",
+    "high": "高风险",
+    "medium": "中风险",
+    "low": "低风险",
 }
 
 SECRET_TYPE_LABELS = {
@@ -305,11 +304,11 @@ def build_summary(scan, analysis):
     errors = scan.get("errors") or []
 
     if critical_high and vuln_count:
-        tldr = "发现需要优先安排的依赖安全风险，建议先处理严重和高危漏洞，再确认仓库中的敏感信息迹象。"
+        tldr = "发现需要优先安排的依赖安全风险，建议先处理紧急和高风险漏洞，再确认仓库中的敏感信息迹象。"
     elif secret_count or sensitive_count:
         tldr = "未发现高优先级依赖漏洞，但仓库里有凭证或敏感文件迹象，需要研发确认。"
     elif vuln_count:
-        tldr = "发现已确认依赖漏洞，当前以中低风险为主，建议按维护窗口分批升级。"
+        tldr = "发现已确认依赖漏洞，当前以中风险或低风险为主，建议按维护窗口分批升级。"
     elif errors:
         tldr = (
             "本次扫描暂未确认安全风险，但有部分检查失败，结论需要复核后再作为发布依据。"
@@ -328,11 +327,11 @@ def build_summary(scan, analysis):
     priority = []
     if critical_high:
         priority.append(
-            f"优先处理 {critical_high} 个严重/高危项，先升级有明确修复版本的依赖，再运行测试或构建。"
+            f"优先处理 {critical_high} 个紧急/高风险项，先升级有明确修复版本的依赖，再运行测试或构建。"
         )
     elif vuln_count:
         priority.append(
-            f"按严重度处理 {vuln_count} 个已确认依赖漏洞，优先选择兼容范围内的修复版本。"
+            f"按影响程度处理 {vuln_count} 个已确认依赖漏洞，优先选择兼容范围内的修复版本。"
         )
     if secret_count or sensitive_count:
         priority.append(

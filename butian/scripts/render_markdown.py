@@ -12,11 +12,10 @@ import re
 import sys
 
 SEVERITY_LABELS = {
-    "critical": "严重",
-    "high": "高危",
-    "medium": "中危",
-    "low": "低危",
-    "info": "信息",
+    "critical": "紧急",
+    "high": "高风险",
+    "medium": "中风险",
+    "low": "低风险",
 }
 CAPABILITY_BOUNDARY = (
     "安全往往不是最显眼的需求，却是产品长期稳定运行的底线。"
@@ -77,7 +76,7 @@ def default_output_path(analysis):
 
 
 def severity_label(value):
-    return SEVERITY_LABELS.get(text(value).lower(), text(value) or "信息")
+    return SEVERITY_LABELS.get(text(value).lower(), "低风险")
 
 
 def security_ids(item):
@@ -130,7 +129,7 @@ def render_vulnerabilities(analysis):
 
     lines.extend(
         [
-            "| 严重程度 | 依赖名称 | 当前版本 | GHSA | 修复版本 | 说明 |",
+            "| 影响程度 | 依赖名称 | 当前版本 | GHSA | 修复版本 | 说明 |",
             "| --- | --- | --- | --- | --- | --- |",
         ]
     )
@@ -235,8 +234,8 @@ def render_outdated(analysis):
     lines.append("")
     lines.extend(
         [
-            "| 依赖名称 | 当前版本 | 最近版本 | 生态 | 建议 |",
-            "| --- | --- | --- | --- | --- |",
+            "| 依赖名称 | 当前版本 | 最近版本 | 建议 |",
+            "| --- | --- | --- | --- |",
         ]
     )
     for item in outdated:
@@ -263,10 +262,9 @@ def render_outdated(analysis):
             cell(package),
             cell(current or "-"),
             cell(target or "-"),
-            cell(item.get("ecosystem") or "-"),
             cell(summary),
         ]
-        lines.append(f"| {row[0]} | {row[1]} | {row[2]} | {row[3]} | {row[4]} |")
+        lines.append(f"| {row[0]} | {row[1]} | {row[2]} | {row[3]} |")
     lines.append("")
     return lines
 
@@ -281,7 +279,7 @@ def render_manual_items(analysis):
     for index, item in enumerate(items, 1):
         lines.append(f"### {index}. {text(item.get('name')) or '待确认事项'}")
         if item.get("severity"):
-            lines.append(f"- 严重度：{severity_label(item.get('severity'))}")
+            lines.append(f"- 影响程度：{severity_label(item.get('severity'))}")
         if item.get("path") or item.get("file"):
             lines.append(f"- 位置：`{text(item.get('path') or item.get('file'))}`")
         why = (

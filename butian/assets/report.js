@@ -110,9 +110,10 @@ const DATA = (() => {
       (rs.critical || 0) + (rs.high || 0) + (rs.medium || 0) + (rs.low || 0);
     if (rs.critical || 0 || rs.high || 0) {
       d.summary.tldr =
-        "这次扫描发现会影响发布判断的高优先级风险，建议先安排严重和高危项。";
+        "这次扫描发现会影响发布判断的高优先级风险，建议先安排紧急和高风险项。";
     } else if (riskTotal) {
-      d.summary.tldr = "这次扫描发现一些中低风险项，建议按影响范围分批处理。";
+      d.summary.tldr =
+        "这次扫描发现一些中风险或低风险项，建议按影响范围分批处理。";
     } else if (d.errors && d.errors.length) {
       d.summary.tldr = "这次扫描暂未确认风险，但有部分检查失败，结论需要复核。";
     } else {
@@ -135,11 +136,11 @@ const DATA = (() => {
       (d.risk_summary.critical || 0) + (d.risk_summary.high || 0);
     if (criticalHigh) {
       priority.push(
-        `优先安排 ${criticalHigh} 个严重/高危项，先升级有修复版本的依赖，再跑测试确认没有影响功能。`,
+        `优先安排 ${criticalHigh} 个紧急/高风险项，先升级有修复版本的依赖，再跑测试确认没有影响功能。`,
       );
     } else if (d.vulns && d.vulns.length) {
       priority.push(
-        `处理 ${d.vulns.length} 个已确认依赖漏洞，按严重度从高到低分批升级。`,
+        `处理 ${d.vulns.length} 个已确认依赖漏洞，按影响程度从高到低分批升级。`,
       );
     }
     if (d.yellow && d.yellow.length) {
@@ -197,23 +198,27 @@ function cmdBlock(c) {
   return `${label}<div class="cmd">${copyBtn(c.cmd)}${esc(c.cmd)}</div>`;
 }
 
+function visibleSeverity(sev) {
+  const value = String(sev || "").toLowerCase();
+  return ["critical", "high", "medium", "low"].includes(value) ? value : "low";
+}
+
 function sevBadge(sev) {
+  const visible = visibleSeverity(sev);
   const cls =
     {
       critical: "sev-critical",
       high: "sev-high",
       medium: "sev-medium",
       low: "sev-low",
-      info: "sev-info",
-    }[sev] || "sev-info";
+    }[visible] || "sev-low";
   const text =
     {
-      critical: "严重",
-      high: "高危",
-      medium: "中危",
-      low: "低危",
-      info: "信息",
-    }[sev] || sev;
+      critical: "紧急",
+      high: "高风险",
+      medium: "中风险",
+      low: "低风险",
+    }[visible] || "低风险";
   return `<span class="sev-badge ${cls}">${esc(text)}</span>`;
 }
 
@@ -277,22 +282,29 @@ function normalizeSecurityLanguage(value) {
     )
     .replace(/\bCVE-\d{4}-\d+\b/gi, "")
     .replace(/\bGHSA-[A-Za-z0-9-]+\b/gi, "")
-    .replace(/\bcritical\b/gi, "严重")
-    .replace(/\bhigh\b/gi, "高危")
-    .replace(/\bmedium\b/gi, "中危")
-    .replace(/\blow\b/gi, "低危")
+    .replace(/\bcritical\b/gi, "紧急")
+    .replace(/\bhigh\b/gi, "高风险")
+    .replace(/\bmedium\b/gi, "中风险")
+    .replace(/\blow\b/gi, "低风险")
+    .replace(/严重\/高危/g, "紧急/高风险")
+    .replace(/严重和高危/g, "紧急和高风险")
+    .replace(/严重漏洞/g, "紧急漏洞")
+    .replace(/严重项/g, "紧急项")
+    .replace(/高危/g, "高风险")
+    .replace(/中危/g, "中风险")
+    .replace(/低危/g, "低风险")
     .replace(/\bSSRF\b/g, "服务端访问控制风险")
     .replace(/\bXSS\b/g, "页面安全风险")
     .replace(/\bDoS\b/g, "服务稳定性风险")
     .replace(/中间件绕过/g, "访问控制绕过")
     .replace(/缓存投毒/g, "缓存内容被污染")
     .replace(
-      /(\d+)\s*个\s*严重\s*\+\s*(\d+)\s*个\s*中危/g,
-      "$1 个严重和 $2 个中危",
+      /(\d+)\s*个\s*紧急\s*\+\s*(\d+)\s*个\s*中风险/g,
+      "$1 个紧急和 $2 个中风险",
     )
     .replace(
-      /(\d+)\s*个\s*高危\s*\+\s*(\d+)\s*个\s*中危/g,
-      "$1 个高危和 $2 个中危",
+      /(\d+)\s*个\s*高风险\s*\+\s*(\d+)\s*个\s*中风险/g,
+      "$1 个高风险和 $2 个中风险",
     )
     .replace(/\s+([，。；：])/g, "$1")
     .replace(/[，、]\s*[，、]+/g, "，")
@@ -853,8 +865,8 @@ function renderOverview(proj, rs) {
     ? `生成于 ${DATA.generated_at}${DATA.total_seconds ? "　·　总耗时 " + DATA.total_seconds + "s" : DATA.scan_seconds ? "　·　扫描耗时 " + DATA.scan_seconds + "s" : ""}`
     : "";
 
-  // Top severity: highest non-zero level from risk_summary
-  const severityOrder = ["critical", "high", "medium", "low", "info"];
+  // Top severity: highest visible non-zero level from risk_summary.
+  const severityOrder = ["critical", "high", "medium", "low"];
   let topSeverity = "";
   for (const s of severityOrder) {
     if (rs && rs[s] && rs[s] > 0) {
@@ -863,13 +875,11 @@ function renderOverview(proj, rs) {
     }
   }
 
-  const total =
-    (rs && rs.critical + rs.high + rs.medium + rs.low + rs.info) || 1;
+  const total = (rs && rs.critical + rs.high + rs.medium + rs.low) || 1;
   const crit = (rs && rs.critical) || 0;
   const high = (rs && rs.high) || 0;
   const med = (rs && rs.medium) || 0;
   const low = (rs && rs.low) || 0;
-  const info = (rs && rs.info) || 0;
 
   const seg = (v, cls) =>
     v > 0
@@ -880,19 +890,17 @@ function renderOverview(proj, rs) {
       ? seg(crit, "critical") +
         seg(high, "high") +
         seg(med, "medium") +
-        seg(low, "low") +
-        seg(info, "info")
+        seg(low, "low")
       : '<i class="seg-low" style="width:100%"></i>';
 
-  const hasAny = crit || high || med || low || info;
+  const hasAny = crit || high || med || low;
   const pills = rs
     ? `<div class="pills">
   ${!hasAny ? `<span class="pill"><span class="dot" style="background:var(--green)"></span>未发现风险 <b>✓</b></span>` : ""}
-  ${crit ? `<span class="pill"><span class="dot" style="background:var(--critical)"></span>严重 <b>${crit}</b></span>` : ""}
-  ${high ? `<span class="pill"><span class="dot" style="background:var(--high)"></span>高危 <b>${high}</b></span>` : ""}
-  ${med ? `<span class="pill"><span class="dot" style="background:var(--medium)"></span>中危 <b>${med}</b></span>` : ""}
-  ${low ? `<span class="pill"><span class="dot" style="background:var(--low)"></span>低危 <b>${low}</b></span>` : ""}
-  ${info ? `<span class="pill"><span class="dot" style="background:var(--info)"></span>信息 <b>${info}</b></span>` : ""}
+  ${crit ? `<span class="pill"><span class="dot" style="background:var(--critical)"></span>紧急 <b>${crit}</b></span>` : ""}
+  ${high ? `<span class="pill"><span class="dot" style="background:var(--high)"></span>高风险 <b>${high}</b></span>` : ""}
+  ${med ? `<span class="pill"><span class="dot" style="background:var(--medium)"></span>中风险 <b>${med}</b></span>` : ""}
+  ${low ? `<span class="pill"><span class="dot" style="background:var(--low)"></span>低风险 <b>${low}</b></span>` : ""}
 </div>`
     : "";
 
@@ -903,7 +911,7 @@ function renderOverview(proj, rs) {
     <div class="stat"><div class="k">依赖数</div><div class="v">${proj.total_packages || 0}</div></div>
     <div class="stat"><div class="k">风险等级</div><div class="v">${topSeverity ? sevBadge(topSeverity) : '<span style="color:var(--sub)">无</span>'}</div></div>
   </div>
-  <div class="bar-label">风险等级分布</div>
+  <div class="bar-label">风险项分布</div>
   <div class="bar">${bar}</div>
   ${pills}
   <div class="sysgrid">
@@ -922,13 +930,59 @@ function packageNameFor(row) {
   return String((row && (row.package || row.name)) || "");
 }
 
-function packageColumnWidthStyle(rows) {
+function measuredTextLength(value) {
+  return Array.from(String(value || "")).length;
+}
+
+function columnWidth(rows, getter, min, max, charWidth, padding) {
+  const maxChars = (rows || []).reduce((longest, row) => {
+    return Math.max(longest, measuredTextLength(getter(row)));
+  }, 0);
+  return Math.min(max, Math.max(min, maxChars * charWidth + padding));
+}
+
+function packageColumnWidth(rows) {
   const maxChars = (rows || []).reduce((max, row) => {
-    const length = Array.from(packageNameFor(row)).length;
-    return Math.max(max, length);
+    return Math.max(max, measuredTextLength(packageNameFor(row)));
   }, 4);
-  const px = Math.min(260, Math.max(132, maxChars * 8 + 30));
+  return Math.min(260, Math.max(132, maxChars * 8 + 30));
+}
+
+function packageColumnWidthStyle(rows) {
+  const px = packageColumnWidth(rows);
   return `--package-col:${px}px;`;
+}
+
+function outdatedColumnWidthStyle(rows) {
+  const packagePx = packageColumnWidth(rows);
+  const currentPx = columnWidth(
+    rows,
+    (row) => row && (row.current || row.version),
+    112,
+    180,
+    9,
+    40,
+  );
+  const latestPx = columnWidth(
+    rows,
+    (row) => row && outdatedDisplayTarget(row),
+    112,
+    180,
+    9,
+    40,
+  );
+  const targetLeadPx = Math.max(
+    620,
+    Math.min(760, packagePx + currentPx + latestPx + 240),
+  );
+  const spacerPx = Math.max(0, targetLeadPx - packagePx - currentPx - latestPx);
+  const currentWithSpacePx = currentPx + Math.floor(spacerPx / 2);
+  const latestWithSpacePx = latestPx + Math.ceil(spacerPx / 2);
+  return [
+    `--package-col:${packagePx}px`,
+    `--outdated-current-col:${currentWithSpacePx}px`,
+    `--outdated-latest-col:${latestWithSpacePx}px`,
+  ].join(";");
 }
 
 function renderTableColgroup(columns) {
@@ -984,7 +1038,7 @@ function renderVulnTable(rows) {
     sortedRows.length,
     `<div class="table-scroll"><table class="stable-table vuln-table" style="${packageColumnWidthStyle(sortedRows)}">
   ${renderTableColgroup(["severity", "package", "version", "fixed", "advisory", "summary"])}
-  <thead><tr><th>严重程度</th><th>依赖名称</th><th>当前版本</th><th>修复版本</th><th>GHSA</th><th>说明</th></tr></thead>
+  <thead><tr><th>影响程度</th><th>依赖名称</th><th>当前版本</th><th>修复版本</th><th>GHSA</th><th>说明</th></tr></thead>
   <tbody>${body}${toggle}</tbody></table></div>`,
     "",
     "search",
@@ -1160,20 +1214,19 @@ function renderOutdated(items) {
   <td class="package-cell"><b title="${esc(packageName)}">${esc(packageName)}</b></td>
   <td class="ver">${esc(current || "-")}</td>
   <td class="ver">${esc(outdatedDisplayTarget(it) || "-")}</td>
-  <td>${esc(it.ecosystem || "-")}</td>
   <td class="summary-cell">${esc(outdatedExplanation(it))}</td>
 </tr>`;
     })
     .join("");
   const toggle = needToggle
-    ? `<tr class="outdated-toggle"><td colspan="5"><button class="fix-btn open" onclick="toggleOutdated(this)">显示更多（还有 ${items.length - OUTDATED_SHOW} 项）</button></td></tr>`
+    ? `<tr class="outdated-toggle"><td colspan="4"><button class="fix-btn open" onclick="toggleOutdated(this)">显示更多（还有 ${items.length - OUTDATED_SHOW} 项）</button></td></tr>`
     : "";
   return section(
     "过期依赖",
     items.length,
-    `<div class="table-scroll"><table class="stable-table outdated-table" style="${packageColumnWidthStyle(items)}">
-  ${renderTableColgroup(["package", "current", "latest", "ecosystem", "summary"])}
-  <thead><tr><th>依赖名称</th><th>当前版本</th><th>最近版本</th><th>生态</th><th>建议</th></tr></thead>
+    `<div class="table-scroll"><table class="stable-table outdated-table" style="${outdatedColumnWidthStyle(items)}">
+  ${renderTableColgroup(["package", "current", "latest", "summary"])}
+  <thead><tr><th>依赖名称</th><th>当前版本</th><th>最近版本</th><th>建议</th></tr></thead>
   <tbody>${rows}${toggle}</tbody></table></div>`,
     "",
     "long",
