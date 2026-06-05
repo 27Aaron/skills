@@ -202,15 +202,6 @@ function safeHref(value) {
   }
 }
 
-function copyBtn(text) {
-  return `<button class="copy" data-cmd="${btoa(unescape(encodeURIComponent(text)))}">复制</button>`;
-}
-
-function cmdBlock(c) {
-  const label = c.label ? `<div class="cmd-label">${esc(c.label)}</div>` : "";
-  return `${label}<div class="cmd">${copyBtn(c.cmd)}${esc(c.cmd)}</div>`;
-}
-
 function visibleSeverity(sev) {
   const value = String(sev || "").toLowerCase();
   return ["critical", "high", "medium", "low"].includes(value) ? value : "low";
@@ -1372,19 +1363,3 @@ app.innerHTML =
   renderRed(DATA.red) +
   renderYellow(DATA.yellow) +
   renderErrors();
-
-// Copy handlers (delegated)
-document.addEventListener("click", (e) => {
-  const b = e.target.closest(".copy");
-  if (!b) return;
-  e.stopPropagation();
-  const text = decodeURIComponent(escape(atob(b.dataset.cmd)));
-  navigator.clipboard.writeText(text).then(() => {
-    b.textContent = "已复制";
-    b.classList.add("done");
-    setTimeout(() => {
-      b.textContent = "复制";
-      b.classList.remove("done");
-    }, 1500);
-  });
-});

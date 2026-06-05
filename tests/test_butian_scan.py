@@ -178,7 +178,7 @@ class ButianScanTests(unittest.TestCase):
             result = subprocess.run(
                 [
                     sys.executable,
-                    os.path.join("butian", "scripts", "preflight.py"),
+                    os.path.join("butian", "scripts", "detect.py"),
                     "--compact",
                     "--output",
                     output,
@@ -239,6 +239,43 @@ class ButianScanTests(unittest.TestCase):
     def test_build_report_output_is_visible_in_human_mode(self):
         self.assertTrue(run_audit.should_echo_build_report(SimpleNamespace(compact=False)))
         self.assertFalse(run_audit.should_echo_build_report(SimpleNamespace(compact=True)))
+
+    def test_pipeline_scripts_expose_help(self):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        for script_name in [
+            "detect.py",
+            "scan.py",
+            "analyze.py",
+            "report.py",
+            "visualize.py",
+            "run_audit.py",
+        ]:
+            with self.subTest(script_name=script_name):
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        os.path.join("butian", "scripts", script_name),
+                        "--help",
+                    ],
+                    cwd=root,
+                    capture_output=True,
+                    text=True,
+                )
+
+                self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+                self.assertIn("usage:", result.stdout.lower())
+
+    def test_skill_doc_describes_report_writes_without_absolute_read_only_claim(self):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(root, "butian", "SKILL.md"), encoding="utf-8") as handle:
+            skill_doc = handle.read()
+
+        self.assertIn("check local dependency security and repository hygiene", skill_doc)
+        self.assertIn("不修改源码、依赖、数据库、日志或任意项目文件", skill_doc)
+        self.assertIn("会创建/更新 `.butian/` 本地报告工作区", skill_doc)
+        self.assertIn("会确保 `.gitignore` 忽略 `.butian/`", skill_doc)
+        self.assertNotIn("全程只读，绝不擅自动手", skill_doc)
+        self.assertNotIn("没有任何会触发本地操作的按钮", skill_doc)
 
 
 if __name__ == "__main__":

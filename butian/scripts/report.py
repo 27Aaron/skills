@@ -6,6 +6,7 @@ Usage:
     python3 scripts/report.py analysis.json docs/security-report-YYYY-MM-DD.md
 """
 
+import argparse
 import json
 import os
 import re
@@ -358,16 +359,23 @@ def render_markdown(analysis):
     ).rstrip() + "\n"
 
 
-def main():
-    if len(sys.argv) < 2:
-        print(__doc__)
-        return 1
+def parse_args(argv):
+    parser = argparse.ArgumentParser(
+        description="Render a Markdown security report from analysis JSON",
+    )
+    parser.add_argument("analysis_json")
+    parser.add_argument("output_markdown", nargs="?")
+    return parser.parse_args(argv)
 
-    src = sys.argv[1]
+
+def main():
+    args = parse_args(sys.argv[1:])
+
+    src = args.analysis_json
     with open(src, "r", encoding="utf-8") as handle:
         analysis = json.load(handle)
 
-    out = sys.argv[2] if len(sys.argv) > 2 else default_output_path(analysis)
+    out = args.output_markdown or default_output_path(analysis)
     os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
     with open(out, "w", encoding="utf-8") as handle:
         handle.write(render_markdown(analysis))

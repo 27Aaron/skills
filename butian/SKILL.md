@@ -1,9 +1,10 @@
 ---
 name: butian
 description: >
-  Use when the user asks to check project security, scan for dependency vulnerabilities,
-  find hardcoded secrets, check sensitive files tracked by git, audit .gitignore coverage,
-  detect outdated dependencies, or generate a security report. Triggers include:
+  Use when the user asks to check local dependency security and repository hygiene,
+  scan for dependency vulnerabilities, find hardcoded secrets, check sensitive files
+  tracked by git, audit .gitignore coverage, detect outdated dependencies, or generate
+  a security report. Triggers include:
   "帮我看看项目有没有安全问题"、"安全扫描"、"扫一下项目"、"依赖有没有漏洞"、
   "木马包"、"恶意包"、"硬编码密钥"、"API Key"、"token"、"env 是否误提交"、
   "gitignore 是否合理"、"依赖是否太旧"、"漏洞检查"、"供应链安全"。
@@ -12,7 +13,7 @@ description: >
 
 # 补天
 
-本地项目安全扫描。产出 Markdown 审计报告 + 只读 HTML 报告，面向产品经理、项目负责人等非安全背景读者。全程只读，修复需用户确认。
+本地项目安全扫描。产出 Markdown 审计报告 + 只读 HTML 报告，面向产品经理、项目负责人等非安全背景读者。扫描不改源码和依赖；报告工作区写入本地 `.butian/` 和 `docs/`，修复需用户确认。
 
 ## 它会查什么
 
@@ -30,14 +31,14 @@ description: >
 
 ## 铁律
 
-- **全程只读，绝不擅自动手。** 扫描只读文件、调漏洞 API，不碰源码和依赖；网页报告也只用来读，没有任何会触发本地操作的按钮
+- **扫描不改业务项目。** 扫描只读取项目文件、调漏洞 API，不修改源码、依赖、数据库、日志或任意项目文件；会创建/更新 `.butian/` 本地报告工作区，并会确保 `.gitignore` 忽略 `.butian/`
 - **修复要你点头。** 看完报告，你在对话里说一句"可以修 / 修复 / OK"，Agent 才会动手升级或清理
 - **不把"过旧"说成"有漏洞"。** 只有命中漏洞数据时才说有漏洞
 - **不制造恐慌。** 没有证据时说"不确定"，不说"肯定安全"或"肯定中招"
 
 ## 技术约束
 
-- 只在本地读取用户项目文件；不上传源码、lockfile、env 或密钥；不要上传完整 lockfile、`.env`、私钥、证书、数据库、日志或任意项目文件。
+- 只在本地读取用户项目文件；不上传源码、lockfile、env 或密钥；不要上传完整 lockfile、`.env`、私钥、证书、数据库、日志或任意项目文件；除 `.butian/`、`docs/security-report-YYYY-MM-DD.md` 和必要的 `.gitignore` 规则外，不修改源码、依赖、数据库、日志或任意项目文件。
 - 依赖漏洞检查会直接请求 OSV、NVD、CISA KEV 和 FIRST EPSS；只发送最小必要信息：`ecosystem`、`name`、`version`。
 - 报告里不要泄露完整密钥，只能写文件、行号、类型和脱敏预览。
 - 完整项目安全扫描必须先在被扫项目的 `docs/` 下生成 Markdown 审计报告；如果当前工作目录就是被扫项目，也就是当前工作目录的 `docs/`。报告文件例如 `docs/security-report-YYYY-MM-DD.md`。用户阅读报告后明确允许修复，才可以执行升级、删除缓存跟踪、修改 `.gitignore`、清理历史或轮换凭证相关操作。

@@ -10,6 +10,7 @@ script runs, but the required schema, risk counters, and issue lists should
 come from this deterministic baseline.
 """
 
+import argparse
 import json
 import os
 import re
@@ -421,13 +422,20 @@ def write_json(path, data):
         handle.write("\n")
 
 
-def main():
-    if len(sys.argv) < 2:
-        print(__doc__)
-        return 1
+def parse_args(argv):
+    parser = argparse.ArgumentParser(
+        description="Build deterministic analysis JSON from scan.py output",
+    )
+    parser.add_argument("scan_json")
+    parser.add_argument("output_json", nargs="?")
+    return parser.parse_args(argv)
 
-    scan_path = sys.argv[1]
-    output_path = sys.argv[2] if len(sys.argv) > 2 else default_output_path(scan_path)
+
+def main():
+    args = parse_args(sys.argv[1:])
+
+    scan_path = args.scan_json
+    output_path = args.output_json or default_output_path(scan_path)
 
     with open(scan_path, "r", encoding="utf-8") as handle:
         scan = json.load(handle)

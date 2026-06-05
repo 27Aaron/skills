@@ -5,11 +5,11 @@ import subprocess
 import textwrap
 import unittest
 
-from butian.scripts import render_markdown
+from butian.scripts import report
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-REPORT_CSS = os.path.join(ROOT, "butian", "assets", "report.css")
-REPORT_JS = os.path.join(ROOT, "butian", "assets", "report.js")
+REPORT_CSS = os.path.join(ROOT, "butian", "static", "report.css")
+REPORT_JS = os.path.join(ROOT, "butian", "static", "report.js")
 
 
 class ButianReportAssetTests(unittest.TestCase):
@@ -40,7 +40,7 @@ class ButianReportAssetTests(unittest.TestCase):
             "errors": [],
         }
 
-        markdown = render_markdown.render_markdown(analysis)
+        markdown = report.render_markdown(analysis)
 
         self.assertIn("暂不支持依赖漏洞扫描", markdown)
         self.assertNotIn("未命中已确认的依赖漏洞。", markdown)
@@ -245,6 +245,15 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn(".outdated-table .col-latest", css)
         self.assertNotIn("border-left-width: 4px", css)
         self.assertNotIn("border-left-color: var(--warning-ink)", css)
+
+    def test_html_report_assets_do_not_ship_copy_command_handlers(self):
+        with open(REPORT_JS, "r", encoding="utf-8") as handle:
+            js = handle.read()
+
+        self.assertNotIn("navigator.clipboard", js)
+        self.assertNotIn('class="copy"', js)
+        self.assertNotIn("function copyBtn", js)
+        self.assertNotIn("function cmdBlock", js)
 
 
 if __name__ == "__main__":
