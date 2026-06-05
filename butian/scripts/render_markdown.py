@@ -9,7 +9,11 @@ Usage:
 import json
 import os
 import re
+import string
 import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+TEMPLATE_PATH = os.path.join(HERE, "..", "templates", "report.md")
 
 SEVERITY_LABELS = {
     "critical": "紧急",
@@ -111,11 +115,8 @@ def security_ids(item):
 
 def render_summary(analysis):
     summary = analysis.get("summary") or {}
-    lines = [
-        "## 报告总结",
-        "",
-        f"- TL;DR：{text(summary.get('tldr')) or '本次扫描没有生成摘要。'}",
-    ]
+    lines = []
+    lines.append(f"- TL;DR：{text(summary.get('tldr')) or '本次扫描没有生成摘要。'}")
     if summary.get("detail"):
         lines.append(f"- 详细说明：{text(summary.get('detail'))}")
     if is_hygiene_only(analysis):
@@ -127,25 +128,20 @@ def render_summary(analysis):
         for item in priority:
             lines.append(f"  - {text(item)}")
     lines.append("")
-    return lines
+    return "\n".join(lines)
 
 
 def render_vulnerabilities(analysis):
     issues = analysis.get("top_issues") or []
-    lines = ["## 命中漏洞", ""]
     if not issues:
         if is_hygiene_only(analysis):
-            lines.extend([f"本次未执行依赖漏洞扫描：{HYGIENE_ONLY_NOTICE}", ""])
-            return lines
-        lines.extend(["未命中已确认的依赖漏洞。", ""])
-        return lines
+            return f"本次未执行依赖漏洞扫描：{HYGIENE_ONLY_NOTICE}\n"
+        return "未命中已确认的依赖漏洞。\n"
 
-    lines.extend(
-        [
-            "| 影响程度 | 依赖名称 | 当前版本 | GHSA | 修复版本 | 说明 |",
-            "| --- | --- | --- | --- | --- | --- |",
-        ]
-    )
+    lines = [
+        "| 影响程度 | 依赖名称 | 当前版本 | GHSA | 修复版本 | 说明 |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
     for item in issues:
         ids = "、".join(security_ids(item)) or "-"
         fixed = "、".join(map(str, to_list(item.get("fixed_versions")))) or "待确认"
@@ -164,7 +160,7 @@ def render_vulnerabilities(analysis):
             + " |"
         )
     lines.append("")
-    return lines
+    return "\n".join(lines)
 
 
 def render_hygiene(analysis):
@@ -175,7 +171,7 @@ def render_hygiene(analysis):
     workspace = analysis.get("butian_workspace") or {}
     gitignore_state = workspace.get("gitignore") or {}
 
-    lines = ["## 仓库卫生扫描", ""]
+    lines = []
     if not secrets and not sensitive and not missing:
         lines.append(
             "没有发现硬编码密钥、被 git 跟踪的敏感文件或缺失的敏感文件忽略规则。"
@@ -222,45 +218,30 @@ def render_hygiene(analysis):
                 f"| {cell(item.get('file'))} | {cell(item.get('type'))} | {cell(item.get('size'))} |"
             )
     lines.append("")
-    return lines
+    return "\n".join(lines)
 
 
 def render_outdated(analysis):
     outdated = [
         item for item in analysis.get("outdated") or [] if is_outdated_item(item)
     ]
-    lines = ["## 过期依赖", ""]
     if is_hygiene_only(analysis):
-        lines.extend(
-            [
-                f"本次未执行依赖版本维护检查：{HYGIENE_ONLY_NOTICE}",
-                "",
-                "提醒：过期依赖只是维护信号，不代表一定存在漏洞；真正的安全优先级仍以命中漏洞为准。",
-                "",
-            ]
+        return (
+            f"本次未执行依赖版本维护检查：{HYGIENE_ONLY_NOTICE}\n\n"
+            "提醒：过期依赖只是维护信号，不代表一定存在漏洞；真正的安全优先级仍以命中漏洞为准。\n"
         )
-        return lines
     if not outdated:
-        lines.extend(
-            [
-                "没有检测到明确的过期依赖，或当前包管理器没有返回可用结果。",
-                "",
-                "提醒：过期依赖只是维护信号，不代表一定存在漏洞；真正的安全优先级仍以命中漏洞为准。",
-                "",
-            ]
+        return (
+            "没有检测到明确的过期依赖，或当前包管理器没有返回可用结果。\n\n"
+            "提醒：过期依赖只是维护信号，不代表一定存在漏洞；真正的安全优先级仍以命中漏洞为准。\n"
         )
-        return lines
 
-    lines.append(
-        "这里列出的是版本维护信号，不等同于已确认漏洞；安全优先级仍以“命中漏洞”部分为准。"
-    )
-    lines.append("")
-    lines.extend(
-        [
-            "| 依赖名称 | 当前版本 | 最近版本 | 建议 |",
-            "| --- | --- | --- | --- |",
-        ]
-    )
+    lines = [
+        "这里列出的是版本维护信号，不等同于已确认漏洞；安全优先级仍以「命中漏洞」部分为准。",
+        "",
+        "| 依赖名称 | 当前版本 | 最近版本 | 建议 |",
+        "| --- | --- | --- | --- |",
+    ]
     for item in outdated:
         package = item.get("package") or item.get("name") or "该依赖"
         current = item.get("current") or item.get("version") or ""
@@ -289,16 +270,15 @@ def render_outdated(analysis):
         ]
         lines.append(f"| {row[0]} | {row[1]} | {row[2]} | {row[3]} |")
     lines.append("")
-    return lines
+    return "\n".join(lines)
 
 
 def render_manual_items(analysis):
     items = (analysis.get("red") or []) + (analysis.get("yellow") or [])
-    lines = ["## 需要人工确认的事项", ""]
     if not items:
-        lines.extend(["没有需要额外人工确认的事项。", ""])
-        return lines
+        return "没有需要额外人工确认的事项。\n"
 
+    lines = []
     for index, item in enumerate(items, 1):
         lines.append(f"### {index}. {text(item.get('name')) or '待确认事项'}")
         if item.get("severity"):
@@ -325,56 +305,57 @@ def render_manual_items(analysis):
         if action:
             lines.append(f"- 建议动作：{text(action)}")
         lines.append("")
-    return lines
+    return "\n".join(lines)
 
 
 def render_errors(analysis):
     errors = analysis.get("errors") or []
-    lines = ["## 扫描错误", ""]
     if not errors:
-        lines.extend(["没有记录到扫描错误。", ""])
-        return lines
+        return "没有记录到扫描错误。\n"
+    lines = []
     for item in errors:
         lines.append(
             f"- [{text(item.get('step')) or 'unknown'}] {text(item.get('message'))}"
         )
     lines.append("")
-    return lines
+    return "\n".join(lines)
 
 
 def render_next_steps(analysis):
     priority = to_list((analysis.get("summary") or {}).get("priority"))
-    lines = ["## 下一步建议", ""]
+    lines = []
     if priority:
         for item in priority:
             lines.append(f"- {text(item)}")
     else:
         lines.append(
-            "- 阅读报告后再决定是否修复；需要处理时，在对话里明确回复“可以修 / 修复 / OK / Yes”。"
+            "- 阅读报告后再决定是否修复；需要处理时，在对话里明确回复「可以修 / 修复 / OK / Yes」。"
         )
     lines.append("")
-    return lines
+    return "\n".join(lines)
+
+
+def load_template():
+    with open(TEMPLATE_PATH, "r", encoding="utf-8") as f:
+        return string.Template(f.read())
 
 
 def render_markdown(analysis):
     project = analysis.get("project") or {}
-    lines = [
-        "# 安全扫描报告",
-        "",
-        f"- 项目：{text(project.get('name')) or '-'}",
-        f"- 路径：`{text(project.get('path')) or '-'}`",
-        f"- 生成时间：{text(analysis.get('generated_at')) or '-'}",
-        f"- 扫描耗时：{text(analysis.get('scan_seconds')) or '-'} 秒",
-        "",
-    ]
-    lines.extend(render_summary(analysis))
-    lines.extend(render_vulnerabilities(analysis))
-    lines.extend(render_hygiene(analysis))
-    lines.extend(render_outdated(analysis))
-    lines.extend(render_manual_items(analysis))
-    lines.extend(render_errors(analysis))
-    lines.extend(render_next_steps(analysis))
-    return "\n".join(lines).rstrip() + "\n"
+    tpl = load_template()
+    return tpl.substitute(
+        project_name=text(project.get("name")) or "-",
+        project_path=text(project.get("path")) or "-",
+        generated_at=text(analysis.get("generated_at")) or "-",
+        scan_seconds=text(analysis.get("scan_seconds")) or "-",
+        summary=render_summary(analysis),
+        vulnerabilities=render_vulnerabilities(analysis),
+        hygiene=render_hygiene(analysis),
+        outdated=render_outdated(analysis),
+        manual_items=render_manual_items(analysis),
+        errors=render_errors(analysis),
+        next_steps=render_next_steps(analysis),
+    ).rstrip() + "\n"
 
 
 def main():
