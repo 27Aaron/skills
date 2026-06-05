@@ -52,7 +52,7 @@ CISA_KEV_JSON_URL = (
     "https://www.cisa.gov/sites/default/files/feeds/"
     "known_exploited_vulnerabilities.json"
 )
-EPSS_API_URL = "https://api.first.org/epss/"
+EPSS_API_URL = "https://api.first.org/data/v1/epss"
 HTTP_USER_AGENT = "补天 Skill Direct Scanner/1.0"
 BUTIAN_DIR = ".butian"
 BUTIAN_GITIGNORE_ENTRY = ".butian/"
