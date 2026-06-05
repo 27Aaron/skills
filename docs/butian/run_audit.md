@@ -14,7 +14,7 @@
 | 2   | 参数透传   | 将用户参数传递给各子阶段（包括新增的 verbose/debug/cache/baseline 等） |
 | 3   | 结果汇总   | 收集各阶段的文件路径和风险统计                                         |
 | 4   | 终端摘要   | 输出格式化的终端摘要（包含 Unicode 表格）                              |
-| 5   | 交互修复   | 检测可修复漏洞 → 弹出策略选择菜单 → 执行升级 → 重扫验证               |
+| 5   | 报告打开   | 默认尝试用系统浏览器打开 HTML 报告，`--no-open` 仅供 CI/自动化使用      |
 | 6   | 退出码控制 | 根据 `--severity-threshold` 返回语义化退出码                           |
 
 ## CLI 用法
@@ -25,7 +25,7 @@ python3 run_audit.py                        # 当前目录，完整扫描
 python3 run_audit.py /path/to/project       # 指定项目路径
 python3 run_audit.py --skip-outdated .      # 跳过过期依赖检查
 python3 run_audit.py --compact .            # 输出紧凑 JSON 摘要
-python3 run_audit.py --no-open .            # 不自动打开 HTML 报告
+python3 run_audit.py --no-open .            # CI/自动化场景：不自动打开 HTML 报告
 
 # 新增功能
 python3 run_audit.py --verbose .            # 详细日志输出
@@ -105,13 +105,10 @@ run_audit.py
 │     → .butian/<run>/assets/results.sarif.json
 │     触发条件: --sarif
 │
-└─ 退出码判断 + 输出终端摘要（或紧凑 JSON）
-│
-├─ 7. [交互] fix.py — 检测到可修复漏洞时弹出修复策略选择
-│     触发条件: 有可修复漏洞 + 终端交互模式 (非 --compact)
-│     选项: [1] 最小修复 / [2] 全部更新 / [Enter] 跳过
-│     修复后自动重跑 scan → analyze → report，输出对比摘要
+└─ 输出终端摘要（或紧凑 JSON）+ 退出码判断
 ```
+
+`run_audit.py` 不执行依赖升级，也不询问用户是否修复。修复确认属于 `SKILL.md` 的 Agent 工作流：用户明确选择修复策略后，再调用 `fix.py --strategy fixed|latest` 执行升级，并重新运行 `run_audit.py` 验证。
 
 ## 子进程调用方式
 
@@ -197,18 +194,11 @@ run_audit.py
   "sarif_file": ".butian/.../assets/results.sarif.json",
   "scan_mode": "full_dependency_scan",
   "risk_summary": { "critical": 1, "high": 2, "medium": 3, "low": 1 },
-  "errors": [],
-  "fix_applied": {
-    "strategy": "最小修复",
-    "upgraded": ["lodash", "axios"],
-    "failed": [],
-    "pre_fix_vulnerabilities": 5,
-    "post_fix_vulnerabilities": 2
-  }
+  "errors": []
 }
 ```
 
-> `sarif_file` 仅在 `--sarif` 模式下出现。`fix_applied` 仅在用户选择修复后出现。
+> `sarif_file` 仅在 `--sarif` 模式下出现。依赖修复不属于 `run_audit.py` 的输出结构。
 
 ## 设计要点
 

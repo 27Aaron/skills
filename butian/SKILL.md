@@ -32,7 +32,7 @@ description: >
 ## 铁律
 
 - **扫描不改业务项目。** 扫描只读取项目文件、调漏洞 API，不修改源码、依赖、数据库、日志或任意项目文件；会创建/更新 `.butian/` 本地报告工作区，并会确保 `.gitignore` 忽略 `.butian/`
-- **修复要你点头。** 看完报告后，终端会弹出交互式修复菜单（最小修复 / 全部更新），你在菜单里选择后才会执行升级。Agent 不会自行执行任何升级命令。
+- **修复要你点头。** 报告生成并打开后，Agent 先用 AskUserQuestion 询问是否修复（确认修复 / 取消修复）；确认后再用 AskUserQuestion 询问升级策略（升级到已修复版本 / 升级到最新版本）。Agent 不会自行执行任何升级命令。
 - **不把"过旧"说成"有漏洞"。** 只有命中漏洞数据时才说有漏洞
 - **不制造恐慌。** 没有证据时说"不确定"，不说"肯定安全"或"肯定中招"
 
@@ -57,7 +57,7 @@ python3 scripts/run_audit.py
 py -3 scripts/run_audit.py
 ```
 
-`scripts/run_audit.py` 默认扫描当前目录并自动向上识别最近的项目根目录；在 monorepo 子项目中运行时，优先使用当前子项目的 manifest/lockfile，不要跳到上层 git repo。需要扫描其他目录时，把路径作为最后一个参数传入。脚本会按顺序运行预检、扫描、analysis 生成、Markdown 生成和 HTML 生成，生成后会尝试用系统默认浏览器自动打开静态 HTML 报告，并在终端输出固定的人类可读摘要：`📊 风险总览`、`⚠️ 能力边界`、`🚨 重点关注`、`📁 报告路径`；其中能力边界必须使用 Markdown 引用格式 `>` 输出完整文案。只有自动化或测试需要机器可读结果时才使用 `--compact`，此时输出 JSON。如果输出中的模式是 `hygiene_only`，必须告诉用户：`当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；本次仅做仓库卫生扫描，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。`
+`scripts/run_audit.py` 默认扫描当前目录并自动向上识别最近的项目根目录；在 monorepo 子项目中运行时，优先使用当前子项目的 manifest/lockfile，不要跳到上层 git repo。需要扫描其他目录时，把路径作为最后一个参数传入。脚本会按顺序运行预检、扫描、analysis 生成、Markdown 生成和 HTML 生成，生成后会尝试用系统默认浏览器自动打开静态 HTML 报告，并在终端输出固定的人类可读摘要：`📊 风险总览`、`⚠️ 能力边界`、`🚨 重点关注`、`📁 报告路径`；其中能力边界必须使用 Markdown 引用格式 `>` 输出完整文案。人工交互扫描默认不要加 `--no-open`；只有 CI、自动化或测试需要避免弹浏览器时才使用 `--no-open`。只有自动化或测试需要机器可读结果时才使用 `--compact`，此时输出 JSON。如果输出中的模式是 `hygiene_only`，必须告诉用户：`当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；本次仅做仓库卫生扫描，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。`
 
 对话最终回复如果需要转述扫描结果，必须使用 Markdown 引用格式 `>` 展示完整能力边界，不要自行压缩成短句，也不要另起"提示"类标题。固定写法如下：
 
@@ -73,7 +73,7 @@ py -3 scripts/run_audit.py
 - `HTML 报告已保存，之后也可以从 content 目录重新查看。`
 - `已尝试在默认浏览器中打开报告。` 如果自动打开失败，告诉用户手动打开报告路径。
 
-**重要：不要自行执行任何升级命令（npm install / pip install / yarn add 等）。** 修复由扫描流程的交互式菜单自动处理，用户会在终端看到修复策略选择提示。你的职责是等待用户看完报告后，引导他们回到终端根据菜单操作。
+**重要：不要自行执行任何升级命令（npm install / pip install / yarn add 等）。** 扫描脚本只负责生成并打开报告，不会自动修复。你的职责是在用户看完报告后，用 AskUserQuestion 询问是否修复和修复策略；如果当前环境不支持 AskUserQuestion，就用普通对话提问。
 
 如果流水线中某一步失败，再按下面的分步流程定位。各脚本的调试和性能参数见 `python3 scripts/<script>.py --help`。
 
@@ -146,17 +146,28 @@ py -3 scripts/visualize.py .butian/<timestamp>/assets/analysis.json
 
 `visualize.py` 默认把 HTML 写到 `.butian/<timestamp>/content/security-report.html`，不需要在命令里手写输出路径。
 
-### Step 5 修复
+### Step 5 用户确认修复
 
-扫描完成后会自动弹出交互式修复菜单，用户选择策略后自动执行升级并重扫验证。
+扫描完成、Markdown 报告生成、HTML 报告打开、终端摘要输出之后，如果存在可修复依赖漏洞，Agent 必须按下面顺序询问用户；这些询问写在 Skill 工作流里，不写进扫描脚本：
 
-**Agent 禁止自行执行任何升级命令（npm install / pip install / yarn add 等）。** 所有修复操作由交互式菜单驱动。
+1. **是否修复**：用 AskUserQuestion 提供 `确认修复` / `取消修复`。用户选择取消时，停止修复，只总结报告路径和主要风险。
+2. **修复方式**：用户确认修复后，再用 AskUserQuestion 提供 `将依赖升级到已修复版本` / `将依赖升级到最新版本`。
 
 修复策略说明：
-- **最小修复**：仅升级到已修复版本（改动最小，推荐）
-- **全部更新**：升级到最新版本（一步到位，但可能有 breaking changes）
+- **将依赖升级到已修复版本**：仅升级到已知修复版本（改动最小，推荐）
+- **将依赖升级到最新版本**：升级到最新版本（一步到位，但可能有 breaking changes）
 
-修复完成后会自动重新扫描，输出修复前后漏洞数量对比。
+用户选择策略后，才允许运行确定性的修复脚本：
+
+```bash
+# 升级到已修复版本
+python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy fixed
+
+# 升级到最新版本
+python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy latest
+```
+
+修复脚本执行完后，重新运行 `python3 scripts/run_audit.py` 验证并生成新报告；人工交互场景不要加 `--no-open`，让 HTML 报告自动弹出。
 
 ## 修复建议规则
 
@@ -180,7 +191,7 @@ py -3 scripts/visualize.py .butian/<timestamp>/assets/analysis.json
 | 参数                                              | 说明                                         |
 | ------------------------------------------------- | -------------------------------------------- |
 | `--compact`                                       | 输出 JSON 摘要而非人类可读表格               |
-| `--no-open`                                       | 不自动打开 HTML 报告                         |
+| `--no-open`                                       | 不自动打开 HTML 报告（仅 CI/自动化/测试使用） |
 | `--verbose`                                       | 输出详细日志到 stderr                        |
 | `--debug`                                         | 输出调试级别日志                             |
 | `--progress`                                      | 显示扫描进度（默认 TTY 自动检测）            |

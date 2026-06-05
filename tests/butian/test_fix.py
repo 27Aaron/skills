@@ -165,5 +165,23 @@ class BuildUpgradeCommandsTests(unittest.TestCase):
             self.assertTrue(len(cmds[0][1]) > 0, f"Empty command for {eco}")
 
 
+# ---------------------------------------------------------------------------
+# CLI helpers
+# ---------------------------------------------------------------------------
+class CliHelperTests(unittest.TestCase):
+    def test_parse_args_requires_explicit_strategy(self):
+        args = fix_mod.parse_args(["analysis.json", "--strategy", "fixed"])
+        self.assertEqual(args.analysis_json, "analysis.json")
+        self.assertEqual(args.strategy, "fixed")
+
+    def test_fixed_strategy_maps_to_minimal(self):
+        self.assertEqual(fix_mod.normalize_strategy("fixed"), "minimal")
+        self.assertEqual(fix_mod.normalize_strategy("latest"), "latest")
+
+    def test_strategy_label(self):
+        self.assertEqual(fix_mod.strategy_label("minimal"), "升级到已修复版本")
+        self.assertEqual(fix_mod.strategy_label("latest"), "升级到最新版本")
+
+
 if __name__ == "__main__":
     unittest.main()
