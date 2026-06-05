@@ -261,7 +261,7 @@ class BuildPreflightTests(unittest.TestCase):
 class MainIntegrationTests(unittest.TestCase):
     @staticmethod
     def _project_root():
-        return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
     def test_main_writes_json_to_stdout(self):
         with tempfile.TemporaryDirectory(prefix="butian-detect-") as root:

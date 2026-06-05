@@ -203,7 +203,7 @@ class ReadTextTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 class PipelineHelpTests(unittest.TestCase):
     def test_visualize_help(self):
-        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         result = subprocess.run(
             [sys.executable, os.path.join("butian", "scripts", "visualize.py"), "--help"],
             cwd=root,

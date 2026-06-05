@@ -7,7 +7,7 @@ import unittest
 
 from butian.scripts import report
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 REPORT_CSS = os.path.join(ROOT, "butian", "static", "report.css")
 REPORT_JS = os.path.join(ROOT, "butian", "static", "report.js")
 

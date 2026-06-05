@@ -452,7 +452,7 @@ class DefaultOutputPathTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 class PipelineHelpTests(unittest.TestCase):
     def test_report_help(self):
-        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         result = subprocess.run(
             [sys.executable, os.path.join("butian", "scripts", "report.py"), "--help"],
             cwd=root,

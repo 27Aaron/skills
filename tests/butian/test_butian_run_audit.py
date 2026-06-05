@@ -404,7 +404,7 @@ class ParseArgsTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 class PipelineHelpTests(unittest.TestCase):
     def test_run_audit_help(self):
-        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         result = subprocess.run(
             [sys.executable, os.path.join("butian", "scripts", "run_audit.py"), "--help"],
             cwd=root,
