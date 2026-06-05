@@ -2557,6 +2557,15 @@ class ExhaustiveSecretPatternTests(unittest.TestCase):
             "connection_string",
         )
 
+    # --- Generic sk- prefix catch-all ---
+    def test_generic_sk_key_minimax(self):
+        f = self._detect_one('MINIMAX = sk-cp-' + 'ZvITPDLf', "generic_sk_key")
+        self.assertEqual(f["confidence"], "medium")
+
+    def test_generic_sk_key_random(self):
+        f = self._detect_one('MY_KEY = sk-' + 'abc123def456ghi789jkl', "generic_sk_key")
+        self.assertEqual(f["confidence"], "medium")
+
 
 class ExhaustiveSensitiveFileTests(unittest.TestCase):
     def _type_of(self, filename: str) -> str:

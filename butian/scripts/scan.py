@@ -401,6 +401,12 @@ _GENERIC_PATTERNS = [
         "jwt_token",
         r"""eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}""",
     ),
+    # Generic sk- prefix catch-all (MiniMax, DeepSeek, Moonshot, Zhipu, etc.)
+    # Many LLM/API providers use sk- as key prefix; medium confidence, user judges
+    (
+        "generic_sk_key",
+        r"""sk-[A-Za-z0-9_-]{8,}""",
+    ),
 ]
 
 SECRET_PATTERNS = _CLOUD_PROVIDER_PATTERNS + _SAAS_PATTERNS + _GENERIC_PATTERNS
