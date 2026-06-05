@@ -63,7 +63,7 @@ def extract_fixable_items(analysis):
       - fixed_versions, advisory_ids
       - severity, summary
     """
-    items = analysis.get("green_items") or []
+    items = analysis.get("green") or analysis.get("green_items") or []
     fixable = []
     for item in items:
         if item.get("type") != "dependency_upgrade":

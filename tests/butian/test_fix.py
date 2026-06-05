@@ -12,9 +12,9 @@ from butian.scripts import fix as fix_mod
 # extract_fixable_items
 # ---------------------------------------------------------------------------
 class ExtractFixableItemsTests(unittest.TestCase):
-    def test_extracts_upgrade_items_with_target_version(self):
+    def test_extracts_upgrade_items_from_current_green_schema(self):
         analysis = {
-            "green_items": [
+            "green": [
                 {
                     "type": "dependency_upgrade",
                     "package": "lodash",
@@ -52,6 +52,31 @@ class ExtractFixableItemsTests(unittest.TestCase):
         self.assertEqual(items[0]["package"], "lodash")
         self.assertEqual(items[0]["target_version"], "4.17.21")
         self.assertEqual(items[1]["package"], "norel")
+
+    def test_extracts_upgrade_items_from_legacy_green_items_schema(self):
+        analysis = {
+            "green_items": [
+                {
+                    "type": "dependency_upgrade",
+                    "package": "lodash",
+                    "severity": "high",
+                    "summary": "升级 lodash",
+                    "fix_config": {
+                        "type": "upgrade",
+                        "ecosystem": "npm",
+                        "package": "lodash",
+                        "current_versions": ["4.17.20"],
+                        "target_version": "4.17.21",
+                        "fixed_versions": ["4.17.21"],
+                        "advisory_ids": ["GHSA-abc"],
+                    },
+                }
+            ]
+        }
+        items = fix_mod.extract_fixable_items(analysis)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["package"], "lodash")
+        self.assertEqual(items[0]["target_version"], "4.17.21")
 
     def test_skips_items_without_target_version(self):
         analysis = {
