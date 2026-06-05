@@ -8,12 +8,12 @@
 
 ## 职责
 
-| #   | 职责         | 说明                                                                                      |
-| --- | ------------ | ----------------------------------------------------------------------------------------- |
-| 1   | 仓库卫生检查 | `.gitignore` 状态、敏感文件跟踪、硬编码密钥扫描（98 个正则 + Shannon entropy 熵值分析）   |
-| 2   | 依赖生态检测 | 识别 lockfile 类型，提取包名和版本号               |
-| 3   | 漏洞查询     | 调用 OSV、NVD、CISA KEV、FIRST EPSS 四个官方数据源 |
-| 4   | 过期依赖检测 | 通过各语言包管理器获取最新版本信息                 |
+| #   | 职责         | 说明                                                                                    |
+| --- | ------------ | --------------------------------------------------------------------------------------- |
+| 1   | 仓库卫生检查 | `.gitignore` 状态、敏感文件跟踪、硬编码密钥扫描（98 个正则 + Shannon entropy 熵值分析） |
+| 2   | 依赖生态检测 | 识别 lockfile 类型，提取包名和版本号                                                    |
+| 3   | 漏洞查询     | 调用 OSV、NVD、CISA KEV、FIRST EPSS 四个官方数据源                                      |
+| 4   | 过期依赖检测 | 通过各语言包管理器获取最新版本信息                                                      |
 
 ## 支持的生态
 
@@ -68,12 +68,12 @@ python3 scan.py --compact                       # 输出紧凑 JSON
 
 ### 仓库卫生
 
-| 函数                                               | 作用                                                          |
-| -------------------------------------------------- | ------------------------------------------------------------- |
-| `scan_hygiene(project_path, max_secret_files)`     | 执行完整的仓库卫生检查：gitignore、敏感文件跟踪、密钥扫描     |
-| `scan_secrets(project_path, max_files, max_bytes)` | 正则模式匹配 + Shannon entropy 熵值分析，识别硬编码密钥       |
-| `check_sensitive_tracked(project_path)`            | 检查被 git 跟踪的敏感文件（详见下方「敏感文件类型」）         |
-| `check_gitignore(project_path, sensitive_tracked)` | 检查 `.gitignore` 是否覆盖了常见敏感文件模式                  |
+| 函数                                               | 作用                                                      |
+| -------------------------------------------------- | --------------------------------------------------------- |
+| `scan_hygiene(project_path, max_secret_files)`     | 执行完整的仓库卫生检查：gitignore、敏感文件跟踪、密钥扫描 |
+| `scan_secrets(project_path, max_files, max_bytes)` | 正则模式匹配 + Shannon entropy 熵值分析，识别硬编码密钥   |
+| `check_sensitive_tracked(project_path)`            | 检查被 git 跟踪的敏感文件（详见下方「敏感文件类型」）     |
+| `check_gitignore(project_path, sensitive_tracked)` | 检查 `.gitignore` 是否覆盖了常见敏感文件模式              |
 
 ### 依赖解析
 
@@ -159,146 +159,146 @@ main()
 
 `scan_secrets()` 采用**双阶段检测**：
 
-| 阶段 | 机制 | 置信度 | 说明 |
-| ---- | ---- | ------ | ---- |
-| Phase 1 | 正则模式匹配（98 个模式） | high / medium | 精确匹配已知格式的密钥和 token |
-| Phase 2 | Shannon entropy 熵值分析 | low | 对无已知前缀的高随机性字符串进行可疑标记，用户自行判断 |
+| 阶段    | 机制                      | 置信度        | 说明                                                   |
+| ------- | ------------------------- | ------------- | ------------------------------------------------------ |
+| Phase 1 | 正则模式匹配（98 个模式） | high / medium | 精确匹配已知格式的密钥和 token                         |
+| Phase 2 | Shannon entropy 熵值分析  | low           | 对无已知前缀的高随机性字符串进行可疑标记，用户自行判断 |
 
 两阶段结果自动交叉去重：若同一行已被正则匹配命中，entropy 不再重复报告。
 
 ### 云厂商密钥（21 个模式）
 
-| 类型 | 说明 | 置信度 |
-| ---- | ---- | ------ |
-| `aws_access_key` | AWS Access Key ID（`AKIA...`） | high |
-| `aws_secret_key` | AWS Secret Access Key | medium |
-| `aws_session_token` | AWS Session Token（`ASIA...`） | high |
-| `gcp_service_account` | GCP 服务账号 JSON（`"type": "service_account"`） | high |
-| `gcp_api_key` | GCP API Key（`AIza...`） | high |
-| `gcp_oauth_token` | GCP OAuth Token（`ya29....`） | high |
-| `azure_client_secret` | Azure Client Secret | medium |
-| `azure_connection_string` | Azure Storage 连接字符串 | high |
-| `azure_sas_token` | Azure SAS Token（`sv=...&sig=...`） | high |
-| `aliyun_access_key` | 阿里云 AccessKey ID（`LTAI...`） | high |
-| `aliyun_secret_key` | 阿里云 AccessKey Secret | medium |
-| `tencent_secret_id` | 腾讯云 SecretId（`AKID...`） | high |
-| `huawei_access_key` | 华为云 Access Key | medium |
-| `huawei_secret_key` | 华为云 Secret Key | medium |
-| `oracle_api_key` | Oracle Cloud OCID（`ocid1....`） | high |
-| `digitalocean_token` | DigitalOcean Token（`dop_v1_...`） | high |
-| `linode_api_key` | Linode / Akamai API Key（需上下文） | medium |
-| `vultr_api_key` | Vultr API Key（需上下文） | medium |
-| `cloudflare_api_key` | Cloudflare API Key（`v1.0-...`） | high |
-| `cloudflare_origin_ca` | Cloudflare Origin Certificate | high |
-| `heroku_api_key` | Heroku API Key（UUID 格式，需上下文） | medium |
+| 类型                      | 说明                                             | 置信度 |
+| ------------------------- | ------------------------------------------------ | ------ |
+| `aws_access_key`          | AWS Access Key ID（`AKIA...`）                   | high   |
+| `aws_secret_key`          | AWS Secret Access Key                            | medium |
+| `aws_session_token`       | AWS Session Token（`ASIA...`）                   | high   |
+| `gcp_service_account`     | GCP 服务账号 JSON（`"type": "service_account"`） | high   |
+| `gcp_api_key`             | GCP API Key（`AIza...`）                         | high   |
+| `gcp_oauth_token`         | GCP OAuth Token（`ya29....`）                    | high   |
+| `azure_client_secret`     | Azure Client Secret                              | medium |
+| `azure_connection_string` | Azure Storage 连接字符串                         | high   |
+| `azure_sas_token`         | Azure SAS Token（`sv=...&sig=...`）              | high   |
+| `aliyun_access_key`       | 阿里云 AccessKey ID（`LTAI...`）                 | high   |
+| `aliyun_secret_key`       | 阿里云 AccessKey Secret                          | medium |
+| `tencent_secret_id`       | 腾讯云 SecretId（`AKID...`）                     | high   |
+| `huawei_access_key`       | 华为云 Access Key                                | medium |
+| `huawei_secret_key`       | 华为云 Secret Key                                | medium |
+| `oracle_api_key`          | Oracle Cloud OCID（`ocid1....`）                 | high   |
+| `digitalocean_token`      | DigitalOcean Token（`dop_v1_...`）               | high   |
+| `linode_api_key`          | Linode / Akamai API Key（需上下文）              | medium |
+| `vultr_api_key`           | Vultr API Key（需上下文）                        | medium |
+| `cloudflare_api_key`      | Cloudflare API Key（`v1.0-...`）                 | high   |
+| `cloudflare_origin_ca`    | Cloudflare Origin Certificate                    | high   |
+| `heroku_api_key`          | Heroku API Key（UUID 格式，需上下文）            | medium |
 
 ### SaaS / 第三方服务 Token（65 个模式）
 
-| 类型 | 说明 | 置信度 |
-| ---- | ---- | ------ |
-| **代码托管** | | |
-| `github_token` | GitHub PAT（`ghp_...`） | high |
-| `github_oauth` | GitHub OAuth Token（`gho_...`） | high |
-| `github_app_token` | GitHub App Token（`ghu_` / `ghs_...`） | high |
-| `github_refresh_token` | GitHub Refresh Token（`ghr_...`） | high |
-| `gitlab_token` | GitLab Token（`glpat-...`） | high |
-| **即时通讯** | | |
-| `slack_token` | Slack Token（`xoxb-...` / `xoxp-...`） | high |
-| `slack_webhook` | Slack Webhook URL | high |
-| `discord_token` | Discord Bot Token | high |
-| `discord_bot_token` | Discord Bot Token（BOT 前缀） | high |
-| `discord_webhook` | Discord Webhook URL | high |
-| **支付** | | |
-| `stripe_secret_key` | Stripe Secret Key（`sk_live_...`） | high |
-| `stripe_publishable_key` | Stripe Publishable Key（`pk_live_...`） | medium |
-| `stripe_restricted_key` | Stripe Restricted Key（`rk_live_...`） | high |
-| `square_access_token` | Square Access Token（`sq0atp-...`） | high |
-| `square_oauth_secret` | Square OAuth Secret（`sq0csp-...`） | high |
-| `shopify_token` | Shopify Token（`shpat_...`） | high |
-| `paypal_bearer_token` | PayPal Bearer Token | medium |
-| `braintree_token` | Braintree Token | medium |
-| **通信** | | |
-| `twilio_api_key` | Twilio API Key（`SK...`） | high |
-| `twilio_account_sid` | Twilio Account SID（`AC...`） | high |
-| `sendgrid_api_key` | SendGrid API Key（`SG....`） | high |
-| `mailgun_api_key` | Mailgun API Key（`key-...`） | high |
-| `mailchimp_api_key` | Mailchimp API Key | medium |
-| **LLM / AI** | | |
-| `openai_key` | OpenAI API Key（`sk-...` / `sk-proj-...`） | high |
-| `anthropic_key` | Anthropic API Key（`sk-ant-...`） | high |
-| `google_ai_key` | Google AI Key（`AIza...`） | high |
-| `huggingface_token` | Hugging Face Token（`hf_...`） | high |
-| `replicate_token` | Replicate Token（`r8_...`） | high |
-| **包管理** | | |
-| `npm_token` | NPM Token（`//registry.npmjs.org/...`） | high |
-| `npmrc_auth_token` | NPM Auth Token（`npm_...`） | high |
-| `pypi_token` | PyPI Token（`pypi-AgEIcH...`） | high |
-| `rubygems_token` | RubyGems Token（`rubygems_...`） | medium |
-| `nuget_api_key` | NuGet API Key（`oy2...`） | medium |
-| `docker_hub_token` | Docker Hub Token（`dckr_pat_...`） | high |
-| **监控 / 可观测性** | | |
-| `datadog_api_key` | Datadog API Key（需上下文） | medium |
-| `datadog_app_key` | Datadog App Key（需上下文） | medium |
-| `newrelic_key` | New Relic Key（`NRAK...`） | high |
-| `sentry_dsn` | Sentry DSN URL | high |
-| `sentry_token` | Sentry Token（`sntrys_...`） | high |
-| `grafana_api_key` | Grafana API Key（JWT 格式，需上下文） | medium |
-| `sonar_token` | SonarQube Token（`squ_...`） | high |
-| **CI/CD** | | |
-| `terraform_token` | Terraform Cloud Token（`....atlasv1....`） | medium |
-| `circleci_token` | CircleCI Token（`CCIRERES_...`） | medium |
-| `travis_token` | Travis CI Token（需上下文） | medium |
-| `buildkite_token` | Buildkite Token（`bkua_...`） | medium |
-| `jenkins_token` | Jenkins Token（需上下文） | medium |
-| `jfrog_token` | JFrog Token（`cmVmd...`） | medium |
-| **项目管理** | | |
-| `atlassian_token` | JIRA / Confluence Token（需上下文） | medium |
-| `notion_token` | Notion Token（`secret_...` / `ntn_...`） | medium |
-| `linear_api_key` | Linear API Key（`lin_api_...`） | medium |
-| `airtable_api_key` | Airtable API Key（`key...`） | medium |
-| `asana_token` | Asana Token | medium |
-| `pagerduty_token` | PagerDuty Token（需上下文） | medium |
-| `postman_api_key` | Postman API Key（`PMAK-...`） | medium |
-| **云服务** | | |
-| `firebase_url` | Firebase Realtime Database URL | high |
-| `firebase_key` | Firebase API Key | medium |
-| `databricks_token` | Databricks Token（`dapi...`） | high |
-| `fastly_api_key` | Fastly API Key（需上下文） | medium |
-| `ngrok_token` | Ngrok Token（需上下文） | medium |
-| **数据库连接字符串** | | |
-| `mongodb_connection` | MongoDB 连接字符串 | high |
-| `postgres_connection` | PostgreSQL 连接字符串 | high |
-| `mysql_connection` | MySQL 连接字符串 | high |
-| `redis_connection` | Redis 连接字符串 | high |
-| `amqp_connection` | AMQP / RabbitMQ 连接字符串 | high |
-| `kafka_connection` | Kafka / Confluent 连接凭据 | medium |
+| 类型                     | 说明                                       | 置信度 |
+| ------------------------ | ------------------------------------------ | ------ |
+| **代码托管**             |                                            |        |
+| `github_token`           | GitHub PAT（`ghp_...`）                    | high   |
+| `github_oauth`           | GitHub OAuth Token（`gho_...`）            | high   |
+| `github_app_token`       | GitHub App Token（`ghu_` / `ghs_...`）     | high   |
+| `github_refresh_token`   | GitHub Refresh Token（`ghr_...`）          | high   |
+| `gitlab_token`           | GitLab Token（`glpat-...`）                | high   |
+| **即时通讯**             |                                            |        |
+| `slack_token`            | Slack Token（`xoxb-...` / `xoxp-...`）     | high   |
+| `slack_webhook`          | Slack Webhook URL                          | high   |
+| `discord_token`          | Discord Bot Token                          | high   |
+| `discord_bot_token`      | Discord Bot Token（BOT 前缀）              | high   |
+| `discord_webhook`        | Discord Webhook URL                        | high   |
+| **支付**                 |                                            |        |
+| `stripe_secret_key`      | Stripe Secret Key（`sk_live_...`）         | high   |
+| `stripe_publishable_key` | Stripe Publishable Key（`pk_live_...`）    | medium |
+| `stripe_restricted_key`  | Stripe Restricted Key（`rk_live_...`）     | high   |
+| `square_access_token`    | Square Access Token（`sq0atp-...`）        | high   |
+| `square_oauth_secret`    | Square OAuth Secret（`sq0csp-...`）        | high   |
+| `shopify_token`          | Shopify Token（`shpat_...`）               | high   |
+| `paypal_bearer_token`    | PayPal Bearer Token                        | medium |
+| `braintree_token`        | Braintree Token                            | medium |
+| **通信**                 |                                            |        |
+| `twilio_api_key`         | Twilio API Key（`SK...`）                  | high   |
+| `twilio_account_sid`     | Twilio Account SID（`AC...`）              | high   |
+| `sendgrid_api_key`       | SendGrid API Key（`SG....`）               | high   |
+| `mailgun_api_key`        | Mailgun API Key（`key-...`）               | high   |
+| `mailchimp_api_key`      | Mailchimp API Key                          | medium |
+| **LLM / AI**             |                                            |        |
+| `openai_key`             | OpenAI API Key（`sk-...` / `sk-proj-...`） | high   |
+| `anthropic_key`          | Anthropic API Key（`sk-ant-...`）          | high   |
+| `google_ai_key`          | Google AI Key（`AIza...`）                 | high   |
+| `huggingface_token`      | Hugging Face Token（`hf_...`）             | high   |
+| `replicate_token`        | Replicate Token（`r8_...`）                | high   |
+| **包管理**               |                                            |        |
+| `npm_token`              | NPM Token（`//registry.npmjs.org/...`）    | high   |
+| `npmrc_auth_token`       | NPM Auth Token（`npm_...`）                | high   |
+| `pypi_token`             | PyPI Token（`pypi-AgEIcH...`）             | high   |
+| `rubygems_token`         | RubyGems Token（`rubygems_...`）           | medium |
+| `nuget_api_key`          | NuGet API Key（`oy2...`）                  | medium |
+| `docker_hub_token`       | Docker Hub Token（`dckr_pat_...`）         | high   |
+| **监控 / 可观测性**      |                                            |        |
+| `datadog_api_key`        | Datadog API Key（需上下文）                | medium |
+| `datadog_app_key`        | Datadog App Key（需上下文）                | medium |
+| `newrelic_key`           | New Relic Key（`NRAK...`）                 | high   |
+| `sentry_dsn`             | Sentry DSN URL                             | high   |
+| `sentry_token`           | Sentry Token（`sntrys_...`）               | high   |
+| `grafana_api_key`        | Grafana API Key（JWT 格式，需上下文）      | medium |
+| `sonar_token`            | SonarQube Token（`squ_...`）               | high   |
+| **CI/CD**                |                                            |        |
+| `terraform_token`        | Terraform Cloud Token（`....atlasv1....`） | medium |
+| `circleci_token`         | CircleCI Token（`CCIRERES_...`）           | medium |
+| `travis_token`           | Travis CI Token（需上下文）                | medium |
+| `buildkite_token`        | Buildkite Token（`bkua_...`）              | medium |
+| `jenkins_token`          | Jenkins Token（需上下文）                  | medium |
+| `jfrog_token`            | JFrog Token（`cmVmd...`）                  | medium |
+| **项目管理**             |                                            |        |
+| `atlassian_token`        | JIRA / Confluence Token（需上下文）        | medium |
+| `notion_token`           | Notion Token（`secret_...` / `ntn_...`）   | medium |
+| `linear_api_key`         | Linear API Key（`lin_api_...`）            | medium |
+| `airtable_api_key`       | Airtable API Key（`key...`）               | medium |
+| `asana_token`            | Asana Token                                | medium |
+| `pagerduty_token`        | PagerDuty Token（需上下文）                | medium |
+| `postman_api_key`        | Postman API Key（`PMAK-...`）              | medium |
+| **云服务**               |                                            |        |
+| `firebase_url`           | Firebase Realtime Database URL             | high   |
+| `firebase_key`           | Firebase API Key                           | medium |
+| `databricks_token`       | Databricks Token（`dapi...`）              | high   |
+| `fastly_api_key`         | Fastly API Key（需上下文）                 | medium |
+| `ngrok_token`            | Ngrok Token（需上下文）                    | medium |
+| **数据库连接字符串**     |                                            |        |
+| `mongodb_connection`     | MongoDB 连接字符串                         | high   |
+| `postgres_connection`    | PostgreSQL 连接字符串                      | high   |
+| `mysql_connection`       | MySQL 连接字符串                           | high   |
+| `redis_connection`       | Redis 连接字符串                           | high   |
+| `amqp_connection`        | AMQP / RabbitMQ 连接字符串                 | high   |
+| `kafka_connection`       | Kafka / Confluent 连接凭据                 | medium |
 
 ### 通用 / 启发式模式（12 个模式）
 
-| 类型 | 说明 | 置信度 |
-| ---- | ---- | ------ |
-| `private_key` | RSA / EC / OpenSSH / DSA / PGP 私钥 | high |
-| `generic_password` | 通用密码赋值（`password = "..."`） | medium |
-| `generic_api_key` | 通用 API Key 赋值（`api_key = "..."`） | medium |
-| `generic_token` | 通用 Token 赋值（`access_token = "..."`） | medium |
-| `generic_secret` | 通用密钥赋值（`secret_key = "..."`） | medium |
-| `generic_sk_key` | `sk-` 前缀通用捕获（MiniMax / DeepSeek / Moonshot 等） | medium |
-| `bearer_token` | Authorization: Bearer ... | high |
-| `jwt_token` | JWT Token（`eyJ....`） | high |
-| `base64_secret` | Base64 编码密钥 | medium |
-| `connection_string` | 通用连接字符串 | medium |
-| `encryption_key` | 加密密钥（`aes_key = "..."`） | medium |
-| `webhook_url` | Webhook URL（含密钥路径） | high |
+| 类型                | 说明                                                   | 置信度 |
+| ------------------- | ------------------------------------------------------ | ------ |
+| `private_key`       | RSA / EC / OpenSSH / DSA / PGP 私钥                    | high   |
+| `generic_password`  | 通用密码赋值（`password = "..."`）                     | medium |
+| `generic_api_key`   | 通用 API Key 赋值（`api_key = "..."`）                 | medium |
+| `generic_token`     | 通用 Token 赋值（`access_token = "..."`）              | medium |
+| `generic_secret`    | 通用密钥赋值（`secret_key = "..."`）                   | medium |
+| `generic_sk_key`    | `sk-` 前缀通用捕获（MiniMax / DeepSeek / Moonshot 等） | medium |
+| `bearer_token`      | Authorization: Bearer ...                              | high   |
+| `jwt_token`         | JWT Token（`eyJ....`）                                 | high   |
+| `base64_secret`     | Base64 编码密钥                                        | medium |
+| `connection_string` | 通用连接字符串                                         | medium |
+| `encryption_key`    | 加密密钥（`aes_key = "..."`）                          | medium |
+| `webhook_url`       | Webhook URL（含密钥路径）                              | high   |
 
 ### Entropy 熵值检测
 
 对 `.env` 文件和代码文件中的赋值语句进行 Shannon entropy 分析：
 
-| 检测类型 | 阈值 | 说明 |
-| -------- | ---- | ---- |
-| `base64_high_entropy` | ≥ 4.5 | 高随机性 base64 字符串（如 `K7gNU3sdo+OL...`） |
-| `hex_high_entropy` | ≥ 3.0 | 高随机性十六进制字符串（≥ 32 字符） |
-| `generic_high_entropy` | ≥ 4.2 | 其他高随机性字符串 |
+| 检测类型               | 阈值  | 说明                                           |
+| ---------------------- | ----- | ---------------------------------------------- |
+| `base64_high_entropy`  | ≥ 4.5 | 高随机性 base64 字符串（如 `K7gNU3sdo+OL...`） |
+| `hex_high_entropy`     | ≥ 3.0 | 高随机性十六进制字符串（≥ 32 字符）            |
+| `generic_high_entropy` | ≥ 4.2 | 其他高随机性字符串                             |
 
 - 需要变量名包含 `key`、`token`、`secret`、`password` 等关键词提示（`_SECRET_HINT_KEYWORDS`）
 - 最小字符串长度 20 字符
@@ -307,39 +307,39 @@ main()
 
 ### 敏感文件检测（29 种类型）
 
-| 类型 | 匹配规则 | 说明 |
-| ---- | -------- | ---- |
-| **环境 / 配置文件** | | |
-| `env_file` | `.env`、`.env.local`、`.env.production` 等 | 环境变量文件 |
-| `envrc` | `.envrc` | direnv 配置 |
-| `npmrc` | `.npmrc` | NPM 配置（可能含 auth token） |
-| `pypirc` | `.pypirc` | PyPI 凭据配置 |
-| `netrc` | `.netrc` | 网络凭据文件 |
-| `gem_credentials` | `.gem/credentials` | RubyGems 凭据 |
-| `app_config` | `application.yml` / `application.properties` | 应用配置（可能含数据库密码） |
-| `ci_secrets` | `secrets.yml` / `secrets.json` | CI/CD 密钥文件 |
-| `gradle_properties` | `gradle.properties` | Gradle 属性（可能含签名密钥） |
-| `maven_settings` | `settings.xml` | Maven 设置（可能含仓库凭据） |
-| **密钥 / 证书** | | |
-| `private_key` | `.pem`、`.key`、`.p12`、`.pfx`、`.jks`、`.keystore`、`.pub`、`.gpg`、`.pgp`、`.asc`、`.ppk` | 私钥文件 |
-| `ssh_key` | `id_rsa`、`id_ed25519`、`id_ecdsa`、`ssh_host_*_key` | SSH 密钥 |
-| `kubeconfig` | `kubeconfig`、`.kube/config` | Kubernetes 配置 |
-| `docker_cfg` | `.dockercfg`、`config.json` | Docker 凭据 |
-| **凭据文件** | | |
-| `credentials` | `credentials.json`、`service-account*.json`、`client_secret*.json`、`sa-key.json` | 云服务凭据 |
-| `aws_credentials` | `.aws/credentials` | AWS 凭据文件 |
-| `gcp_credentials` | `gcloud-credentials`、`gcloud-config`、`gcloud-token` | GCP 凭据文件 |
-| `azure_credentials` | `azureProfile.json` | Azure 配置 |
-| `ansible_vault` | `vault_password.txt`、`vault-password.txt` | Ansible Vault 密码 |
-| `terraform_state` | `terraform.tfstate`、`terraform.tfstate.backup` | Terraform 状态文件 |
-| `terraform_vars` | `terraform.tfvars` | Terraform 变量（可能含密钥值） |
-| **数据文件** | | |
-| `database` | `.sqlite`、`.sqlite3`、`.db`、`.dump`、`.rdb`、`.redis`、`.bson` | 数据库文件 |
-| `dump` | `.sql`、`.pgdump`、`.mysqldump`、`.mongoexport`、`.jsonl`、`.csv` | 数据导出 |
-| `log` | `.log` | 日志文件（可能泄露密钥） |
-| **历史 / 备份** | | |
-| `history` | `.bash_history`、`.zsh_history`、`.python_history` 等 | Shell / REPL 历史 |
-| `backup` | `.bak`、`.backup`、`.old`、`.orig`、`.save`、`.swp` | 备份文件 |
+| 类型                | 匹配规则                                                                                    | 说明                           |
+| ------------------- | ------------------------------------------------------------------------------------------- | ------------------------------ |
+| **环境 / 配置文件** |                                                                                             |                                |
+| `env_file`          | `.env`、`.env.local`、`.env.production` 等                                                  | 环境变量文件                   |
+| `envrc`             | `.envrc`                                                                                    | direnv 配置                    |
+| `npmrc`             | `.npmrc`                                                                                    | NPM 配置（可能含 auth token）  |
+| `pypirc`            | `.pypirc`                                                                                   | PyPI 凭据配置                  |
+| `netrc`             | `.netrc`                                                                                    | 网络凭据文件                   |
+| `gem_credentials`   | `.gem/credentials`                                                                          | RubyGems 凭据                  |
+| `app_config`        | `application.yml` / `application.properties`                                                | 应用配置（可能含数据库密码）   |
+| `ci_secrets`        | `secrets.yml` / `secrets.json`                                                              | CI/CD 密钥文件                 |
+| `gradle_properties` | `gradle.properties`                                                                         | Gradle 属性（可能含签名密钥）  |
+| `maven_settings`    | `settings.xml`                                                                              | Maven 设置（可能含仓库凭据）   |
+| **密钥 / 证书**     |                                                                                             |                                |
+| `private_key`       | `.pem`、`.key`、`.p12`、`.pfx`、`.jks`、`.keystore`、`.pub`、`.gpg`、`.pgp`、`.asc`、`.ppk` | 私钥文件                       |
+| `ssh_key`           | `id_rsa`、`id_ed25519`、`id_ecdsa`、`ssh_host_*_key`                                        | SSH 密钥                       |
+| `kubeconfig`        | `kubeconfig`、`.kube/config`                                                                | Kubernetes 配置                |
+| `docker_cfg`        | `.dockercfg`、`config.json`                                                                 | Docker 凭据                    |
+| **凭据文件**        |                                                                                             |                                |
+| `credentials`       | `credentials.json`、`service-account*.json`、`client_secret*.json`、`sa-key.json`           | 云服务凭据                     |
+| `aws_credentials`   | `.aws/credentials`                                                                          | AWS 凭据文件                   |
+| `gcp_credentials`   | `gcloud-credentials`、`gcloud-config`、`gcloud-token`                                       | GCP 凭据文件                   |
+| `azure_credentials` | `azureProfile.json`                                                                         | Azure 配置                     |
+| `ansible_vault`     | `vault_password.txt`、`vault-password.txt`                                                  | Ansible Vault 密码             |
+| `terraform_state`   | `terraform.tfstate`、`terraform.tfstate.backup`                                             | Terraform 状态文件             |
+| `terraform_vars`    | `terraform.tfvars`                                                                          | Terraform 变量（可能含密钥值） |
+| **数据文件**        |                                                                                             |                                |
+| `database`          | `.sqlite`、`.sqlite3`、`.db`、`.dump`、`.rdb`、`.redis`、`.bson`                            | 数据库文件                     |
+| `dump`              | `.sql`、`.pgdump`、`.mysqldump`、`.mongoexport`、`.jsonl`、`.csv`                           | 数据导出                       |
+| `log`               | `.log`                                                                                      | 日志文件（可能泄露密钥）       |
+| **历史 / 备份**     |                                                                                             |                                |
+| `history`           | `.bash_history`、`.zsh_history`、`.python_history` 等                                       | Shell / REPL 历史              |
+| `backup`            | `.bak`、`.backup`、`.old`、`.orig`、`.save`、`.swp`                                         | 备份文件                       |
 
 ### 误报过滤
 

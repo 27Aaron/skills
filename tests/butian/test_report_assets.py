@@ -182,7 +182,7 @@ class ButianReportAssetTests(unittest.TestCase):
                     "fixed_versions": [],
                     "advisory_id": "GHSA-test-info",
                     "summary": "Severity data is not available yet",
-                }
+                },
             ],
             "outdated": [
                 {

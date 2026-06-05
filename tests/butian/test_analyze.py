@@ -5,10 +5,10 @@ import unittest
 
 from butian.scripts import analyze
 
-
 # ---------------------------------------------------------------------------
 # Minimal scan output factory
 # ---------------------------------------------------------------------------
+
 
 def _make_scan(**overrides):
     """Return a realistic scan output dict with sensible defaults."""
@@ -41,6 +41,7 @@ def _make_scan(**overrides):
 # normalize_severity
 # ===========================================================================
 
+
 class TestNormalizeSeverity(unittest.TestCase):
     def test_valid_severity_levels(self):
         for level in ("critical", "high", "medium", "low", "info"):
@@ -71,6 +72,7 @@ class TestNormalizeSeverity(unittest.TestCase):
 # severity_rank
 # ===========================================================================
 
+
 class TestSeverityRank(unittest.TestCase):
     def test_rank_ordering(self):
         ranks = {
@@ -97,6 +99,7 @@ class TestSeverityRank(unittest.TestCase):
 # ===========================================================================
 # to_list
 # ===========================================================================
+
 
 class TestToList(unittest.TestCase):
     def test_none_returns_empty(self):
@@ -132,6 +135,7 @@ class TestToList(unittest.TestCase):
 # unique_values
 # ===========================================================================
 
+
 class TestUniqueValues(unittest.TestCase):
     def test_none_input_returns_empty(self):
         self.assertEqual(analyze.unique_values(None), [])
@@ -166,6 +170,7 @@ class TestUniqueValues(unittest.TestCase):
 # version_key
 # ===========================================================================
 
+
 class TestVersionKey(unittest.TestCase):
     def test_simple_version(self):
         self.assertEqual(analyze.version_key("1.2.3"), (1, 2, 3))
@@ -194,6 +199,7 @@ class TestVersionKey(unittest.TestCase):
 # ===========================================================================
 # highest_version
 # ===========================================================================
+
 
 class TestHighestVersion(unittest.TestCase):
     def test_empty_list(self):
@@ -224,6 +230,7 @@ class TestHighestVersion(unittest.TestCase):
 # ===========================================================================
 # clean_advisory_summary
 # ===========================================================================
+
 
 class TestCleanAdvisorySummary(unittest.TestCase):
     def test_normalizes_whitespace(self):
@@ -263,6 +270,7 @@ class TestCleanAdvisorySummary(unittest.TestCase):
 # ===========================================================================
 # advisory_issue_phrase
 # ===========================================================================
+
 
 class TestAdvisoryIssuePhrase(unittest.TestCase):
     def test_empty_summary(self):
@@ -351,9 +359,7 @@ class TestAdvisoryIssuePhrase(unittest.TestCase):
         self.assertIn("连接耗尽", result)
 
     def test_large_numeric_range_max(self):
-        result = analyze.advisory_issue_phrase(
-            "large numeric range overflow max limit"
-        )
+        result = analyze.advisory_issue_phrase("large numeric range overflow max limit")
         self.assertIn("大范围数字展开", result)
 
     def test_host_confusion_percent_encoded(self):
@@ -370,6 +376,7 @@ class TestAdvisoryIssuePhrase(unittest.TestCase):
 # ===========================================================================
 # vulnerability_summary
 # ===========================================================================
+
 
 class TestVulnerabilitySummary(unittest.TestCase):
     def test_with_fixed_versions(self):
@@ -427,6 +434,7 @@ class TestVulnerabilitySummary(unittest.TestCase):
 # sort_items
 # ===========================================================================
 
+
 class TestSortItems(unittest.TestCase):
     def test_sorts_by_severity_descending(self):
         items = [
@@ -465,30 +473,33 @@ class TestSortItems(unittest.TestCase):
 # build_top_issues
 # ===========================================================================
 
+
 class TestBuildTopIssues(unittest.TestCase):
     def test_empty_vulnerabilities(self):
         scan = _make_scan()
         self.assertEqual(analyze.build_top_issues(scan), [])
 
     def test_assigns_tier_and_rank(self):
-        scan = _make_scan(vulnerabilities=[
-            {
-                "package": "lodash",
-                "version": "4.17.20",
-                "severity": "high",
-                "summary": "Prototype pollution",
-                "fixed_versions": ["4.17.21"],
-                "ecosystem": "npm",
-            },
-            {
-                "package": "express",
-                "version": "4.18.0",
-                "severity": "critical",
-                "summary": "RCE",
-                "fixed_versions": ["4.18.1"],
-                "ecosystem": "npm",
-            },
-        ])
+        scan = _make_scan(
+            vulnerabilities=[
+                {
+                    "package": "lodash",
+                    "version": "4.17.20",
+                    "severity": "high",
+                    "summary": "Prototype pollution",
+                    "fixed_versions": ["4.17.21"],
+                    "ecosystem": "npm",
+                },
+                {
+                    "package": "express",
+                    "version": "4.18.0",
+                    "severity": "critical",
+                    "summary": "RCE",
+                    "fixed_versions": ["4.18.1"],
+                    "ecosystem": "npm",
+                },
+            ]
+        )
         issues = analyze.build_top_issues(scan)
 
         self.assertEqual(len(issues), 2)
@@ -504,56 +515,64 @@ class TestBuildTopIssues(unittest.TestCase):
         self.assertEqual(issues[1]["rank"], 2)
 
     def test_medium_gets_yellow_tier(self):
-        scan = _make_scan(vulnerabilities=[
-            {
-                "package": "pkg",
-                "version": "1.0",
-                "severity": "medium",
-                "summary": "Issue",
-                "ecosystem": "npm",
-            },
-        ])
+        scan = _make_scan(
+            vulnerabilities=[
+                {
+                    "package": "pkg",
+                    "version": "1.0",
+                    "severity": "medium",
+                    "summary": "Issue",
+                    "ecosystem": "npm",
+                },
+            ]
+        )
         issues = analyze.build_top_issues(scan)
         self.assertEqual(issues[0]["tier"], "yellow")
 
     def test_low_and_info_get_green_tier(self):
         for severity in ("low", "info"):
             with self.subTest(severity=severity):
-                scan = _make_scan(vulnerabilities=[
-                    {
-                        "package": "pkg",
-                        "version": "1.0",
-                        "severity": severity,
-                        "summary": "Issue",
-                        "ecosystem": "npm",
-                    },
-                ])
+                scan = _make_scan(
+                    vulnerabilities=[
+                        {
+                            "package": "pkg",
+                            "version": "1.0",
+                            "severity": severity,
+                            "summary": "Issue",
+                            "ecosystem": "npm",
+                        },
+                    ]
+                )
                 issues = analyze.build_top_issues(scan)
                 self.assertEqual(issues[0]["tier"], "green")
 
     def test_normalizes_severity(self):
-        scan = _make_scan(vulnerabilities=[
-            {
-                "package": "pkg",
-                "severity": "CRITICAL",
-                "summary": "Big issue",
-                "ecosystem": "npm",
-            },
-        ])
+        scan = _make_scan(
+            vulnerabilities=[
+                {
+                    "package": "pkg",
+                    "severity": "CRITICAL",
+                    "summary": "Big issue",
+                    "ecosystem": "npm",
+                },
+            ]
+        )
         issues = analyze.build_top_issues(scan)
         self.assertEqual(issues[0]["severity"], "critical")
 
     def test_summary_is_generated(self):
-        scan = _make_scan(vulnerabilities=[
-            {
-                "package": "lodash",
-                "version": "4.17.20",
-                "severity": "high",
-                "summary": "Prototype pollution",
-                "fixed_versions": ["4.17.21"],
-                "ecosystem": "npm",
-            },
-        ])
+        scan = _make_scan(
+            vulnerabilities=[
+                {
+                    "package": "lodash",
+                    "version": "4.17.20",
+                    "severity": "high",
+                    "summary": "Prototype pollution",
+                    "fixed_versions": ["4.17.21"],
+                    "ecosystem": "npm",
+                },
+            ]
+        )
         issues = analyze.build_top_issues(scan)
         self.assertIn("lodash", issues[0]["summary"])
 
@@ -561,6 +580,7 @@ class TestBuildTopIssues(unittest.TestCase):
 # ===========================================================================
 # build_hygiene_items
 # ===========================================================================
+
 
 class TestBuildHygieneItems(unittest.TestCase):
     def test_empty_hygiene(self):
@@ -571,19 +591,21 @@ class TestBuildHygieneItems(unittest.TestCase):
         self.assertEqual(green, [])
 
     def test_secret_high_confidence(self):
-        scan = _make_scan(hygiene={
-            "tracked_secrets": [
-                {
-                    "type": "openai_key",
-                    "confidence": "high",
-                    "file": ".env",
-                    "line": 5,
-                    "preview": "sk-proj...7890",
-                },
-            ],
-            "sensitive_tracked": [],
-            "gitignore_missing": [],
-        })
+        scan = _make_scan(
+            hygiene={
+                "tracked_secrets": [
+                    {
+                        "type": "openai_key",
+                        "confidence": "high",
+                        "file": ".env",
+                        "line": 5,
+                        "preview": "sk-proj...7890",
+                    },
+                ],
+                "sensitive_tracked": [],
+                "gitignore_missing": [],
+            }
+        )
         red, yellow, green = analyze.build_hygiene_items(scan)
 
         # secrets go to yellow
@@ -594,19 +616,21 @@ class TestBuildHygieneItems(unittest.TestCase):
         self.assertIn(".env:5", yellow[0]["name"])
 
     def test_secret_medium_confidence(self):
-        scan = _make_scan(hygiene={
-            "tracked_secrets": [
-                {
-                    "type": "generic_api_key",
-                    "confidence": "medium",
-                    "file": "config.py",
-                    "line": None,
-                    "preview": "AKIA...",
-                },
-            ],
-            "sensitive_tracked": [],
-            "gitignore_missing": [],
-        })
+        scan = _make_scan(
+            hygiene={
+                "tracked_secrets": [
+                    {
+                        "type": "generic_api_key",
+                        "confidence": "medium",
+                        "file": "config.py",
+                        "line": None,
+                        "preview": "AKIA...",
+                    },
+                ],
+                "sensitive_tracked": [],
+                "gitignore_missing": [],
+            }
+        )
         red, yellow, green = analyze.build_hygiene_items(scan)
 
         self.assertEqual(len(yellow), 1)
@@ -615,13 +639,15 @@ class TestBuildHygieneItems(unittest.TestCase):
     def test_sensitive_file_high_severity_types(self):
         for file_type in ("env_file", "private_key", "credentials", "ssh_key"):
             with self.subTest(file_type=file_type):
-                scan = _make_scan(hygiene={
-                    "tracked_secrets": [],
-                    "sensitive_tracked": [
-                        {"type": file_type, "file": f"prod.{file_type}"},
-                    ],
-                    "gitignore_missing": [],
-                })
+                scan = _make_scan(
+                    hygiene={
+                        "tracked_secrets": [],
+                        "sensitive_tracked": [
+                            {"type": file_type, "file": f"prod.{file_type}"},
+                        ],
+                        "gitignore_missing": [],
+                    }
+                )
                 red, yellow, green = analyze.build_hygiene_items(scan)
                 self.assertEqual(len(red), 1)
                 self.assertEqual(red[0]["severity"], "high")
@@ -630,23 +656,27 @@ class TestBuildHygieneItems(unittest.TestCase):
     def test_sensitive_file_medium_severity_types(self):
         for file_type in ("log", "database"):
             with self.subTest(file_type=file_type):
-                scan = _make_scan(hygiene={
-                    "tracked_secrets": [],
-                    "sensitive_tracked": [
-                        {"type": file_type, "file": f"app.{file_type}"},
-                    ],
-                    "gitignore_missing": [],
-                })
+                scan = _make_scan(
+                    hygiene={
+                        "tracked_secrets": [],
+                        "sensitive_tracked": [
+                            {"type": file_type, "file": f"app.{file_type}"},
+                        ],
+                        "gitignore_missing": [],
+                    }
+                )
                 red, yellow, green = analyze.build_hygiene_items(scan)
                 self.assertEqual(len(yellow), 1)
                 self.assertEqual(yellow[0]["severity"], "medium")
 
     def test_gitignore_missing_adds_yellow_and_green(self):
-        scan = _make_scan(hygiene={
-            "tracked_secrets": [],
-            "sensitive_tracked": [],
-            "gitignore_missing": [".env", "*.pem"],
-        })
+        scan = _make_scan(
+            hygiene={
+                "tracked_secrets": [],
+                "sensitive_tracked": [],
+                "gitignore_missing": [".env", "*.pem"],
+            }
+        )
         red, yellow, green = analyze.build_hygiene_items(scan)
 
         self.assertEqual(len(yellow), 1)
@@ -670,6 +700,7 @@ class TestBuildHygieneItems(unittest.TestCase):
 # ===========================================================================
 # build_dependency_fix_items
 # ===========================================================================
+
 
 class TestBuildDependencyFixItems(unittest.TestCase):
     def test_groups_by_package(self):
@@ -812,6 +843,7 @@ class TestBuildDependencyFixItems(unittest.TestCase):
 # count_risks
 # ===========================================================================
 
+
 class TestCountRisks(unittest.TestCase):
     def test_empty_groups(self):
         result = analyze.count_risks()
@@ -840,6 +872,7 @@ class TestCountRisks(unittest.TestCase):
 # ===========================================================================
 # build_summary
 # ===========================================================================
+
 
 class TestBuildSummary(unittest.TestCase):
     def _make_analysis(self, **overrides):
@@ -879,23 +912,21 @@ class TestBuildSummary(unittest.TestCase):
         result = analyze.build_summary(scan, analysis)
 
         self.assertIn("紧急和高风险", result["tldr"])
-        self.assertTrue(
-            any("3 个紧急/高风险项" in p for p in result["priority"])
-        )
+        self.assertTrue(any("3 个紧急/高风险项" in p for p in result["priority"]))
 
     def test_secrets_found(self):
-        scan = _make_scan(hygiene={
-            "tracked_secrets": [{"type": "openai_key"}],
-            "sensitive_tracked": [],
-            "gitignore_missing": [],
-        })
+        scan = _make_scan(
+            hygiene={
+                "tracked_secrets": [{"type": "openai_key"}],
+                "sensitive_tracked": [],
+                "gitignore_missing": [],
+            }
+        )
         analysis = self._make_analysis()
         result = analyze.build_summary(scan, analysis)
 
         self.assertIn("凭证或敏感文件", result["tldr"])
-        self.assertTrue(
-            any("研发确认凭证" in p for p in result["priority"])
-        )
+        self.assertTrue(any("研发确认凭证" in p for p in result["priority"]))
 
     def test_errors_in_scan(self):
         scan = _make_scan(errors=[{"message": "pip failed"}])
@@ -903,9 +934,7 @@ class TestBuildSummary(unittest.TestCase):
         result = analyze.build_summary(scan, analysis)
 
         self.assertIn("部分检查失败", result["tldr"])
-        self.assertTrue(
-            any("复查扫描错误" in p for p in result["priority"])
-        )
+        self.assertTrue(any("复查扫描错误" in p for p in result["priority"]))
 
     def test_clean_scan(self):
         scan = _make_scan()
@@ -913,9 +942,7 @@ class TestBuildSummary(unittest.TestCase):
         result = analyze.build_summary(scan, analysis)
 
         self.assertIn("没有发现明确安全风险", result["tldr"])
-        self.assertTrue(
-            any("没有需要立即处理" in p for p in result["priority"])
-        )
+        self.assertTrue(any("没有需要立即处理" in p for p in result["priority"]))
 
     def test_medium_low_vulnerabilities(self):
         scan = _make_scan()
@@ -958,26 +985,24 @@ class TestBuildSummary(unittest.TestCase):
         self.assertEqual(result["tier_stats"]["green"], "1 项可作为修复计划")
 
     def test_gitignore_missing_in_priority(self):
-        scan = _make_scan(hygiene={
-            "tracked_secrets": [],
-            "sensitive_tracked": [],
-            "gitignore_missing": [".env"],
-        })
+        scan = _make_scan(
+            hygiene={
+                "tracked_secrets": [],
+                "sensitive_tracked": [],
+                "gitignore_missing": [".env"],
+            }
+        )
         analysis = self._make_analysis()
         result = analyze.build_summary(scan, analysis)
 
-        self.assertTrue(
-            any(".gitignore" in p for p in result["priority"])
-        )
+        self.assertTrue(any(".gitignore" in p for p in result["priority"]))
 
     def test_outdated_in_priority_and_detail(self):
         scan = _make_scan(outdated=[{"name": "old-pkg"}])
         analysis = self._make_analysis()
         result = analyze.build_summary(scan, analysis)
 
-        self.assertTrue(
-            any("过期依赖" in p for p in result["priority"])
-        )
+        self.assertTrue(any("过期依赖" in p for p in result["priority"]))
         self.assertIn("过期依赖 1 个", result["detail"])
 
 
@@ -987,6 +1012,7 @@ HYGIENE_ONLY_NOTICE_SHORT = "暂不支持依赖漏洞扫描"
 # ===========================================================================
 # build_analysis
 # ===========================================================================
+
 
 class TestBuildAnalysis(unittest.TestCase):
     def test_full_integration(self):
@@ -1071,6 +1097,7 @@ class TestBuildAnalysis(unittest.TestCase):
 # default_output_path
 # ===========================================================================
 
+
 class TestDefaultOutputPath(unittest.TestCase):
     def test_generates_analysis_json_under_assets(self):
         with tempfile.TemporaryDirectory(prefix="butian-test-") as tmpdir:
@@ -1100,6 +1127,7 @@ class TestDefaultOutputPath(unittest.TestCase):
 # parse_args
 # ===========================================================================
 
+
 class TestParseArgs(unittest.TestCase):
     def test_scan_json_required(self):
         with self.assertRaises(SystemExit):
@@ -1119,6 +1147,7 @@ class TestParseArgs(unittest.TestCase):
 # ===========================================================================
 # write_json
 # ===========================================================================
+
 
 class TestWriteJson(unittest.TestCase):
     def test_writes_valid_json(self):
@@ -1166,6 +1195,7 @@ class TestWriteJson(unittest.TestCase):
 # main (end-to-end)
 # ===========================================================================
 
+
 class TestMain(unittest.TestCase):
     def test_main_writes_analysis_file(self):
         with tempfile.TemporaryDirectory(prefix="butian-test-") as tmpdir:
@@ -1178,6 +1208,7 @@ class TestMain(unittest.TestCase):
 
             # patch sys.argv and call main
             import sys
+
             original_argv = sys.argv
             sys.argv = ["analyze.py", scan_path, output_path]
             try:

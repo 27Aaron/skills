@@ -345,19 +345,22 @@ def load_template():
 def render_markdown(analysis):
     project = analysis.get("project") or {}
     tpl = load_template()
-    return tpl.substitute(
-        project_name=text(project.get("name")) or "-",
-        project_path=text(project.get("path")) or "-",
-        generated_at=text(analysis.get("generated_at")) or "-",
-        scan_seconds=text(analysis.get("scan_seconds")) or "-",
-        summary=render_summary(analysis),
-        vulnerabilities=render_vulnerabilities(analysis),
-        hygiene=render_hygiene(analysis),
-        outdated=render_outdated(analysis),
-        manual_items=render_manual_items(analysis),
-        errors=render_errors(analysis),
-        next_steps=render_next_steps(analysis),
-    ).rstrip() + "\n"
+    return (
+        tpl.substitute(
+            project_name=text(project.get("name")) or "-",
+            project_path=text(project.get("path")) or "-",
+            generated_at=text(analysis.get("generated_at")) or "-",
+            scan_seconds=text(analysis.get("scan_seconds")) or "-",
+            summary=render_summary(analysis),
+            vulnerabilities=render_vulnerabilities(analysis),
+            hygiene=render_hygiene(analysis),
+            outdated=render_outdated(analysis),
+            manual_items=render_manual_items(analysis),
+            errors=render_errors(analysis),
+            next_steps=render_next_steps(analysis),
+        ).rstrip()
+        + "\n"
+    )
 
 
 def parse_args(argv):

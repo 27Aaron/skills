@@ -30,6 +30,8 @@ Official vulnerability sources:
   Supported ecosystems: JavaScript/TypeScript (npm/pnpm/yarn), Python (pypi), Go, Rust (crates-io)
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import math
@@ -201,37 +203,67 @@ def default_asset_path(project_path, filename, preflight=None):
 _CLOUD_PROVIDER_PATTERNS = [
     # AWS
     ("aws_access_key", r"(?<![A-Za-z0-9/+=])AKIA[0-9A-Z]{16}(?![A-Za-z0-9/+=])"),
-    ("aws_secret_key", r"(?:AWS|aws|Amazon)?[_\s-]?(?:Secret|SECRET|secret)[_\s-]?(?:Access|ACCESS|access)[_\s-]?(?:Key|KEY|key)[_\s-]*[:=]\s*[\"']?[A-Za-z0-9/+=]{40}[\"']?"),
+    (
+        "aws_secret_key",
+        r"(?:AWS|aws|Amazon)?[_\s-]?(?:Secret|SECRET|secret)[_\s-]?(?:Access|ACCESS|access)[_\s-]?(?:Key|KEY|key)[_\s-]*[:=]\s*[\"']?[A-Za-z0-9/+=]{40}[\"']?",
+    ),
     ("aws_session_token", r"ASIA[0-9A-Z]{16}"),
     # Google Cloud (GCP)
     ("gcp_service_account", r"\"type\"\s*:\s*\"service_account\""),
     ("gcp_api_key", r"AIza[0-9A-Za-z_-]{35}"),
     ("gcp_oauth_token", r"ya29\.[0-9A-Za-z_-]+"),
     # Microsoft Azure
-    ("azure_client_secret", r"(?:azure|AZURE)[_\s-]?(?:client|CLIENT)[_\s-]?(?:secret|SECRET)[_\s-]*[:=]\s*[\"']?[A-Za-z0-9@#$%^&*\-_.+!]{34,}[\"']?"),
-    ("azure_connection_string", r"DefaultEndpointsProtocol=https?;AccountName=[^;]+;AccountKey=[A-Za-z0-9+/=]{88}"),
+    (
+        "azure_client_secret",
+        r"(?:azure|AZURE)[_\s-]?(?:client|CLIENT)[_\s-]?(?:secret|SECRET)[_\s-]*[:=]\s*[\"']?[A-Za-z0-9@#$%^&*\-_.+!]{34,}[\"']?",
+    ),
+    (
+        "azure_connection_string",
+        r"DefaultEndpointsProtocol=https?;AccountName=[^;]+;AccountKey=[A-Za-z0-9+/=]{88}",
+    ),
     ("azure_sas_token", r"sv=\d{4}-\d{2}-\d{2}&[a-z]+=.{20,}"),
     # Alibaba Cloud (阿里云)
     ("aliyun_access_key", r"LTAI[0-9A-Za-z]{12,20}"),
-    ("aliyun_secret_key", r"(?:ALIBABA|ALICLOUD|ALIYUN|aliyun|alibaba)[_\s-]?(?:SECRET|secret|ACCESS|access)[_\s-]?KEY[_\s-]*[:=]\s*[\"']?[A-Za-z0-9/+=]{30}[\"']?"),
+    (
+        "aliyun_secret_key",
+        r"(?:ALIBABA|ALICLOUD|ALIYUN|aliyun|alibaba)[_\s-]?(?:SECRET|secret|ACCESS|access)[_\s-]?KEY[_\s-]*[:=]\s*[\"']?[A-Za-z0-9/+=]{30}[\"']?",
+    ),
     # Tencent Cloud (腾讯云)
     ("tencent_secret_id", r"(?:AKID|TC3)[A-Za-z0-9]{32}"),
     # Huawei Cloud (华为云)
-    ("huawei_access_key", r"(?:HUAWEI|hw|HW)[_\s-]?(?:ACCESS|access)[_\s-]?KEY[_\s-]*[:=]\s*[\"']?[A-Za-z0-9]{20,}[\"']?"),
-    ("huawei_secret_key", r"(?:HUAWEI|hw|HW)[_\s-]?(?:SECRET|secret)[_\s-]?KEY[_\s-]*[:=]\s*[\"']?[A-Za-z0-9]{30,}[\"']?"),
+    (
+        "huawei_access_key",
+        r"(?:HUAWEI|hw|HW)[_\s-]?(?:ACCESS|access)[_\s-]?KEY[_\s-]*[:=]\s*[\"']?[A-Za-z0-9]{20,}[\"']?",
+    ),
+    (
+        "huawei_secret_key",
+        r"(?:HUAWEI|hw|HW)[_\s-]?(?:SECRET|secret)[_\s-]?KEY[_\s-]*[:=]\s*[\"']?[A-Za-z0-9]{30,}[\"']?",
+    ),
     # Oracle Cloud (OCI)
     ("oracle_api_key", r"ocid1\.[a-z]+(?:\.[a-z0-9]*){3,}"),
     # DigitalOcean
-    ("digitalocean_token", r"dop_v1_[a-f0-9]{64}|do_v1_[a-f0-9]{64}|doo_v1_[a-f0-9]{64}"),
+    (
+        "digitalocean_token",
+        r"dop_v1_[a-f0-9]{64}|do_v1_[a-f0-9]{64}|doo_v1_[a-f0-9]{64}",
+    ),
     # Linode / Akamai (requires context)
-    ("linode_api_key", r"(?:linode|akamai|LINODE)[_\s-]?(?:api|token|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[0-9a-f]{64}[\"']?"),
+    (
+        "linode_api_key",
+        r"(?:linode|akamai|LINODE)[_\s-]?(?:api|token|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[0-9a-f]{64}[\"']?",
+    ),
     # Vultr (requires context)
-    ("vultr_api_key", r"(?:vultr|VULTR)[_\s-]?(?:api|token|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[A-Za-z0-9]{36}[\"']?"),
+    (
+        "vultr_api_key",
+        r"(?:vultr|VULTR)[_\s-]?(?:api|token|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[A-Za-z0-9]{36}[\"']?",
+    ),
     # Cloudflare
     ("cloudflare_api_key", r"v1\.0-[a-f0-9]{24}-[a-f0-9]{146}"),
-    ("cloudflare_origin_ca", r"-----BEGIN ORIGIN CERTIFICATE-----"),
+    ("cloudflare_origin_ca", r"-----BEGIN ORIGIN " r"CERTIFICATE-----"),
     # Heroku (requires context to avoid matching random UUIDs)
-    ("heroku_api_key", r"(?:heroku|HEROKU)[_\s-]?(?:api|token|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[\"']?"),
+    (
+        "heroku_api_key",
+        r"(?:heroku|HEROKU)[_\s-]?(?:api|token|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[\"']?",
+    ),
 ]
 
 # --- SaaS / Third-Party Service Tokens ---
@@ -245,11 +277,20 @@ _SAAS_PATTERNS = [
     ("gitlab_token", r"glpat-[A-Za-z0-9\-_]{20,}"),
     # Slack
     ("slack_token", r"xox[baprs]-[A-Za-z0-9-]+"),
-    ("slack_webhook", r"https://hooks\.slack\.com/services/T[A-Z0-9]+/B[A-Z0-9]+/[A-Za-z0-9]+"),
+    (
+        "slack_webhook",
+        r"https://hooks\.slack\.com/services/T[A-Z0-9]+/B[A-Z0-9]+/[A-Za-z0-9]+",
+    ),
     # Discord
     ("discord_token", r"[MN][A-Za-z\d]{23,}\.[\w-]{6}\.[\w-]{27}"),
-    ("discord_bot_token", r"(?:BOT[_\s]+)?TOKEN\s*[:=]\s*[\"']?[MN][A-Za-z\d]{23,}\.[\w-]{6}\.[\w-]{27}"),
-    ("discord_webhook", r"https://discord(?:app)?\.com/api/webhooks/\d+/[A-Za-z0-9_-]+"),
+    (
+        "discord_bot_token",
+        r"(?:BOT[_\s]+)?TOKEN\s*[:=]\s*[\"']?[MN][A-Za-z\d]{23,}\.[\w-]{6}\.[\w-]{27}",
+    ),
+    (
+        "discord_webhook",
+        r"https://discord(?:app)?\.com/api/webhooks/\d+/[A-Za-z0-9_-]+",
+    ),
     # Stripe
     ("stripe_secret_key", r"sk_live_[0-9a-zA-Z]{24,}"),
     ("stripe_publishable_key", r"pk_live_[0-9a-zA-Z]{24,}"),
@@ -267,23 +308,41 @@ _SAAS_PATTERNS = [
     ("square_access_token", r"sq0atp-[0-9A-Za-z\-_]{22}"),
     ("square_oauth_secret", r"sq0csp-[0-9A-Za-z\-_]{43}"),
     # Shopify
-    ("shopify_token", r"shpat_[a-fA-F0-9]{10,}|shpca_[a-fA-F0-9]{10,}|shppa_[a-fA-F0-9]{10,}|shss_[a-fA-F0-9]{10,}"),
+    (
+        "shopify_token",
+        r"shpat_[a-fA-F0-9]{10,}|shpca_[a-fA-F0-9]{10,}|shppa_[a-fA-F0-9]{10,}|shss_[a-fA-F0-9]{10,}",
+    ),
     # PayPal
     ("paypal_bearer_token", r"access_token\$production\$[a-z0-9]{30,}"),
     # Braintree
     ("braintree_token", r"access_token\$production\$[a-z0-9]{20,}\$[a-f0-9]{32}"),
     # Firebase / Google
     ("firebase_url", r"https://[a-z0-9-]+\.firebaseio\.com"),
-    ("firebase_key", r"(?:AIza[0-9A-Za-z_-]{35})|(?:[Ff]irebase[_\s-]?[Kk]ey\s*[:=]\s*[\"']?[A-Za-z0-9_-]{20,})"),
+    (
+        "firebase_key",
+        r"(?:AIza[0-9A-Za-z_-]{35})|(?:[Ff]irebase[_\s-]?[Kk]ey\s*[:=]\s*[\"']?[A-Za-z0-9_-]{20,})",
+    ),
     # Datadog (requires context)
-    ("datadog_api_key", r"(?:datadog|DATADOG|DD)[_\s-]?(?:api|client)[_\s-]?key(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[a-f0-9]{32}[\"']?"),
-    ("datadog_app_key", r"(?:datadog|DATADOG|DD)[_\s-]?(?:app|application)[_\s-]?key(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[a-f0-9]{40}[\"']?"),
+    (
+        "datadog_api_key",
+        r"(?:datadog|DATADOG|DD)[_\s-]?(?:api|client)[_\s-]?key(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[a-f0-9]{32}[\"']?",
+    ),
+    (
+        "datadog_app_key",
+        r"(?:datadog|DATADOG|DD)[_\s-]?(?:app|application)[_\s-]?key(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[a-f0-9]{40}[\"']?",
+    ),
     # New Relic
     ("newrelic_key", r"(?:NRAK|NRAL|NRRN|NRIO|NRMG|NRUS)[A-Za-z0-9]{20,}"),
     # PagerDuty
-    ("pagerduty_token", r"(?:pagerduty|PAGERDUTY)[_\s-]?token\s*[:=]\s*[\"']?[A-Za-z0-9_-]{20,}[\"']?|pd[_-]?token\s*[:=]\s*[\"']?[A-Za-z0-9_-]{20,}[\"']?"),
+    (
+        "pagerduty_token",
+        r"(?:pagerduty|PAGERDUTY)[_\s-]?token\s*[:=]\s*[\"']?[A-Za-z0-9_-]{20,}[\"']?|pd[_-]?token\s*[:=]\s*[\"']?[A-Za-z0-9_-]{20,}[\"']?",
+    ),
     # Grafana (requires context)
-    ("grafana_api_key", r"(?:grafana|GRAFANA)[_\s-]?(?:api|token|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?eyJ[A-Za-z0-9+/]+=*\.eyJ[A-Za-z0-9+/]+=*\.[A-Za-z0-9+/]+=*"),
+    (
+        "grafana_api_key",
+        r"(?:grafana|GRAFANA)[_\s-]?(?:api|token|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?eyJ[A-Za-z0-9+/]+=*\.eyJ[A-Za-z0-9+/]+=*\.[A-Za-z0-9+/]+=*",
+    ),
     # NPM
     ("npm_token", r"//registry\.npmjs\.org/:_authToken=[0-9a-f-]{36}"),
     ("npmrc_auth_token", r"npm_[A-Za-z0-9]{36,}"),
@@ -294,11 +353,17 @@ _SAAS_PATTERNS = [
     # CircleCI
     ("circleci_token", r"CCIRERES_[A-Za-z0-9]{22,}"),
     # Travis CI (requires context)
-    ("travis_token", r"(?:travis|TRAVIS)[_\s-]?(?:ci|token|api|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[A-Za-z0-9]{22,}[\"']?"),
+    (
+        "travis_token",
+        r"(?:travis|TRAVIS)[_\s-]?(?:ci|token|api|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[A-Za-z0-9]{22,}[\"']?",
+    ),
     # Buildkite
     ("buildkite_token", r"bkua_[a-f0-9]{40}"),
     # Jenkins (requires context)
-    ("jenkins_token", r"(?:jenkins|JENKINS)[_\s-]?(?:token|api|key|password)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[0-9a-f]{40}[\"']?"),
+    (
+        "jenkins_token",
+        r"(?:jenkins|JENKINS)[_\s-]?(?:token|api|key|password)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[0-9a-f]{40}[\"']?",
+    ),
     # JFrog / Artifactory
     ("jfrog_token", r"(?:cmVmd[tnMA])\.[A-Za-z0-9_-]{20,}"),
     # Postman
@@ -318,7 +383,10 @@ _SAAS_PATTERNS = [
     # Sonar
     ("sonar_token", r"squ_[0-9a-f]{40}"),
     # Atlassian (JIRA / Confluence) (requires context)
-    ("atlassian_token", r"(?:atlassian|jira|confluence|bitbucket|ATLASSIAN|JIRA)[_\s-]?(?:token|api|key|pat)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[A-Za-z0-9]{24}[\"']?"),
+    (
+        "atlassian_token",
+        r"(?:atlassian|jira|confluence|bitbucket|ATLASSIAN|JIRA)[_\s-]?(?:token|api|key|pat)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[A-Za-z0-9]{24}[\"']?",
+    ),
     # Notion
     ("notion_token", r"(?:secret|ntn)_[A-Za-z0-9]{30,}"),
     # Linear
@@ -328,18 +396,30 @@ _SAAS_PATTERNS = [
     # Asana
     ("asana_token", r"(?:1|2)/[0-9]+:[A-Za-z0-9]+"),
     # Fastly (requires context)
-    ("fastly_api_key", r"(?:fastly|FASTLY)[_\s-]?(?:api|token|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[A-Za-z0-9_-]{32}[\"']?"),
+    (
+        "fastly_api_key",
+        r"(?:fastly|FASTLY)[_\s-]?(?:api|token|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[A-Za-z0-9_-]{32}[\"']?",
+    ),
     # Ngrok (requires context)
-    ("ngrok_token", r"(?:ngrok|NGROK)[_\s-]?(?:token|api|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[A-Za-z0-9_-]{30,}[\"']?"),
+    (
+        "ngrok_token",
+        r"(?:ngrok|NGROK)[_\s-]?(?:token|api|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[A-Za-z0-9_-]{30,}[\"']?",
+    ),
     # Sentry
     ("sentry_dsn", r"https://[a-f0-9]+@[a-z0-9]+\.ingest\.sentry\.io/[0-9]+"),
     ("sentry_token", r"sntrys_[A-Za-z0-9_-]{40,}"),
     # Databricks
     ("databricks_token", r"dapi[a-f0-9]{32}"),
     # MongoDB
-    ("mongodb_connection", r"mongodb(?:\+srv)?://[A-Za-z0-9_:%-]+:[A-Za-z0-9_:%-]+@[A-Za-z0-9._-]+"),
+    (
+        "mongodb_connection",
+        r"mongodb(?:\+srv)?://[A-Za-z0-9_:%-]+:[A-Za-z0-9_:%-]+@[A-Za-z0-9._-]+",
+    ),
     # PostgreSQL
-    ("postgres_connection", r"postgres(?:ql)?://[A-Za-z0-9_:%-]+:[A-Za-z0-9_:%-]+@[A-Za-z0-9._-]+"),
+    (
+        "postgres_connection",
+        r"postgres(?:ql)?://[A-Za-z0-9_:%-]+:[A-Za-z0-9_:%-]+@[A-Za-z0-9._-]+",
+    ),
     # MySQL
     ("mysql_connection", r"mysql://[A-Za-z0-9_:%-]+:[A-Za-z0-9_:%-]+@[A-Za-z0-9._-]+"),
     # Redis
@@ -347,13 +427,19 @@ _SAAS_PATTERNS = [
     # RabbitMQ
     ("amqp_connection", r"amqp://[A-Za-z0-9_:%-]+:[A-Za-z0-9_:%-]+@[A-Za-z0-9._-]+"),
     # Kafka
-    ("kafka_connection", r"(?:kafka|confluent)[_\s-]?(?:bootstrap|broker|server|sas[lw]|secret|password)[_\s-]?(?:password|secret|key|token|id)[_\s-]*[:=]\s*[\"']?[A-Za-z0-9_-]{10,}"),
+    (
+        "kafka_connection",
+        r"(?:kafka|confluent)[_\s-]?(?:bootstrap|broker|server|sas[lw]|secret|password)[_\s-]?(?:password|secret|key|token|id)[_\s-]*[:=]\s*[\"']?[A-Za-z0-9_-]{10,}",
+    ),
 ]
 
 # --- Generic / Heuristic Patterns (lower confidence, user judges) ---
 _GENERIC_PATTERNS = [
     # Private keys (all variants)
-    ("private_key", r"-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP |ENCRYPTED )?PRIVATE KEY(?:\sBLOCK)?-----"),
+    (
+        "private_key",
+        r"-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP |ENCRYPTED )?PRIVATE KEY(?:\sBLOCK)?-----",
+    ),
     # Generic passwords
     (
         "generic_password",
@@ -370,7 +456,10 @@ _GENERIC_PATTERNS = [
         r"""(?:token|bearer|jwt|access_token|refresh_token|id_token|session_token|csrf_token)\s*[:=]\s*["'][A-Za-z0-9_\-\.]{20,}["']""",
     ),
     # Bearer token in Authorization header
-    ("bearer_token", r"""[Aa]uthorization\s*[:=]\s*["']?Bearer\s+[A-Za-z0-9_\-\.]{20,}["']?"""),
+    (
+        "bearer_token",
+        r"""[Aa]uthorization\s*[:=]\s*["']?Bearer\s+[A-Za-z0-9_\-\.]{20,}["']?""",
+    ),
     # Generic secret assignments
     (
         "generic_secret",
@@ -412,47 +501,84 @@ _GENERIC_PATTERNS = [
 SECRET_PATTERNS = _CLOUD_PROVIDER_PATTERNS + _SAAS_PATTERNS + _GENERIC_PATTERNS
 SECRET_REGEXES = [(name, re.compile(pattern)) for name, pattern in SECRET_PATTERNS]
 SECRET_SKIP_MARKERS = (
-    "example", "placeholder", "your_", "todo", "sample",
-    "changeme", "replace_", "insert_", "put_your", "FIXME", "REPLACE",
-    "<your", "dummy", "fake", "mock", "stub",
+    "example",
+    "placeholder",
+    "your_",
+    "todo",
+    "sample",
+    "changeme",
+    "replace_",
+    "insert_",
+    "put_your",
+    "FIXME",
+    "REPLACE",
+    "<your",
+    "dummy",
+    "fake",
+    "mock",
+    "stub",
 )
 # Markers that are too short / ambiguous — require word boundary check
 SECRET_SKIP_WORD_MARKERS = (
-    "xxx", "test", "default",
+    "xxx",
+    "test",
+    "default",
 )
 HIGH_CONFIDENCE_SECRET_TYPES = {
     # Cloud providers (with unique prefixes)
-    "aws_access_key", "aws_session_token",
-    "gcp_service_account", "gcp_api_key", "gcp_oauth_token",
-    "azure_connection_string", "azure_sas_token",
+    "aws_access_key",
+    "aws_session_token",
+    "gcp_service_account",
+    "gcp_api_key",
+    "gcp_oauth_token",
+    "azure_connection_string",
+    "azure_sas_token",
     "aliyun_access_key",
     "tencent_secret_id",
     "oracle_api_key",
     "digitalocean_token",
-    "cloudflare_api_key", "cloudflare_origin_ca",
+    "cloudflare_api_key",
+    "cloudflare_origin_ca",
     # Crypto / keys
     "private_key",
     # SaaS tokens (with unique prefixes)
-    "github_token", "github_oauth", "github_app_token", "github_refresh_token",
+    "github_token",
+    "github_oauth",
+    "github_app_token",
+    "github_refresh_token",
     "gitlab_token",
-    "slack_token", "slack_webhook",
-    "discord_token", "discord_bot_token", "discord_webhook",
-    "stripe_secret_key", "stripe_restricted_key",
-    "twilio_api_key", "twilio_account_sid",
+    "slack_token",
+    "slack_webhook",
+    "discord_token",
+    "discord_bot_token",
+    "discord_webhook",
+    "stripe_secret_key",
+    "stripe_restricted_key",
+    "twilio_api_key",
+    "twilio_account_sid",
     "sendgrid_api_key",
     "mailgun_api_key",
-    "square_access_token", "square_oauth_secret",
+    "square_access_token",
+    "square_oauth_secret",
     "shopify_token",
     "firebase_url",
     "newrelic_key",
-    "npm_token", "npmrc_auth_token",
+    "npm_token",
+    "npmrc_auth_token",
     "docker_hub_token",
-    "openai_key", "anthropic_key", "huggingface_token", "replicate_token",
+    "openai_key",
+    "anthropic_key",
+    "huggingface_token",
+    "replicate_token",
     "pypi_token",
     "sonar_token",
-    "sentry_dsn", "sentry_token",
+    "sentry_dsn",
+    "sentry_token",
     "databricks_token",
-    "mongodb_connection", "postgres_connection", "mysql_connection", "redis_connection",
+    "mongodb_connection",
+    "postgres_connection",
+    "mysql_connection",
+    "redis_connection",
     "amqp_connection",
     "jwt_token",
     "bearer_token",
@@ -469,7 +595,10 @@ SENSITIVE_FILE_PATTERNS = [
     ("gem_credentials", r"(^|/)\.gem/credentials$"),
     # Private keys / certificates
     ("private_key", r"\.(pem|key|p12|pfx|jks|keystore|pub|gpg|pgp|asc|ppk)$"),
-    ("ssh_key", r"(^|/)(?:id_(?:rsa|ed25519|ecdsa)|ssh_host_[a-z0-9_]+_key)(?:\.pub)?$"),
+    (
+        "ssh_key",
+        r"(^|/)(?:id_(?:rsa|ed25519|ecdsa)|ssh_host_[a-z0-9_]+_key)(?:\.pub)?$",
+    ),
     ("kubeconfig", r"(^|/)kubeconfig$|(^|/)\.kube/config$"),
     ("docker_cfg", r"(^|/)\.dockercfg$|(^|/)config\.json$"),
     # Database files
@@ -494,11 +623,17 @@ SENSITIVE_FILE_PATTERNS = [
     # Dump / export files
     ("dump", r"\.(sql|pgdump|mysqldump|mongoexport|jsonl|csv)$"),
     # App config with potential secrets
-    ("app_config", r"(^|/)(?:application|app)\.(?:yml|yaml|properties|conf)(?:\.[\w-]+)?$"),
+    (
+        "app_config",
+        r"(^|/)(?:application|app)\.(?:yml|yaml|properties|conf)(?:\.[\w-]+)?$",
+    ),
     # Backup files
     ("backup", r"\.(bak|backup|old|orig|save|swp)$"),
     # History files (may contain pasted secrets)
-    ("history", r"(^|/)\.(?:bash_history|zsh_history|python_history|node_repl_history|mysql_history|psql_history)$"),
+    (
+        "history",
+        r"(^|/)\.(?:bash_history|zsh_history|python_history|node_repl_history|mysql_history|psql_history)$",
+    ),
 ]
 SENSITIVE_FILE_REGEXES = [
     (file_type, re.compile(pattern)) for file_type, pattern in SENSITIVE_FILE_PATTERNS
@@ -531,25 +666,74 @@ SENSITIVE_TO_GITIGNORE = {
     "pypirc": [".pypirc"],
     "netrc": [".netrc"],
     "gem_credentials": [".gem/credentials"],
-    "private_key": ["*.pem", "*.key", "*.p12", "*.pfx", "*.jks", "*.keystore", "*.pub", "*.gpg", "*.pgp", "*.asc", "*.ppk"],
-    "ssh_key": ["id_rsa", "id_rsa.pub", "id_ed25519", "id_ed25519.pub", "id_ecdsa", "id_ecdsa.pub", "ssh_host_*_key"],
+    "private_key": [
+        "*.pem",
+        "*.key",
+        "*.p12",
+        "*.pfx",
+        "*.jks",
+        "*.keystore",
+        "*.pub",
+        "*.gpg",
+        "*.pgp",
+        "*.asc",
+        "*.ppk",
+    ],
+    "ssh_key": [
+        "id_rsa",
+        "id_rsa.pub",
+        "id_ed25519",
+        "id_ed25519.pub",
+        "id_ecdsa",
+        "id_ecdsa.pub",
+        "ssh_host_*_key",
+    ],
     "kubeconfig": ["kubeconfig", ".kube/config"],
     "docker_cfg": [".dockercfg", "config.json"],
-    "database": ["*.sqlite", "*.sqlite3", "*.db", "*.dump", "*.rdb", "*.redis", "*.bson"],
-    "credentials": ["credentials.json", "service-account*.json", "client_secret*.json", "sa-key.json"],
+    "database": [
+        "*.sqlite",
+        "*.sqlite3",
+        "*.db",
+        "*.dump",
+        "*.rdb",
+        "*.redis",
+        "*.bson",
+    ],
+    "credentials": [
+        "credentials.json",
+        "service-account*.json",
+        "client_secret*.json",
+        "sa-key.json",
+    ],
     "aws_credentials": [".aws/credentials"],
     "gcp_credentials": ["gcloud-credentials", "gcloud-config", "gcloud-token"],
     "azure_credentials": ["azureProfile.json"],
-    "terraform_state": ["terraform.tfstate", "terraform.tfstate.backup", "terraform.tfvars"],
+    "terraform_state": [
+        "terraform.tfstate",
+        "terraform.tfstate.backup",
+        "terraform.tfvars",
+    ],
     "ansible_vault": ["vault-password.txt", "vault_password.txt"],
     "ci_secrets": ["secrets.yml", "secrets.yaml", "secrets.json"],
     "gradle_properties": ["gradle.properties"],
     "maven_settings": ["settings.xml"],
     "log": ["*.log"],
     "dump": ["*.sql", "*.pgdump", "*.mysqldump", "*.mongoexport", "*.jsonl"],
-    "app_config": ["application.yml", "application.yaml", "application.properties", "application.conf"],
+    "app_config": [
+        "application.yml",
+        "application.yaml",
+        "application.properties",
+        "application.conf",
+    ],
     "backup": ["*.bak", "*.backup", "*.old", "*.orig", "*.save", "*.swp"],
-    "history": [".bash_history", ".zsh_history", ".python_history", ".node_repl_history", ".mysql_history", ".psql_history"],
+    "history": [
+        ".bash_history",
+        ".zsh_history",
+        ".python_history",
+        ".node_repl_history",
+        ".mysql_history",
+        ".psql_history",
+    ],
 }
 
 EXCLUDE_DIRS = {
@@ -814,11 +998,34 @@ _MAX_SECRET_LENGTH = 500  # skip unreasonably long strings
 
 # Key names that hint at a secret value (used for contextual entropy scanning)
 _SECRET_HINT_KEYWORDS = (
-    "key", "token", "secret", "password", "passwd", "pwd", "credential",
-    "auth", "private", "api", "access", "refresh", "session", "bearer",
-    "apikey", "access_key", "secret_key", "client_secret", "app_secret",
-    "encryption_key", "signing_key", "admin_key", "database_url",
-    "connection_string", "dsn", "encrypt", "certificate", "license",
+    "key",
+    "token",
+    "secret",
+    "password",
+    "passwd",
+    "pwd",
+    "credential",
+    "auth",
+    "private",
+    "api",
+    "access",
+    "refresh",
+    "session",
+    "bearer",
+    "apikey",
+    "access_key",
+    "secret_key",
+    "client_secret",
+    "app_secret",
+    "encryption_key",
+    "signing_key",
+    "admin_key",
+    "database_url",
+    "connection_string",
+    "dsn",
+    "encrypt",
+    "certificate",
+    "license",
 )
 
 
@@ -1028,7 +1235,10 @@ def scan_secrets(project_path, max_files=500, max_bytes=1024 * 1024):
                             continue
                         # Skip lines containing word-boundary markers (e.g. 'xxx', 'test')
                         # These are too ambiguous for substring matching
-                        if any(re.search(rf"\b{re.escape(m)}\b", lowered) for m in SECRET_SKIP_WORD_MARKERS):
+                        if any(
+                            re.search(rf"\b{re.escape(m)}\b", lowered)
+                            for m in SECRET_SKIP_WORD_MARKERS
+                        ):
                             continue
 
                         # --- Phase 1: Regex pattern matching ---
@@ -1399,7 +1609,11 @@ def _yarn_berry_descriptor_name(desc):
     """
     if not desc:
         return ""
-    desc = re.split(r"@(?:npm|patch|file|link|portal|workspace):", desc, 1)[0]
+    desc = re.split(
+        r"@(?:npm|patch|file|link|portal|workspace):",
+        desc,
+        maxsplit=1,
+    )[0]
     if desc.startswith("@"):
         parts = desc.split("@")
         if len(parts) >= 3:
@@ -2520,6 +2734,30 @@ def check_vulnerabilities(packages, batch_size=100, errors=None, concurrency=1):
         return []
     if errors is None:
         errors = []
+    queryable_packages = []
+    skipped = []
+    for package in packages:
+        if package.get("name") and str(package.get("version") or "").strip():
+            queryable_packages.append(package)
+        else:
+            skipped.append(package)
+    if skipped:
+        examples = unique_nonempty(
+            package.get("name") or package.get("package") for package in skipped
+        )[:8]
+        suffix = f"：{'、'.join(examples)}" if examples else ""
+        errors.append(
+            {
+                "step": "package_extraction",
+                "message": (
+                    f"已跳过 {len(skipped)} 个缺少版本的依赖坐标，"
+                    f"避免仅按包名误报漏洞{suffix}"
+                ),
+            }
+        )
+    packages = queryable_packages
+    if not packages:
+        return []
     batches = [
         (i // batch_size + 1, packages[i : i + batch_size])
         for i in range(0, len(packages), batch_size)
@@ -2996,6 +3234,18 @@ def main():
         except Exception as e:
             packages = []
             errors.append({"step": "package_extraction", "message": str(e)})
+    if not skip_dependency_checks and not packages:
+        sources = "、".join(lockfiles.values()) or "依赖文件"
+        errors.append(
+            {
+                "step": "package_extraction",
+                "message": (
+                    f"已发现 {sources}，但没有提取到带精确版本的依赖坐标；"
+                    "本次不会仅按包名匹配漏洞，requirements.txt 范围约束需要 lockfile "
+                    "或 == / === 精确版本才能确认受影响版本。"
+                ),
+            }
+        )
     step_seconds["package_extraction"] = round(time.time() - step_started, 3)
 
     # Step 3-5: independent I/O-heavy checks run in parallel.
@@ -3009,9 +3259,10 @@ def main():
                 round(time.time() - step_started, 3),
             )
         try:
+            secret_file_limit = max(0, int(args.max_secret_files or 0))
             result = scan_hygiene(
                 project_path,
-                max_secret_files=max(0, int(args.max_secret_files or 0)),
+                max_secret_files=secret_file_limit,
             )
             return "hygiene", result, [], round(time.time() - step_started, 3)
         except Exception as e:

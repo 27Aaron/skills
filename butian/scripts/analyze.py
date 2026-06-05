@@ -328,7 +328,9 @@ def build_dependency_fix_items(top_issues):
                 "type": "dependency_upgrade",
                 "severity": highest_issue.get("severity", "info"),
                 "package": package,
-                "version": unique_values(current_versions)[0] if current_versions else None,
+                "version": unique_values(current_versions)[0]
+                if current_versions
+                else None,
                 "ecosystem": ecosystem,
                 "summary": summary,
                 "fix_config": {
