@@ -985,29 +985,17 @@ td.summary-cell {
     line-height: 1.55;
 }
 .summary-boundary {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: 10px;
-    align-items: start;
     margin: 12px 0;
     border: 1px solid var(--field-border);
+    border-left-width: 4px;
     border-radius: var(--radius-field);
     background: var(--field-bg);
-    padding: 10px 12px;
+    padding: 11px 14px;
 }
 .summary-boundary.warning {
     border-color: var(--warning-border);
+    border-left-color: var(--warning-ink);
     background: var(--warning-bg);
-}
-.summary-boundary span {
-    color: var(--accent);
-    font-size: 12px;
-    font-weight: 750;
-    line-height: 1.65;
-    white-space: nowrap;
-}
-.summary-boundary.warning span {
-    color: var(--warning-ink);
 }
 .summary-boundary p {
     margin: 0;
@@ -1362,7 +1350,6 @@ footer {
     .hygiene-note {
         gap: 10px;
     }
-    .summary-boundary,
     .outdated-empty .mini-field {
         grid-template-columns: 1fr;
         gap: 6px;

@@ -652,8 +652,8 @@ function severityImpactText(sev) {
 
 function fixedVersionText(r) {
   return Array.isArray(r.fixed_versions) && r.fixed_versions.length
-    ? `升级到 ${r.fixed_versions.join("、")} 或更高版本，修复后跑测试。`
-    : "先确认官方修复版本，再安排升级和测试。";
+    ? `升级到 ${r.fixed_versions.join("、")} 或更高版本，并完成兼容性验证。`
+    : "先确认官方修复版本，再安排升级和兼容性验证。";
 }
 
 function shortFixedVersionText(r) {
@@ -662,8 +662,8 @@ function shortFixedVersionText(r) {
     r.version,
   );
   return version
-    ? `建议升级到 ${version} 或更高版本，并跑一次测试。`
-    : "建议研发确认官方修复版本后升级，并跑一次测试。";
+    ? `建议升级到 ${version} 或更高版本。`
+    : "建议研发确认官方修复版本后再安排升级。";
 }
 
 function fixedVersionHtml(r) {
@@ -770,12 +770,15 @@ function vulnerabilityExplanation(r) {
 function outdatedExplanation(it) {
   const name = it.package || it.name || "该依赖";
   const current = String(it.current || it.version || "").trim();
-  const target = outdatedDisplayTarget(it);
+  const target =
+    String(it.latest || it.latestVersion || "").trim() ||
+    String(it.wanted || it.update || "").trim() ||
+    outdatedDisplayTarget(it);
   if (current && target) {
-    return `${name} 当前版本为 ${current}，建议更新到最新版本 ${target}。`;
+    return `${name} 当前版本为 ${current}，建议升级到最新版本 ${target}。`;
   }
   if (target) {
-    return `${name} 建议更新到最新版本 ${target}。`;
+    return `${name} 建议升级到最新版本 ${target}。`;
   }
   return `${name} 需要复核版本状态`;
 }
@@ -981,7 +984,7 @@ function renderVulnTable(rows) {
     sortedRows.length,
     `<div class="table-scroll"><table class="stable-table vuln-table" style="${packageColumnWidthStyle(sortedRows)}">
   ${renderTableColgroup(["severity", "package", "version", "fixed", "advisory", "summary"])}
-  <thead><tr><th>严重度</th><th>包名</th><th>版本</th><th>修复版本</th><th>GHSA</th><th>说明</th></tr></thead>
+  <thead><tr><th>严重程度</th><th>依赖名称</th><th>当前版本</th><th>修复版本</th><th>GHSA</th><th>说明</th></tr></thead>
   <tbody>${body}${toggle}</tbody></table></div>`,
     "",
     "search",
@@ -1006,7 +1009,7 @@ function renderReportSummary(sm) {
   const detail = sm.detail
     ? `<p class="lead">${esc(readableDetail(sm.detail))}</p>`
     : "";
-  const boundary = `<div class="summary-boundary warning"><span>能力边界</span><p>${esc(CAPABILITY_BOUNDARY)}</p></div>`;
+  const boundary = `<div class="summary-boundary warning"><p>${esc(CAPABILITY_BOUNDARY)}</p></div>`;
   const body = sm.priority
     ? Array.isArray(sm.priority)
       ? sumList(sm.priority)
@@ -1170,7 +1173,7 @@ function renderOutdated(items) {
     items.length,
     `<div class="table-scroll"><table class="stable-table outdated-table" style="${packageColumnWidthStyle(items)}">
   ${renderTableColgroup(["package", "current", "latest", "ecosystem", "summary"])}
-  <thead><tr><th>包名</th><th>当前版本</th><th>可更新到</th><th>生态</th><th>建议</th></tr></thead>
+  <thead><tr><th>依赖名称</th><th>当前版本</th><th>最近版本</th><th>生态</th><th>建议</th></tr></thead>
   <tbody>${rows}${toggle}</tbody></table></div>`,
     "",
     "long",

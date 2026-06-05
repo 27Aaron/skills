@@ -36,6 +36,14 @@ class ButianReportAssetTests(unittest.TestCase):
                     "summary": "Missing buffer bounds check",
                 }
             ],
+            "outdated": [
+                {
+                    "package": "hono",
+                    "current": "4.12.14",
+                    "latest": "4.12.21",
+                    "ecosystem": "npm",
+                }
+            ],
         }
         code = textwrap.dedent(
             f"""
@@ -75,6 +83,18 @@ class ButianReportAssetTests(unittest.TestCase):
         )
         html = result.stdout
 
+        self.assertIn("<th>严重程度</th>", html)
+        self.assertIn("<th>依赖名称</th>", html)
+        self.assertIn("<th>当前版本</th>", html)
+        self.assertIn("<th>最近版本</th>", html)
+        self.assertNotIn("<span>能力边界</span>", html)
+        self.assertNotIn("并跑一次测试", html)
+        self.assertNotIn("可更新到", html)
+        self.assertNotIn("最近可用版本为", html)
+        self.assertIn(
+            "hono 当前版本为 4.12.14，建议升级到最新版本 4.12.21。",
+            html,
+        )
         self.assertIn('class="fixed-list"', html)
         self.assertEqual(html.count('class="fixed-chip"'), 3)
         self.assertNotIn("11.1.1、12.0.1、13.0.1", html)

@@ -130,7 +130,7 @@ def render_vulnerabilities(analysis):
 
     lines.extend(
         [
-            "| 严重度 | 包名 | 当前版本 | GHSA | 修复版本 | 说明 |",
+            "| 严重程度 | 依赖名称 | 当前版本 | GHSA | 修复版本 | 说明 |",
             "| --- | --- | --- | --- | --- | --- |",
         ]
     )
@@ -235,7 +235,7 @@ def render_outdated(analysis):
     lines.append("")
     lines.extend(
         [
-            "| 包名 | 当前版本 | 可更新到 | 生态 | 建议 |",
+            "| 依赖名称 | 当前版本 | 最近版本 | 生态 | 建议 |",
             "| --- | --- | --- | --- | --- |",
         ]
     )
@@ -249,15 +249,14 @@ def render_outdated(analysis):
             if wanted and latest and wanted != latest
             else wanted or latest
         )
-        if current and wanted and latest and wanted != latest:
+        recommendation_target = latest or wanted or target
+        if current and recommendation_target:
             summary = (
                 f"{package} 当前版本为 {current}，"
-                f"建议更新到最新版本 {wanted} / {latest}。"
+                f"建议升级到最新版本 {recommendation_target}。"
             )
-        elif current and target:
-            summary = f"{package} 当前版本为 {current}，建议更新到最新版本 {target}。"
-        elif target:
-            summary = f"{package} 建议更新到最新版本 {target}。"
+        elif recommendation_target:
+            summary = f"{package} 建议升级到最新版本 {recommendation_target}。"
         else:
             summary = f"{package} 需要复核版本状态"
         row = [
