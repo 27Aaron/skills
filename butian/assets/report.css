@@ -55,8 +55,8 @@
     --radius-lg: 2rem;
     --radius-field: 0.95rem;
     --radius-pill: 999px;
-    --font-sans: -apple-system, "SF Pro SC", "PingFang SC", system-ui,
-        sans-serif;
+    --font-sans:
+        -apple-system, "SF Pro SC", "PingFang SC", system-ui, sans-serif;
     --font-mono: "SF Mono", ui-monospace, monospace;
     --shadow:
         0 22px 62px -42px rgba(10, 10, 10, 0.42),
@@ -430,7 +430,7 @@ tbody tr:hover {
     width: 84px;
 }
 .col-fixed {
-    width: 120px;
+    width: 148px;
 }
 .col-current,
 .col-latest {
@@ -454,6 +454,28 @@ td.ver {
     font-size: 12px;
     white-space: nowrap;
     min-width: 80px;
+}
+td.fixed-cell {
+    white-space: normal;
+}
+.fixed-list {
+    display: grid;
+    grid-template-columns: repeat(2, max-content);
+    gap: 3px 10px;
+    align-items: center;
+    justify-content: start;
+    line-height: 1.45;
+}
+.fixed-chip,
+.fixed-empty {
+    display: inline-block;
+    white-space: nowrap;
+}
+.fixed-chip {
+    color: var(--ink);
+}
+.fixed-empty {
+    color: var(--sub);
 }
 td.path {
     font-family: var(--font-mono);

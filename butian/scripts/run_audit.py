@@ -11,12 +11,12 @@ Pipeline:
 """
 
 import argparse
-from collections import defaultdict
 import json
 import os
 import re
 import subprocess
 import sys
+from collections import defaultdict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CAPABILITY_BOUNDARY = (
@@ -171,7 +171,9 @@ def table(headers, rows, min_widths=None, aligns=None):
     lines = [top]
     lines.append(
         "│"
-        + "│".join(fit_cell(header, widths[i], "center") for i, header in enumerate(headers))
+        + "│".join(
+            fit_cell(header, widths[i], "center") for i, header in enumerate(headers)
+        )
         + "│"
     )
     for row in rows:
@@ -224,7 +226,15 @@ def risk_nature(issues):
         ("中间件/代理绕过", ("middleware", "proxy bypass", "bypass")),
         ("SSRF", ("server-side request forgery", "ssrf")),
         ("XSS", ("xss", "cross-site scripting")),
-        ("DoS", ("denial of service", "dos", "connection exhaustion", "large numeric range")),
+        (
+            "DoS",
+            (
+                "denial of service",
+                "dos",
+                "connection exhaustion",
+                "large numeric range",
+            ),
+        ),
         ("URL 主机混淆", ("host confusion",)),
         ("路径穿越", ("path traversal",)),
         ("缓存风险", ("cache",)),
@@ -264,7 +274,11 @@ def format_risk_rows(risk_summary):
         ("low", "🔵 低危 (Low)"),
         ("info", "⚪ 信息 (Info)"),
     ]
-    rows = [[label, str(int(risk_summary.get(key) or 0))] for key, label in labels if risk_summary.get(key)]
+    rows = [
+        [label, str(int(risk_summary.get(key) or 0))]
+        for key, label in labels
+        if risk_summary.get(key)
+    ]
     return rows or [["✅ 未发现风险", "0"]]
 
 
@@ -309,7 +323,11 @@ def format_focus(analysis):
         ),
     ]
 
-    medium = [issue for issue in issues if str(issue.get("severity") or "").lower() == "medium"]
+    medium = [
+        issue
+        for issue in issues
+        if str(issue.get("severity") or "").lower() == "medium"
+    ]
     if medium:
         medium_packages = []
         for issue in medium:
@@ -330,14 +348,22 @@ def format_human_summary(summary, scan, analysis, args):
     project_path = project.get("path") or os.getcwd()
     risk_summary = analysis.get("risk_summary") or {}
     hygiene = analysis.get("hygiene") or scan.get("hygiene") or {}
-    scan_mode = summary.get("scan_mode") or (scan.get("scan_config") or {}).get("scan_mode") or "-"
+    scan_mode = (
+        summary.get("scan_mode")
+        or (scan.get("scan_config") or {}).get("scan_mode")
+        or "-"
+    )
     total_packages = project.get("total_packages") or analysis.get("package_count") or 0
     ecosystems = project.get("ecosystems") or []
     dependency_unit = f" {' / '.join(ecosystems)} 包" if ecosystems else "依赖包"
     secret_count = len(hygiene.get("tracked_secrets") or [])
     sensitive_count = len(hygiene.get("sensitive_tracked") or [])
     missing_count = len(hygiene.get("gitignore_missing") or [])
-    gitignore_label = ".gitignore 完整" if not missing_count else f".gitignore 缺少 {missing_count} 条规则"
+    gitignore_label = (
+        ".gitignore 完整"
+        if not missing_count
+        else f".gitignore 缺少 {missing_count} 条规则"
+    )
     errors = analysis.get("errors") or summary.get("errors") or []
     error_label = "无" if not errors else f"{len(errors)} 个"
     html_state = "未自动打开" if args.no_open else "已自动尝试打开"
@@ -374,10 +400,12 @@ def format_human_summary(summary, scan, analysis, args):
         f"- HTML 报告（{html_state}）：{relative_path(summary.get('html_report'), project_path)}",
         f"- analysis JSON：{relative_path(summary.get('analysis_file'), project_path)}",
         "",
-        quote_line("如果存在严重/高危项，建议先处理有明确修复版本的依赖；过期依赖作为维护信号，放在漏洞修复验证之后排期。"),
+        quote_line(
+            "如果存在严重/高危项，建议先处理有明确修复版本的依赖；过期依赖作为维护信号，放在漏洞修复验证之后排期。"
+        ),
         "",
         "---",
-        "如果你想继续修复，在对话里回 修复 / OK / 可以修 即可。我会按\"主要修复（严重/高危有明确修复版本）→ 次要修复（过期依赖与中危）\"的顺序处理，每步执行后跑构建验证。",
+        '如果你想继续修复，在对话里回 修复 / OK / 可以修 即可。我会按"主要修复（严重/高危有明确修复版本）→ 次要修复（过期依赖与中危）"的顺序处理，每步执行后跑构建验证。',
     ]
     return "\n".join(lines)
 
@@ -425,7 +453,12 @@ def main():
         "analysis.json",
     )
     run_text(
-        [sys.executable, script_path("analyze_scan.py"), scan["output_file"], analysis_path],
+        [
+            sys.executable,
+            script_path("analyze_scan.py"),
+            scan["output_file"],
+            analysis_path,
+        ],
         echo=False,
     )
 
@@ -437,7 +470,12 @@ def main():
         f"security-report-{str(analysis.get('generated_at', 'unknown-date'))[:10]}.md",
     )
     run_text(
-        [sys.executable, script_path("render_markdown.py"), analysis_path, markdown_path],
+        [
+            sys.executable,
+            script_path("render_markdown.py"),
+            analysis_path,
+            markdown_path,
+        ],
         echo=False,
     )
 
@@ -446,7 +484,12 @@ def main():
         "content",
         "security-report.html",
     )
-    build_report_cmd = [sys.executable, script_path("build_report.py"), analysis_path, html_path]
+    build_report_cmd = [
+        sys.executable,
+        script_path("build_report.py"),
+        analysis_path,
+        html_path,
+    ]
     if args.no_open:
         build_report_cmd.append("--no-open")
     run_text(

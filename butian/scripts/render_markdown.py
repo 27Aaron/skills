@@ -165,7 +165,9 @@ def render_hygiene(analysis):
 
     lines = ["## 仓库卫生扫描", ""]
     if not secrets and not sensitive and not missing:
-        lines.append("没有发现硬编码密钥、被 git 跟踪的敏感文件或缺失的敏感文件忽略规则。")
+        lines.append(
+            "没有发现硬编码密钥、被 git 跟踪的敏感文件或缺失的敏感文件忽略规则。"
+        )
     else:
         lines.append(
             f"- 硬编码密钥：发现 {len(secrets)} 处疑似明文凭证。"
@@ -185,7 +187,9 @@ def render_hygiene(analysis):
     if gitignore_state:
         preexisting = "是" if gitignore_state.get("preexisting") else "否"
         added = "是" if gitignore_state.get("added_butian_entry") else "否"
-        lines.append(f"- 补天 工作区忽略规则：扫描前是否已有 .gitignore：{preexisting}；本次是否新增 `.butian/`：{added}。")
+        lines.append(
+            f"- 补天 工作区忽略规则：扫描前是否已有 .gitignore：{preexisting}；本次是否新增 `.butian/`：{added}。"
+        )
     if secrets:
         lines.append("")
         lines.append("| 位置 | 类型 | 可信度 | 脱敏预览 |")
@@ -202,13 +206,17 @@ def render_hygiene(analysis):
         lines.append("| 文件 | 类型 | 大小 |")
         lines.append("| --- | --- | --- |")
         for item in sensitive:
-            lines.append(f"| {cell(item.get('file'))} | {cell(item.get('type'))} | {cell(item.get('size'))} |")
+            lines.append(
+                f"| {cell(item.get('file'))} | {cell(item.get('type'))} | {cell(item.get('size'))} |"
+            )
     lines.append("")
     return lines
 
 
 def render_outdated(analysis):
-    outdated = [item for item in analysis.get("outdated") or [] if is_outdated_item(item)]
+    outdated = [
+        item for item in analysis.get("outdated") or [] if is_outdated_item(item)
+    ]
     lines = ["## 过期依赖", ""]
     if not outdated:
         lines.extend(
@@ -259,9 +267,7 @@ def render_outdated(analysis):
             cell(item.get("ecosystem") or "-"),
             cell(summary),
         ]
-        lines.append(
-            f"| {row[0]} | {row[1]} | {row[2]} | {row[3]} | {row[4]} |"
-        )
+        lines.append(f"| {row[0]} | {row[1]} | {row[2]} | {row[3]} | {row[4]} |")
     lines.append("")
     return lines
 
@@ -279,9 +285,19 @@ def render_manual_items(analysis):
             lines.append(f"- 严重度：{severity_label(item.get('severity'))}")
         if item.get("path") or item.get("file"):
             lines.append(f"- 位置：`{text(item.get('path') or item.get('file'))}`")
-        why = item.get("why_manual") or item.get("why_keep") or item.get("problem") or item.get("risk_note")
+        why = (
+            item.get("why_manual")
+            or item.get("why_keep")
+            or item.get("problem")
+            or item.get("risk_note")
+        )
         risk = item.get("risk") or item.get("impact") or item.get("business_impact")
-        action = item.get("disposal") or item.get("indirect_release") or item.get("action") or item.get("recommendation")
+        action = (
+            item.get("disposal")
+            or item.get("indirect_release")
+            or item.get("action")
+            or item.get("recommendation")
+        )
         if why:
             lines.append(f"- 为什么要关注：{text(why)}")
         if risk:
@@ -299,7 +315,9 @@ def render_errors(analysis):
         lines.extend(["没有记录到扫描错误。", ""])
         return lines
     for item in errors:
-        lines.append(f"- [{text(item.get('step')) or 'unknown'}] {text(item.get('message'))}")
+        lines.append(
+            f"- [{text(item.get('step')) or 'unknown'}] {text(item.get('message'))}"
+        )
     lines.append("")
     return lines
 
@@ -311,7 +329,9 @@ def render_next_steps(analysis):
         for item in priority:
             lines.append(f"- {text(item)}")
     else:
-        lines.append("- 阅读报告后再决定是否修复；需要处理时，在对话里明确回复“可以修 / 修复 / OK / Yes”。")
+        lines.append(
+            "- 阅读报告后再决定是否修复；需要处理时，在对话里明确回复“可以修 / 修复 / OK / Yes”。"
+        )
     lines.append("")
     return lines
 

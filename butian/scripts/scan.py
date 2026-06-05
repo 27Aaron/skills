@@ -32,7 +32,6 @@ Official vulnerability sources:
 """
 
 import argparse
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import math
 import os
@@ -44,6 +43,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 OSV_QUERYBATCH_URL = "https://api.osv.dev/v1/querybatch"
 OSV_VULN_URL_PREFIX = "https://api.osv.dev/v1/vulns/"
@@ -53,7 +53,11 @@ CISA_KEV_JSON_URL = (
     "known_exploited_vulnerabilities.json"
 )
 EPSS_API_URL = "https://api.first.org/data/v1/epss"
-HTTP_USER_AGENT = "补天 Skill Direct Scanner/1.0"
+HTTP_USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/125.0.0.0 Safari/537.36"
+)
 BUTIAN_DIR = ".butian"
 BUTIAN_GITIGNORE_ENTRY = ".butian/"
 BUTIAN_ASSETS_DIR = "assets"
@@ -179,6 +183,7 @@ def default_asset_path(project_path, filename, preflight=None):
         run_dir = ensure_butian_run(project_path)
     return os.path.join(run_dir, BUTIAN_ASSETS_DIR, filename)
 
+
 # ---------------------------------------------------------------------------
 # Secret detection patterns
 # ---------------------------------------------------------------------------
@@ -217,15 +222,32 @@ SENSITIVE_FILE_REGEXES = [
 ]
 
 ENV_TEMPLATE_SUFFIXES = (".example", ".sample", ".template", ".dist")
+PROJECT_ROOT_MARKERS = (
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    "poetry.lock",
+    "uv.lock",
+    "requirements.txt",
+    "Pipfile.lock",
+    "go.sum",
+    "Cargo.lock",
+    "package.json",
+    "pyproject.toml",
+    "go.mod",
+    "Cargo.toml",
+    "composer.json",
+    "Gemfile",
+)
 
 # 敏感文件类型 → 对应的 .gitignore 规则（只按实际发现的文件推荐，不一股脑全加）
 SENSITIVE_TO_GITIGNORE = {
-    "env_file":       [".env", ".env.*"],
-    "private_key":    ["*.pem", "*.key", "*.p12", "*.pfx", "*.jks", "*.keystore"],
-    "database":       ["*.sqlite", "*.sqlite3", "*.db", "*.dump"],
-    "credentials":    ["credentials.json", "service-account*.json"],
-    "ssh_key":        ["id_rsa", "id_ed25519", "id_ecdsa"],
-    "log":            ["*.log"],
+    "env_file": [".env", ".env.*"],
+    "private_key": ["*.pem", "*.key", "*.p12", "*.pfx", "*.jks", "*.keystore"],
+    "database": ["*.sqlite", "*.sqlite3", "*.db", "*.dump"],
+    "credentials": ["credentials.json", "service-account*.json"],
+    "ssh_key": ["id_rsa", "id_ed25519", "id_ecdsa"],
+    "log": ["*.log"],
 }
 
 EXCLUDE_DIRS = {
@@ -335,7 +357,9 @@ def run_cmd_checked(cmd, timeout=60, cwd=None, errors=None, step="command"):
         return ""
     except OSError as e:
         if errors is not None:
-            errors.append({"step": step, "message": f"命令执行失败：{' '.join(cmd)}: {e}"})
+            errors.append(
+                {"step": step, "message": f"命令执行失败：{' '.join(cmd)}: {e}"}
+            )
         return ""
 
     stdout = r.stdout.strip()
@@ -372,35 +396,26 @@ def gitignore_ignores(content, pattern):
 
 
 def find_project_root(start_path="."):
-    """Walk up to find .git or a recognizable manifest."""
+    """Walk up to find the nearest project marker, with .git as a fallback."""
     path = os.path.abspath(start_path)
-    for _ in range(20):
-        if os.path.isdir(os.path.join(path, ".git")):
-            return path
-        parent = os.path.dirname(path)
-        if parent == path:
-            break
-        path = parent
-    path = os.path.abspath(start_path)
+    if os.path.isfile(path):
+        path = os.path.dirname(path)
+    original = path
+    git_root = ""
     for _ in range(20):
         if any(
-            os.path.isfile(os.path.join(path, f))
-            for f in [
-                "package.json",
-                "pyproject.toml",
-                "go.mod",
-                "Cargo.toml",
-                "requirements.txt",
-                "composer.json",
-                "Gemfile",
-            ]
+            os.path.isfile(os.path.join(path, marker))
+            for marker in PROJECT_ROOT_MARKERS
         ):
             return path
+        if not git_root and os.path.exists(os.path.join(path, ".git")):
+            git_root = path
+            break
         parent = os.path.dirname(path)
         if parent == path:
             break
         path = parent
-    return os.path.abspath(start_path)
+    return git_root or original
 
 
 def is_env_template(path):
@@ -409,6 +424,11 @@ def is_env_template(path):
         name in {".env.example", ".env.sample", ".env.template", ".env.dist"}
         or name.endswith(ENV_TEMPLATE_SUFFIXES)
     )
+
+
+def is_env_secret_scan_file(name):
+    lowered = os.path.basename(name).lower()
+    return lowered == ".envrc" or lowered == ".env" or lowered.startswith(".env.")
 
 
 def sensitive_file_type(path):
@@ -507,7 +527,7 @@ def scan_secrets(project_path, max_files=500, max_bytes=1024 * 1024):
             if count >= max_files:
                 return findings
             ext = os.path.splitext(fname)[1].lower()
-            if ext not in SCAN_EXTENSIONS and fname not in {".env", ".envrc"}:
+            if ext not in SCAN_EXTENSIONS and not is_env_secret_scan_file(fname):
                 continue
             fpath = os.path.join(root, fname)
             try:
@@ -555,7 +575,9 @@ def scan_hygiene(project_path, max_secret_files=500):
     # Scan sensitive files first, then use findings to drive gitignore recommendations
     sensitive_tracked = check_sensitive_tracked(project_path)
     tracked_secrets = scan_secrets(project_path, max_files=max_secret_files)
-    gitignore_exists, gitignore_missing = check_gitignore(project_path, sensitive_tracked)
+    gitignore_exists, gitignore_missing = check_gitignore(
+        project_path, sensitive_tracked
+    )
     return {
         "gitignore_exists": gitignore_exists,
         "gitignore_missing": gitignore_missing,
@@ -737,7 +759,7 @@ def _parse_yarn_lock_v1(content):
         if not line.startswith(" ") and line.endswith(":"):
             header = line[:-1].strip().strip('"')
             current_names = []
-            for desc in re.split(r',\s*', header):
+            for desc in re.split(r",\s*", header):
                 desc = desc.strip().strip('"')
                 name = _yarn_v1_descriptor_name(desc)
                 if name and name not in current_names:
@@ -791,7 +813,7 @@ def _parse_yarn_lock_berry(content):
         if not line.startswith(" ") and line.endswith(":"):
             header = line[:-1].strip().strip('"')
             current_names = []
-            for desc in re.split(r',\s*', header):
+            for desc in re.split(r",\s*", header):
                 desc = desc.strip().strip('"')
                 name = _yarn_berry_descriptor_name(desc)
                 if name and name not in current_names:
@@ -802,7 +824,7 @@ def _parse_yarn_lock_berry(content):
             if not m:
                 continue
             ver = m.group(1)
-            if not ver or not re.match(r'\d', ver):
+            if not ver or not re.match(r"\d", ver):
                 continue
             for name in current_names:
                 if (name, ver) not in seen:
@@ -854,16 +876,20 @@ def parse_requirements_txt(project_path):
                     continue
                 line = line.split(";", 1)[0].strip()
                 m = re.match(
-                    r"^([A-Za-z0-9_.-]+)(?:\[[^\]]+\])?\s*([=~><!]{1,2})\s*([0-9][0-9A-Za-z.*+!_-]*)",
+                    r"^([A-Za-z0-9_.-]+)(?:\[[^\]]+\])?\s*(===|==|~=|>=|<=|!=|>|<)\s*([0-9][0-9A-Za-z.*+!_-]*)",
                     line,
                 )
                 if m:
+                    specifier = m.group(2)
+                    version = m.group(3)
+                    if specifier not in {"==", "==="} or "*" in version:
+                        continue
                     pkgs.append(
                         {
                             "ecosystem": "pypi",
                             "name": m.group(1).lower(),
-                            "version": m.group(3),
-                            "specifier": m.group(2),
+                            "version": version,
+                            "specifier": specifier,
                             "is_direct": True,
                             "source": "requirements.txt",
                         }
@@ -973,7 +999,12 @@ def parse_uv_lock(project_path):
 
 def parse_pypi(project_path):
     pkgs = []
-    for parser in (parse_poetry_lock, parse_uv_lock, parse_pipfile_lock, parse_requirements_txt):
+    for parser in (
+        parse_poetry_lock,
+        parse_uv_lock,
+        parse_pipfile_lock,
+        parse_requirements_txt,
+    ):
         pkgs.extend(parser(project_path))
     return pkgs
 
@@ -1279,7 +1310,11 @@ def to_string_or_none(value):
 
 def to_decimal_string(value):
     if isinstance(value, (int, float)) and not isinstance(value, bool):
-        return str(value) if value == value and value not in (float("inf"), float("-inf")) else None
+        return (
+            str(value)
+            if value == value and value not in (float("inf"), float("-inf"))
+            else None
+        )
     if isinstance(value, str) and value.strip():
         try:
             float(value)
@@ -1329,7 +1364,11 @@ def _request_with_retry(req, timeout=120, max_retries=2, backoff_delays=(1, 3)):
         except (urllib.error.URLError, TimeoutError, OSError) as e:
             last_exc = e
         if attempt < max_retries:
-            time.sleep(backoff_delays[attempt] if attempt < len(backoff_delays) else backoff_delays[-1])
+            time.sleep(
+                backoff_delays[attempt]
+                if attempt < len(backoff_delays)
+                else backoff_delays[-1]
+            )
     raise last_exc
 
 
@@ -1390,9 +1429,13 @@ def package_matches_affected(package, affected):
         return True
     package_ecosystem = package.get("ecosystem")
     affected_ecosystem = affected_package.get("ecosystem")
-    if normalized_ecosystem(package_ecosystem) != normalized_ecosystem(affected_ecosystem):
+    if normalized_ecosystem(package_ecosystem) != normalized_ecosystem(
+        affected_ecosystem
+    ):
         return False
-    return normalized_package_name(package_ecosystem, package.get("name")) == normalized_package_name(
+    return normalized_package_name(
+        package_ecosystem, package.get("name")
+    ) == normalized_package_name(
         affected_ecosystem,
         affected_package.get("name"),
     )
@@ -1426,7 +1469,11 @@ def parse_osv_query_results(data, batch):
         return []
     matched = []
     for index, package in enumerate(batch):
-        result = results[index] if index < len(results) and isinstance(results[index], dict) else {}
+        result = (
+            results[index]
+            if index < len(results) and isinstance(results[index], dict)
+            else {}
+        )
         for vuln in result.get("vulns") or []:
             if isinstance(vuln, dict) and vuln.get("id"):
                 matched.append((package, str(vuln["id"])))
@@ -1436,7 +1483,9 @@ def parse_osv_query_results(data, batch):
 def extract_osv_fixed_versions(osv_record, package):
     fixed = []
     for affected in osv_record.get("affected") or []:
-        if not isinstance(affected, dict) or not package_matches_affected(package, affected):
+        if not isinstance(affected, dict) or not package_matches_affected(
+            package, affected
+        ):
             continue
         for version_range in affected.get("ranges") or []:
             if not isinstance(version_range, dict):
@@ -1492,7 +1541,8 @@ def normalize_cvss_metric(source, metric):
     base_severity = to_string_or_none(cvss_data.get("baseSeverity"))
     return {
         "source": "nvd",
-        "version": to_string_or_none(cvss_data.get("version")) or source.replace("cvssMetricV", ""),
+        "version": to_string_or_none(cvss_data.get("version"))
+        or source.replace("cvssMetricV", ""),
         "vector": to_string_or_none(cvss_data.get("vectorString")),
         "baseScore": base_score,
         "baseSeverity": base_severity,
@@ -1571,7 +1621,9 @@ def parse_cisa_kev_catalog(data):
             "cveId": cve_id,
             "title": to_string_or_none(entry.get("vulnerabilityName")),
             "description": to_string_or_none(entry.get("shortDescription")),
-            "cweIds": unique_nonempty(entry.get("cwes") if isinstance(entry.get("cwes"), list) else []),
+            "cweIds": unique_nonempty(
+                entry.get("cwes") if isinstance(entry.get("cwes"), list) else []
+            ),
             "kevListed": True,
             "kevDateAdded": iso_date_or_none(entry.get("dateAdded")),
             "kevDueDate": iso_date_or_none(entry.get("dueDate")),
@@ -1618,7 +1670,13 @@ def fetch_nvd_enrichments(cve_ids, errors):
         try:
             data = get_json(f"{NVD_CVE_API_URL}?{params}")
             enrichments.update(parse_nvd_response(data))
-        except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError, TimeoutError, OSError) as e:
+        except (
+            urllib.error.HTTPError,
+            urllib.error.URLError,
+            json.JSONDecodeError,
+            TimeoutError,
+            OSError,
+        ) as e:
             errors.append(official_source_error("NVD", "CVE 查询", e))
     return enrichments
 
@@ -1659,7 +1717,13 @@ def fetch_cisa_kev_enrichments(cve_ids, errors):
         try:
             data = get_json(CISA_KEV_JSON_URL)
             _save_kev_cache(data)
-        except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError, TimeoutError, OSError) as e:
+        except (
+            urllib.error.HTTPError,
+            urllib.error.URLError,
+            json.JSONDecodeError,
+            TimeoutError,
+            OSError,
+        ) as e:
             errors.append(official_source_error("CISA KEV", "目录查询", e))
             return {}
     try:
@@ -1677,7 +1741,13 @@ def fetch_epss_enrichments(cve_ids, errors):
         try:
             data = get_json(f"{EPSS_API_URL}?{params}")
             enrichments.update(parse_epss_response(data))
-        except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError, TimeoutError, OSError) as e:
+        except (
+            urllib.error.HTTPError,
+            urllib.error.URLError,
+            json.JSONDecodeError,
+            TimeoutError,
+            OSError,
+        ) as e:
             errors.append(official_source_error("FIRST EPSS", "CVE 查询", e))
     return enrichments
 
@@ -1796,7 +1866,9 @@ def build_risk_signals(fixed_versions, cve_enrichments):
 
 
 def build_official_vulnerability(package, osv_record, cve_enrichments_by_id):
-    aliases = unique_nonempty((osv_record.get("aliases") or []) + [osv_record.get("id")])
+    aliases = unique_nonempty(
+        (osv_record.get("aliases") or []) + [osv_record.get("id")]
+    )
     cve_ids = extract_cve_aliases(aliases)
     cve_enrichments = [
         cve_enrichments_by_id[cve_id]
@@ -1808,7 +1880,9 @@ def build_official_vulnerability(package, osv_record, cve_enrichments_by_id):
     package_version = str(package.get("version") or "").strip()
     package_name = package.get("name", "")
     advisory_id = osv_record.get("id", "")
-    coordinate = f"{package_name}@{package_version}" if package_version else package_name
+    coordinate = (
+        f"{package_name}@{package_version}" if package_version else package_name
+    )
     return {
         "package": package_name,
         "version": package_version,
@@ -1867,7 +1941,13 @@ def check_vulnerability_batch(batch_no, batch):
         if vuln_id not in details:
             try:
                 details[vuln_id] = fetch_osv_vulnerability(vuln_id)
-            except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError, TimeoutError, OSError) as e:
+            except (
+                urllib.error.HTTPError,
+                urllib.error.URLError,
+                json.JSONDecodeError,
+                TimeoutError,
+                OSError,
+            ) as e:
                 errors.append(official_source_error("OSV", f"{vuln_id} 详情查询", e))
                 continue
         detail_pairs.append((package, details[vuln_id]))
@@ -2022,7 +2102,9 @@ def is_outdated_item(item):
 
 
 def outdated_item(eco, package, data, version_index=None):
-    current = data.get("current") or data.get("currentVersion") or data.get("version") or ""
+    current = (
+        data.get("current") or data.get("currentVersion") or data.get("version") or ""
+    )
     if not current:
         current = current_version_for(version_index, eco, package)
     return {
@@ -2035,7 +2117,9 @@ def outdated_item(eco, package, data, version_index=None):
 
 
 def _outdated_json(eco, cmd, cwd, errors=None, version_index=None):
-    output = run_cmd_checked(cmd, cwd=cwd, timeout=60, errors=errors, step="outdated_check")
+    output = run_cmd_checked(
+        cmd, cwd=cwd, timeout=60, errors=errors, step="outdated_check"
+    )
     if not output:
         return []
     try:
@@ -2043,7 +2127,10 @@ def _outdated_json(eco, cmd, cwd, errors=None, version_index=None):
     except json.JSONDecodeError:
         if errors is not None:
             errors.append(
-                {"step": "outdated_check", "message": f"{cmd[0]} outdated 输出不是有效 JSON"}
+                {
+                    "step": "outdated_check",
+                    "message": f"{cmd[0]} outdated 输出不是有效 JSON",
+                }
             )
         return []
     if isinstance(data, list):
@@ -2057,7 +2144,9 @@ def _outdated_json(eco, cmd, cwd, errors=None, version_index=None):
             for p in data
         ]
     return [
-        outdated_item(eco, n, v if isinstance(v, dict) else {}, version_index=version_index)
+        outdated_item(
+            eco, n, v if isinstance(v, dict) else {}, version_index=version_index
+        )
         for n, v in data.items()
     ]
 
@@ -2092,9 +2181,40 @@ def _yarn_outdated(cwd, errors=None):
     return result
 
 
+def project_python_executable(cwd):
+    candidates = []
+    for dirname in (".venv", "venv", "env"):
+        base = os.path.join(cwd, dirname)
+        if not os.path.isfile(os.path.join(base, "pyvenv.cfg")):
+            continue
+        candidates.extend(
+            [
+                os.path.join(base, "bin", "python3"),
+                os.path.join(base, "bin", "python"),
+                os.path.join(base, "Scripts", "python.exe"),
+            ]
+        )
+    for candidate in candidates:
+        if os.path.isfile(candidate) and (
+            os.name == "nt" or os.access(candidate, os.X_OK)
+        ):
+            return candidate
+    return ""
+
+
 def _pip_outdated(cwd, errors=None):
+    python = project_python_executable(cwd)
+    if not python:
+        if errors is not None:
+            errors.append(
+                {
+                    "step": "outdated_check",
+                    "message": "未发现项目本地虚拟环境，已跳过 PyPI 过期依赖检查，避免扫描系统 Python 环境",
+                }
+            )
+        return []
     output = run_cmd_checked(
-        [sys.executable, "-m", "pip", "list", "--outdated", "--format=json"],
+        [python, "-m", "pip", "list", "--outdated", "--format=json"],
         cwd=cwd,
         timeout=60,
         errors=errors,
@@ -2106,7 +2226,12 @@ def _pip_outdated(cwd, errors=None):
         data = json.loads(output)
     except json.JSONDecodeError:
         if errors is not None:
-            errors.append({"step": "outdated_check", "message": "pip list --outdated 输出不是有效 JSON"})
+            errors.append(
+                {
+                    "step": "outdated_check",
+                    "message": "pip list --outdated 输出不是有效 JSON",
+                }
+            )
         return []
     return [
         {
@@ -2290,7 +2415,9 @@ def main():
     else:
         start = args.project_path
         project_path = (
-            os.path.abspath(start) if args.no_root_discovery else find_project_root(start)
+            os.path.abspath(start)
+            if args.no_root_discovery
+            else find_project_root(start)
         )
     preflight_scan_mode = (preflight or {}).get("recommended_scan_mode")
     preflight_hygiene_only = preflight_scan_mode == "hygiene_only"
@@ -2332,7 +2459,12 @@ def main():
     def run_hygiene_step():
         step_started = time.time()
         if args.skip_hygiene:
-            return "hygiene", {"skipped": True}, [], round(time.time() - step_started, 3)
+            return (
+                "hygiene",
+                {"skipped": True},
+                [],
+                round(time.time() - step_started, 3),
+            )
         try:
             result = scan_hygiene(
                 project_path,
@@ -2340,9 +2472,14 @@ def main():
             )
             return "hygiene", result, [], round(time.time() - step_started, 3)
         except Exception as e:
-            return "hygiene", {}, [{"step": "hygiene", "message": str(e)}], round(
-                time.time() - step_started,
-                3,
+            return (
+                "hygiene",
+                {},
+                [{"step": "hygiene", "message": str(e)}],
+                round(
+                    time.time() - step_started,
+                    3,
+                ),
             )
 
     def run_vulnerability_step():
@@ -2359,7 +2496,12 @@ def main():
         except Exception as e:
             result = []
             step_errors.append({"step": "vulnerability_check", "message": str(e)})
-        return "vulnerabilities", result, step_errors, round(time.time() - step_started, 3)
+        return (
+            "vulnerabilities",
+            result,
+            step_errors,
+            round(time.time() - step_started, 3),
+        )
 
     def run_outdated_step():
         step_started = time.time()
@@ -2417,7 +2559,9 @@ def main():
         "scan_config": {
             "api_concurrency": api_concurrency,
             "outdated_concurrency": outdated_concurrency,
-            "preflight_file": os.path.abspath(args.preflight) if args.preflight else None,
+            "preflight_file": os.path.abspath(args.preflight)
+            if args.preflight
+            else None,
             "scan_mode": scan_mode,
             "skip_dependency_checks": skip_dependency_checks,
             "skip_hygiene": bool(args.skip_hygiene),

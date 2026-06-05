@@ -198,7 +198,11 @@ def build_hygiene_items(scan):
 
     for sensitive in hygiene.get("sensitive_tracked") or []:
         file_type = sensitive.get("type") or "sensitive"
-        severity = "high" if file_type in {"env_file", "private_key", "credentials", "ssh_key"} else "medium"
+        severity = (
+            "high"
+            if file_type in {"env_file", "private_key", "credentials", "ssh_key"}
+            else "medium"
+        )
         label = SENSITIVE_TYPE_LABELS.get(file_type, file_type)
         target = red if severity == "high" else yellow
         target.append(
@@ -304,7 +308,9 @@ def build_summary(scan, analysis):
     elif vuln_count:
         tldr = "发现已确认依赖漏洞，当前以中低风险为主，建议按维护窗口分批升级。"
     elif errors:
-        tldr = "本次扫描暂未确认安全风险，但有部分检查失败，结论需要复核后再作为发布依据。"
+        tldr = (
+            "本次扫描暂未确认安全风险，但有部分检查失败，结论需要复核后再作为发布依据。"
+        )
     else:
         tldr = "本次扫描没有发现明确安全风险，可作为当前项目状态记录。"
 
@@ -318,19 +324,29 @@ def build_summary(scan, analysis):
 
     priority = []
     if critical_high:
-        priority.append(f"优先处理 {critical_high} 个严重/高危项，先升级有明确修复版本的依赖，再运行测试或构建。")
+        priority.append(
+            f"优先处理 {critical_high} 个严重/高危项，先升级有明确修复版本的依赖，再运行测试或构建。"
+        )
     elif vuln_count:
-        priority.append(f"按严重度处理 {vuln_count} 个已确认依赖漏洞，优先选择兼容范围内的修复版本。")
+        priority.append(
+            f"按严重度处理 {vuln_count} 个已确认依赖漏洞，优先选择兼容范围内的修复版本。"
+        )
     if secret_count or sensitive_count:
-        priority.append("安排研发确认凭证和敏感文件是否真实有效；如有效，先轮换或撤销，再清理代码中的明文。")
+        priority.append(
+            "安排研发确认凭证和敏感文件是否真实有效；如有效，先轮换或撤销，再清理代码中的明文。"
+        )
     if missing_count:
         priority.append("补充 .gitignore 敏感文件规则，降低后续误提交概率。")
     if outdated_count:
         priority.append("过期依赖按维护计划处理，不要在没有漏洞证据时当作安全事故。")
     if errors:
-        priority.append("复查扫描错误，补齐失败的官方漏洞源、包管理器或工具链检查后再确认最终结论。")
+        priority.append(
+            "复查扫描错误，补齐失败的官方漏洞源、包管理器或工具链检查后再确认最终结论。"
+        )
     if not priority:
-        priority.append("当前没有需要立即处理的明确风险，建议保留报告作为本次检查记录。")
+        priority.append(
+            "当前没有需要立即处理的明确风险，建议保留报告作为本次检查记录。"
+        )
 
     return {
         "tldr": tldr,
@@ -365,7 +381,9 @@ def build_analysis(scan, source_scan_file=None, output_file=None):
         "yellow": sort_items(yellow),
         "green": sort_items(green),
         "errors": scan.get("errors") or [],
-        "package_count": scan.get("package_count", (scan.get("project") or {}).get("total_packages", 0)),
+        "package_count": scan.get(
+            "package_count", (scan.get("project") or {}).get("total_packages", 0)
+        ),
         "vulnerability_count": len(top_issues),
         "outdated_count": len(scan.get("outdated") or []),
         "package_sources": scan.get("package_sources") or [],

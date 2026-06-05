@@ -18,11 +18,12 @@ import time
 
 from scan import (
     LOCKFILE_MAP,
+    butian_gitignore_status,
     default_asset_path,
     find_project_root,
     run_dir_from_output_file,
-    butian_gitignore_status,
 )
+
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(description="Run 补天 preflight checks")

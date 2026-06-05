@@ -39,7 +39,7 @@ python3 scripts/run_audit.py
 py -3 scripts/run_audit.py
 ```
 
-`scripts/run_audit.py` 默认扫描当前目录并自动向上识别项目根目录；需要扫描其他目录时，把路径作为最后一个参数传入。脚本会按顺序运行预检、扫描、analysis 生成、Markdown 生成和 HTML 生成，生成后会尝试用系统默认浏览器自动打开静态 HTML 报告，并在终端输出固定的人类可读摘要：`📊 风险总览`、`⚠️ 能力边界`、`🚨 重点关注`、`📁 报告路径`；其中能力边界必须使用 Markdown 引用格式 `>` 输出完整文案。只有自动化或测试需要机器可读结果时才使用 `--compact`，此时输出 JSON。如果输出中的模式是 `hygiene_only`，必须告诉用户：`当前项目没有发现 补天支持的依赖文件，暂不支持依赖漏洞扫描；本次只做仓库卫生扫描，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。`
+`scripts/run_audit.py` 默认扫描当前目录并自动向上识别最近的项目根目录；在 monorepo 子项目中运行时，优先使用当前子项目的 manifest/lockfile，不要跳到上层 git repo。需要扫描其他目录时，把路径作为最后一个参数传入。脚本会按顺序运行预检、扫描、analysis 生成、Markdown 生成和 HTML 生成，生成后会尝试用系统默认浏览器自动打开静态 HTML 报告，并在终端输出固定的人类可读摘要：`📊 风险总览`、`⚠️ 能力边界`、`🚨 重点关注`、`📁 报告路径`；其中能力边界必须使用 Markdown 引用格式 `>` 输出完整文案。只有自动化或测试需要机器可读结果时才使用 `--compact`，此时输出 JSON。如果输出中的模式是 `hygiene_only`，必须告诉用户：`当前项目没有发现 补天支持的依赖文件，暂不支持依赖漏洞扫描；本次只做仓库卫生扫描，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。`
 
 对话最终回复如果需要转述扫描结果，必须使用 Markdown 引用格式 `>` 展示完整能力边界，不要自行压缩成短句，也不要另起"提示"类标题。固定写法如下：
 
@@ -62,7 +62,7 @@ python3 scripts/preflight.py
 py -3 scripts/preflight.py
 ```
 
-`scripts/preflight.py` 默认扫描当前目录并自动向上识别项目根目录；需要扫描其他目录时，把路径作为最后一个参数传入。它会创建 `.butian/<timestamp>/content/` 和 `.butian/<timestamp>/assets/`，把 JSON 打印到终端，并把同一份结果保存到 `.butian/<timestamp>/assets/preflight.json`；同时确保 `.gitignore` 忽略 `.butian/`，并在 `butian_workspace.gitignore` 记录扫描前 `.gitignore` 是否已存在、是否本次新增 `.butian/`。结果里的 `output_file` 是实际保存路径。先读 preflight JSON，再决定扫描模式。
+`scripts/preflight.py` 默认扫描当前目录并自动向上识别最近的项目根目录；如果当前目录属于 monorepo 子项目，必须以最近的项目 manifest/lockfile 为准。需要扫描其他目录时，把路径作为最后一个参数传入。它会创建 `.butian/<timestamp>/content/` 和 `.butian/<timestamp>/assets/`，把 JSON 打印到终端，并把同一份结果保存到 `.butian/<timestamp>/assets/preflight.json`；同时确保 `.gitignore` 忽略 `.butian/`，并在 `butian_workspace.gitignore` 记录扫描前 `.gitignore` 是否已存在、是否本次新增 `.butian/`。结果里的 `output_file` 是实际保存路径。先读 preflight JSON，再决定扫描模式。
 
 如果 `language_support.supported` 为 `true`，继续执行完整流程：仓库卫生扫描 -> 依赖提取 -> 官方漏洞源检查 -> 过旧依赖检查。
 
@@ -81,11 +81,11 @@ python3 scripts/scan.py --preflight <preflight_json>
 py -3 scripts/scan.py --preflight <preflight_json>
 ```
 
-`scan.py` 默认用 1 并发请求官方漏洞源；过旧依赖检查按 CPU 数量做本地并发。脚本会自动完成：仓库卫生检查（gitignore / 敏感文件 / 硬编码密钥）-> 生态识别与依赖提取（npm/pnpm/yarn、pypi、go、crates-io）-> 直接请求 OSV、NVD、CISA KEV 和 FIRST EPSS 查漏洞（OSV 100 个包一批；NVD/EPSS 100 个 CVE 一批）-> 过旧依赖检查。如果 preflight 的 `recommended_scan_mode` 是 `hygiene_only`，脚本只做仓库卫生扫描，并跳过依赖提取、官方漏洞源和过旧依赖检查。扫描较慢或调试时才追加 `--api-concurrency`、`--outdated-concurrency`、`--skip-outdated`、`--include-packages`、`--max-secret-files`。
+`scan.py` 默认用 1 并发请求官方漏洞源；过旧依赖检查只运行当前项目内的包管理器或项目本地虚拟环境，不扫描系统 Python 环境。Python 项目只有发现项目内 `.venv` / `venv` / `env` 时才执行该虚拟环境的 `pip list --outdated`，否则跳过 PyPI 过期检查。脚本会自动完成：仓库卫生检查（gitignore / 敏感文件 / 硬编码密钥）-> 生态识别与依赖提取（npm/pnpm/yarn、pypi、go、crates-io）-> 直接请求 OSV、NVD、CISA KEV 和 FIRST EPSS 查漏洞（OSV 100 个包一批；NVD/EPSS 100 个 CVE 一批）-> 过旧依赖检查。如果 preflight 的 `recommended_scan_mode` 是 `hygiene_only`，脚本只做仓库卫生扫描，并跳过依赖提取、官方漏洞源和过旧依赖检查。扫描较慢或调试时才追加 `--api-concurrency`、`--outdated-concurrency`、`--skip-outdated`、`--include-packages`、`--max-secret-files`。
 
 ## Step 2 生成 analysis JSON
 
-读 `.butian/<timestamp>/assets/scan.json` 后，先用脚本构建 `.butian/<timestamp>/assets/analysis.json`（schema 见 `scripts/build_report.py` 顶部注释）：
+读 `.butian/<timestamp>/assets/scan.json` 后，先用脚本构建 `.butian/<timestamp>/assets/analysis.json`：
 
 ```bash
 # macOS / Linux
@@ -94,16 +94,7 @@ python3 scripts/analyze_scan.py .butian/<timestamp>/assets/scan.json
 py -3 scripts/analyze_scan.py .butian/<timestamp>/assets/scan.json
 ```
 
-`analyze_scan.py` 会生成确定性基线：漏洞排序、`risk_summary`、`summary`、`red/yellow/green`、仓库卫生项、过期依赖和扫描错误。agent 之后只能做轻量复核和业务语言润色；不要删除已确认漏洞，不要把过期依赖改写成漏洞，不要把脱敏预览扩展成完整密钥。
-
-- **命中漏洞**：所有漏洞按严重度排序（critical > high > medium > low），全部放入 `top_issues`，不要只放前 5 个。必须透传 `advisory_id`、`aliases`、`cve_id`、`package`、`version`、`severity`、`summary`、`fixed_versions` 等字段，网页会完整展示 GHSA。漏洞表的说明列必须是一句普通人能看懂的话，不要写"事实/为什么/影响/动作"四段，也不要在说明里堆 CVE/GHSA 编号。
-- **仓库卫生扫描**：透传 `hygiene.gitignore_missing`、`hygiene.tracked_secrets`、`hygiene.sensitive_tracked`。密钥内容必须脱敏，只写位置、类型、可信度和预览。
-- **过期依赖**：透传 `outdated`。过期依赖是维护信号，不等同于漏洞；用低风险、排期处理的语言描述。
-- **风险项分级**：`red` 放需优先处理或专业处理的事项；`yellow` 放需业务/部署确认的事项；`green` 可保留给 agent 的内部修复计划，但网页不再单独展示低风险维护区块。
-- **每一项都必须设置 `severity`**：`critical`、`high`、`medium`、`low`、`info` 之一。
-- **必须构建 `risk_summary`**：`{ "critical": N, "high": N, "medium": N, "low": N, "info": N }`。
-- **必须构建 `summary`**：每份 analysis JSON 都要有 `summary.tldr`、`summary.detail`、`summary.priority`。报告面向偏产品经理、项目负责人和非安全背景读者，少用术语，讲清楚"是否影响发布"、"是否需要马上安排"、"需要研发/运维确认什么"。`TL;DR` 不要写 `12 个 critical + 14 个 medium` 这类机器口吻；改写成"发现多项已确认依赖漏洞，风险集中在 next，建议先固定升级"这类产品语言。`detail` 不要展开 CVE/GHSA 编号列表；需要提证据编号时只放在漏洞表 GHSA 列。`priority` 必须是字符串数组。
-- 必须透传 scan.py 输出中的 `generated_at` 和 `scan_seconds`，它们用于计算全流程耗时。
+`analyze_scan.py` 会生成确定性基线；agent 之后只能做轻量复核和业务语言润色。修改 report schema、Markdown 顺序或 HTML 展示时，先读 `references/report-contract.md`。
 
 ## Step 3 Markdown 报告
 
@@ -116,25 +107,13 @@ python3 scripts/render_markdown.py .butian/<timestamp>/assets/analysis.json
 py -3 scripts/render_markdown.py .butian/<timestamp>/assets/analysis.json
 ```
 
-Markdown 必须使用普通人能看懂的产品风险语言，并按以下顺序组织：
-
-1. `# 安全扫描报告`
-2. `## 报告总结`
-   - `TL;DR`：一句话摘要。
-   - 详细说明：更完整地解释风险范围、是否影响发布、建议谁来处理；不要堆 CVE/GHSA 编号。
-   - 能力边界：说明安全是产品长期稳定运行的底线，补天主要覆盖依赖漏洞、过期依赖和仓库卫生信号，不能替代代码审计、渗透测试或部署安全评估。
-3. `## 命中漏洞`：列出已确认漏洞，按修复优先级排序；每条说明用一句小白能看懂的话；没有命中也要写清楚。
-4. `## 仓库卫生扫描`：说明硬编码密钥、敏感文件跟踪、`.gitignore` 规则缺失情况。
-5. `## 过期依赖`：说明过期依赖数量和维护建议，每条用一句话，明确"过期不等于漏洞"。
-6. `## 需要人工确认的事项`：如密钥、访问控制、部署配置、恶意包等；只写"为什么要关注 / 可能影响 / 建议动作"，不要再写"事实"字段。
-7. `## 扫描错误`：列出失败的官方漏洞源、包管理器或工具链检查。
-8. `## 下一步建议`：只给用户阅读后的决策建议，不要求用户在网页点击按钮。
+Markdown 必须使用普通人能看懂的产品风险语言。完整章节顺序和字段要求见 `references/report-contract.md`。
 
 ## Step 4 HTML 报告
 
 默认生成静态 HTML 报告，保存到本次运行目录的 `content/` 下，并在 macOS / Windows / Linux 尝试用系统默认浏览器自动打开；自动化或测试运行才加 `--no-open`；不要启动本地 server，也不要把静态文件和本地服务混用。
 
-报告源码资产拆分为 `assets/report_template.html`、`assets/report.css` 和 `assets/report.js`，但 `build_report.py` 必须把 CSS/JS 内联进最终的 `security-report.html`，最终报告仍然是一个可单独移动和双击打开的 HTML 文件。
+报告源码资产拆分为 `assets/report_template.html`、`assets/report.css` 和 `assets/report.js`，但 `build_report.py` 必须把 CSS/JS 内联进最终的 `security-report.html`，最终报告仍然是一个可单独移动和双击打开的 HTML 文件。HTML 展示契约见 `references/report-contract.md`。
 
 ```bash
 # macOS / Linux
@@ -151,9 +130,7 @@ py -3 scripts/build_report.py .butian/<timestamp>/assets/analysis.json
 - `如果你想继续处理修复，在对话里说一声“可以修 / 修复 / OK / Yes”都可以。`
 - `确认后会按主要修复 -> 次要修复处理。`
 
-HTML 阅读流：项目概览 -> 报告总结 -> 仓库卫生 -> 命中漏洞 -> 过期依赖 -> 优先处理的高风险项 -> 人工复核 -> 扫描错误。静态 HTML 文件路径为 `.butian/<timestamp>/content/security-report.html`。
-
-HTML 表格交互：命中漏洞和过期依赖都默认展示 7 条，数量更多时用只读展开/收起按钮查看剩余全部条目；表格列宽必须稳定，包名列按全量行计算宽度并保持单行展示，展开后不应触发表格重新挤压或换行。
+静态 HTML 文件路径为 `.butian/<timestamp>/content/security-report.html`。
 
 ## Step 5 用户确认后的修复
 
@@ -169,7 +146,7 @@ HTML 表格交互：命中漏洞和过期依赖都默认展示 7 条，数量更
 
 - 全部脚本是 Python 3 标准库，零第三方依赖（不用 pip install）。
 - macOS/Linux 自带 python3；Windows 需先装 Python 3，命令改为 `python` 或 `py -3`。
-- 依赖扫描支持 JavaScript/TypeScript（npm/pnpm/yarn lockfile）、Python（pypi：`poetry.lock`、`uv.lock`、`Pipfile.lock`、`requirements.txt`）、Go、Rust（crates-io）。
+- 依赖扫描支持 JavaScript/TypeScript（npm/pnpm/yarn lockfile）、Python（pypi：`poetry.lock`、`uv.lock`、`Pipfile.lock`、`requirements.txt`）、Go、Rust（crates-io）。`requirements.txt` 只用 `==` / `===` 精确版本做漏洞匹配；范围约束需要 lockfile 才能确认受影响版本。
 - 本 skill 是 agent 驱动：扫描出数据后由 agent 做分级分析，不是双击即用的独立 App。
 
 ## 修复建议规则

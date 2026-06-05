@@ -666,6 +666,16 @@ function shortFixedVersionText(r) {
     : "建议研发确认官方修复版本后升级，并跑一次测试。";
 }
 
+function fixedVersionHtml(r) {
+  const versions = toList(
+    r.fixed_versions || r.fix_versions || r.patched_versions,
+  );
+  if (!versions.length) return '<span class="fixed-empty">待确认</span>';
+  return `<div class="fixed-list">${versions
+    .map((version) => `<span class="fixed-chip">${esc(version)}</span>`)
+    .join("")}</div>`;
+}
+
 function miniFields(fields) {
   return `<div class="mini-fields">${fields
     .filter((x) => x && x.value)
@@ -771,7 +781,9 @@ function outdatedExplanation(it) {
 }
 
 function cleanVersion(value) {
-  return String(value || "").trim().replace(/^v/i, "");
+  return String(value || "")
+    .trim()
+    .replace(/^v/i, "");
 }
 
 function outdatedUpdateTarget(it) {
@@ -950,9 +962,7 @@ function renderVulnTable(rows) {
               .join("")}</div>`
           : '<span style="color:var(--sub)">-</span>';
       const cls = needToggle && idx >= VULN_SHOW ? ' class="vuln-extra"' : "";
-      const fixedHtml = (r.fixed_versions && r.fixed_versions.length)
-        ? esc(r.fixed_versions.join("、"))
-        : '待确认';
+      const fixedHtml = fixedVersionHtml(r);
       return `<tr${cls}>
   <td class="sev">${sevBadge(r.severity)}</td>
   <td class="package-cell"><b title="${esc(packageName)}">${esc(packageName)}</b></td>
