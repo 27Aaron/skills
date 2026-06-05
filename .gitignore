@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.pyo
+
+# 补天 local workspace
+.butian/

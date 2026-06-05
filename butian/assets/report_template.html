@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>安全扫描报告</title>
+        <style>
+            __REPORT_CSS__
+        </style>
+    </head>
+    <body>
+        <div class="wrap">
+            <header>
+                <div class="hero-panel">
+                    <div class="hero-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24">
+                            <path
+                                d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"
+                            />
+                            <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+                            <path
+                                d="M10 12a1 1 0 0 0-1 1v1a1 1 0 0 1-1 1 1 1 0 0 1 1 1v1a1 1 0 0 0 1 1"
+                            />
+                            <path
+                                d="M14 18a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1 1 1 0 0 1-1-1v-1a1 1 0 0 0-1-1"
+                            />
+                        </svg>
+                    </div>
+                    <div>
+                        <h1>安全扫描报告</h1>
+                        <div class="meta" id="meta"></div>
+                    </div>
+                </div>
+            </header>
+            <div id="app"></div>
+            <footer>补天 · 只读安全扫描 · 修复操作请在确认后执行</footer>
+        </div>
+
+        <script>
+            window.__BUTIAN_REPORT_DATA__ = __REPORT_DATA__;
+        </script>
+        <script>
+            __REPORT_JS__;
+        </script>
+    </body>
+</html>
