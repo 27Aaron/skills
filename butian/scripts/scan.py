@@ -903,7 +903,9 @@ def setup_logging(verbose=False, debug=False, log_dir=None):
     # Avoid duplicate handlers on repeated calls
     if logger.handlers:
         return logger
-    logger.setLevel(logging.DEBUG if debug else logging.WARNING)
+    # Keep logger at DEBUG so file handler can capture all messages;
+    # stderr handler controls what the user sees on console.
+    logger.setLevel(logging.DEBUG)
 
     stderr_handler = logging.StreamHandler(sys.stderr)
     stderr_handler.setFormatter(logging.Formatter(_LOG_FORMAT, _LOG_DATE_FORMAT))
@@ -3744,16 +3746,25 @@ def main():
     step_started = time.time()
     if preflight_hygiene_only:
         ecosystems, lockfiles = [], {}
+        logger.info("Step 1/5 生态检测: 跳过 (hygiene_only 模式)")
     else:
         try:
             ecosystems, lockfiles = detect_ecosystems(project_path)
         except Exception as e:
             ecosystems, lockfiles = [], {}
             errors.append({"step": "ecosystem_detection", "message": str(e)})
+            logger.error("Step 1/5 生态检测失败: %s", e)
     step_seconds["ecosystem_detection"] = round(time.time() - step_started, 3)
+    logger.info(
+        "Step 1/5 生态检测完成: %s (lockfile: %s), 耗时 %.3fs",
+        ecosystems or "无",
+        list(lockfiles.values()) or "无",
+        step_seconds["ecosystem_detection"],
+    )
     scan_mode = preflight_scan_mode or (
         "full_dependency_scan" if ecosystems else "hygiene_only"
     )
+    logger.info("扫描模式: %s", scan_mode)
     skip_dependency_checks = scan_mode == "hygiene_only"
 
     # Step 2: parse package coordinates
@@ -3761,12 +3772,19 @@ def main():
     step_started = time.time()
     if skip_dependency_checks:
         packages = []
+        logger.info("Step 2/5 依赖提取: 跳过 (hygiene_only 模式)")
     else:
         try:
             packages = extract_packages(project_path, ecosystems)
+            logger.info(
+                "Step 2/5 依赖提取完成: %d 个包, 耗时 %.3fs",
+                len(packages),
+                round(time.time() - step_started, 3),
+            )
         except Exception as e:
             packages = []
             errors.append({"step": "package_extraction", "message": str(e)})
+            logger.error("Step 2/5 依赖提取失败: %s", e)
     if not skip_dependency_checks and not packages:
         sources = "、".join(lockfiles.values()) or "依赖文件"
         errors.append(
@@ -3788,6 +3806,7 @@ def main():
     def run_hygiene_step():
         step_started = time.time()
         if args.skip_hygiene:
+            logger.info("Step 3/5 卫生扫描: 跳过 (--skip-hygiene)")
             return (
                 "hygiene",
                 {"skipped": True},
@@ -3796,13 +3815,25 @@ def main():
             )
         try:
             secret_file_limit = max(0, int(args.max_secret_files or 0))
+            logger.info(
+                "Step 3/5 卫生扫描开始 (max_secret_files=%d)...", secret_file_limit
+            )
             result = scan_hygiene(
                 project_path,
                 max_secret_files=secret_file_limit,
                 follow_symlinks=args.follow_symlinks,
             )
+            n_secrets = len(result.get("tracked_secrets") or [])
+            n_sensitive = len(result.get("sensitive_tracked") or [])
+            logger.info(
+                "Step 3/5 卫生扫描完成: %d 密钥, %d 敏感文件, 耗时 %.3fs",
+                n_secrets,
+                n_sensitive,
+                round(time.time() - step_started, 3),
+            )
             return "hygiene", result, [], round(time.time() - step_started, 3)
         except Exception as e:
+            logger.error("Step 3/5 卫生扫描失败: %s", e)
             return (
                 "hygiene",
                 {},
@@ -3816,18 +3847,28 @@ def main():
     def run_vulnerability_step():
         step_started = time.time()
         if skip_dependency_checks:
+            logger.info("Step 4/5 漏洞检测: 跳过 (hygiene_only 模式)")
             return "vulnerabilities", [], [], round(time.time() - step_started, 3)
         step_errors = []
         try:
             api_workers = min(4, (os.cpu_count() or 1))
+            logger.info(
+                "Step 4/5 漏洞检测开始: %d 个包, 并发 %d...", len(packages), api_workers
+            )
             result = check_vulnerabilities(
                 packages,
                 errors=step_errors,
                 concurrency=api_workers,
             )
+            logger.info(
+                "Step 4/5 漏洞检测完成: %d 个漏洞, 耗时 %.3fs",
+                len(result),
+                round(time.time() - step_started, 3),
+            )
         except Exception as e:
             result = []
             step_errors.append({"step": "vulnerability_check", "message": str(e)})
+            logger.error("Step 4/5 漏洞检测失败: %s", e)
         return (
             "vulnerabilities",
             result,
@@ -3838,10 +3879,16 @@ def main():
     def run_outdated_step():
         step_started = time.time()
         if skip_dependency_checks or args.skip_outdated:
+            logger.info("Step 5/5 过时依赖: 跳过")
             return "outdated", [], [], round(time.time() - step_started, 3)
         step_errors = []
         try:
             outdated_workers = min(4, (os.cpu_count() or 1))
+            logger.info(
+                "Step 5/5 过时依赖检测开始: 生态 %s, 并发 %d...",
+                ecosystems,
+                outdated_workers,
+            )
             result = check_outdated(
                 project_path,
                 ecosystems,
@@ -3849,11 +3896,18 @@ def main():
                 concurrency=outdated_workers,
                 packages=packages,
             )
+            logger.info(
+                "Step 5/5 过时依赖检测完成: %d 个过时, 耗时 %.3fs",
+                len(result),
+                round(time.time() - step_started, 3),
+            )
         except Exception as e:
             result = []
             step_errors.append({"step": "outdated_check", "message": str(e)})
+            logger.error("Step 5/5 过时依赖检测失败: %s", e)
         return "outdated", result, step_errors, round(time.time() - step_started, 3)
 
+    logger.info("Step 3-5 并行执行开始...")
     hygiene, vulnerabilities, outdated = {}, [], []
     parallel_steps = [run_hygiene_step, run_vulnerability_step, run_outdated_step]
     with ThreadPoolExecutor(max_workers=len(parallel_steps)) as executor:
@@ -3869,6 +3923,7 @@ def main():
             elif name == "outdated":
                 outdated = result
 
+    logger.info("并行步骤全部完成")
     git_repo = is_git_worktree(project_path)
     git_branch = (
         run_cmd(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=project_path)
@@ -3972,6 +4027,7 @@ def main():
     else:
         text = json.dumps(output, ensure_ascii=False, indent=2)
     write_json_output(output_file, text)
+    logger.info("结果已写入: %s (%d bytes)", output_file, len(text))
     print(text)
 
     # Generate baseline if requested
@@ -3980,6 +4036,14 @@ def main():
         logger.info("基线文件已生成: %s", baseline_path)
         progress.finish(f"基线文件已生成: {baseline_path}")
 
+    total_seconds = round(time.time() - started, 1)
+    logger.info(
+        "扫描完成: 总耗时 %.1fs, %d 漏洞, %d 过时, %d 错误",
+        total_seconds,
+        len(vulnerabilities),
+        len(outdated),
+        len(errors),
+    )
     progress.finish("扫描完成")
 
     # Exit code based on severity threshold

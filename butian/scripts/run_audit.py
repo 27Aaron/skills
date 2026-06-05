@@ -547,7 +547,8 @@ def main():
     markdown_path = os.path.join(
         analysis["project"]["path"],
         "docs",
-        f"security-report-{str(analysis.get('generated_at', 'unknown-date'))[:10]}.md",
+        "butian",
+        f"security-report-{str(analysis.get('generated_at', 'unknown-date'))[:19].replace(' ', '_').replace(':', '')}.md",
     )
     run_text(
         [

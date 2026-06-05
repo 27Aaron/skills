@@ -74,12 +74,24 @@ def date_from_analysis(analysis):
     return match.group(0) if match else "unknown-date"
 
 
+def datetime_from_analysis(analysis):
+    """Extract filesystem-safe datetime string (YYYY-MM-DD_HHMMSS) from analysis."""
+    generated_at = text(analysis.get("generated_at"))
+    # generated_at format: "2026-06-06 00:45:27"
+    cleaned = re.sub(r"[^\d]", "", generated_at)  # "20260606004527"
+    if len(cleaned) >= 14:
+        return f"{cleaned[:4]}-{cleaned[4:6]}-{cleaned[6:8]}_{cleaned[8:10]}{cleaned[10:12]}{cleaned[12:14]}"
+    return date_from_analysis(analysis)
+
+
 def default_output_path(analysis):
     project = analysis.get("project") or {}
     project_path = project.get("path") or os.getcwd()
-    docs_dir = os.path.join(project_path, "docs")
+    docs_dir = os.path.join(project_path, "docs", "butian")
     os.makedirs(docs_dir, exist_ok=True)
-    return os.path.join(docs_dir, f"security-report-{date_from_analysis(analysis)}.md")
+    return os.path.join(
+        docs_dir, f"security-report-{datetime_from_analysis(analysis)}.md"
+    )
 
 
 def severity_label(value):

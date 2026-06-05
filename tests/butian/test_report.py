@@ -448,8 +448,8 @@ class DefaultOutputPathTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="butian-report-") as root:
             analysis["project"]["path"] = root
             path = report.default_output_path(analysis)
-            self.assertTrue(path.endswith("security-report-2026-06-05.md"))
-            self.assertIn("docs", path)
+            self.assertTrue(path.endswith("security-report-2026-06-05_090550.md"))
+            self.assertIn("docs/butian", path)
 
 
 # ---------------------------------------------------------------------------
