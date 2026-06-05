@@ -127,6 +127,9 @@ const DATA = (() => {
         "发现多项已确认依赖漏洞，可能影响发布判断；建议先处理紧急和高风险项，再评估其余。";
     } else if (riskTotal) {
       d.summary.tldr = "发现一些中风险或低风险项，建议按影响范围分批处理。";
+    } else if (d.vulns && d.vulns.length) {
+      d.summary.tldr =
+        "命中已确认漏洞，但严重度数据不足，需要结合公告复核影响范围。";
     } else if (d.errors && d.errors.length) {
       d.summary.tldr = "暂未确认风险，但有部分检查失败，结论需要复核。";
     } else {
@@ -204,7 +207,9 @@ function safeHref(value) {
 
 function visibleSeverity(sev) {
   const value = String(sev || "").toLowerCase();
-  return ["critical", "high", "medium", "low"].includes(value) ? value : "low";
+  return ["critical", "high", "medium", "low", "info"].includes(value)
+    ? value
+    : "info";
 }
 
 function sevBadge(sev) {
@@ -215,14 +220,16 @@ function sevBadge(sev) {
       high: "sev-high",
       medium: "sev-medium",
       low: "sev-low",
-    }[visible] || "sev-low";
+      info: "sev-info",
+    }[visible] || "sev-info";
   const text =
     {
       critical: "紧急",
       high: "高风险",
       medium: "中风险",
       low: "低风险",
-    }[visible] || "低风险";
+      info: "待确认",
+    }[visible] || "待确认";
   return `<span class="sev-badge ${cls}">${esc(text)}</span>`;
 }
 
@@ -870,7 +877,7 @@ function renderOverview(proj, rs) {
     : "";
 
   // Top severity: highest visible non-zero level from risk_summary.
-  const severityOrder = ["critical", "high", "medium", "low"];
+  const severityOrder = ["critical", "high", "medium", "low", "info"];
   let topSeverity = "";
   for (const s of severityOrder) {
     if (rs && rs[s] && rs[s] > 0) {
@@ -879,25 +886,28 @@ function renderOverview(proj, rs) {
     }
   }
 
-  const total = (rs && rs.critical + rs.high + rs.medium + rs.low) || 1;
+  const total =
+    (rs && rs.critical + rs.high + rs.medium + rs.low + rs.info) || 0;
   const crit = (rs && rs.critical) || 0;
   const high = (rs && rs.high) || 0;
   const med = (rs && rs.medium) || 0;
   const low = (rs && rs.low) || 0;
+  const info = (rs && rs.info) || 0;
 
   const seg = (v, cls) =>
     v > 0
       ? `<i class="seg-${cls}" style="width:${((v / total) * 100).toFixed(2)}%" title="${cls}: ${v}"></i>`
       : "";
   const bar =
-    total > 1
+    total > 0
       ? seg(crit, "critical") +
         seg(high, "high") +
         seg(med, "medium") +
-        seg(low, "low")
+        seg(low, "low") +
+        seg(info, "info")
       : '<i class="seg-low" style="width:100%"></i>';
 
-  const hasAny = crit || high || med || low;
+  const hasAny = crit || high || med || low || info;
   const pills = rs
     ? `<div class="pills">
   ${!hasAny ? `<span class="pill"><span class="dot" style="background:var(--green)"></span>未发现风险 <b>✓</b></span>` : ""}
@@ -905,6 +915,7 @@ function renderOverview(proj, rs) {
   ${high ? `<span class="pill"><span class="dot" style="background:var(--high)"></span>高风险 <b>${high}</b></span>` : ""}
   ${med ? `<span class="pill"><span class="dot" style="background:var(--medium)"></span>中风险 <b>${med}</b></span>` : ""}
   ${low ? `<span class="pill"><span class="dot" style="background:var(--low)"></span>低风险 <b>${low}</b></span>` : ""}
+  ${info ? `<span class="pill"><span class="dot" style="background:var(--info)"></span>待确认 <b>${info}</b></span>` : ""}
 </div>`
     : "";
 

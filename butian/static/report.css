@@ -639,6 +639,11 @@ td.summary-cell {
     background: var(--green-bg);
     color: var(--accent);
 }
+.sev-info {
+    border-color: rgba(100, 116, 139, 0.18);
+    background: #f1f5f9;
+    color: var(--info);
+}
 /* item cards */
 .item {
     overflow: hidden;

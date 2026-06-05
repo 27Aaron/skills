@@ -45,6 +45,46 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("暂不支持依赖漏洞扫描", markdown)
         self.assertNotIn("未命中已确认的依赖漏洞。", markdown)
 
+    def test_markdown_info_severity_is_pending_not_low_risk(self):
+        analysis = {
+            "generated_at": "2026-06-05 09:05:50",
+            "scan_seconds": 0.1,
+            "project": {
+                "name": "demo",
+                "path": "/tmp/demo",
+                "ecosystems": ["npm"],
+                "total_packages": 1,
+            },
+            "scan_config": {"scan_mode": "full_dependency_scan"},
+            "risk_summary": {
+                "critical": 0,
+                "high": 0,
+                "medium": 0,
+                "low": 0,
+                "info": 1,
+            },
+            "summary": {"tldr": "demo", "detail": "demo", "priority": []},
+            "top_issues": [
+                {
+                    "package": "curious-lib",
+                    "version": "1.0.0",
+                    "severity": "info",
+                    "advisory_id": "GHSA-test-info",
+                    "summary": "命中公开漏洞，但严重度数据不足，需要复核公告影响范围。",
+                }
+            ],
+            "hygiene": {},
+            "outdated": [],
+            "red": [],
+            "yellow": [],
+            "errors": [],
+        }
+
+        markdown = report.render_markdown(analysis)
+
+        self.assertIn("| 待确认 | curious-lib | 1.0.0 |", markdown)
+        self.assertNotIn("| 低风险 | curious-lib | 1.0.0 |", markdown)
+
     def test_html_hygiene_only_warns_dependency_scan_was_not_run(self):
         if not shutil.which("node"):
             self.skipTest("node is required for report asset rendering tests")
@@ -134,6 +174,14 @@ class ButianReportAssetTests(unittest.TestCase):
                     "fixed_versions": ["11.1.1", "12.0.1", "13.0.1"],
                     "advisory_id": "GHSA-w5hq-g745-h8pq",
                     "summary": "Missing buffer bounds check",
+                },
+                {
+                    "package": "curious-lib",
+                    "version": "1.0.0",
+                    "severity": "info",
+                    "fixed_versions": [],
+                    "advisory_id": "GHSA-test-info",
+                    "summary": "Severity data is not available yet",
                 }
             ],
             "outdated": [
@@ -213,7 +261,8 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn('class="outdated-extra"', html)
         self.assertIn("@scope/very-long-hidden-package-name", html)
         self.assertNotIn("信息 <b>", html)
-        self.assertNotIn("sev-info", html)
+        self.assertIn("待确认 <b>1</b>", html)
+        self.assertIn('class="sev-badge sev-info">待确认</span>', html)
         self.assertIn('class="sev-badge sev-critical">紧急</span>', html)
         self.assertIn('class="sev-badge sev-high">高风险</span>', html)
         self.assertIn("紧急 <b>1</b>", html)

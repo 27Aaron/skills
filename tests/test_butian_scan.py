@@ -6,7 +6,7 @@ import tempfile
 from types import SimpleNamespace
 import unittest
 
-from butian.scripts import run_audit, scan
+from butian.scripts import analyze, run_audit, scan
 
 
 class ButianScanTests(unittest.TestCase):
@@ -235,6 +235,75 @@ class ButianScanTests(unittest.TestCase):
 
         self.assertIn("暂不支持依赖漏洞扫描", text)
         self.assertNotIn("未发现需要优先处理的依赖漏洞", text)
+
+    def test_dependency_fix_items_are_grouped_by_package(self):
+        scan_output = {
+            "generated_at": "2026-06-05 09:05:50",
+            "scan_seconds": 0.1,
+            "project": {
+                "name": "demo",
+                "path": "/tmp/demo",
+                "ecosystems": ["npm"],
+                "total_packages": 1,
+            },
+            "scan_config": {"scan_mode": "full_dependency_scan"},
+            "hygiene": {},
+            "outdated": [],
+            "errors": [],
+            "vulnerabilities": [
+                {
+                    "package": "lodash",
+                    "version": "4.17.20",
+                    "ecosystem": "npm",
+                    "severity": "high",
+                    "advisory_id": "GHSA-high",
+                    "fixed_versions": ["4.17.21"],
+                    "summary": "Command injection in lodash",
+                },
+                {
+                    "package": "lodash",
+                    "version": "4.17.20",
+                    "ecosystem": "npm",
+                    "severity": "medium",
+                    "advisory_id": "GHSA-medium",
+                    "fixed_versions": ["4.17.23"],
+                    "summary": "Prototype pollution in lodash",
+                },
+                {
+                    "package": "lodash",
+                    "version": "4.17.20",
+                    "ecosystem": "npm",
+                    "severity": "info",
+                    "advisory_id": "GHSA-info",
+                    "fixed_versions": [],
+                    "summary": "Severity data is not available yet",
+                },
+            ],
+        }
+
+        analysis = analyze.build_analysis(scan_output)
+
+        upgrades = [
+            item
+            for item in analysis["green"]
+            if item.get("type") == "dependency_upgrade"
+        ]
+        self.assertEqual(len(upgrades), 1)
+        upgrade = upgrades[0]
+        self.assertEqual(upgrade["package"], "lodash")
+        self.assertEqual(upgrade["severity"], "high")
+        self.assertEqual(upgrade["fix_config"]["target_version"], "4.17.23")
+        self.assertEqual(upgrade["fix_config"]["advisory_ids"], ["GHSA-high", "GHSA-medium", "GHSA-info"])
+        self.assertEqual(
+            upgrade["fix_config"]["fixed_versions_by_advisory"],
+            {
+                "GHSA-high": ["4.17.21"],
+                "GHSA-medium": ["4.17.23"],
+                "GHSA-info": [],
+            },
+        )
+        self.assertIn("命中 3 个漏洞", upgrade["summary"])
+        self.assertIn("部分公告未给出明确修复版本", upgrade["summary"])
 
     def test_build_report_output_is_visible_in_human_mode(self):
         self.assertTrue(run_audit.should_echo_build_report(SimpleNamespace(compact=False)))

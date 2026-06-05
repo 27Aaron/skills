@@ -21,6 +21,7 @@ SEVERITY_LABELS = {
     "high": "高风险",
     "medium": "中风险",
     "low": "低风险",
+    "info": "待确认",
 }
 CAPABILITY_BOUNDARY = (
     "安全往往不是最显眼的需求，却是产品长期稳定运行的底线。"
@@ -85,7 +86,7 @@ def default_output_path(analysis):
 
 
 def severity_label(value):
-    return SEVERITY_LABELS.get(text(value).lower(), "低风险")
+    return SEVERITY_LABELS.get(text(value).lower(), "待确认")
 
 
 def is_hygiene_only(analysis):

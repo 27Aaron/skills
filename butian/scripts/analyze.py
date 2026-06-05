@@ -77,6 +77,29 @@ def to_list(value):
     return [value]
 
 
+def unique_values(values):
+    result = []
+    for value in values or []:
+        if value is None:
+            continue
+        text_value = str(value)
+        if text_value and text_value not in result:
+            result.append(text_value)
+    return result
+
+
+def version_key(value):
+    parts = re.findall(r"\d+", str(value or ""))
+    return tuple(int(part) for part in parts)
+
+
+def highest_version(values):
+    versions = unique_values(values)
+    if not versions:
+        return ""
+    return sorted(versions, key=version_key)[-1]
+
+
 def default_output_path(scan_path):
     run_dir = run_dir_from_output_file(scan_path)
     assets_dir = os.path.join(run_dir, "assets")
@@ -257,30 +280,66 @@ def build_hygiene_items(scan):
 
 def build_dependency_fix_items(top_issues):
     green = []
-    seen = set()
+    groups = {}
     for issue in top_issues:
         package = issue.get("package") or issue.get("name")
-        fixed = to_list(issue.get("fixed_versions"))
-        if not package or not fixed:
+        if not package:
             continue
-        key = (issue.get("ecosystem"), package, tuple(map(str, fixed)))
-        if key in seen:
+        key = (issue.get("ecosystem") or "", package)
+        groups.setdefault(key, []).append(issue)
+
+    for (ecosystem, package), issues in groups.items():
+        fixed_versions = []
+        fixed_versions_by_advisory = {}
+        advisory_ids = []
+        current_versions = []
+        missing_fixed = False
+        for issue in issues:
+            advisory_id = (
+                issue.get("advisory_id")
+                or issue.get("cve_id")
+                or issue.get("match_summary")
+                or "unknown"
+            )
+            if advisory_id not in advisory_ids:
+                advisory_ids.append(advisory_id)
+            fixed = unique_values(to_list(issue.get("fixed_versions")))
+            fixed_versions_by_advisory[advisory_id] = fixed
+            if fixed:
+                fixed_versions.extend(fixed)
+            else:
+                missing_fixed = True
+            if issue.get("version"):
+                current_versions.append(issue.get("version"))
+
+        target_version = highest_version(fixed_versions)
+        if not target_version:
             continue
-        seen.add(key)
+        highest_issue = sort_items(issues)[0]
+        summary = (
+            f"{package} 命中 {len(issues)} 个漏洞，建议升级到 {target_version} "
+            "或更高版本后运行测试。"
+        )
+        if missing_fixed:
+            summary += " 其中部分公告未给出明确修复版本，需升级后复扫确认。"
         green.append(
             {
                 "name": f"升级 {package}",
                 "type": "dependency_upgrade",
-                "severity": issue.get("severity", "info"),
+                "severity": highest_issue.get("severity", "info"),
                 "package": package,
-                "version": issue.get("version"),
-                "ecosystem": issue.get("ecosystem"),
-                "summary": f"{package} 有明确修复版本，建议升级到 {'、'.join(map(str, fixed))} 或更高版本后运行测试。",
+                "version": unique_values(current_versions)[0] if current_versions else None,
+                "ecosystem": ecosystem,
+                "summary": summary,
                 "fix_config": {
                     "type": "upgrade",
-                    "ecosystem": issue.get("ecosystem"),
+                    "ecosystem": ecosystem,
                     "package": package,
-                    "fixed_versions": fixed,
+                    "current_versions": unique_values(current_versions),
+                    "target_version": target_version,
+                    "fixed_versions": unique_values(fixed_versions),
+                    "advisory_ids": advisory_ids,
+                    "fixed_versions_by_advisory": fixed_versions_by_advisory,
                 },
             }
         )
@@ -303,6 +362,7 @@ def build_summary(scan, analysis):
     hygiene_only = scan_config.get("scan_mode") == "hygiene_only"
     risk_summary = analysis["risk_summary"]
     critical_high = risk_summary["critical"] + risk_summary["high"]
+    medium_low = risk_summary["medium"] + risk_summary["low"]
     vuln_count = len(analysis["top_issues"])
     secret_count = len(hygiene.get("tracked_secrets") or [])
     sensitive_count = len(hygiene.get("sensitive_tracked") or [])
@@ -316,8 +376,10 @@ def build_summary(scan, analysis):
         tldr = "发现需要优先安排的依赖安全风险，建议先处理紧急和高风险漏洞，再确认仓库中的敏感信息迹象。"
     elif secret_count or sensitive_count:
         tldr = "未发现高优先级依赖漏洞，但仓库里有凭证或敏感文件迹象，需要研发确认。"
-    elif vuln_count:
+    elif vuln_count and medium_low:
         tldr = "发现已确认依赖漏洞，当前以中风险或低风险为主，建议按维护窗口分批升级。"
+    elif vuln_count:
+        tldr = "命中已确认漏洞，但严重度数据不足，需要结合公告复核影响范围。"
     elif errors:
         tldr = (
             "本次扫描暂未确认安全风险，但有部分检查失败，结论需要复核后再作为发布依据。"
