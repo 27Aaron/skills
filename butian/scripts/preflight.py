@@ -16,13 +16,22 @@ import os
 import sys
 import time
 
-from scan import (
-    LOCKFILE_MAP,
-    butian_gitignore_status,
-    default_asset_path,
-    find_project_root,
-    run_dir_from_output_file,
-)
+try:
+    from .scan import (
+        LOCKFILE_MAP,
+        butian_gitignore_status,
+        default_asset_path,
+        find_project_root,
+        run_dir_from_output_file,
+    )
+except ImportError:
+    from scan import (  # pyright: ignore[reportMissingImports]
+        LOCKFILE_MAP,
+        butian_gitignore_status,
+        default_asset_path,
+        find_project_root,
+        run_dir_from_output_file,
+    )
 
 
 def parse_args(argv):

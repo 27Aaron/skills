@@ -44,6 +44,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Any
 
 OSV_QUERYBATCH_URL = "https://api.osv.dev/v1/querybatch"
 OSV_VULN_URL_PREFIX = "https://api.osv.dev/v1/vulns/"
@@ -1174,7 +1175,7 @@ def _cvss_to_severity(vector):
     if not vector or "CVSS:" not in vector:
         return None
     try:
-        parts = {}
+        parts: dict[str, str] = {}
         for pair in vector.split("/"):
             if ":" in pair and not pair.startswith("CVSS:"):
                 k, v = pair.split(":", 1)
@@ -1369,7 +1370,9 @@ def _request_with_retry(req, timeout=120, max_retries=2, backoff_delays=(1, 3)):
                 if attempt < len(backoff_delays)
                 else backoff_delays[-1]
             )
-    raise last_exc
+    if last_exc is not None:
+        raise last_exc
+    raise RuntimeError("request failed without captured exception")
 
 
 def post_json(url, payload, timeout=120):
@@ -1442,7 +1445,7 @@ def package_matches_affected(package, affected):
 
 
 def osv_query_for_package(package):
-    query = {
+    query: dict[str, Any] = {
         "package": {
             "ecosystem": osv_ecosystem_for(package.get("ecosystem")),
             "name": package.get("name", ""),
@@ -1935,7 +1938,7 @@ def check_vulnerability_batch(batch_no, batch):
     if not matches:
         return [], errors
 
-    details = {}
+    details: dict[str, dict[str, Any]] = {}
     detail_pairs = []
     for package, vuln_id in matches:
         if vuln_id not in details:

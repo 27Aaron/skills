@@ -15,7 +15,10 @@ import os
 import re
 import sys
 
-from scan import run_dir_from_output_file
+try:
+    from .scan import run_dir_from_output_file
+except ImportError:
+    from scan import run_dir_from_output_file  # pyright: ignore[reportMissingImports]
 
 SEVERITY_ORDER = {
     "critical": 5,

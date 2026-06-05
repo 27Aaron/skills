@@ -190,7 +190,7 @@ def table(headers, rows, min_widths=None, aligns=None):
     return "\n".join(lines)
 
 
-def relative_path(path, project_path):
+def relative_path(path: str, project_path: str) -> str:
     if not path:
         return "-"
     try:

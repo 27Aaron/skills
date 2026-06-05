@@ -1,15 +1,10 @@
 import json
 import os
 import subprocess
-import sys
 import tempfile
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SCRIPTS = os.path.join(ROOT, "butian", "scripts")
-sys.path.insert(0, SCRIPTS)
-
-import scan  # noqa: E402
+from butian.scripts import scan
 
 
 class ButianScanTests(unittest.TestCase):

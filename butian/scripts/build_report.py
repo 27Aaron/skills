@@ -84,7 +84,13 @@ import sys
 import webbrowser
 from pathlib import Path
 
-from scan import BUTIAN_CONTENT_DIR, run_dir_from_output_file
+try:
+    from .scan import BUTIAN_CONTENT_DIR, run_dir_from_output_file
+except ImportError:
+    from scan import (  # pyright: ignore[reportMissingImports]
+        BUTIAN_CONTENT_DIR,
+        run_dir_from_output_file,
+    )
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ASSETS_DIR = os.path.join(HERE, "..", "assets")
