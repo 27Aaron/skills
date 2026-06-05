@@ -64,6 +64,10 @@ BUTIAN_GITIGNORE_ENTRY = ".butian/"
 BUTIAN_ASSETS_DIR = "assets"
 BUTIAN_CONTENT_DIR = "content"
 _GITIGNORE_STATUS_BY_PROJECT = {}
+HYGIENE_ONLY_NOTICE = (
+    "当前项目没有发现补天支持的依赖文件，暂不支持依赖漏洞扫描；"
+    "本次只做仓库卫生扫描，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。"
+)
 
 
 def has_butian_gitignore_entry(content):
@@ -175,8 +179,13 @@ def run_dir_from_output_file(output_file):
 
 
 def default_asset_path(project_path, filename, preflight=None):
-    if preflight and preflight.get("output_file"):
-        run_dir = run_dir_from_output_file(preflight["output_file"])
+    if preflight:
+        workspace = preflight.get("butian_workspace") or {}
+        run_dir = workspace.get("run_dir") or (
+            run_dir_from_output_file(preflight["output_file"])
+            if preflight.get("output_file")
+            else ensure_butian_run(project_path)
+        )
         os.makedirs(os.path.join(run_dir, BUTIAN_ASSETS_DIR), exist_ok=True)
         os.makedirs(os.path.join(run_dir, BUTIAN_CONTENT_DIR), exist_ok=True)
         ensure_butian_gitignore(project_path)
@@ -207,6 +216,7 @@ HIGH_CONFIDENCE_SECRET_TYPES = {
     "private_key",
     "slack_token",
     "github_token",
+    "openai_key",
 }
 
 SENSITIVE_FILE_PATTERNS = [
@@ -512,6 +522,11 @@ def secret_preview(secret_type, match_text):
         )
         return masked if masked != match_text else "***"
 
+    if secret_type in HIGH_CONFIDENCE_SECRET_TYPES:
+        if len(match_text) <= 12:
+            return "***"
+        return match_text[:7] + "..." + match_text[-4:]
+
     if len(match_text) <= 8:
         return "***"
     if len(match_text) <= 24:
@@ -650,8 +665,8 @@ def parse_npm_lock(project_path):
         for key, info in deps.items():
             if not key:
                 continue
-            name = key.removeprefix("node_modules/")
-            if not name or name == key:
+            name = npm_lock_package_name(key)
+            if not name:
                 continue
             pkgs.append(
                 {
@@ -663,6 +678,14 @@ def parse_npm_lock(project_path):
                 }
             )
     return pkgs
+
+
+def npm_lock_package_name(key):
+    marker = "node_modules/"
+    text = str(key or "").strip("/")
+    if marker not in text:
+        return ""
+    return text.rsplit(marker, 1)[1].strip("/")
 
 
 # --- pnpm ---
@@ -2289,6 +2312,23 @@ def iter_json_objects(text):
 
 
 def _cargo_outdated(cwd, errors=None):
+    probe = run_cmd_checked(
+        ["cargo", "outdated", "--help"],
+        cwd=cwd,
+        timeout=30,
+        errors=None,
+        step="outdated_check",
+    )
+    if not probe:
+        if errors is not None:
+            errors.append(
+                {
+                    "step": "outdated_check",
+                    "message": "未发现 cargo-outdated 子命令，已跳过 Rust 过期依赖检查；安装 cargo-outdated 后可获得维护视图",
+                }
+            )
+        return []
+
     output = run_cmd_checked(
         ["cargo", "outdated"],
         cwd=cwd,

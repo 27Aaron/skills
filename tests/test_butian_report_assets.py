@@ -5,12 +5,116 @@ import subprocess
 import textwrap
 import unittest
 
+from butian.scripts import render_markdown
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPORT_CSS = os.path.join(ROOT, "butian", "assets", "report.css")
 REPORT_JS = os.path.join(ROOT, "butian", "assets", "report.js")
 
 
 class ButianReportAssetTests(unittest.TestCase):
+    def test_markdown_hygiene_only_warns_dependency_scan_was_not_run(self):
+        analysis = {
+            "generated_at": "2026-06-05 09:05:50",
+            "scan_seconds": 0.1,
+            "project": {
+                "name": "demo",
+                "path": "/tmp/demo",
+                "ecosystems": [],
+                "total_packages": 0,
+            },
+            "scan_config": {"scan_mode": "hygiene_only"},
+            "risk_summary": {
+                "critical": 0,
+                "high": 0,
+                "medium": 0,
+                "low": 0,
+                "info": 0,
+            },
+            "summary": {"tldr": "demo", "detail": "demo", "priority": []},
+            "top_issues": [],
+            "hygiene": {},
+            "outdated": [],
+            "red": [],
+            "yellow": [],
+            "errors": [],
+        }
+
+        markdown = render_markdown.render_markdown(analysis)
+
+        self.assertIn("暂不支持依赖漏洞扫描", markdown)
+        self.assertNotIn("未命中已确认的依赖漏洞。", markdown)
+        self.assertNotIn("补天 会", markdown)
+        self.assertNotIn("没有发现 补天支持", markdown)
+
+    def test_html_hygiene_only_warns_dependency_scan_was_not_run(self):
+        if not shutil.which("node"):
+            self.skipTest("node is required for report asset rendering tests")
+
+        data = {
+            "generated_at": "2026-06-05 09:05:50",
+            "project": {
+                "name": "demo",
+                "path": "/tmp/demo",
+                "ecosystems": [],
+                "total_packages": 0,
+            },
+            "scan_config": {"scan_mode": "hygiene_only"},
+            "risk_summary": {
+                "critical": 0,
+                "high": 0,
+                "medium": 0,
+                "low": 0,
+                "info": 0,
+            },
+            "summary": {"tldr": "demo", "detail": "demo", "priority": []},
+            "top_issues": [],
+            "hygiene": {},
+            "outdated": [],
+        }
+        code = textwrap.dedent(
+            f"""
+            const fs = require("fs");
+            const vm = require("vm");
+            const elements = {{
+              meta: {{ textContent: "" }},
+              app: {{ innerHTML: "" }},
+            }};
+            const context = {{
+              window: {{
+                __BUTIAN_REPORT_DATA__: {json.dumps(data)},
+                location: {{ href: "file:///tmp/report.html" }},
+              }},
+              document: {{
+                getElementById: (id) => elements[id],
+                addEventListener: () => {{}},
+              }},
+              navigator: {{ clipboard: {{ writeText: () => Promise.resolve() }} }},
+              atob: (value) => Buffer.from(value, "base64").toString("binary"),
+              btoa: (value) => Buffer.from(value, "binary").toString("base64"),
+              setTimeout: () => {{}},
+              console,
+            }};
+            vm.createContext(context);
+            vm.runInContext(fs.readFileSync({json.dumps(REPORT_JS)}, "utf8"), context);
+            process.stdout.write(elements.app.innerHTML);
+            """
+        )
+
+        result = subprocess.run(
+            ["node", "-e", code],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        html = result.stdout
+
+        self.assertIn("暂不支持依赖漏洞扫描", html)
+        self.assertNotIn("未命中已确认的依赖漏洞", html)
+        self.assertNotIn("补天 会", html)
+        self.assertNotIn("没有发现 补天支持", html)
+
     def test_fixed_versions_render_as_wrapping_chips(self):
         if not shutil.which("node"):
             self.skipTest("node is required for report asset rendering tests")

@@ -1,10 +1,12 @@
 import json
 import os
 import subprocess
+import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
 
-from butian.scripts import scan
+from butian.scripts import run_audit, scan
 
 
 class ButianScanTests(unittest.TestCase):
@@ -45,15 +47,61 @@ class ButianScanTests(unittest.TestCase):
             with open(
                 os.path.join(root, ".env.local"), "w", encoding="utf-8"
             ) as handle:
-                handle.write(
-                    'OPENAI_API_KEY="sk-proj-abcdefghijklmnopqrstuvwxyz1234567890"\n'
-                )
+                key = "sk-proj-" + "abcdefghijklmnopqrstuvwxyz" + "1234567890"
+                handle.write(f'OPENAI_API_KEY="{key}"\n')
 
             findings = scan.scan_secrets(root)
 
             self.assertEqual(len(findings), 1)
             self.assertEqual(findings[0]["file"], ".env.local")
             self.assertEqual(findings[0]["type"], "openai_key")
+
+    def test_openai_key_is_high_confidence_with_short_preview(self):
+        with tempfile.TemporaryDirectory(prefix="butian-openai-key-") as root:
+            with open(
+                os.path.join(root, ".env.local"), "w", encoding="utf-8"
+            ) as handle:
+                key = "sk-proj-" + "abcdefghijklmnopqrstuvwxyz" + "1234567890"
+                handle.write(f'OPENAI_API_KEY="{key}"\n')
+
+            [finding] = scan.scan_secrets(root)
+
+            self.assertEqual(finding["type"], "openai_key")
+            self.assertEqual(finding["confidence"], "high")
+            self.assertEqual(finding["preview"], "sk-proj...7890")
+
+    def test_npm_lock_nested_node_modules_uses_real_package_names(self):
+        with tempfile.TemporaryDirectory(prefix="butian-npm-nested-") as root:
+            with open(
+                os.path.join(root, "package-lock.json"), "w", encoding="utf-8"
+            ) as handle:
+                json.dump(
+                    {
+                        "lockfileVersion": 3,
+                        "packages": {
+                            "": {"name": "demo", "version": "0.0.0"},
+                            "node_modules/foo": {"version": "1.0.0"},
+                            "node_modules/foo/node_modules/bar": {
+                                "version": "2.0.0"
+                            },
+                            "node_modules/foo/node_modules/@scope/baz": {
+                                "version": "3.0.0"
+                            },
+                        },
+                    },
+                    handle,
+                )
+
+            packages = scan.parse_npm_lock(root)
+
+            self.assertEqual(
+                [(pkg["name"], pkg["version"]) for pkg in packages],
+                [
+                    ("foo", "1.0.0"),
+                    ("bar", "2.0.0"),
+                    ("@scope/baz", "3.0.0"),
+                ],
+            )
 
     def test_requirements_parser_only_uses_exact_pinned_versions(self):
         with tempfile.TemporaryDirectory(prefix="butian-reqs-") as root:
@@ -100,6 +148,97 @@ class ButianScanTests(unittest.TestCase):
             self.assertTrue(
                 any("项目本地虚拟环境" in item.get("message", "") for item in errors)
             )
+
+    def test_cargo_outdated_skips_with_clear_message_when_subcommand_missing(self):
+        calls = []
+        original = scan.run_cmd_checked
+
+        def fake_run_cmd_checked(cmd, *args, **kwargs):
+            calls.append(cmd)
+            return ""
+
+        scan.run_cmd_checked = fake_run_cmd_checked
+        try:
+            errors = []
+            self.assertEqual(scan._cargo_outdated("/tmp/demo", errors), [])
+        finally:
+            scan.run_cmd_checked = original
+
+        self.assertEqual(calls, [["cargo", "outdated", "--help"]])
+        self.assertTrue(any("cargo-outdated" in item["message"] for item in errors))
+
+    def test_preflight_custom_output_still_prepares_project_workspace(self):
+        with tempfile.TemporaryDirectory(
+            prefix="butian-preflight-project-"
+        ) as root, tempfile.TemporaryDirectory(
+            prefix="butian-preflight-output-"
+        ) as out_dir:
+            output = os.path.join(out_dir, "preflight.json")
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    os.path.join("butian", "scripts", "preflight.py"),
+                    "--compact",
+                    "--output",
+                    output,
+                    root,
+                ],
+                cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            preflight = json.loads(result.stdout)
+
+            self.assertEqual(preflight["output_file"], output)
+            self.assertTrue(os.path.isdir(os.path.join(root, ".butian")))
+            with open(os.path.join(root, ".gitignore"), "r", encoding="utf-8") as handle:
+                self.assertIn(".butian/", handle.read())
+            self.assertTrue(
+                os.path.abspath(preflight["butian_workspace"]["run_dir"]).startswith(
+                    os.path.join(os.path.abspath(root), ".butian")
+                )
+            )
+
+    def test_human_summary_warns_when_hygiene_only_skips_dependency_scan(self):
+        summary = {
+            "scan_mode": "hygiene_only",
+            "markdown_report": "/tmp/demo/docs/security-report-2026-06-05.md",
+            "html_report": "/tmp/demo/.butian/run/content/security-report.html",
+            "analysis_file": "/tmp/demo/.butian/run/assets/analysis.json",
+            "errors": [],
+        }
+        scan_output = {
+            "project": {"path": "/tmp/demo"},
+            "scan_config": {"scan_mode": "hygiene_only"},
+            "hygiene": {},
+        }
+        analysis = {
+            "project": {"path": "/tmp/demo", "ecosystems": [], "total_packages": 0},
+            "risk_summary": {
+                "critical": 0,
+                "high": 0,
+                "medium": 0,
+                "low": 0,
+                "info": 0,
+            },
+            "top_issues": [],
+            "hygiene": {},
+            "outdated": [],
+            "errors": [],
+        }
+
+        text = run_audit.format_human_summary(
+            summary, scan_output, analysis, SimpleNamespace(no_open=True)
+        )
+
+        self.assertIn("暂不支持依赖漏洞扫描", text)
+        self.assertNotIn("未发现需要优先处理的依赖漏洞", text)
+
+    def test_build_report_output_is_visible_in_human_mode(self):
+        self.assertTrue(run_audit.should_echo_build_report(SimpleNamespace(compact=False)))
+        self.assertFalse(run_audit.should_echo_build_report(SimpleNamespace(compact=True)))
 
 
 if __name__ == "__main__":

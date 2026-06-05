@@ -19,10 +19,14 @@ SEVERITY_LABELS = {
 }
 CAPABILITY_BOUNDARY = (
     "安全往往不是最显眼的需求，却是产品长期稳定运行的底线。"
-    "补天 会优先帮助你发现依赖漏洞、过期依赖和仓库卫生风险，"
+    "补天会优先帮助你发现依赖漏洞、过期依赖和仓库卫生风险，"
     "让容易被忽视的供应链问题更早暴露出来。"
     "但它不能替代代码审计、渗透测试或部署安全评估；"
     "代码层面的权限、业务逻辑、SQL 注入、XSS 等问题仍需单独复核。"
+)
+HYGIENE_ONLY_NOTICE = (
+    "当前项目没有发现补天支持的依赖文件，暂不支持依赖漏洞扫描；"
+    "本次只做仓库卫生扫描，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。"
 )
 
 
@@ -79,6 +83,10 @@ def severity_label(value):
     return SEVERITY_LABELS.get(text(value).lower(), "低风险")
 
 
+def is_hygiene_only(analysis):
+    return (analysis.get("scan_config") or {}).get("scan_mode") == "hygiene_only"
+
+
 def security_ids(item):
     values = []
 
@@ -110,6 +118,8 @@ def render_summary(analysis):
     ]
     if summary.get("detail"):
         lines.append(f"- 详细说明：{text(summary.get('detail'))}")
+    if is_hygiene_only(analysis):
+        lines.append(f"- 扫描范围：{HYGIENE_ONLY_NOTICE}")
     lines.append(f"- 能力边界：{CAPABILITY_BOUNDARY}")
     priority = to_list(summary.get("priority"))
     if priority:
@@ -124,6 +134,9 @@ def render_vulnerabilities(analysis):
     issues = analysis.get("top_issues") or []
     lines = ["## 命中漏洞", ""]
     if not issues:
+        if is_hygiene_only(analysis):
+            lines.extend([f"本次未执行依赖漏洞扫描：{HYGIENE_ONLY_NOTICE}", ""])
+            return lines
         lines.extend(["未命中已确认的依赖漏洞。", ""])
         return lines
 
@@ -217,6 +230,16 @@ def render_outdated(analysis):
         item for item in analysis.get("outdated") or [] if is_outdated_item(item)
     ]
     lines = ["## 过期依赖", ""]
+    if is_hygiene_only(analysis):
+        lines.extend(
+            [
+                f"本次未执行依赖版本维护检查：{HYGIENE_ONLY_NOTICE}",
+                "",
+                "提醒：过期依赖只是维护信号，不代表一定存在漏洞；真正的安全优先级仍以命中漏洞为准。",
+                "",
+            ]
+        )
+        return lines
     if not outdated:
         lines.extend(
             [

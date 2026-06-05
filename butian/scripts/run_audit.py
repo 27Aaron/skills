@@ -21,10 +21,14 @@ from collections import defaultdict
 HERE = os.path.dirname(os.path.abspath(__file__))
 CAPABILITY_BOUNDARY = (
     "安全往往不是最显眼的需求，却是产品长期稳定运行的底线。"
-    "补天 会优先帮助你发现依赖漏洞、过期依赖和仓库卫生风险，"
+    "补天会优先帮助你发现依赖漏洞、过期依赖和仓库卫生风险，"
     "让容易被忽视的供应链问题更早暴露出来。"
     "但它不能替代代码审计、渗透测试或部署安全评估；"
     "代码层面的权限、业务逻辑、SQL 注入、XSS 等问题仍需单独复核。"
+)
+HYGIENE_ONLY_NOTICE = (
+    "当前项目没有发现补天支持的依赖文件，暂不支持依赖漏洞扫描；"
+    "本次只做仓库卫生扫描，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。"
 )
 
 
@@ -281,7 +285,10 @@ def format_risk_rows(risk_summary):
     return rows or [["✅ 未发现风险", "0"]]
 
 
-def format_focus(analysis):
+def format_focus(analysis, scan_mode=None):
+    if scan_mode == "hygiene_only":
+        return HYGIENE_ONLY_NOTICE
+
     issues = analysis.get("top_issues") or []
     if not issues:
         return "未发现需要优先处理的依赖漏洞。"
@@ -366,9 +373,15 @@ def format_human_summary(summary, scan, analysis, args):
     errors = analysis.get("errors") or summary.get("errors") or []
     error_label = "无" if not errors else f"{len(errors)} 个"
     html_state = "未自动打开" if args.no_open else "已自动尝试打开"
+    scope_notice = (
+        ["", "⚠️ 扫描范围", "", quote_line(HYGIENE_ONLY_NOTICE)]
+        if scan_mode == "hygiene_only"
+        else []
+    )
 
     lines = [
         f"⏺ 扫描完成 ✅ 模式：{scan_mode}（{mode_label(scan_mode)}）。",
+        *scope_notice,
         "",
         "📊 风险总览",
         "",
@@ -391,7 +404,7 @@ def format_human_summary(summary, scan, analysis, args):
         "",
         "🚨 重点关注（按修复优先级）",
         "",
-        format_focus(analysis),
+        format_focus(analysis, scan_mode=scan_mode),
         "",
         "📁 报告路径",
         "",
@@ -430,6 +443,10 @@ def build_scan_cmd(args, preflight_file):
     if args.max_secret_files is not None:
         cmd.extend(["--max-secret-files", str(args.max_secret_files)])
     return cmd
+
+
+def should_echo_build_report(args):
+    return not getattr(args, "compact", False)
 
 
 def main():
@@ -493,7 +510,7 @@ def main():
         build_report_cmd.append("--no-open")
     run_text(
         build_report_cmd,
-        echo=False,
+        echo=should_echo_build_report(args),
     )
 
     summary = {

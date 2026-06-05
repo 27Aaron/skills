@@ -53,6 +53,10 @@ SENSITIVE_TYPE_LABELS = {
     "credentials": "凭证文件",
     "ssh_key": "SSH 私钥",
 }
+HYGIENE_ONLY_NOTICE = (
+    "当前项目没有发现补天支持的依赖文件，暂不支持依赖漏洞扫描；"
+    "本次只做仓库卫生扫描，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。"
+)
 
 
 def normalize_severity(value):
@@ -294,6 +298,8 @@ def count_risks(*groups):
 def build_summary(scan, analysis):
     project = scan.get("project") or {}
     hygiene = scan.get("hygiene") or {}
+    scan_config = scan.get("scan_config") or {}
+    hygiene_only = scan_config.get("scan_mode") == "hygiene_only"
     risk_summary = analysis["risk_summary"]
     critical_high = risk_summary["critical"] + risk_summary["high"]
     vuln_count = len(analysis["top_issues"])
@@ -303,7 +309,9 @@ def build_summary(scan, analysis):
     outdated_count = len(scan.get("outdated") or [])
     errors = scan.get("errors") or []
 
-    if critical_high and vuln_count:
+    if hygiene_only:
+        tldr = "本次没有发现补天支持的依赖文件，因此未执行依赖漏洞扫描；报告结论仅覆盖仓库卫生风险。"
+    elif critical_high and vuln_count:
         tldr = "发现需要优先安排的依赖安全风险，建议先处理紧急和高风险漏洞，再确认仓库中的敏感信息迹象。"
     elif secret_count or sensitive_count:
         tldr = "未发现高优先级依赖漏洞，但仓库里有凭证或敏感文件迹象，需要研发确认。"
@@ -316,16 +324,25 @@ def build_summary(scan, analysis):
     else:
         tldr = "本次扫描没有发现明确安全风险，可作为当前项目状态记录。"
 
-    detail = (
-        f"本次检查覆盖项目 {project.get('name') or '-'}，识别到 "
-        f"{project.get('total_packages', scan.get('package_count', 0)) or 0} 个依赖包，"
-        f"命中 {vuln_count} 个已确认漏洞。仓库卫生方面，发现疑似硬编码凭证 {secret_count} 处、"
-        f"被 git 跟踪的敏感文件 {sensitive_count} 个、建议补充的 .gitignore 规则 {missing_count} 条。"
-        f"过期依赖 {outdated_count} 个仅作为维护信号，不等同于漏洞。"
-    )
+    if hygiene_only:
+        detail = (
+            f"本次检查覆盖项目 {project.get('name') or '-'}。{HYGIENE_ONLY_NOTICE}"
+            f"仓库卫生方面，发现疑似硬编码凭证 {secret_count} 处、"
+            f"被 git 跟踪的敏感文件 {sensitive_count} 个、建议补充的 .gitignore 规则 {missing_count} 条。"
+        )
+    else:
+        detail = (
+            f"本次检查覆盖项目 {project.get('name') or '-'}，识别到 "
+            f"{project.get('total_packages', scan.get('package_count', 0)) or 0} 个依赖包，"
+            f"命中 {vuln_count} 个已确认漏洞。仓库卫生方面，发现疑似硬编码凭证 {secret_count} 处、"
+            f"被 git 跟踪的敏感文件 {sensitive_count} 个、建议补充的 .gitignore 规则 {missing_count} 条。"
+            f"过期依赖 {outdated_count} 个仅作为维护信号，不等同于漏洞。"
+        )
 
     priority = []
-    if critical_high:
+    if hygiene_only:
+        priority.append(HYGIENE_ONLY_NOTICE)
+    elif critical_high:
         priority.append(
             f"优先处理 {critical_high} 个紧急/高风险项，先升级有明确修复版本的依赖，再运行测试或构建。"
         )

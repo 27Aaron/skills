@@ -21,6 +21,7 @@ try:
         LOCKFILE_MAP,
         butian_gitignore_status,
         default_asset_path,
+        ensure_butian_run,
         find_project_root,
         run_dir_from_output_file,
     )
@@ -29,6 +30,7 @@ except ImportError:
         LOCKFILE_MAP,
         butian_gitignore_status,
         default_asset_path,
+        ensure_butian_run,
         find_project_root,
         run_dir_from_output_file,
     )
@@ -78,7 +80,11 @@ def detect_language_support(project_path):
 def build_preflight(project_path, args):
     language_support = detect_language_support(project_path)
     output_file = args.output or default_output_path(project_path)
-    run_dir = run_dir_from_output_file(output_file)
+    run_dir = (
+        ensure_butian_run(project_path)
+        if args.output
+        else run_dir_from_output_file(output_file)
+    )
     recommended_scan_mode = (
         "full_dependency_scan" if language_support["supported"] else "hygiene_only"
     )

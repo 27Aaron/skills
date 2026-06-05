@@ -10,7 +10,9 @@ const toList = (value) => {
     .filter(Boolean);
 };
 const CAPABILITY_BOUNDARY =
-  "安全往往不是最显眼的需求，却是产品长期稳定运行的底线。补天 会优先帮助你发现依赖漏洞、过期依赖和仓库卫生风险，让容易被忽视的供应链问题更早暴露出来。但它不能替代代码审计、渗透测试或部署安全评估；代码层面的权限、业务逻辑、SQL 注入、XSS 等问题仍需单独复核。";
+  "安全往往不是最显眼的需求，却是产品长期稳定运行的底线。补天会优先帮助你发现依赖漏洞、过期依赖和仓库卫生风险，让容易被忽视的供应链问题更早暴露出来。但它不能替代代码审计、渗透测试或部署安全评估；代码层面的权限、业务逻辑、SQL 注入、XSS 等问题仍需单独复核。";
+const HYGIENE_ONLY_NOTICE =
+  "当前项目没有发现补天支持的依赖文件，暂不支持依赖漏洞扫描；本次只做仓库卫生扫描，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。";
 
 // ---- Normalize: accept common field name variations from different agents ----
 const DATA = (() => {
@@ -89,6 +91,18 @@ const DATA = (() => {
     d.summary.priority = d.priority_items;
   }
   d.summary.priority = toList(d.summary.priority);
+  if (d.scan_config.scan_mode === "hygiene_only") {
+    if (!d.summary.priority.includes(HYGIENE_ONLY_NOTICE)) {
+      d.summary.priority = [HYGIENE_ONLY_NOTICE, ...d.summary.priority];
+    }
+    if (!d.summary.tldr || !d.project.total_packages) {
+      d.summary.tldr =
+        "本次没有发现补天支持的依赖文件，因此未执行依赖漏洞扫描；报告结论仅覆盖仓库卫生风险。";
+    }
+    if (!d.summary.detail || !d.project.total_packages) {
+      d.summary.detail = HYGIENE_ONLY_NOTICE;
+    }
+  }
   // Risk summary: compute only when missing. Explicit all-zero summaries mean "no confirmed risk".
   if (!d.risk_summary) {
     const rs = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
@@ -995,6 +1009,22 @@ function renderTableColgroup(columns) {
 
 function renderVulnTable(rows) {
   if (!rows || !rows.length) {
+    if (DATA.scan_config && DATA.scan_config.scan_mode === "hygiene_only") {
+      return section(
+        "命中漏洞",
+        null,
+        `<div class="summary vuln-empty">${miniFields([
+          { label: "扫描范围", value: HYGIENE_ONLY_NOTICE },
+          {
+            label: "结论口径",
+            value:
+              "这不是依赖漏洞扫描通过，而是本次未执行依赖漏洞扫描。仓库卫生结论仍可参考。",
+          },
+        ])}</div>`,
+        "",
+        "search",
+      );
+    }
     return section(
       "命中漏洞",
       0,
@@ -1165,6 +1195,22 @@ function renderHygiene(h) {
 // ---- Outdated dependencies ----
 function renderOutdated(items) {
   items = toList(items);
+  if (DATA.scan_config && DATA.scan_config.scan_mode === "hygiene_only") {
+    return section(
+      "过期依赖",
+      null,
+      `<div class="summary outdated-empty">${miniFields([
+        { label: "扫描范围", value: HYGIENE_ONLY_NOTICE },
+        {
+          label: "提醒",
+          value:
+            "本次未执行依赖版本维护检查；过期依赖不等于漏洞，真正安全优先级仍以命中漏洞为准。",
+        },
+      ])}</div>`,
+      "",
+      "long",
+    );
+  }
   if (DATA.scan_config && DATA.scan_config.skip_outdated) {
     return section(
       "过期依赖",
