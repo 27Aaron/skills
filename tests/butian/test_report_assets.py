@@ -8,8 +8,8 @@ import unittest
 from butian.scripts import report
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-REPORT_CSS = os.path.join(ROOT, "butian", "static", "report.css")
-REPORT_JS = os.path.join(ROOT, "butian", "static", "report.js")
+REPORT_CSS = os.path.join(ROOT, "butian", "templates", "report.css")
+REPORT_JS = os.path.join(ROOT, "butian", "templates", "report.js")
 
 
 class ButianReportAssetTests(unittest.TestCase):

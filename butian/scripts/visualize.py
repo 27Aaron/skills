@@ -29,10 +29,9 @@ except ImportError:
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "..", "templates")
-STATIC_DIR = os.path.join(HERE, "..", "static")
 TEMPLATE = os.path.join(TEMPLATES_DIR, "report.html")
-REPORT_CSS = os.path.join(STATIC_DIR, "report.css")
-REPORT_JS = os.path.join(STATIC_DIR, "report.js")
+REPORT_CSS = os.path.join(TEMPLATES_DIR, "report.css")
+REPORT_JS = os.path.join(TEMPLATES_DIR, "report.js")
 
 
 def json_for_script(value):
