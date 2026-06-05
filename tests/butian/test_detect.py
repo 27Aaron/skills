@@ -5,7 +5,7 @@ import sys
 import tempfile
 import unittest
 
-from butian.scripts import detect, scan
+from butian.scripts import detect
 
 
 # ---------------------------------------------------------------------------
@@ -45,12 +45,15 @@ class ParseArgsTests(unittest.TestCase):
         self.assertFalse(args.compact)
 
     def test_all_flags_combined(self):
-        args = detect.parse_args([
-            "--no-root-discovery",
-            "--output", "/tmp/out.json",
-            "--compact",
-            "/some/path",
-        ])
+        args = detect.parse_args(
+            [
+                "--no-root-discovery",
+                "--output",
+                "/tmp/out.json",
+                "--compact",
+                "/some/path",
+            ]
+        )
         self.assertEqual(args.project_path, "/some/path")
         self.assertTrue(args.no_root_discovery)
         self.assertEqual(args.output, "/tmp/out.json")
@@ -242,9 +245,7 @@ class BuildPreflightTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="butian-detect-") as root:
             args = self._make_args()
             result = detect.build_preflight(root, args)
-            self.assertTrue(
-                os.path.isdir(result["butian_workspace"]["run_dir"])
-            )
+            self.assertTrue(os.path.isdir(result["butian_workspace"]["run_dir"]))
 
     def test_gitignore_status_is_populated(self):
         with tempfile.TemporaryDirectory(prefix="butian-detect-") as root:
@@ -261,7 +262,9 @@ class BuildPreflightTests(unittest.TestCase):
 class MainIntegrationTests(unittest.TestCase):
     @staticmethod
     def _project_root():
-        return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        return os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
 
     def test_main_writes_json_to_stdout(self):
         with tempfile.TemporaryDirectory(prefix="butian-detect-") as root:
@@ -344,11 +347,10 @@ class MainIntegrationTests(unittest.TestCase):
             self.assertEqual(on_disk["project"]["path"], os.path.abspath(root))
 
     def test_main_with_custom_output_path(self):
-        with tempfile.TemporaryDirectory(
-            prefix="butian-detect-"
-        ) as root, tempfile.TemporaryDirectory(
-            prefix="butian-detect-out-"
-        ) as out_dir:
+        with (
+            tempfile.TemporaryDirectory(prefix="butian-detect-") as root,
+            tempfile.TemporaryDirectory(prefix="butian-detect-out-") as out_dir,
+        ):
             output = os.path.join(out_dir, "custom.json")
             result = subprocess.run(
                 [
@@ -391,9 +393,7 @@ class MainIntegrationTests(unittest.TestCase):
             data = json.loads(result.stdout)
             self.assertTrue(data["language_support"]["supported"])
             self.assertIn("npm", data["language_support"]["ecosystems"])
-            self.assertEqual(
-                data["recommended_scan_mode"], "full_dependency_scan"
-            )
+            self.assertEqual(data["recommended_scan_mode"], "full_dependency_scan")
 
     def test_main_unsupported_project_gets_hygiene_only(self):
         with tempfile.TemporaryDirectory(prefix="butian-detect-") as root:

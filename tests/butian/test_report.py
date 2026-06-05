@@ -1,12 +1,10 @@
 """Unit tests for butian/scripts/report.py — Markdown report rendering."""
 
-import json
 import os
 import subprocess
 import sys
 import tempfile
 import unittest
-from types import SimpleNamespace
 
 from butian.scripts import report
 
@@ -99,9 +97,7 @@ class IsOutdatedItemTests(unittest.TestCase):
         self.assertFalse(report.is_outdated_item({"current": "1.0", "wanted": "1.0"}))
 
     def test_v_prefix(self):
-        self.assertTrue(
-            report.is_outdated_item({"current": "v1.0", "latest": "v2.0"})
-        )
+        self.assertTrue(report.is_outdated_item({"current": "v1.0", "latest": "v2.0"}))
 
     def test_no_target(self):
         self.assertFalse(
@@ -163,7 +159,9 @@ class IsHygieneOnlyTests(unittest.TestCase):
 
     def test_full_scan(self):
         self.assertFalse(
-            report.is_hygiene_only({"scan_config": {"scan_mode": "full_dependency_scan"}})
+            report.is_hygiene_only(
+                {"scan_config": {"scan_mode": "full_dependency_scan"}}
+            )
         )
 
     def test_missing_config(self):
@@ -188,15 +186,19 @@ class SecurityIdsTests(unittest.TestCase):
 
     def test_comma_separated(self):
         self.assertEqual(
-            report.security_ids({"advisory_ids": "GHSA-aaaa-bbbb-cccc, GHSA-dddd-eeee-ffff"}),
+            report.security_ids(
+                {"advisory_ids": "GHSA-aaaa-bbbb-cccc, GHSA-dddd-eeee-ffff"}
+            ),
             ["GHSA-aaaa-bbbb-cccc", "GHSA-dddd-eeee-ffff"],
         )
 
     def test_deduplicates(self):
-        ids = report.security_ids({
-            "advisory_id": "GHSA-aaaa-bbbb-cccc",
-            "aliases": ["GHSA-aaaa-bbbb-cccc"],
-        })
+        ids = report.security_ids(
+            {
+                "advisory_id": "GHSA-aaaa-bbbb-cccc",
+                "aliases": ["GHSA-aaaa-bbbb-cccc"],
+            }
+        )
         self.assertEqual(ids, ["GHSA-aaaa-bbbb-cccc"])
 
     def test_no_ids(self):
@@ -336,7 +338,12 @@ class RenderOutdatedTests(unittest.TestCase):
     def test_with_outdated(self):
         analysis = {
             "outdated": [
-                {"package": "react", "current": "18.2.0", "latest": "19.1.0", "ecosystem": "npm"},
+                {
+                    "package": "react",
+                    "current": "18.2.0",
+                    "latest": "19.1.0",
+                    "ecosystem": "npm",
+                },
             ],
             "scan_config": {"scan_mode": "full_dependency_scan"},
         }
@@ -352,9 +359,7 @@ class RenderOutdatedTests(unittest.TestCase):
         self.assertIn("没有检测到", result)
 
     def test_hygiene_only(self):
-        result = report.render_outdated(
-            {"scan_config": {"scan_mode": "hygiene_only"}}
-        )
+        result = report.render_outdated({"scan_config": {"scan_mode": "hygiene_only"}})
         self.assertIn("暂不支持", result)
 
 
@@ -452,7 +457,9 @@ class DefaultOutputPathTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 class PipelineHelpTests(unittest.TestCase):
     def test_report_help(self):
-        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        root = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
         result = subprocess.run(
             [sys.executable, os.path.join("butian", "scripts", "report.py"), "--help"],
             cwd=root,

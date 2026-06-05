@@ -3,9 +3,7 @@
 import os
 import subprocess
 import sys
-import tempfile
 import unittest
-from collections import defaultdict
 from types import SimpleNamespace
 
 from butian.scripts import run_audit
@@ -103,9 +101,7 @@ class TableTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 class RelativePathTests(unittest.TestCase):
     def test_within_project(self):
-        self.assertEqual(
-            run_audit.relative_path("/proj/src/a.py", "/proj"), "src/a.py"
-        )
+        self.assertEqual(run_audit.relative_path("/proj/src/a.py", "/proj"), "src/a.py")
 
     def test_empty_path(self):
         self.assertEqual(run_audit.relative_path("", "/proj"), "-")
@@ -130,8 +126,9 @@ class VersionKeyTests(unittest.TestCase):
 
     def test_sorting(self):
         versions = ["2.0.0", "1.5.0", "1.0.0"]
-        self.assertEqual(sorted(versions, key=run_audit.version_key),
-                         ["1.0.0", "1.5.0", "2.0.0"])
+        self.assertEqual(
+            sorted(versions, key=run_audit.version_key), ["1.0.0", "1.5.0", "2.0.0"]
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -144,10 +141,12 @@ class BestFixedVersionTests(unittest.TestCase):
         )
 
     def test_multiple_picks_highest(self):
-        result = run_audit.best_fixed_version([
-            {"fixed_versions": ["1.0.1"]},
-            {"fixed_versions": ["1.0.3"]},
-        ])
+        result = run_audit.best_fixed_version(
+            [
+                {"fixed_versions": ["1.0.1"]},
+                {"fixed_versions": ["1.0.3"]},
+            ]
+        )
         self.assertIn("1.0.3", result)
 
     def test_empty(self):
@@ -164,45 +163,54 @@ class BestFixedVersionTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 class RiskNatureTests(unittest.TestCase):
     def test_ssrf(self):
-        self.assertIn("SSRF", run_audit.risk_nature([
-            {"summary": "server-side request forgery vulnerability"}
-        ]))
+        self.assertIn(
+            "SSRF",
+            run_audit.risk_nature(
+                [{"summary": "server-side request forgery vulnerability"}]
+            ),
+        )
 
     def test_dos(self):
-        self.assertIn("DoS", run_audit.risk_nature([
-            {"summary": "denial of service via large payload"}
-        ]))
+        self.assertIn(
+            "DoS",
+            run_audit.risk_nature([{"summary": "denial of service via large payload"}]),
+        )
 
     def test_xss(self):
-        self.assertIn("XSS", run_audit.risk_nature([
-            {"summary": "cross-site scripting issue"}
-        ]))
+        self.assertIn(
+            "XSS", run_audit.risk_nature([{"summary": "cross-site scripting issue"}])
+        )
 
     def test_middleware_bypass(self):
-        self.assertIn("中间件", run_audit.risk_nature([
-            {"summary": "middleware proxy bypass in next.js"}
-        ]))
+        self.assertIn(
+            "中间件",
+            run_audit.risk_nature([{"summary": "middleware proxy bypass in next.js"}]),
+        )
 
     def test_path_traversal(self):
-        self.assertIn("路径穿越", run_audit.risk_nature([
-            {"summary": "path traversal vulnerability"}
-        ]))
+        self.assertIn(
+            "路径穿越",
+            run_audit.risk_nature([{"summary": "path traversal vulnerability"}]),
+        )
 
     def test_buffer(self):
-        self.assertIn("buffer", run_audit.risk_nature([
-            {"summary": "buffer bounds check missing"}
-        ]))
+        self.assertIn(
+            "buffer",
+            run_audit.risk_nature([{"summary": "buffer bounds check missing"}]),
+        )
 
     def test_generic(self):
-        self.assertIn("依赖漏洞", run_audit.risk_nature([
-            {"summary": "a type confusion bug"}
-        ]))
+        self.assertIn(
+            "依赖漏洞", run_audit.risk_nature([{"summary": "a type confusion bug"}])
+        )
 
     def test_multiple_issues_count(self):
-        result = run_audit.risk_nature([
-            {"summary": "ssrf issue"},
-            {"summary": "dos issue"},
-        ])
+        result = run_audit.risk_nature(
+            [
+                {"summary": "ssrf issue"},
+                {"summary": "dos issue"},
+            ]
+        )
         self.assertIn("2 条", result)
 
 
@@ -211,7 +219,9 @@ class RiskNatureTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 class ModeLabelTests(unittest.TestCase):
     def test_full(self):
-        self.assertEqual(run_audit.mode_label("full_dependency_scan"), "完整依赖漏洞扫描")
+        self.assertEqual(
+            run_audit.mode_label("full_dependency_scan"), "完整依赖漏洞扫描"
+        )
 
     def test_hygiene(self):
         self.assertEqual(run_audit.mode_label("hygiene_only"), "仓库卫生扫描")
@@ -225,7 +235,9 @@ class ModeLabelTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 class FormatRiskRowsTests(unittest.TestCase):
     def test_with_risks(self):
-        rows = run_audit.format_risk_rows({"critical": 1, "high": 2, "medium": 0, "low": 0})
+        rows = run_audit.format_risk_rows(
+            {"critical": 1, "high": 2, "medium": 0, "low": 0}
+        )
         self.assertEqual(len(rows), 2)
         self.assertIn("紧急", rows[0][0])
         self.assertEqual(rows[0][1], "1")
@@ -236,7 +248,9 @@ class FormatRiskRowsTests(unittest.TestCase):
         self.assertIn("未发现风险", rows[0][0])
 
     def test_all_levels(self):
-        rows = run_audit.format_risk_rows({"critical": 1, "high": 2, "medium": 3, "low": 4})
+        rows = run_audit.format_risk_rows(
+            {"critical": 1, "high": 2, "medium": 3, "low": 4}
+        )
         self.assertEqual(len(rows), 4)
 
 
@@ -255,8 +269,13 @@ class FormatFocusTests(unittest.TestCase):
     def test_with_critical(self):
         analysis = {
             "top_issues": [
-                {"package": "lodash", "version": "4.17.20", "severity": "high",
-                 "fixed_versions": ["4.17.21"], "summary": "pollution"},
+                {
+                    "package": "lodash",
+                    "version": "4.17.20",
+                    "severity": "high",
+                    "fixed_versions": ["4.17.21"],
+                    "summary": "pollution",
+                },
             ]
         }
         result = run_audit.format_focus(analysis)
@@ -266,10 +285,20 @@ class FormatFocusTests(unittest.TestCase):
     def test_medium_summary(self):
         analysis = {
             "top_issues": [
-                {"package": "foo", "version": "1.0", "severity": "medium",
-                 "fixed_versions": ["1.1"], "summary": "issue"},
-                {"package": "bar", "version": "2.0", "severity": "medium",
-                 "fixed_versions": ["2.1"], "summary": "issue2"},
+                {
+                    "package": "foo",
+                    "version": "1.0",
+                    "severity": "medium",
+                    "fixed_versions": ["1.1"],
+                    "summary": "issue",
+                },
+                {
+                    "package": "bar",
+                    "version": "2.0",
+                    "severity": "medium",
+                    "fixed_versions": ["2.1"],
+                    "summary": "issue2",
+                },
             ]
         }
         result = run_audit.format_focus(analysis)
@@ -281,30 +310,64 @@ class FormatFocusTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 class FormatHumanSummaryTests(unittest.TestCase):
     def test_hygiene_only_mode(self):
-        summary = {"scan_mode": "hygiene_only", "markdown_report": "/tmp/r.md",
-                   "html_report": "/tmp/r.html", "analysis_file": "/tmp/a.json", "errors": []}
+        summary = {
+            "scan_mode": "hygiene_only",
+            "markdown_report": "/tmp/r.md",
+            "html_report": "/tmp/r.html",
+            "analysis_file": "/tmp/a.json",
+            "errors": [],
+        }
         scan = {"scan_config": {"scan_mode": "hygiene_only"}, "hygiene": {}}
-        analysis = {"project": {"path": "/tmp/demo", "name": "demo", "ecosystems": [],
-                                "total_packages": 0},
-                    "risk_summary": {"critical": 0, "high": 0, "medium": 0, "low": 0},
-                    "hygiene": {}, "top_issues": [], "vulnerability_count": 0,
-                    "outdated_count": 0, "errors": []}
+        analysis = {
+            "project": {
+                "path": "/tmp/demo",
+                "name": "demo",
+                "ecosystems": [],
+                "total_packages": 0,
+            },
+            "risk_summary": {"critical": 0, "high": 0, "medium": 0, "low": 0},
+            "hygiene": {},
+            "top_issues": [],
+            "vulnerability_count": 0,
+            "outdated_count": 0,
+            "errors": [],
+        }
         args = SimpleNamespace(no_open=True)
         result = run_audit.format_human_summary(summary, scan, analysis, args)
         self.assertIn("仓库卫生扫描", result)
         self.assertIn("暂不支持依赖漏洞扫描", result)
 
     def test_full_scan_with_vulns(self):
-        summary = {"scan_mode": "full_dependency_scan", "markdown_report": "/tmp/r.md",
-                   "html_report": "/tmp/r.html", "analysis_file": "/tmp/a.json", "errors": []}
+        summary = {
+            "scan_mode": "full_dependency_scan",
+            "markdown_report": "/tmp/r.md",
+            "html_report": "/tmp/r.html",
+            "analysis_file": "/tmp/a.json",
+            "errors": [],
+        }
         scan = {"scan_config": {"scan_mode": "full_dependency_scan"}, "hygiene": {}}
-        analysis = {"project": {"path": "/tmp/demo", "name": "demo", "ecosystems": ["npm"],
-                                "total_packages": 5},
-                    "risk_summary": {"critical": 0, "high": 1, "medium": 0, "low": 0},
-                    "hygiene": {}, "top_issues": [
-                        {"package": "lodash", "version": "4.17.20", "severity": "high",
-                         "fixed_versions": ["4.17.21"], "summary": "pollution"}],
-                    "vulnerability_count": 1, "outdated_count": 0, "errors": []}
+        analysis = {
+            "project": {
+                "path": "/tmp/demo",
+                "name": "demo",
+                "ecosystems": ["npm"],
+                "total_packages": 5,
+            },
+            "risk_summary": {"critical": 0, "high": 1, "medium": 0, "low": 0},
+            "hygiene": {},
+            "top_issues": [
+                {
+                    "package": "lodash",
+                    "version": "4.17.20",
+                    "severity": "high",
+                    "fixed_versions": ["4.17.21"],
+                    "summary": "pollution",
+                }
+            ],
+            "vulnerability_count": 1,
+            "outdated_count": 0,
+            "errors": [],
+        }
         args = SimpleNamespace(no_open=True)
         result = run_audit.format_human_summary(summary, scan, analysis, args)
         self.assertIn("完整依赖漏洞扫描", result)
@@ -316,34 +379,54 @@ class FormatHumanSummaryTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 class BuildScanCmdTests(unittest.TestCase):
     def test_basic(self):
-        args = SimpleNamespace(skip_outdated=False, skip_hygiene=False,
-                               include_packages=False, max_secret_files=None)
+        args = SimpleNamespace(
+            skip_outdated=False,
+            skip_hygiene=False,
+            include_packages=False,
+            max_secret_files=None,
+        )
         cmd = run_audit.build_scan_cmd(args, "preflight.json")
         self.assertIn("--preflight", cmd)
         self.assertIn("preflight.json", cmd)
         self.assertNotIn("--skip-outdated", cmd)
 
     def test_skip_outdated(self):
-        args = SimpleNamespace(skip_outdated=True, skip_hygiene=False,
-                               include_packages=False, max_secret_files=None)
+        args = SimpleNamespace(
+            skip_outdated=True,
+            skip_hygiene=False,
+            include_packages=False,
+            max_secret_files=None,
+        )
         cmd = run_audit.build_scan_cmd(args, "preflight.json")
         self.assertIn("--skip-outdated", cmd)
 
     def test_skip_hygiene(self):
-        args = SimpleNamespace(skip_outdated=False, skip_hygiene=True,
-                               include_packages=False, max_secret_files=None)
+        args = SimpleNamespace(
+            skip_outdated=False,
+            skip_hygiene=True,
+            include_packages=False,
+            max_secret_files=None,
+        )
         cmd = run_audit.build_scan_cmd(args, "preflight.json")
         self.assertIn("--skip-hygiene", cmd)
 
     def test_include_packages(self):
-        args = SimpleNamespace(skip_outdated=False, skip_hygiene=False,
-                               include_packages=True, max_secret_files=None)
+        args = SimpleNamespace(
+            skip_outdated=False,
+            skip_hygiene=False,
+            include_packages=True,
+            max_secret_files=None,
+        )
         cmd = run_audit.build_scan_cmd(args, "preflight.json")
         self.assertIn("--include-packages", cmd)
 
     def test_max_secret_files(self):
-        args = SimpleNamespace(skip_outdated=False, skip_hygiene=False,
-                               include_packages=False, max_secret_files=100)
+        args = SimpleNamespace(
+            skip_outdated=False,
+            skip_hygiene=False,
+            include_packages=False,
+            max_secret_files=100,
+        )
         cmd = run_audit.build_scan_cmd(args, "preflight.json")
         self.assertIn("--max-secret-files", cmd)
         self.assertIn("100", cmd)
@@ -354,10 +437,14 @@ class BuildScanCmdTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 class ShouldEchoBuildReportTests(unittest.TestCase):
     def test_non_compact(self):
-        self.assertTrue(run_audit.should_echo_build_report(SimpleNamespace(compact=False)))
+        self.assertTrue(
+            run_audit.should_echo_build_report(SimpleNamespace(compact=False))
+        )
 
     def test_compact(self):
-        self.assertFalse(run_audit.should_echo_build_report(SimpleNamespace(compact=True)))
+        self.assertFalse(
+            run_audit.should_echo_build_report(SimpleNamespace(compact=True))
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -384,11 +471,19 @@ class ParseArgsTests(unittest.TestCase):
         self.assertFalse(args.no_open)
 
     def test_all_flags(self):
-        args = run_audit.parse_args([
-            "--no-root-discovery", "--skip-outdated", "--skip-hygiene",
-            "--include-packages", "--compact", "--no-open",
-            "--max-secret-files", "200", "/tmp/project",
-        ])
+        args = run_audit.parse_args(
+            [
+                "--no-root-discovery",
+                "--skip-outdated",
+                "--skip-hygiene",
+                "--include-packages",
+                "--compact",
+                "--no-open",
+                "--max-secret-files",
+                "200",
+                "/tmp/project",
+            ]
+        )
         self.assertEqual(args.project_path, "/tmp/project")
         self.assertTrue(args.no_root_discovery)
         self.assertTrue(args.skip_outdated)
@@ -404,9 +499,15 @@ class ParseArgsTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 class PipelineHelpTests(unittest.TestCase):
     def test_run_audit_help(self):
-        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        root = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
         result = subprocess.run(
-            [sys.executable, os.path.join("butian", "scripts", "run_audit.py"), "--help"],
+            [
+                sys.executable,
+                os.path.join("butian", "scripts", "run_audit.py"),
+                "--help",
+            ],
             cwd=root,
             capture_output=True,
             text=True,

@@ -6,9 +6,7 @@ workspace management, utility helpers, and pipeline integration.
 """
 
 import json
-import math
 import os
-import re
 import subprocess
 import sys
 import tempfile
@@ -18,7 +16,6 @@ from types import SimpleNamespace
 # Import scan module
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "butian", "scripts"))
 from butian.scripts import analyze, run_audit, scan
-
 
 
 class ButianScanTests(unittest.TestCase):
@@ -54,8 +51,6 @@ class ButianScanTests(unittest.TestCase):
 
             self.assertEqual(scan.find_project_root(app), app)
 
-
-
     def test_npm_lock_nested_node_modules_uses_real_package_names(self):
         with tempfile.TemporaryDirectory(prefix="butian-npm-nested-") as root:
             with open(
@@ -67,9 +62,7 @@ class ButianScanTests(unittest.TestCase):
                         "packages": {
                             "": {"name": "demo", "version": "0.0.0"},
                             "node_modules/foo": {"version": "1.0.0"},
-                            "node_modules/foo/node_modules/bar": {
-                                "version": "2.0.0"
-                            },
+                            "node_modules/foo/node_modules/bar": {"version": "2.0.0"},
                             "node_modules/foo/node_modules/@scope/baz": {
                                 "version": "3.0.0"
                             },
@@ -114,6 +107,38 @@ class ButianScanTests(unittest.TestCase):
                 ],
             )
 
+    def test_scan_warns_when_dependency_file_has_no_exact_versions(self):
+        with tempfile.TemporaryDirectory(prefix="butian-reqs-range-") as root:
+            with open(
+                os.path.join(root, "requirements.txt"), "w", encoding="utf-8"
+            ) as handle:
+                handle.write("requests>=2.0\ndjango<4\n")
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    os.path.join("butian", "scripts", "scan.py"),
+                    "--no-root-discovery",
+                    "--skip-hygiene",
+                    "--skip-outdated",
+                    "--compact",
+                    root,
+                ],
+                cwd=os.path.dirname(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                ),
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            output = json.loads(result.stdout)
+
+            self.assertEqual(output["scan_config"]["scan_mode"], "full_dependency_scan")
+            self.assertEqual(output["package_count"], 0)
+            self.assertTrue(
+                any("精确版本" in item.get("message", "") for item in output["errors"])
+            )
+
     def test_pip_outdated_skips_when_project_has_no_local_virtualenv(self):
         with tempfile.TemporaryDirectory(prefix="butian-pypi-") as root:
             calls = []
@@ -154,11 +179,10 @@ class ButianScanTests(unittest.TestCase):
         self.assertTrue(any("cargo-outdated" in item["message"] for item in errors))
 
     def test_preflight_custom_output_still_prepares_project_workspace(self):
-        with tempfile.TemporaryDirectory(
-            prefix="butian-preflight-project-"
-        ) as root, tempfile.TemporaryDirectory(
-            prefix="butian-preflight-output-"
-        ) as out_dir:
+        with (
+            tempfile.TemporaryDirectory(prefix="butian-preflight-project-") as root,
+            tempfile.TemporaryDirectory(prefix="butian-preflight-output-") as out_dir,
+        ):
             output = os.path.join(out_dir, "preflight.json")
 
             result = subprocess.run(
@@ -170,7 +194,9 @@ class ButianScanTests(unittest.TestCase):
                     output,
                     root,
                 ],
-                cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                cwd=os.path.dirname(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                ),
                 capture_output=True,
                 text=True,
                 check=True,
@@ -179,7 +205,9 @@ class ButianScanTests(unittest.TestCase):
 
             self.assertEqual(preflight["output_file"], output)
             self.assertTrue(os.path.isdir(os.path.join(root, ".butian")))
-            with open(os.path.join(root, ".gitignore"), "r", encoding="utf-8") as handle:
+            with open(
+                os.path.join(root, ".gitignore"), "r", encoding="utf-8"
+            ) as handle:
                 self.assertIn(".butian/", handle.read())
             self.assertTrue(
                 os.path.abspath(preflight["butian_workspace"]["run_dir"]).startswith(
@@ -279,7 +307,10 @@ class ButianScanTests(unittest.TestCase):
         self.assertEqual(upgrade["package"], "lodash")
         self.assertEqual(upgrade["severity"], "high")
         self.assertEqual(upgrade["fix_config"]["target_version"], "4.17.23")
-        self.assertEqual(upgrade["fix_config"]["advisory_ids"], ["GHSA-high", "GHSA-medium", "GHSA-info"])
+        self.assertEqual(
+            upgrade["fix_config"]["advisory_ids"],
+            ["GHSA-high", "GHSA-medium", "GHSA-info"],
+        )
         self.assertEqual(
             upgrade["fix_config"]["fixed_versions_by_advisory"],
             {
@@ -292,11 +323,17 @@ class ButianScanTests(unittest.TestCase):
         self.assertIn("部分公告未给出明确修复版本", upgrade["summary"])
 
     def test_build_report_output_is_visible_in_human_mode(self):
-        self.assertTrue(run_audit.should_echo_build_report(SimpleNamespace(compact=False)))
-        self.assertFalse(run_audit.should_echo_build_report(SimpleNamespace(compact=True)))
+        self.assertTrue(
+            run_audit.should_echo_build_report(SimpleNamespace(compact=False))
+        )
+        self.assertFalse(
+            run_audit.should_echo_build_report(SimpleNamespace(compact=True))
+        )
 
     def test_pipeline_scripts_expose_help(self):
-        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        root = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
         for script_name in [
             "detect.py",
             "scan.py",
@@ -321,11 +358,15 @@ class ButianScanTests(unittest.TestCase):
                 self.assertIn("usage:", result.stdout.lower())
 
     def test_skill_doc_describes_report_writes_without_absolute_read_only_claim(self):
-        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        root = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
         with open(os.path.join(root, "butian", "SKILL.md"), encoding="utf-8") as handle:
             skill_doc = handle.read()
 
-        self.assertIn("check local dependency security and repository hygiene", skill_doc)
+        self.assertIn(
+            "check local dependency security and repository hygiene", skill_doc
+        )
         self.assertIn("不修改源码、依赖、数据库、日志或任意项目文件", skill_doc)
         self.assertIn("会创建/更新 `.butian/` 本地报告工作区", skill_doc)
         self.assertIn("会确保 `.gitignore` 忽略 `.butian/`", skill_doc)
@@ -495,10 +536,10 @@ class ParseYarnLockTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="butian-yarn-") as root:
             with open(os.path.join(root, "yarn.lock"), "w") as f:
                 f.write(
-                    '# yarn lockfile v1\n'
-                    'lodash@^4.0.0:\n'
+                    "# yarn lockfile v1\n"
+                    "lodash@^4.0.0:\n"
                     '  version "4.17.21"\n'
-                    '\n'
+                    "\n"
                     '"@babel/core@^7.0.0":\n'
                     '  version "7.24.0"\n'
                 )
@@ -511,14 +552,14 @@ class ParseYarnLockTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="butian-yarn-") as root:
             with open(os.path.join(root, "yarn.lock"), "w") as f:
                 f.write(
-                    '__metadata:\n'
-                    '  version: 6\n'
-                    '\n'
+                    "__metadata:\n"
+                    "  version: 6\n"
+                    "\n"
                     '"lodash@npm:^4.0.0":\n'
-                    '  version: 4.17.21\n'
-                    '\n'
+                    "  version: 4.17.21\n"
+                    "\n"
                     '"@babel/core@npm:7.24.0":\n'
-                    '  version: 7.24.0\n'
+                    "  version: 7.24.0\n"
                 )
             pkgs = scan.parse_yarn_lock(root)
             names = {p["name"] for p in pkgs}
@@ -535,9 +576,7 @@ class YarnV1DescriptorNameTests(unittest.TestCase):
         self.assertEqual(scan._yarn_v1_descriptor_name("lodash@^4"), "lodash")
 
     def test_scoped(self):
-        self.assertEqual(
-            scan._yarn_v1_descriptor_name("@babel/core@^7"), "@babel/core"
-        )
+        self.assertEqual(scan._yarn_v1_descriptor_name("@babel/core@^7"), "@babel/core")
 
     def test_empty(self):
         self.assertEqual(scan._yarn_v1_descriptor_name(""), "")
@@ -631,13 +670,13 @@ class ParseCargoLockTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="butian-cargo-") as root:
             with open(os.path.join(root, "Cargo.lock"), "w") as f:
                 f.write(
-                    '# This file is automatically @generated by Cargo.\n'
-                    '[[package]]\n'
+                    "# This file is automatically @generated by Cargo.\n"
+                    "[[package]]\n"
                     'name = "serde"\n'
                     'version = "1.0.198"\n'
                     'source = "registry+https://github.com/rust-lang/crates.io-index"\n'
-                    '\n'
-                    '[[package]]\n'
+                    "\n"
+                    "[[package]]\n"
                     'name = "my-local"\n'
                     'version = "0.1.0"\n'
                     # no source → local crate, should be excluded from fallback
@@ -687,9 +726,24 @@ class ExtractPackagesTests(unittest.TestCase):
 class PackageSourceSummaryTests(unittest.TestCase):
     def test_counts_by_ecosystem_and_source(self):
         packages = [
-            {"ecosystem": "npm", "source": "package-lock.json", "name": "a", "version": "1.0"},
-            {"ecosystem": "npm", "source": "package-lock.json", "name": "b", "version": "2.0"},
-            {"ecosystem": "pypi", "source": "requirements.txt", "name": "c", "version": "3.0"},
+            {
+                "ecosystem": "npm",
+                "source": "package-lock.json",
+                "name": "a",
+                "version": "1.0",
+            },
+            {
+                "ecosystem": "npm",
+                "source": "package-lock.json",
+                "name": "b",
+                "version": "2.0",
+            },
+            {
+                "ecosystem": "pypi",
+                "source": "requirements.txt",
+                "name": "c",
+                "version": "3.0",
+            },
         ]
         summary = scan.package_source_summary(packages)
         npm_entry = next(s for s in summary if s["ecosystem"] == "npm")
@@ -817,9 +871,7 @@ class NormalizedPackageNameTests(unittest.TestCase):
         self.assertEqual(scan.normalized_package_name("npm", "Lodash"), "lodash")
 
     def test_crates_io_lowercases(self):
-        self.assertEqual(
-            scan.normalized_package_name("crates-io", "Serde"), "serde"
-        )
+        self.assertEqual(scan.normalized_package_name("crates-io", "Serde"), "serde")
 
     def test_go_passthrough(self):
         self.assertEqual(
@@ -910,10 +962,14 @@ class ToDecimalStringTests(unittest.TestCase):
 
 class IsoDateOrNoneTests(unittest.TestCase):
     def test_date_only(self):
-        self.assertEqual(scan.iso_date_or_none("2024-01-15"), "2024-01-15T00:00:00.000Z")
+        self.assertEqual(
+            scan.iso_date_or_none("2024-01-15"), "2024-01-15T00:00:00.000Z"
+        )
 
     def test_already_utc(self):
-        self.assertEqual(scan.iso_date_or_none("2024-01-15T10:30:00Z"), "2024-01-15T10:30:00Z")
+        self.assertEqual(
+            scan.iso_date_or_none("2024-01-15T10:30:00Z"), "2024-01-15T10:30:00Z"
+        )
 
     def test_datetime_without_z(self):
         self.assertEqual(
@@ -954,19 +1010,27 @@ class NumberOrNoneTests(unittest.TestCase):
 
 class CvssToSeverityTests(unittest.TestCase):
     def test_explicit_basescore_critical(self):
-        result = scan._cvss_to_severity("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H/E:U/RL:O/RC:C/baseScore:10.0")
+        result = scan._cvss_to_severity(
+            "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H/E:U/RL:O/RC:C/baseScore:10.0"
+        )
         self.assertEqual(result, "critical")
 
     def test_explicit_basescore_high(self):
-        result = scan._cvss_to_severity("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N/baseScore:8.5")
+        result = scan._cvss_to_severity(
+            "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N/baseScore:8.5"
+        )
         self.assertEqual(result, "high")
 
     def test_explicit_basescore_medium(self):
-        result = scan._cvss_to_severity("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N/baseScore:5.0")
+        result = scan._cvss_to_severity(
+            "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N/baseScore:5.0"
+        )
         self.assertEqual(result, "medium")
 
     def test_explicit_basescore_low(self):
-        result = scan._cvss_to_severity("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N/baseScore:3.5")
+        result = scan._cvss_to_severity(
+            "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N/baseScore:3.5"
+        )
         self.assertEqual(result, "low")
 
     def test_computed_severity_network_av(self):
@@ -1000,6 +1064,30 @@ class OsvQueryForPackageTests(unittest.TestCase):
         pkg = {"ecosystem": "npm", "name": "lodash"}
         query = scan.osv_query_for_package(pkg)
         self.assertNotIn("version", query)
+
+
+class CheckVulnerabilitiesTests(unittest.TestCase):
+    def test_skips_versionless_packages_to_avoid_name_only_false_positives(self):
+        calls = []
+        original = scan.fetch_osv_querybatch
+
+        def fake_fetch(batch):
+            calls.append(batch)
+            return {"results": []}
+
+        scan.fetch_osv_querybatch = fake_fetch
+        try:
+            errors = []
+            vulns = scan.check_vulnerabilities(
+                [{"ecosystem": "npm", "name": "lodash", "version": ""}],
+                errors=errors,
+            )
+        finally:
+            scan.fetch_osv_querybatch = original
+
+        self.assertEqual(vulns, [])
+        self.assertEqual(calls, [])
+        self.assertTrue(any("缺少版本" in item["message"] for item in errors))
 
 
 class ParseOsvQueryResultsTests(unittest.TestCase):
@@ -1113,7 +1201,9 @@ class ExtractCweIdsTests(unittest.TestCase):
 
 
 class ParseNvdResponseTests(unittest.TestCase):
-    def _make_entry(self, cve_id, base_score=9.8, description="Test vuln. More detail."):
+    def _make_entry(
+        self, cve_id, base_score=9.8, description="Test vuln. More detail."
+    ):
         return {
             "cve": {
                 "id": cve_id,
@@ -1123,7 +1213,7 @@ class ParseNvdResponseTests(unittest.TestCase):
                         {
                             "cvssData": {
                                 "version": "3.1",
-                                "vectorString": f"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+                                "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
                                 "baseScore": base_score,
                                 "baseSeverity": "CRITICAL",
                             },
@@ -1166,6 +1256,8 @@ class NormalizeCvssMetricTests(unittest.TestCase):
             "impactScore": 5.9,
         }
         result = scan.normalize_cvss_metric("cvssMetricV31", metric)
+        self.assertIsNotNone(result)
+        assert result is not None  # for type checkers
         self.assertEqual(result["baseScore"], "9.8")
         self.assertEqual(result["baseSeverity"], "CRITICAL")
         self.assertEqual(result["source"], "nvd")
@@ -1182,6 +1274,8 @@ class SelectBestCvssMetricTests(unittest.TestCase):
             {"baseScore": "7.5"},
         ]
         best = scan.select_best_cvss_metric(metrics)
+        self.assertIsNotNone(best)
+        assert best is not None  # for type checkers
         self.assertEqual(best["baseScore"], "9.8")
 
     def test_empty(self):
@@ -1221,7 +1315,12 @@ class ParseEpssResponseTests(unittest.TestCase):
     def test_parses_epss_data(self):
         data = {
             "data": [
-                {"cve": "CVE-2024-0001", "epss": "0.05", "percentile": "0.95", "date": "2024-06-01"},
+                {
+                    "cve": "CVE-2024-0001",
+                    "epss": "0.05",
+                    "percentile": "0.95",
+                    "date": "2024-06-01",
+                },
             ]
         }
         result = scan.parse_epss_response(data)
@@ -1311,7 +1410,9 @@ class SeverityFromEnrichmentsTests(unittest.TestCase):
 
     def test_falls_back_to_osv_cvss(self):
         # C:H/I:L/A:N → ISS≈0.657, impact≈4.22, exploit≈3.92, base≈8.1 → high
-        osv_record = {"severity": [{"score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:L/A:N"}]}
+        osv_record = {
+            "severity": [{"score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:L/A:N"}]
+        }
         severity, _ = scan.severity_from_enrichments(osv_record, [])
         self.assertEqual(severity, "high")
 
@@ -1356,7 +1457,9 @@ class OutdatedItemTests(unittest.TestCase):
 
 class OutdatedTargetTests(unittest.TestCase):
     def test_wanted_preferred(self):
-        self.assertEqual(scan.outdated_target({"wanted": "1.1.0", "latest": "2.0.0"}), "1.1.0")
+        self.assertEqual(
+            scan.outdated_target({"wanted": "1.1.0", "latest": "2.0.0"}), "1.1.0"
+        )
 
     def test_falls_back_to_latest(self):
         self.assertEqual(scan.outdated_target({"latest": "2.0.0"}), "2.0.0")
@@ -1419,7 +1522,9 @@ class OfficialSourceErrorTests(unittest.TestCase):
 
 class RunDirFromOutputFileTests(unittest.TestCase):
     def test_assets_dir_parent(self):
-        result = scan.run_dir_from_output_file("/tmp/.butian/20240101-120000/assets/scan.json")
+        result = scan.run_dir_from_output_file(
+            "/tmp/.butian/20240101-120000/assets/scan.json"
+        )
         self.assertEqual(result, "/tmp/.butian/20240101-120000")
 
     def test_non_assets_parent(self):
@@ -1541,12 +1646,12 @@ class ParsePoetryLockTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="butian-poetry-") as root:
             with open(os.path.join(root, "poetry.lock"), "w") as f:
                 f.write(
-                    '[[package]]\n'
+                    "[[package]]\n"
                     'name = "flask"\n'
                     'version = "2.0.3"\n'
                     'description = "A framework"\n'
-                    '\n'
-                    '[[package]]\n'
+                    "\n"
+                    "[[package]]\n"
                     'name = "requests"\n'
                     'version = "2.31.0"\n'
                     'description = "HTTP lib"\n'
@@ -1618,23 +1723,28 @@ class CloudProviderKeyTests(unittest.TestCase):
 
     # --- AWS ---
     def test_aws_access_key(self):
-        f = self._detect_one('AWS_KEY = AKIA' + '1A2B3C4D5E6F7G8H', "aws_access_key")
+        f = self._detect_one(
+            'AWS_KEY = AKIA' + '1A2B3C4D5E6F7G8H', "aws_access_key"
+        )  # fake fixture
         self.assertEqual(f["confidence"], "high")
 
     def test_aws_session_token(self):
-        f = self._detect_one('TOKEN = ASIA' + '1A2B3C4D5E6F7G8H', "aws_session_token")
+        f = self._detect_one(
+            'TOKEN = ASIA' + '1A2B3C4D5E6F7G8H', "aws_session_token"
+        )  # fake fixture
         self.assertEqual(f["confidence"], "high")
 
     # --- GCP ---
     def test_gcp_api_key(self):
         f = self._detect_one(
-            'KEY = AIzaSy' + 'A1234567890abcdefghijklmnopqrstuv', "gcp_api_key"
+            'KEY = AIzaSy' + 'A1234567890abcdefghijklmnopqrstuv',
+            "gcp_api_key",  # fake fixture
         )
         self.assertEqual(f["confidence"], "high")
 
     def test_gcp_service_account_json(self):
         f = self._detect_one(
-            'cfg = {"type": "service_account", "project_id": "myproj"}',
+            'cfg = {"type": "service_account", "project_id": "myproj"}',  # fake fixture
             "gcp_service_account",
         )
         self.assertEqual(f["confidence"], "high")
@@ -1650,29 +1760,30 @@ class CloudProviderKeyTests(unittest.TestCase):
 
     # --- Alibaba Cloud ---
     def test_aliyun_access_key(self):
-        f = self._detect_one('KEY = LTAI' + '4FABcd1234EFgh56', "aliyun_access_key")
+        f = self._detect_one(
+            'KEY = LTAI' + '4FABcd1234EFgh56', "aliyun_access_key"
+        )  # fake fixture
         self.assertEqual(f["confidence"], "high")
 
     # --- Tencent Cloud ---
     def test_tencent_secret_id(self):
         f = self._detect_one(
-            'TCLOUD_KEY = AKID' + 'abcd1234efgh5678ijkl9012mnop3456', "tencent_secret_id"
+            'TCLOUD_KEY = AKID' + 'abcd1234efgh5678ijkl9012mnop3456',
+            "tencent_secret_id",  # fake fixture
         )
         self.assertEqual(f["confidence"], "high")
 
     # --- Oracle Cloud ---
     def test_oracle_api_key(self):
         f = self._detect_one(
-            'OCI_KEY = ocid1' + '.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            'OCI_KEY = ocid1' + '.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',  # fake fixture
             "oracle_api_key",
         )
         self.assertEqual(f["confidence"], "high")
 
     # --- DigitalOcean ---
     def test_digitalocean_token(self):
-        f = self._detect_one(
-            'DO_KEY = "dop_v1_' + "a" * 64 + '"', "digitalocean_token"
-        )
+        f = self._detect_one('DO_KEY = "dop_v1_' + "a" * 64 + '"', "digitalocean_token")
         self.assertEqual(f["confidence"], "high")
 
 
@@ -1695,28 +1806,31 @@ class SaasTokenTests(unittest.TestCase):
     # --- GitHub ---
     def test_github_pat(self):
         f = self._detect_one(
-            'GITHUB = ghp_' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij', "github_token"
+            'GITHUB = ghp_' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij',
+            "github_token",  # fake fixture
         )
         self.assertEqual(f["confidence"], "high")
 
     # --- GitLab ---
     def test_gitlab_token(self):
         f = self._detect_one(
-            'GITLAB = glpat-' + 'aB3cD5eF7gH9iJ1kLmNoPqRs', "gitlab_token"
+            'GITLAB = glpat-' + 'aB3cD5eF7gH9iJ1kLmNoPqRs',
+            "gitlab_token",  # fake fixture
         )
         self.assertEqual(f["confidence"], "high")
 
     # --- Slack ---
     def test_slack_bot_token(self):
         f = self._detect_one(
-            'SLACK = xoxb-' + '123456-abcdef-ghijklmnopqrstuvwx', "slack_token"
+            'SLACK = xoxb-' + '123456-abcdef-ghijklmnopqrstuvwx',
+            "slack_token",  # fake fixture
         )
         self.assertEqual(f["confidence"], "high")
 
     # --- Discord ---
     def test_discord_token(self):
         f = self._detect_one(
-            'DISCORD = MTIzNDU2' + 'Nzg5MDEyMzQ1Njc4O.Yabcde.abcdefghijk1mnopqrstuvwxzABCD',
+            'DISCORD = MTIzNDU2' + 'Nzg5MDEyMzQ1Njc4O.Yabcde.abcdefghijk1mnopqrstuvwxzABCD',  # fake fixture
             "discord_token",
         )
         self.assertEqual(f["confidence"], "high")
@@ -1724,14 +1838,15 @@ class SaasTokenTests(unittest.TestCase):
     # --- Stripe ---
     def test_stripe_secret_key(self):
         f = self._detect_one(
-            'STRIPE = sk_live_' + 'abcdefghijklmnopqrstuvwxyz1234', "stripe_secret_key"
+            'STRIPE = sk_live_' + 'abcdefghijklmnopqrstuvwxyz1234',
+            "stripe_secret_key",  # fake fixture
         )
         self.assertEqual(f["confidence"], "high")
 
     # --- SendGrid ---
     def test_sendgrid_api_key(self):
         f = self._detect_one(
-            'SENDGRID = SG.' + 'abcdefghijklmnopqrstuv.abcdefghijklmnopqrstuvwxyz1234567890abcdefg',
+            'SENDGRID = SG.' + 'abcdefghijklmnopqrstuv.abcdefghijklmnopqrstuvwxyz1234567890abcdefg',  # fake fixture
             "sendgrid_api_key",
         )
         self.assertEqual(f["confidence"], "high")
@@ -1739,21 +1854,23 @@ class SaasTokenTests(unittest.TestCase):
     # --- Twilio ---
     def test_twilio_account_sid(self):
         f = self._detect_one(
-            'TWILIO = AC' + 'abcdef1234567890abcdef1234567890', "twilio_account_sid"
+            'TWILIO = AC' + 'abcdef1234567890abcdef1234567890',
+            "twilio_account_sid",  # fake fixture
         )
         self.assertEqual(f["confidence"], "high")
 
     # --- Anthropic ---
     def test_anthropic_key(self):
         f = self._detect_one(
-            'CLAUDE = sk-ant-' + 'api03-abcdefghijklmnopqrstuvwxyz', "anthropic_key"
+            'CLAUDE = sk-ant-' + 'api03-abcdefghijklmnopqrstuvwxyz',
+            "anthropic_key",  # fake fixture
         )
         self.assertEqual(f["confidence"], "high")
 
     # --- Hugging Face ---
     def test_huggingface_token(self):
         f = self._detect_one(
-            'HF = hf_' + 'abcdefghijklmnopqrstuvwxyz1234567890abcd',
+            'HF = hf_' + 'abcdefghijklmnopqrstuvwxyz1234567890abcd',  # fake fixture
             "huggingface_token",
         )
         self.assertEqual(f["confidence"], "high")
@@ -1761,7 +1878,7 @@ class SaasTokenTests(unittest.TestCase):
     # --- PyPI ---
     def test_pypi_token(self):
         f = self._detect_one(
-            'PYPI = pypi-' + 'AgEIcHxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+            'PYPI = pypi-' + 'AgEIcHxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',  # fake fixture
             "pypi_token",
         )
         self.assertEqual(f["confidence"], "high")
@@ -1769,21 +1886,23 @@ class SaasTokenTests(unittest.TestCase):
     # --- Docker Hub ---
     def test_docker_hub_token(self):
         f = self._detect_one(
-            'DOCKER = dckr_pat_' + 'abcdefghijklmnopqrstuvwxyz', "docker_hub_token"
+            'DOCKER = dckr_pat_' + 'abcdefghijklmnopqrstuvwxyz',
+            "docker_hub_token",  # fake fixture
         )
         self.assertEqual(f["confidence"], "high")
 
     # --- NPM ---
     def test_npmrc_auth_token(self):
         f = self._detect_one(
-            'NPM = npm_' + 'abcdefghijklmnopqrstuvwxyz1234567890', "npmrc_auth_token"
+            'NPM = npm_' + 'abcdefghijklmnopqrstuvwxyz1234567890',
+            "npmrc_auth_token",  # fake fixture
         )
         self.assertEqual(f["confidence"], "high")
 
     # --- Sentry DSN ---
     def test_sentry_dsn(self):
         f = self._detect_one(
-            'SENTRY = https://' + 'abc123def456@o123456.ingest.sentry.io/789012',
+            'SENTRY = https://' + 'abc123def456@o123456.ingest.sentry.io/789012',  # fake fixture
             "sentry_dsn",
         )
         self.assertEqual(f["confidence"], "high")
@@ -1791,7 +1910,7 @@ class SaasTokenTests(unittest.TestCase):
     # --- Databricks ---
     def test_databricks_token(self):
         f = self._detect_one(
-            'DATABRICKS = dapi' + 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6',
+            'DATABRICKS = dapi' + 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6',  # fake fixture
             "databricks_token",
         )
         self.assertEqual(f["confidence"], "high")
@@ -1809,28 +1928,28 @@ class ConnectionStringTests(unittest.TestCase):
 
     def test_postgres_connection(self):
         f = self._detect_one(
-            'DB = postgresql' + '://admin:secretpass@db.prod.internal:5432/mydb',
+            'DB = postgresql' + '://admin:secretpass@db.prod.internal:5432/mydb',  # fake fixture
             "postgres_connection",
         )
         self.assertEqual(f["confidence"], "high")
 
     def test_mongodb_connection(self):
         f = self._detect_one(
-            'MONGO = mongodb' + '://root:password123@mongo.prod.internal:27017/prod',
+            'MONGO = mongodb' + '://root:password123@mongo.prod.internal:27017/prod',  # fake fixture
             "mongodb_connection",
         )
         self.assertEqual(f["confidence"], "high")
 
     def test_mysql_connection(self):
         f = self._detect_one(
-            'MYSQL = mysql' + '://user:pass123@mysql.prod.internal:3306/db',
+            'MYSQL = mysql' + '://user:pass123@mysql.prod.internal:3306/db',  # fake fixture
             "mysql_connection",
         )
         self.assertEqual(f["confidence"], "high")
 
     def test_redis_connection(self):
         f = self._detect_one(
-            'REDIS = redis' + '://:mysecretpass@redis.prod.internal:6379/0',
+            'REDIS = redis' + '://:mysecretpass@redis.prod.internal:6379/0',  # fake fixture
             "redis_connection",
         )
         self.assertEqual(f["confidence"], "high")
@@ -1848,47 +1967,49 @@ class GenericPatternTests(unittest.TestCase):
 
     def test_jwt_token(self):
         f = self._detect_one(
-            'TOKEN = eyJhbGci' + 'OiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abc123def456ghi789',
+            'TOKEN = eyJhbGci' + 'OiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abc123def456ghi789',  # fake fixture
             "jwt_token",
         )
         self.assertEqual(f["confidence"], "high")
 
     def test_bearer_token(self):
         f = self._detect_one(
-            'Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMifQ.sig',
+            "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMifQ.sig",  # fake fixture
             "bearer_token",
         )
         self.assertEqual(f["confidence"], "high")
 
     def test_generic_password(self):
         f = self._detect_one(
-            'pwd = "my_super_secret_password"', "generic_password"
+            'pwd = "my_super_secret_password"',
+            "generic_password",  # fake fixture
         )
         self.assertEqual(f["confidence"], "medium")
 
     def test_generic_api_key(self):
         f = self._detect_one(
-            'api_key = "abcdefghij12345678"', "generic_api_key"
+            'api_key = "abcdefghij12345678"',
+            "generic_api_key",  # fake fixture
         )
         self.assertEqual(f["confidence"], "medium")
 
     def test_generic_token(self):
         f = self._detect_one(
-            'access_token = "eyJhbGciOiJzomerandomtokenhere1234567890abc"',
+            'access_token = "eyJhbGciOiJzomerandomtokenhere1234567890abc"',  # fake fixture
             "generic_token",
         )
         self.assertEqual(f["confidence"], "medium")
 
     def test_webhook_url(self):
         f = self._detect_one(
-            'HOOK = "https://hooks.mycompany.com/webhooks/abc123def456ghi789jkl012mno345"',
+            'HOOK = "https://hooks.mycompany.com/webhooks/abc123def456ghi789jkl012mno345"',  # fake fixture
             "webhook_url",
         )
         self.assertEqual(f["confidence"], "high")
 
     def test_encryption_key(self):
         f = self._detect_one(
-            'aes_key = a1b2c3d4' + 'e5f6g7h8i9j0k1l2m3n4o5p6q7r8',
+            'aes_key = a1b2c3d4' + 'e5f6g7h8i9j0k1l2m3n4o5p6q7r8',  # fake fixture
             "encryption_key",
         )
         self.assertEqual(f["confidence"], "medium")
@@ -1930,6 +2051,7 @@ class EntropyEngineTests(unittest.TestCase):
         s = "K7gNU3sdo+OL0wNhqoVWhr3g6s1xYv72o0JT3Yw+"
         result = scan.entropy_check_value(s)
         self.assertIsNotNone(result)
+        assert result is not None  # for type checkers
         self.assertEqual(result["entropy_type"], "base64_high_entropy")
 
     def test_entropy_check_value_hex(self):
@@ -1937,7 +2059,10 @@ class EntropyEngineTests(unittest.TestCase):
         result = scan.entropy_check_value(s)
         # This is a known MD5 — high enough hex entropy
         self.assertIsNotNone(result)
-        self.assertIn(result["entropy_type"], ("hex_high_entropy", "generic_high_entropy"))
+        assert result is not None  # for type checkers
+        self.assertIn(
+            result["entropy_type"], ("hex_high_entropy", "generic_high_entropy")
+        )
 
     def test_entropy_scan_env_file_with_secret(self):
         """High-entropy value with a KEY hint in .env should be detected."""
@@ -2006,14 +2131,10 @@ class SkipMarkerTests(unittest.TestCase):
         )
 
     def test_skip_insert_your(self):
-        self.assertEqual(
-            self._count_findings('SECRET_KEY = "insert_your_key_here"'), 0
-        )
+        self.assertEqual(self._count_findings('SECRET_KEY = "insert_your_key_here"'), 0)
 
     def test_skip_example(self):
-        self.assertEqual(
-            self._count_findings('api_key = "example_placeholder_key"'), 0
-        )
+        self.assertEqual(self._count_findings('api_key = "example_placeholder_key"'), 0)
 
     def test_skip_todo(self):
         self.assertEqual(
@@ -2049,7 +2170,9 @@ class SkipWordBoundaryTests(unittest.TestCase):
     def test_no_skip_xxx_inside_value(self):
         """'xxx' inside a longer secret value should NOT trigger skip."""
         # A real-looking API key that happens to contain 'xxx'
-        count = self._count_findings('secret_key = "aXxxB3cD5eF7gH9iJ1kLmNoPqR2"\n')
+        self._count_findings(
+            'secret_key = "aXxxB3cD5eF7gH9iJ1kLmNoPqR2"\n'
+        )  # fake fixture
         # Should NOT be skipped — 'xxx' is part of a value, not a standalone word
         # But it might not be detected as a finding either (depends on patterns)
         # The key assertion: it should at least not be blocked by skip markers
@@ -2142,13 +2265,15 @@ class NewSecretPreviewTests(unittest.TestCase):
 
     def test_connection_string_preview(self):
         result = scan.secret_preview(
-            "connection_string", 'connection_string = "postgres://..."'
+            "connection_string",
+            'connection_string = "postgres://..."',  # fake fixture
         )
         self.assertIn("***", result)
 
     def test_encryption_key_preview(self):
         result = scan.secret_preview(
-            "encryption_key", 'aes_key = "abcdef0123456789abcdef"'
+            "encryption_key",
+            'aes_key = "abcdef0123456789abcdef"',  # fake fixture
         )
         self.assertIn("***", result)
 
@@ -2180,19 +2305,17 @@ class ContextDependentTests(unittest.TestCase):
 
     def test_datadog_with_context(self):
         types = self._detect_types(
-            'datadog_api_key = 9a8b7c6d' + '5e4f3a2b1c0d9e8f7a6b5c4d'
+            'datadog_api_key = 9a8b7c6d' + '5e4f3a2b1c0d9e8f7a6b5c4d'  # fake fixture
         )
         self.assertIn("datadog_api_key", types)
 
     def test_datadog_without_context(self):
-        types = self._detect_types(
-            'random_value = 9a8b7c6d' + '5e4f3a2b1c0d9e8f7a6b5c4d'
-        )
+        types = self._detect_types('random_value = 9a8b7c6d' + '5e4f3a2b1c0d9e8f7a6b5c4d')
         self.assertNotIn("datadog_api_key", types)
 
     def test_jenkins_with_context(self):
         types = self._detect_types(
-            'jenkins_token = a1b2c3d4' + 'e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0'
+            'jenkins_token = a1b2c3d4' + 'e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0'  # fake fixture
         )
         self.assertIn("jenkins_token", types)
 
@@ -2204,14 +2327,12 @@ class ContextDependentTests(unittest.TestCase):
 
     def test_atlassian_with_context(self):
         types = self._detect_types(
-            'jira_token = abcdefgh' + 'ijklmnopqrstuvwx'
+            'jira_token = abcdefgh' + 'ijklmnopqrstuvwx'  # fake fixture
         )
         self.assertIn("atlassian_token", types)
 
     def test_atlassian_without_context(self):
-        types = self._detect_types(
-            'some_id = abcdefgh' + 'ijklmnopqrstuvwx'
-        )
+        types = self._detect_types('some_id = abcdefgh' + 'ijklmnopqrstuvwx')
         self.assertNotIn("atlassian_token", types)
 
 
@@ -2236,49 +2357,51 @@ class ExhaustiveSecretPatternTests(unittest.TestCase):
     def test_aws_secret_key(self):
         # Exactly 40 chars matching [A-Za-z0-9/+=]
         val40 = "A" * 40  # simplest guaranteed 40-char value
-        self._detect_one(
-            f'AWS_SECRET_ACCESS_KEY = "{val40}"', "aws_secret_key"
-        )
+        self._detect_one(f'AWS_SECRET_ACCESS_KEY = "{val40}"', "aws_secret_key")
 
     def test_gcp_oauth_token(self):
         self._detect_one(
-            'TOKEN = ya29' + '.a0AfH6SMBx...', "gcp_oauth_token"
+            'TOKEN = ya29' + '.a0AfH6SMBx...',
+            "gcp_oauth_token",  # fake fixture
         )
 
     def test_azure_client_secret(self):
         self._detect_one(
-            'azure_client_secret = abc123' + 'DEF456-ghi789JKL012-mno345PQR678stu', "azure_client_secret"
+            'azure_client_secret = abc123' + 'DEF456-ghi789JKL012-mno345PQR678stu',
+            "azure_client_secret",  # fake fixture
         )
 
     def test_azure_sas_token(self):
         self._detect_one(
-            'SAS = sv=' + '2023-01-01&ss=b&srt=sco&sp=rwdlacupx&se=2024-12-31T23:59:59Z&st=2024-01-01T00:00:00Z&spr=https&sig=abcdefghijklm',
+            'SAS = sv=' + '2023-01-01&ss=b&srt=sco&sp=rwdlacupx&se=2024-12-31T23:59:59Z&st=2024-01-01T00:00:00Z&spr=https&sig=abcdefghijklm',  # fake fixture
             "azure_sas_token",
         )
 
     def test_aliyun_secret_key(self):
         self._detect_one(
-            'ALIYUN_SECRET_KEY = a1b2c3d4' + 'e5f6g7h8i9j0k1l2m3n4o5p6q7r8', "aliyun_secret_key"
+            'ALIYUN_SECRET_KEY = a1b2c3d4' + 'e5f6g7h8i9j0k1l2m3n4o5p6q7r8',
+            "aliyun_secret_key",  # fake fixture
         )
 
     def test_huawei_access_key(self):
         self._detect_one(
-            'HUAWEI_ACCESS_KEY = ABCDEFGH' + '1234567890abcd', "huawei_access_key"
+            'HUAWEI_ACCESS_KEY = ABCDEFGH' + '1234567890abcd',
+            "huawei_access_key",  # fake fixture
         )
 
     def test_huawei_secret_key(self):
         self._detect_one(
-            'HUAWEI_SECRET_KEY = a1b2c3d4' + 'e5f6g7h8i9j0k1l2m3n4o5p', "huawei_secret_key"
+            'HUAWEI_SECRET_KEY = a1b2c3d4' + 'e5f6g7h8i9j0k1l2m3n4o5p',
+            "huawei_secret_key",  # fake fixture
         )
 
     def test_linode_api_key(self):
-        self._detect_one(
-            'linode_api_key = "' + "a" * 64 + '"', "linode_api_key"
-        )
+        self._detect_one('linode_api_key = "' + "a" * 64 + '"', "linode_api_key")
 
     def test_vultr_api_key(self):
         self._detect_one(
-            'vultr_api_key = ABCDEFGH' + '1234567890abcdefghijklmnopqrstuv', "vultr_api_key"
+            'vultr_api_key = ABCDEFGH' + '1234567890abcdefghijklmnopqrstuv',
+            "vultr_api_key",  # fake fixture
         )
 
     def test_cloudflare_api_key(self):
@@ -2288,137 +2411,149 @@ class ExhaustiveSecretPatternTests(unittest.TestCase):
 
     def test_cloudflare_origin_ca(self):
         self._detect_one(
-            'CERT = -----BEGIN ' + 'ORIGIN CERTIFICATE-----\nMII....\n-----END ORIGIN CERTIFICATE-----',
+            'CERT = -----BEGIN ' + 'ORIGIN CERTIFICATE-----\nMII....\n-----END ORIGIN CERTIFICATE-----',  # fake fixture
             "cloudflare_origin_ca",
         )
 
     def test_heroku_api_key(self):
         self._detect_one(
-            'heroku_api_key = 12345678' + '-1234-1234-' + '1234-123456789012', "heroku_api_key"
+            'heroku_api_key = 12345678' + '-1234-1234-' + '1234-123456789012',
+            "heroku_api_key",  # fake fixture
         )
 
     # --- Remaining SaaS Tokens ---
     def test_github_oauth(self):
         self._detect_one(
-            'TOKEN = gho_' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij', "github_oauth"
+            'TOKEN = gho_' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij',
+            "github_oauth",  # fake fixture
         )
 
     def test_github_app_token(self):
         self._detect_one(
-            'TOKEN = ghu_' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij', "github_app_token"
+            'TOKEN = ghu_' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij',
+            "github_app_token",  # fake fixture
         )
 
     def test_github_refresh_token(self):
         self._detect_one(
-            'TOKEN = ghr_' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij', "github_refresh_token"
+            'TOKEN = ghr_' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij',
+            "github_refresh_token",  # fake fixture
         )
 
     def test_slack_webhook(self):
         self._detect_one(
-            'URL = https://hooks.slack.com' + '/services/T12345678/B12345678/abcdefghijklmnopqrstuvwx',
+            'URL = https://hooks.slack.com' + '/services/T12345678/B12345678/abcdefghijklmnopqrstuvwx',  # fake fixture
             "slack_webhook",
         )
 
     def test_discord_bot_token(self):
         self._detect_one(
-            'BOT_TOKEN = MTIzNDU2' + 'Nzg5MDEyMzQ1Njc4O.Yabcde.abcdefghijk1mnopqrstuvwxzABCD',
+            'BOT_TOKEN = MTIzNDU2' + 'Nzg5MDEyMzQ1Njc4O.Yabcde.abcdefghijk1mnopqrstuvwxzABCD',  # fake fixture
             "discord_bot_token",
         )
 
     def test_discord_webhook(self):
         self._detect_one(
-            'URL = https://discord.com' + '/api/webhooks/123456789012345678/abcdefghijklmnopqrstuvwx',
+            'URL = https://discord.com' + '/api/webhooks/123456789012345678/abcdefghijklmnopqrstuvwx',  # fake fixture
             "discord_webhook",
         )
 
     def test_stripe_publishable_key(self):
         self._detect_one(
-            'KEY = pk_live_' + 'abcdefghijklmnopqrstuvwxyz1234', "stripe_publishable_key"
+            'KEY = pk_live_' + 'abcdefghijklmnopqrstuvwxyz1234',
+            "stripe_publishable_key",  # fake fixture
         )
 
     def test_stripe_restricted_key(self):
         self._detect_one(
-            'KEY = rk_live_' + 'abcdefghijklmnopqrstuvwxyz1234', "stripe_restricted_key"
+            'KEY = rk_live_' + 'abcdefghijklmnopqrstuvwxyz1234',
+            "stripe_restricted_key",  # fake fixture
         )
 
     def test_twilio_api_key(self):
         self._detect_one(
-            'KEY = SK' + 'abcdef1234567890abcdef1234567890', "twilio_api_key"
+            'KEY = SK' + 'abcdef1234567890abcdef1234567890',
+            "twilio_api_key",  # fake fixture
         )
 
     def test_mailgun_api_key(self):
         self._detect_one(
-            'KEY = key-' + 'abcdefghijklmnopqrstuvwxyz123456', "mailgun_api_key"
+            'KEY = key-' + 'abcdefghijklmnopqrstuvwxyz123456',
+            "mailgun_api_key",  # fake fixture
         )
 
     def test_mailchimp_api_key(self):
         self._detect_one(
-            'KEY = abcdef01' + '23456789abcdef0123456789-us1', "mailchimp_api_key"
+            'KEY = abcdef01' + '23456789abcdef0123456789-us1',
+            "mailchimp_api_key",  # fake fixture
         )
 
     def test_square_access_token(self):
         self._detect_one(
-            'TOKEN = sq0atp-' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', "square_access_token"
+            'TOKEN = sq0atp-' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+            "square_access_token",  # fake fixture
         )
 
     def test_square_oauth_secret(self):
         self._detect_one(
-            'SECRET = sq0csp-' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklm',
+            'SECRET = sq0csp-' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklm',  # fake fixture
             "square_oauth_secret",
         )
 
     def test_shopify_token(self):
         self._detect_one(
-            'TOKEN = shpat_' + 'abcdef0123456789abcdef', "shopify_token"
+            'TOKEN = shpat_' + 'abcdef0123456789abcdef',
+            "shopify_token",  # fake fixture
         )
 
     def test_paypal_bearer_token(self):
         self._detect_one(
-            'TOKEN = access_token' + '$production$abcdefghijklmnopqrstuvwxyz1234567890abcd',
+            'TOKEN = access_token' + '$production$abcdefghijklmnopqrstuvwxyz1234567890abcd',  # fake fixture
             "paypal_bearer_token",
         )
 
     def test_braintree_token(self):
         self._detect_one(
-            'TOKEN = access_token' + '$production$abcdefghijklmnopqrst$abcdef0123456789abcdef0123456789abcd',
+            'TOKEN = access_token' + '$production$abcdefghijklmnopqrst$abcdef0123456789abcdef0123456789abcd',  # fake fixture
             "braintree_token",
         )
 
     def test_firebase_url(self):
         self._detect_one(
-            'URL = https://' + 'my-project-rtdb.firebaseio.com', "firebase_url"
+            'URL = https://' + 'my-project-rtdb.firebaseio.com',
+            "firebase_url",  # fake fixture
         )
 
     def test_firebase_key(self):
         self._detect_one(
-            'firebase_key = a1b2c3d4' + 'e5f6g7h8i9j0k1l2m3n4o5p6q7r8',
+            'firebase_key = a1b2c3d4' + 'e5f6g7h8i9j0k1l2m3n4o5p6q7r8',  # fake fixture
             "firebase_key",
         )
 
     def test_datadog_app_key(self):
-        self._detect_one(
-            'datadog_app_key = "' + "a" * 40 + '"', "datadog_app_key"
-        )
+        self._detect_one('datadog_app_key = "' + "a" * 40 + '"', "datadog_app_key")
 
     def test_newrelic_key(self):
         self._detect_one(
-            'NR = NRAK' + 'ABCDEFGHIJKLMNOPQRSTUV', "newrelic_key"
+            'NR = NRAK' + 'ABCDEFGHIJKLMNOPQRSTUV',
+            "newrelic_key",  # fake fixture
         )
 
     def test_pagerduty_token(self):
         self._detect_one(
-            'pagerduty_token = abcdefgh' + 'ijklmnopqrstuvwxYZ01234567', "pagerduty_token"
+            'pagerduty_token = abcdefgh' + 'ijklmnopqrstuvwxYZ01234567',
+            "pagerduty_token",  # fake fixture
         )
 
     def test_grafana_api_key(self):
         self._detect_one(
-            'grafana_api_key = eyJhbGci' + 'OiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abc123def456ghi789',
+            'grafana_api_key = eyJhbGci' + 'OiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abc123def456ghi789',  # fake fixture
             "grafana_api_key",
         )
 
     def test_npm_token(self):
         self._detect_one(
-            'NPM = //registry.npmjs.org' + '/:_authToken=12345678-' + '1234-1234-' + '1234-123456789012',
+            'NPM = //registry.npmjs.org' + '/:_authToken=12345678-' + '1234-1234-' + '1234-123456789012',  # fake fixture
             "npm_token",
         )
 
@@ -2430,140 +2565,139 @@ class ExhaustiveSecretPatternTests(unittest.TestCase):
 
     def test_circleci_token(self):
         self._detect_one(
-            'CI = CCIRERES_' + 'ABCDEFGHIJKLMNOPQRSTUV', "circleci_token"
+            'CI = CCIRERES_' + 'ABCDEFGHIJKLMNOPQRSTUV',
+            "circleci_token",  # fake fixture
         )
 
     def test_travis_token(self):
         self._detect_one(
-            'travis_ci_token = ABCDEFGHIJ' + 'KLMNOPQRSTUVWXYZabcdefgh', "travis_token"
+            'travis_ci_token = ABCDEFGHIJ' + 'KLMNOPQRSTUVWXYZabcdefgh',
+            "travis_token",  # fake fixture
         )
 
     def test_buildkite_token(self):
-        self._detect_one(
-            'BK = "bkua_' + "a" * 40 + '"', "buildkite_token"
-        )
+        self._detect_one('BK = "bkua_' + "a" * 40 + '"', "buildkite_token")
 
     def test_jfrog_token(self):
         self._detect_one(
-            'JFROG = cmVmdA' + '.abcdefghijklmnopqrstuvwx', "jfrog_token"
+            'JFROG = cmVmdA' + '.abcdefghijklmnopqrstuvwx',
+            "jfrog_token",  # fake fixture
         )
 
     def test_postman_api_key(self):
         self._detect_one(
-            'POSTMAN = PMAK-' + 'abcdefghijklmnopqrstuvwxyz1234', "postman_api_key"
+            'POSTMAN = PMAK-' + 'abcdefghijklmnopqrstuvwxyz1234',
+            "postman_api_key",  # fake fixture
         )
 
     def test_openai_key(self):
         self._detect_one(
-            'OPENAI = sk-proj-' + 'abcdefghijklmnopqrstuvwxyz1234567890', "openai_key"
+            'OPENAI = sk-proj-' + 'abcdefghijklmnopqrstuvwxyz1234567890',
+            "openai_key",  # fake fixture
         )
 
     def test_google_ai_key(self):
         self._detect_one(
-            'GOOGLE_AI = AIzaSy' + 'A1234567890abcdefghijklmnopqrstuv', "google_ai_key"
+            'GOOGLE_AI = AIzaSy' + 'A1234567890abcdefghijklmnopqrstuv',
+            "google_ai_key",  # fake fixture
         )
 
     def test_replicate_token(self):
         self._detect_one(
-            'REPLICATE = r8_' + 'abcdefghijklmnopqrstuvwxyz1234', "replicate_token"
+            'REPLICATE = r8_' + 'abcdefghijklmnopqrstuvwxyz1234',
+            "replicate_token",  # fake fixture
         )
 
     def test_rubygems_token(self):
         self._detect_one(
-            'RUBYGEMS = rubygems_' + 'abcdefghijklmnopqrst', "rubygems_token"
+            'RUBYGEMS = rubygems_' + 'abcdefghijklmnopqrst',
+            "rubygems_token",  # fake fixture
         )
 
     def test_nuget_api_key(self):
-        self._detect_one(
-            'NUGET = "oy2' + "a" * 43 + '"', "nuget_api_key"
-        )
+        self._detect_one('NUGET = "oy2' + "a" * 43 + '"', "nuget_api_key")
 
     def test_sonar_token(self):
-        self._detect_one(
-            'SONAR = "squ_' + "a" * 40 + '"', "sonar_token"
-        )
+        self._detect_one('SONAR = "squ_' + "a" * 40 + '"', "sonar_token")
 
     def test_notion_token(self):
-        self._detect_one(
-            'NOTION = "secret_' + "a" * 40 + '"', "notion_token"
-        )
+        self._detect_one('NOTION = "secret_' + "a" * 40 + '"', "notion_token")
 
     def test_linear_api_key(self):
-        self._detect_one(
-            'LINEAR = "lin_api_' + "a" * 40 + '"', "linear_api_key"
-        )
+        self._detect_one('LINEAR = "lin_api_' + "a" * 40 + '"', "linear_api_key")
 
     def test_airtable_api_key(self):
-        self._detect_one(
-            'AIRTABLE = "key' + "a" * 14 + '"', "airtable_api_key"
-        )
+        self._detect_one('AIRTABLE = "key' + "a" * 14 + '"', "airtable_api_key")
 
     def test_asana_token(self):
         self._detect_one(
-            'ASANA = 2/' + '1234567890:abcdefghijklmnopqrst', "asana_token"
+            'ASANA = 2/' + '1234567890:abcdefghijklmnopqrst',
+            "asana_token",  # fake fixture
         )
 
     def test_fastly_api_key(self):
         self._detect_one(
-            'fastly_api_key = aB3cD5eF' + '7gH9iJ1kLmNoPqRsT2uV4wX6',
+            'fastly_api_key = aB3cD5eF' + '7gH9iJ1kLmNoPqRsT2uV4wX6',  # fake fixture
             "fastly_api_key",
         )
 
     def test_ngrok_token(self):
         self._detect_one(
-            'ngrok_token = aB3cD5eF' + '7gH9iJ1kLmNoPqRsT2uV4wX6yZ8',
+            'ngrok_token = aB3cD5eF' + '7gH9iJ1kLmNoPqRsT2uV4wX6yZ8',  # fake fixture
             "ngrok_token",
         )
 
     def test_sentry_token(self):
-        self._detect_one(
-            'SENTRY = "sntrys_' + "a" * 40 + '"', "sentry_token"
-        )
+        self._detect_one('SENTRY = "sntrys_' + "a" * 40 + '"', "sentry_token")
 
     def test_amqp_connection(self):
         self._detect_one(
-            'AMQP = amqp' + '://user:password123@rabbitmq.prod.internal:5672/vhost',
+            'AMQP = amqp' + '://user:password123@rabbitmq.prod.internal:5672/vhost',  # fake fixture
             "amqp_connection",
         )
 
     def test_kafka_connection(self):
         self._detect_one(
-            'kafka_secret_key = aB3cD5eF' + '7gH9iJ1kLmNoPqRsT',
+            'kafka_secret_key = aB3cD5eF' + '7gH9iJ1kLmNoPqRsT',  # fake fixture
             "kafka_connection",
         )
 
     # --- Remaining Generic Patterns ---
     def test_private_key(self):
         self._detect_one(
-            'CERT = -----BEGIN ' + 'RSA PRIVATE KEY-----\nMIIE...\n-----END RSA PRIVATE KEY-----',
+            'CERT = -----BEGIN ' + 'RSA PRIVATE KEY-----\nMIIE...\n-----END RSA PRIVATE KEY-----',  # fake fixture
             "private_key",
         )
 
     def test_generic_secret(self):
         self._detect_one(
-            'secret_key = a1b2c3d4' + 'e5f6g7h8i9j0k1l2m3n4o5p6q7r8',
+            'secret_key = a1b2c3d4' + 'e5f6g7h8i9j0k1l2m3n4o5p6q7r8',  # fake fixture
             "generic_secret",
         )
 
     def test_base64_secret(self):
         self._detect_one(
-            'secret_base64 = SGVsbG8g' + 'V29ybGQgSGVsbG8gV29ybGQ=',
+            'secret_base64 = SGVsbG8g' + 'V29ybGQgSGVsbG8gV29ybGQ=',  # fake fixture
             "base64_secret",
         )
 
     def test_connection_string(self):
         self._detect_one(
-            'connection_string = Host=' + 'db.prod.internal;Port=5432;Database=mydb;User=admin;Password=secret123',
+            'connection_string = Host=' + 'db.prod.internal;Port=5432;Database=mydb;User=admin;Password=secret123',  # fake fixture
             "connection_string",
         )
 
     # --- Generic sk- prefix catch-all ---
     def test_generic_sk_key_minimax(self):
-        f = self._detect_one('MINIMAX = sk-cp-' + 'ZvITPDLf', "generic_sk_key")
+        f = self._detect_one(
+            'MINIMAX = sk-cp-' + 'ZvITPDLf', "generic_sk_key"
+        )  # fake fixture
         self.assertEqual(f["confidence"], "medium")
 
     def test_generic_sk_key_random(self):
-        f = self._detect_one('MY_KEY = sk-' + 'abc123def456ghi789jkl', "generic_sk_key")
+        f = self._detect_one(
+            'MY_KEY = sk-' + 'abc123def456ghi789jkl', "generic_sk_key"
+        )  # fake fixture
         self.assertEqual(f["confidence"], "medium")
 
 
