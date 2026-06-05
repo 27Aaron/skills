@@ -196,36 +196,303 @@ def default_asset_path(project_path, filename, preflight=None):
 # ---------------------------------------------------------------------------
 # Secret detection patterns
 # ---------------------------------------------------------------------------
-SECRET_PATTERNS = [
-    ("aws_access_key", r"AKIA[0-9A-Z]{16}"),
-    ("private_key", r"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----"),
-    ("slack_token", r"xox[baprs]-[A-Za-z0-9-]+"),
+
+# --- Cloud Provider Keys ---
+_CLOUD_PROVIDER_PATTERNS = [
+    # AWS
+    ("aws_access_key", r"(?<![A-Za-z0-9/+=])AKIA[0-9A-Z]{16}(?![A-Za-z0-9/+=])"),
+    ("aws_secret_key", r"(?:AWS|aws|Amazon)?[_\s-]?(?:Secret|SECRET|secret)[_\s-]?(?:Access|ACCESS|access)[_\s-]?(?:Key|KEY|key)[_\s-]*[:=]\s*[\"']?[A-Za-z0-9/+=]{40}[\"']?"),
+    ("aws_session_token", r"ASIA[0-9A-Z]{16}"),
+    # Google Cloud (GCP)
+    ("gcp_service_account", r"\"type\"\s*:\s*\"service_account\""),
+    ("gcp_api_key", r"AIza[0-9A-Za-z_-]{35}"),
+    ("gcp_oauth_token", r"ya29\.[0-9A-Za-z_-]+"),
+    # Microsoft Azure
+    ("azure_client_secret", r"(?:azure|AZURE)[_\s-]?(?:client|CLIENT)[_\s-]?(?:secret|SECRET)[_\s-]*[:=]\s*[\"']?[A-Za-z0-9@#$%^&*\-_.+!]{34,}[\"']?"),
+    ("azure_connection_string", r"DefaultEndpointsProtocol=https?;AccountName=[^;]+;AccountKey=[A-Za-z0-9+/=]{88}"),
+    ("azure_sas_token", r"sv=\d{4}-\d{2}-\d{2}&[a-z]+=.{20,}"),
+    # Alibaba Cloud (阿里云)
+    ("aliyun_access_key", r"LTAI[0-9A-Za-z]{12,20}"),
+    ("aliyun_secret_key", r"(?:ALIBABA|ALICLOUD|ALIYUN|aliyun|alibaba)[_\s-]?(?:SECRET|secret|ACCESS|access)[_\s-]?KEY[_\s-]*[:=]\s*[\"']?[A-Za-z0-9/+=]{30}[\"']?"),
+    # Tencent Cloud (腾讯云)
+    ("tencent_secret_id", r"(?:AKID|TC3)[A-Za-z0-9]{32}"),
+    # Huawei Cloud (华为云)
+    ("huawei_access_key", r"(?:HUAWEI|hw|HW)[_\s-]?(?:ACCESS|access)[_\s-]?KEY[_\s-]*[:=]\s*[\"']?[A-Za-z0-9]{20,}[\"']?"),
+    ("huawei_secret_key", r"(?:HUAWEI|hw|HW)[_\s-]?(?:SECRET|secret)[_\s-]?KEY[_\s-]*[:=]\s*[\"']?[A-Za-z0-9]{30,}[\"']?"),
+    # Oracle Cloud (OCI)
+    ("oracle_api_key", r"ocid1\.[a-z]+(?:\.[a-z0-9]*){3,}"),
+    # DigitalOcean
+    ("digitalocean_token", r"dop_v1_[a-f0-9]{64}|do_v1_[a-f0-9]{64}|doo_v1_[a-f0-9]{64}"),
+    # Linode / Akamai (requires context)
+    ("linode_api_key", r"(?:linode|akamai|LINODE)[_\s-]?(?:api|token|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[0-9a-f]{64}[\"']?"),
+    # Vultr (requires context)
+    ("vultr_api_key", r"(?:vultr|VULTR)[_\s-]?(?:api|token|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[A-Za-z0-9]{36}[\"']?"),
+    # Cloudflare
+    ("cloudflare_api_key", r"v1\.0-[a-f0-9]{24}-[a-f0-9]{146}"),
+    ("cloudflare_origin_ca", r"-----BEGIN ORIGIN CERTIFICATE-----"),
+    # Heroku (requires context to avoid matching random UUIDs)
+    ("heroku_api_key", r"(?:heroku|HEROKU)[_\s-]?(?:api|token|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[\"']?"),
+]
+
+# --- SaaS / Third-Party Service Tokens ---
+_SAAS_PATTERNS = [
+    # GitHub
     ("github_token", r"gh[pousr]_[A-Za-z0-9_]{36,}"),
+    ("github_oauth", r"gho_[A-Za-z0-9]{36}"),
+    ("github_app_token", r"(?:ghu_|ghs_)[A-Za-z0-9_]{36}"),
+    ("github_refresh_token", r"ghr_[A-Za-z0-9_]{36}"),
+    # GitLab
+    ("gitlab_token", r"glpat-[A-Za-z0-9\-_]{20,}"),
+    # Slack
+    ("slack_token", r"xox[baprs]-[A-Za-z0-9-]+"),
+    ("slack_webhook", r"https://hooks\.slack\.com/services/T[A-Z0-9]+/B[A-Z0-9]+/[A-Za-z0-9]+"),
+    # Discord
+    ("discord_token", r"[MN][A-Za-z\d]{23,}\.[\w-]{6}\.[\w-]{27}"),
+    ("discord_bot_token", r"(?:BOT[_\s]+)?TOKEN\s*[:=]\s*[\"']?[MN][A-Za-z\d]{23,}\.[\w-]{6}\.[\w-]{27}"),
+    ("discord_webhook", r"https://discord(?:app)?\.com/api/webhooks/\d+/[A-Za-z0-9_-]+"),
+    # Stripe
+    ("stripe_secret_key", r"sk_live_[0-9a-zA-Z]{24,}"),
+    ("stripe_publishable_key", r"pk_live_[0-9a-zA-Z]{24,}"),
+    ("stripe_restricted_key", r"rk_live_[0-9a-zA-Z]{24,}"),
+    # Twilio
+    ("twilio_api_key", r"SK[0-9a-fA-F]{32}"),
+    ("twilio_account_sid", r"AC[a-z0-9]{32}"),
+    # SendGrid
+    ("sendgrid_api_key", r"SG\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}"),
+    # Mailgun
+    ("mailgun_api_key", r"key-[0-9a-zA-Z]{32}"),
+    # Mailchimp
+    ("mailchimp_api_key", r"(?<![A-Za-z0-9])[a-f0-9]{32}-us[0-9]{1,2}(?![A-Za-z0-9])"),
+    # Square
+    ("square_access_token", r"sq0atp-[0-9A-Za-z\-_]{22}"),
+    ("square_oauth_secret", r"sq0csp-[0-9A-Za-z\-_]{43}"),
+    # Shopify
+    ("shopify_token", r"shpat_[a-fA-F0-9]{10,}|shpca_[a-fA-F0-9]{10,}|shppa_[a-fA-F0-9]{10,}|shss_[a-fA-F0-9]{10,}"),
+    # PayPal
+    ("paypal_bearer_token", r"access_token\$production\$[a-z0-9]{30,}"),
+    # Braintree
+    ("braintree_token", r"access_token\$production\$[a-z0-9]{20,}\$[a-f0-9]{32}"),
+    # Firebase / Google
+    ("firebase_url", r"https://[a-z0-9-]+\.firebaseio\.com"),
+    ("firebase_key", r"(?:AIza[0-9A-Za-z_-]{35})|(?:[Ff]irebase[_\s-]?[Kk]ey\s*[:=]\s*[\"']?[A-Za-z0-9_-]{20,})"),
+    # Datadog (requires context)
+    ("datadog_api_key", r"(?:datadog|DATADOG|DD)[_\s-]?(?:api|client)[_\s-]?key(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[a-f0-9]{32}[\"']?"),
+    ("datadog_app_key", r"(?:datadog|DATADOG|DD)[_\s-]?(?:app|application)[_\s-]?key(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[a-f0-9]{40}[\"']?"),
+    # New Relic
+    ("newrelic_key", r"(?:NRAK|NRAL|NRRN|NRIO|NRMG|NRUS)[A-Za-z0-9]{20,}"),
+    # PagerDuty
+    ("pagerduty_token", r"(?:pagerduty|PAGERDUTY)[_\s-]?token\s*[:=]\s*[\"']?[A-Za-z0-9_-]{20,}[\"']?|pd[_-]?token\s*[:=]\s*[\"']?[A-Za-z0-9_-]{20,}[\"']?"),
+    # Grafana (requires context)
+    ("grafana_api_key", r"(?:grafana|GRAFANA)[_\s-]?(?:api|token|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?eyJ[A-Za-z0-9+/]+=*\.eyJ[A-Za-z0-9+/]+=*\.[A-Za-z0-9+/]+=*"),
+    # NPM
+    ("npm_token", r"//registry\.npmjs\.org/:_authToken=[0-9a-f-]{36}"),
+    ("npmrc_auth_token", r"npm_[A-Za-z0-9]{36,}"),
+    # Docker
+    ("docker_hub_token", r"dckr_pat_[A-Za-z0-9_-]{20,}"),
+    # Terraform
+    ("terraform_token", r"[a-zA-Z0-9]{14}\.atlasv1\.[a-zA-Z0-9\-\.]{50,}"),
+    # CircleCI
+    ("circleci_token", r"CCIRERES_[A-Za-z0-9]{22,}"),
+    # Travis CI (requires context)
+    ("travis_token", r"(?:travis|TRAVIS)[_\s-]?(?:ci|token|api|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[A-Za-z0-9]{22,}[\"']?"),
+    # Buildkite
+    ("buildkite_token", r"bkua_[a-f0-9]{40}"),
+    # Jenkins (requires context)
+    ("jenkins_token", r"(?:jenkins|JENKINS)[_\s-]?(?:token|api|key|password)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[0-9a-f]{40}[\"']?"),
+    # JFrog / Artifactory
+    ("jfrog_token", r"(?:cmVmd[tnMA])\.[A-Za-z0-9_-]{20,}"),
+    # Postman
+    ("postman_api_key", r"PMAK-[A-Za-z0-9-]{30,}"),
+    # OpenAI / LLM Providers
     ("openai_key", r"sk-(?:proj-)?[A-Za-z0-9_-]{20,}"),
-    ("generic_password", r"""(?:password|passwd|pwd)\s*[:=]\s*["'][^"']{4,}["']"""),
+    ("anthropic_key", r"sk-ant-[A-Za-z0-9_-]{20,}"),
+    ("google_ai_key", r"AIza[0-9A-Za-z_-]{35}"),
+    ("huggingface_token", r"hf_[A-Za-z0-9]{34}"),
+    ("replicate_token", r"r8_[A-Za-z0-9]{30,}"),
+    # PyPI
+    ("pypi_token", r"pypi-AgEIcH[0-9A-Za-z-_]{50,}"),
+    # Rubygems
+    ("rubygems_token", r"rubygems_[A-Za-z0-9]{20,}"),
+    # NuGet
+    ("nuget_api_key", r"oy2[a-z0-9]{43}"),
+    # Sonar
+    ("sonar_token", r"squ_[0-9a-f]{40}"),
+    # Atlassian (JIRA / Confluence) (requires context)
+    ("atlassian_token", r"(?:atlassian|jira|confluence|bitbucket|ATLASSIAN|JIRA)[_\s-]?(?:token|api|key|pat)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[A-Za-z0-9]{24}[\"']?"),
+    # Notion
+    ("notion_token", r"(?:secret|ntn)_[A-Za-z0-9]{30,}"),
+    # Linear
+    ("linear_api_key", r"lin_api_[A-Za-z0-9_]{30,}"),
+    # Airtable
+    ("airtable_api_key", r"key[A-Za-z0-9]{14}"),
+    # Asana
+    ("asana_token", r"(?:1|2)/[0-9]+:[A-Za-z0-9]+"),
+    # Fastly (requires context)
+    ("fastly_api_key", r"(?:fastly|FASTLY)[_\s-]?(?:api|token|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[A-Za-z0-9_-]{32}[\"']?"),
+    # Ngrok (requires context)
+    ("ngrok_token", r"(?:ngrok|NGROK)[_\s-]?(?:token|api|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[A-Za-z0-9_-]{30,}[\"']?"),
+    # Sentry
+    ("sentry_dsn", r"https://[a-f0-9]+@[a-z0-9]+\.ingest\.sentry\.io/[0-9]+"),
+    ("sentry_token", r"sntrys_[A-Za-z0-9_-]{40,}"),
+    # Databricks
+    ("databricks_token", r"dapi[a-f0-9]{32}"),
+    # MongoDB
+    ("mongodb_connection", r"mongodb(?:\+srv)?://[A-Za-z0-9_:%-]+:[A-Za-z0-9_:%-]+@[A-Za-z0-9._-]+"),
+    # PostgreSQL
+    ("postgres_connection", r"postgres(?:ql)?://[A-Za-z0-9_:%-]+:[A-Za-z0-9_:%-]+@[A-Za-z0-9._-]+"),
+    # MySQL
+    ("mysql_connection", r"mysql://[A-Za-z0-9_:%-]+:[A-Za-z0-9_:%-]+@[A-Za-z0-9._-]+"),
+    # Redis
+    ("redis_connection", r"redis://:[A-Za-z0-9_:%-]+@[A-Za-z0-9._-]+"),
+    # RabbitMQ
+    ("amqp_connection", r"amqp://[A-Za-z0-9_:%-]+:[A-Za-z0-9_:%-]+@[A-Za-z0-9._-]+"),
+    # Kafka
+    ("kafka_connection", r"(?:kafka|confluent)[_\s-]?(?:bootstrap|broker|server|sas[lw]|secret|password)[_\s-]?(?:password|secret|key|token|id)[_\s-]*[:=]\s*[\"']?[A-Za-z0-9_-]{10,}"),
+]
+
+# --- Generic / Heuristic Patterns (lower confidence, user judges) ---
+_GENERIC_PATTERNS = [
+    # Private keys (all variants)
+    ("private_key", r"-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP |ENCRYPTED )?PRIVATE KEY(?:\sBLOCK)?-----"),
+    # Generic passwords
+    (
+        "generic_password",
+        r"""(?:password|passwd|pwd|pass_word)\s*[:=]\s*["'][^"']{4,}["']""",
+    ),
+    # Generic API keys
     (
         "generic_api_key",
-        r"""(?:api[_-]?key|apikey|secret[_-]?key)\s*[:=]\s*["'][^"']{8,}["']""",
+        r"""(?:api[_-]?key|apikey|secret[_-]?key|access[_-]?key|auth[_-]?token)\s*[:=]\s*["'][^"']{8,}["']""",
+    ),
+    # Generic token assignments
+    (
+        "generic_token",
+        r"""(?:token|bearer|jwt|access_token|refresh_token|id_token|session_token|csrf_token)\s*[:=]\s*["'][A-Za-z0-9_\-\.]{20,}["']""",
+    ),
+    # Bearer token in Authorization header
+    ("bearer_token", r"""[Aa]uthorization\s*[:=]\s*["']?Bearer\s+[A-Za-z0-9_\-\.]{20,}["']?"""),
+    # Generic secret assignments
+    (
+        "generic_secret",
+        r"""(?:secret|SECRET|Secret)[_-]?(?:key|KEY|Key|token|TOKEN|Token|id|ID|Id)\s*[:=]\s*["'][A-Za-z0-9_\-]{16,}["']""",
+    ),
+    # Base64-encoded potential secrets
+    (
+        "base64_secret",
+        r"""(?:secret|token|key|password|credential|auth)[_-]?(?:encoded|base64|b64)\s*[:=]\s*["'][A-Za-z0-9+/=]{24,}["']""",
+    ),
+    # Hardcoded connection strings
+    (
+        "connection_string",
+        r"""(?i)(?:connection[_-]?string|conn[_-]?str|database[_-]?url|db[_-]?url)\s*[:=]\s*["'][^"']{10,}["']""",
+    ),
+    # Encryption keys
+    (
+        "encryption_key",
+        r"""(?:encryption|encrypt|cipher|aes|rsa|des)[_-]?key\s*[:=]\s*["'][A-Za-z0-9+/=]{16,}["']""",
+    ),
+    # Webhook URLs with embedded secrets
+    (
+        "webhook_url",
+        r"""https?://[^/\s"']+/webhook[s]?/[A-Za-z0-9_\-]{20,}""",
+    ),
+    # JWT-like patterns
+    (
+        "jwt_token",
+        r"""eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}""",
     ),
 ]
+
+SECRET_PATTERNS = _CLOUD_PROVIDER_PATTERNS + _SAAS_PATTERNS + _GENERIC_PATTERNS
 SECRET_REGEXES = [(name, re.compile(pattern)) for name, pattern in SECRET_PATTERNS]
-SECRET_SKIP_MARKERS = ("example", "placeholder", "your_", "xxx", "todo", "sample")
+SECRET_SKIP_MARKERS = (
+    "example", "placeholder", "your_", "todo", "sample",
+    "changeme", "replace_", "insert_", "put_your", "FIXME", "REPLACE",
+    "<your", "dummy", "fake", "mock", "stub",
+)
+# Markers that are too short / ambiguous — require word boundary check
+SECRET_SKIP_WORD_MARKERS = (
+    "xxx", "test", "default",
+)
 HIGH_CONFIDENCE_SECRET_TYPES = {
-    "aws_access_key",
+    # Cloud providers (with unique prefixes)
+    "aws_access_key", "aws_session_token",
+    "gcp_service_account", "gcp_api_key", "gcp_oauth_token",
+    "azure_connection_string", "azure_sas_token",
+    "aliyun_access_key",
+    "tencent_secret_id",
+    "oracle_api_key",
+    "digitalocean_token",
+    "cloudflare_api_key", "cloudflare_origin_ca",
+    # Crypto / keys
     "private_key",
-    "slack_token",
-    "github_token",
-    "openai_key",
+    # SaaS tokens (with unique prefixes)
+    "github_token", "github_oauth", "github_app_token", "github_refresh_token",
+    "gitlab_token",
+    "slack_token", "slack_webhook",
+    "discord_token", "discord_bot_token", "discord_webhook",
+    "stripe_secret_key", "stripe_restricted_key",
+    "twilio_api_key", "twilio_account_sid",
+    "sendgrid_api_key",
+    "mailgun_api_key",
+    "square_access_token", "square_oauth_secret",
+    "shopify_token",
+    "firebase_url",
+    "newrelic_key",
+    "npm_token", "npmrc_auth_token",
+    "docker_hub_token",
+    "openai_key", "anthropic_key", "huggingface_token", "replicate_token",
+    "pypi_token",
+    "sonar_token",
+    "sentry_dsn", "sentry_token",
+    "databricks_token",
+    "mongodb_connection", "postgres_connection", "mysql_connection", "redis_connection",
+    "amqp_connection",
+    "jwt_token",
+    "bearer_token",
+    "webhook_url",
 }
 
 SENSITIVE_FILE_PATTERNS = [
+    # Environment / config files
     ("env_file", r"(^|/)\.env(\.[\w-]+)?$"),
-    ("private_key", r"\.(pem|key|p12|pfx|jks|keystore)$"),
-    ("database", r"\.(sqlite|sqlite3|db|dump)$"),
-    ("log", r"\.log$"),
+    ("envrc", r"(^|/)\.envrc$"),
+    ("npmrc", r"(^|/)\.npmrc$"),
+    ("pypirc", r"(^|/)\.pypirc$"),
+    ("netrc", r"(^|/)\.netrc$"),
+    ("gem_credentials", r"(^|/)\.gem/credentials$"),
+    # Private keys / certificates
+    ("private_key", r"\.(pem|key|p12|pfx|jks|keystore|pub|gpg|pgp|asc|ppk)$"),
+    ("ssh_key", r"(^|/)(?:id_(?:rsa|ed25519|ecdsa)|ssh_host_[a-z0-9_]+_key)(?:\.pub)?$"),
+    ("kubeconfig", r"(^|/)kubeconfig$|(^|/)\.kube/config$"),
+    ("docker_cfg", r"(^|/)\.dockercfg$|(^|/)config\.json$"),
+    # Database files
+    ("database", r"\.(sqlite|sqlite3|db|dump|rdb|redis|bson)$"),
+    # Credentials / service accounts
     ("credentials", r"(^|/)credentials\.json$"),
     ("credentials", r"(^|/)service-account.*\.json$"),
-    ("ssh_key", r"(^|/)id_(rsa|ed25519|ecdsa)$"),
+    ("credentials", r"(^|/)client_secret.*\.json$"),
+    ("credentials", r"(^|/)sa-key\.json$"),
+    ("aws_credentials", r"(^|/)\.aws/credentials$"),
+    ("gcp_credentials", r"(^|/)gcloud[-_]?(?:credentials|config|token)$"),
+    ("azure_credentials", r"(^|/)azureProfile\.json$"),
+    ("terraform_state", r"(^|/)terraform\.tfstate(\.backup)?$"),
+    ("terraform_vars", r"(^|/)terraform\.tfvars$"),
+    ("ansible_vault", r"(^|/)vault[_-]?password\.txt$"),
+    # Build / CI secrets
+    ("ci_secrets", r"(^|/)secrets\.yml$|(^|/)secrets\.yaml$|(^|/)secrets\.json$"),
+    ("gradle_properties", r"(^|/)gradle\.properties$"),
+    ("maven_settings", r"(^|/)settings\.xml$"),
+    # Logs (may contain leaked secrets)
+    ("log", r"\.log$"),
+    # Dump / export files
+    ("dump", r"\.(sql|pgdump|mysqldump|mongoexport|jsonl|csv)$"),
+    # App config with potential secrets
+    ("app_config", r"(^|/)(?:application|app)\.(?:yml|yaml|properties|conf)(?:\.[\w-]+)?$"),
+    # Backup files
+    ("backup", r"\.(bak|backup|old|orig|save|swp)$"),
+    # History files (may contain pasted secrets)
+    ("history", r"(^|/)\.(?:bash_history|zsh_history|python_history|node_repl_history|mysql_history|psql_history)$"),
 ]
 SENSITIVE_FILE_REGEXES = [
     (file_type, re.compile(pattern)) for file_type, pattern in SENSITIVE_FILE_PATTERNS
@@ -253,11 +520,30 @@ PROJECT_ROOT_MARKERS = (
 # 敏感文件类型 → 对应的 .gitignore 规则（只按实际发现的文件推荐，不一股脑全加）
 SENSITIVE_TO_GITIGNORE = {
     "env_file": [".env", ".env.*"],
-    "private_key": ["*.pem", "*.key", "*.p12", "*.pfx", "*.jks", "*.keystore"],
-    "database": ["*.sqlite", "*.sqlite3", "*.db", "*.dump"],
-    "credentials": ["credentials.json", "service-account*.json"],
-    "ssh_key": ["id_rsa", "id_ed25519", "id_ecdsa"],
+    "envrc": [".envrc"],
+    "npmrc": [".npmrc"],
+    "pypirc": [".pypirc"],
+    "netrc": [".netrc"],
+    "gem_credentials": [".gem/credentials"],
+    "private_key": ["*.pem", "*.key", "*.p12", "*.pfx", "*.jks", "*.keystore", "*.pub", "*.gpg", "*.pgp", "*.asc", "*.ppk"],
+    "ssh_key": ["id_rsa", "id_rsa.pub", "id_ed25519", "id_ed25519.pub", "id_ecdsa", "id_ecdsa.pub", "ssh_host_*_key"],
+    "kubeconfig": ["kubeconfig", ".kube/config"],
+    "docker_cfg": [".dockercfg", "config.json"],
+    "database": ["*.sqlite", "*.sqlite3", "*.db", "*.dump", "*.rdb", "*.redis", "*.bson"],
+    "credentials": ["credentials.json", "service-account*.json", "client_secret*.json", "sa-key.json"],
+    "aws_credentials": [".aws/credentials"],
+    "gcp_credentials": ["gcloud-credentials", "gcloud-config", "gcloud-token"],
+    "azure_credentials": ["azureProfile.json"],
+    "terraform_state": ["terraform.tfstate", "terraform.tfstate.backup", "terraform.tfvars"],
+    "ansible_vault": ["vault-password.txt", "vault_password.txt"],
+    "ci_secrets": ["secrets.yml", "secrets.yaml", "secrets.json"],
+    "gradle_properties": ["gradle.properties"],
+    "maven_settings": ["settings.xml"],
     "log": ["*.log"],
+    "dump": ["*.sql", "*.pgdump", "*.mysqldump", "*.mongoexport", "*.jsonl"],
+    "app_config": ["application.yml", "application.yaml", "application.properties", "application.conf"],
+    "backup": ["*.bak", "*.backup", "*.old", "*.orig", "*.save", "*.swp"],
+    "history": [".bash_history", ".zsh_history", ".python_history", ".node_repl_history", ".mysql_history", ".psql_history"],
 }
 
 EXCLUDE_DIRS = {
@@ -509,11 +795,187 @@ def check_sensitive_tracked(project_path):
     return findings
 
 
+# ---------------------------------------------------------------------------
+# Entropy-based secret detection engine
+# ---------------------------------------------------------------------------
+
+# Shannon entropy thresholds
+_BASE64_ENTROPY_THRESHOLD = 4.5  # base64 chars: max ~6.0
+_HEX_ENTROPY_THRESHOLD = 3.0  # hex chars: max ~4.0
+_GENERIC_ENTROPY_THRESHOLD = 4.2  # generic high-entropy: mixed charset
+_MIN_SECRET_LENGTH = 20  # minimum candidate length for entropy check
+_MAX_SECRET_LENGTH = 500  # skip unreasonably long strings
+
+# Key names that hint at a secret value (used for contextual entropy scanning)
+_SECRET_HINT_KEYWORDS = (
+    "key", "token", "secret", "password", "passwd", "pwd", "credential",
+    "auth", "private", "api", "access", "refresh", "session", "bearer",
+    "apikey", "access_key", "secret_key", "client_secret", "app_secret",
+    "encryption_key", "signing_key", "admin_key", "database_url",
+    "connection_string", "dsn", "encrypt", "certificate", "license",
+)
+
+
+def _shannon_entropy(data: str) -> float:
+    """Calculate Shannon entropy of a string."""
+    if not data:
+        return 0.0
+    freq: dict[str, int] = {}
+    for ch in data:
+        freq[ch] = freq.get(ch, 0) + 1
+    length = len(data)
+    entropy = 0.0
+    for count in freq.values():
+        p = count / length
+        if p > 0:
+            entropy -= p * math.log2(p)
+    return entropy
+
+
+def _is_base64(s: str) -> bool:
+    """Check if a string looks like base64-encoded data."""
+    return bool(re.fullmatch(r"[A-Za-z0-9+/=]+", s)) and len(s) % 4 <= 1
+
+
+def _is_hex(s: str) -> bool:
+    """Check if a string is hex-encoded."""
+    return bool(re.fullmatch(r"[0-9a-fA-F]+", s))
+
+
+def _extract_assignment_value(line: str) -> tuple[str, str] | None:
+    """Extract KEY=VALUE or KEY: VALUE from a line. Returns (key, value) or None."""
+    m = re.match(
+        r"""^\s*([A-Za-z_][A-Za-z0-9_]*)\s*[=:]\s*["']?([^\s"']+)["']?\s*$""",
+        line,
+    )
+    if m:
+        return m.group(1), m.group(2)
+    return None
+
+
+def entropy_check_value(value: str) -> dict | None:
+    """Analyze a value string for high entropy indicating a possible secret.
+
+    Returns a dict with ``entropy_type`` and ``entropy`` score, or *None*.
+    """
+    if not value or len(value) < _MIN_SECRET_LENGTH or len(value) > _MAX_SECRET_LENGTH:
+        return None
+
+    # Skip obvious non-secrets
+    if value.lower() in ("true", "false", "null", "none", "undefined", "yes", "no"):
+        return None
+    if re.fullmatch(r"[0-9]+", value):  # pure numbers
+        return None
+    if re.fullmatch(r"[a-z]+", value):  # pure lowercase word
+        return None
+    if re.fullmatch(r"[A-Z]+", value):  # pure uppercase word
+        return None
+
+    entropy = _shannon_entropy(value)
+
+    # Check encoding type and apply appropriate threshold
+    if _is_base64(value) and entropy >= _BASE64_ENTROPY_THRESHOLD:
+        return {"entropy_type": "base64_high_entropy", "entropy": round(entropy, 2)}
+    if _is_hex(value) and len(value) >= 32 and entropy >= _HEX_ENTROPY_THRESHOLD:
+        return {"entropy_type": "hex_high_entropy", "entropy": round(entropy, 2)}
+    if entropy >= _GENERIC_ENTROPY_THRESHOLD:
+        return {"entropy_type": "generic_high_entropy", "entropy": round(entropy, 2)}
+
+    return None
+
+
+def scan_entropy_for_line(line: str) -> list[dict]:
+    """Scan a single line for high-entropy values.
+
+    Checks:
+      1. Assignment values where the key hints at a secret (lower threshold).
+      2. Standalone quoted strings that exhibit very high entropy.
+
+    Returns a list of dicts with ``entropy_type``, ``entropy``, ``key``,
+    ``value_preview``.
+    """
+    results: list[dict] = []
+    stripped = line.strip()
+
+    # 1. KEY = VALUE / KEY: VALUE patterns
+    assignment = _extract_assignment_value(stripped)
+    if assignment:
+        key, value = assignment
+        key_lower = key.lower()
+        is_hinted = any(h in key_lower for h in _SECRET_HINT_KEYWORDS)
+        if is_hinted:
+            info = entropy_check_value(value)
+            if info:
+                results.append(
+                    {
+                        **info,
+                        "key": key,
+                        "value_preview": _mask_entropy_value(value),
+                    }
+                )
+            return results  # only check the first assignment per line
+
+    # 2. Quoted high-entropy strings (standalone, no key context)
+    for m in re.finditer(r"""["']([A-Za-z0-9+/=_\-]{24,})["']""", stripped):
+        value = m.group(1)
+        info = entropy_check_value(value)
+        if info and info["entropy"] >= 4.7:  # stricter threshold without key hint
+            results.append(
+                {
+                    **info,
+                    "key": "",
+                    "value_preview": _mask_entropy_value(value),
+                }
+            )
+
+    # 3. Unquoted high-entropy values in env-like lines
+    env_match = re.match(
+        r"""^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=(.+)$""", stripped
+    )
+    if env_match:
+        key = env_match.group(1)
+        value = env_match.group(2).strip().strip("\"'")
+        key_lower = key.lower()
+        is_hinted = any(h in key_lower for h in _SECRET_HINT_KEYWORDS)
+        if is_hinted:
+            info = entropy_check_value(value)
+            if info:
+                results.append(
+                    {
+                        **info,
+                        "key": key,
+                        "value_preview": _mask_entropy_value(value),
+                    }
+                )
+
+    return results
+
+
+def _mask_entropy_value(value: str) -> str:
+    """Mask a value for safe display."""
+    if len(value) <= 12:
+        return "***"
+    return value[:6] + "..." + value[-4:]
+
+
+# ---------------------------------------------------------------------------
+# Secret preview & scanning
+# ---------------------------------------------------------------------------
+
+
 def secret_preview(secret_type, match_text):
     if secret_type == "private_key":
         return "-----BEGIN *** PRIVATE KEY-----"
 
-    if secret_type in {"generic_password", "generic_api_key"}:
+    if secret_type in {
+        "generic_password",
+        "generic_api_key",
+        "generic_token",
+        "generic_secret",
+        "base64_secret",
+        "connection_string",
+        "encryption_key",
+    }:
         masked = re.sub(
             r"""([:=]\s*["']?)[^"']+(["']?)$""",
             r"\1***\2",
@@ -535,12 +997,13 @@ def secret_preview(secret_type, match_text):
 
 def scan_secrets(project_path, max_files=500, max_bytes=1024 * 1024):
     findings = []
+    entropy_findings = []
     count = 0
     for root, dirs, files in os.walk(project_path):
         dirs[:] = [d for d in dirs if d not in EXCLUDE_DIRS]
         for fname in files:
             if count >= max_files:
-                return findings
+                break
             ext = os.path.splitext(fname)[1].lower()
             if ext not in SCAN_EXTENSIONS and not is_env_secret_scan_file(fname):
                 continue
@@ -554,8 +1017,15 @@ def scan_secrets(project_path, max_files=500, max_bytes=1024 * 1024):
                         if stripped.startswith("#") or stripped.startswith("//"):
                             continue
                         lowered = stripped.lower()
+                        # Skip lines containing placeholder markers (substring match)
                         if any(x in lowered for x in SECRET_SKIP_MARKERS):
                             continue
+                        # Skip lines containing word-boundary markers (e.g. 'xxx', 'test')
+                        # These are too ambiguous for substring matching
+                        if any(re.search(rf"\b{re.escape(m)}\b", lowered) for m in SECRET_SKIP_WORD_MARKERS):
+                            continue
+
+                        # --- Phase 1: Regex pattern matching ---
                         for secret_type, pattern in SECRET_REGEXES:
                             m = pattern.search(line)
                             if m:
@@ -572,10 +1042,44 @@ def scan_secrets(project_path, max_files=500, max_bytes=1024 * 1024):
                                         else "medium",
                                     }
                                 )
+
+                        # --- Phase 2: Entropy-based detection ---
+                        if is_env_secret_scan_file(fname) or ext in (
+                            ".env",
+                            ".yaml",
+                            ".yml",
+                            ".toml",
+                            ".ini",
+                            ".cfg",
+                            ".conf",
+                            ".py",
+                            ".js",
+                            ".ts",
+                            ".go",
+                            ".rs",
+                            ".sh",
+                            ".bash",
+                            ".zsh",
+                            ".fish",
+                        ):
+                            for einfo in scan_entropy_for_line(line):
+                                rel = os.path.relpath(fpath, project_path)
+                                entropy_findings.append(
+                                    {
+                                        "file": rel,
+                                        "line": line_num,
+                                        "type": einfo["entropy_type"],
+                                        "preview": einfo["value_preview"],
+                                        "key": einfo.get("key", ""),
+                                        "entropy": einfo["entropy"],
+                                        "confidence": "low",
+                                    }
+                                )
             except (OSError, UnicodeDecodeError):
                 continue
             count += 1
-    # Deduplicate by (file, line, type), keeping first occurrence
+
+    # Merge: deduplicate regex findings
     seen = set()
     deduped = []
     for f in findings:
@@ -583,7 +1087,22 @@ def scan_secrets(project_path, max_files=500, max_bytes=1024 * 1024):
         if key not in seen:
             seen.add(key)
             deduped.append(f)
-    return deduped
+
+    # Deduplicate entropy findings and suppress those already caught by regex
+    regex_hit_keys = {(f["file"], f["line"]) for f in deduped}
+    entropy_deduped = []
+    entropy_seen: set[tuple[str, int, str]] = set()
+    for ef in entropy_findings:
+        ekey = (ef["file"], ef["line"], ef["type"])
+        if ekey in entropy_seen:
+            continue
+        # Skip if this file+line already has a regex match (regex is more specific)
+        if (ef["file"], ef["line"]) in regex_hit_keys:
+            continue
+        entropy_seen.add(ekey)
+        entropy_deduped.append(ef)
+
+    return deduped + entropy_deduped
 
 
 def scan_hygiene(project_path, max_secret_files=500):
