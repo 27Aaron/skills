@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Interactive vulnerability fix module for Butian.
+"""Dependency fix executor for Butian.
 
 Usage (standalone):
-    python3 scripts/fix.py <analysis.json>
+    python3 scripts/fix.py <analysis.json> --strategy fixed
+    python3 scripts/fix.py <analysis.json> --strategy latest
 
-When used as a library (by run_audit.py):
-    from fix import prompt_fix_strategy, execute_fixes, extract_fixable_items
+Library helpers:
+    from fix import build_upgrade_commands, execute_fixes, extract_fixable_items
 """
 
+import argparse
 import json
 import logging
 import subprocess
@@ -19,7 +21,7 @@ logger = logging.getLogger("butian")
 # Ecosystem → upgrade command builders
 # ---------------------------------------------------------------------------
 
-# Maps ecosystem name to (minimal_fix_builder, latest_fix_builder).
+# Maps ecosystem name to a fixed-version upgrade command builder.
 # Each builder receives (package, version) and returns a command list.
 
 _UPGRADE_BUILDERS = {
@@ -93,7 +95,7 @@ def build_upgrade_commands(fix_items, strategy, ecosystem=None):
 
     Args:
         fix_items: list from extract_fixable_items()
-        strategy: "minimal" | "latest" | dict of {package: version}
+        strategy: "minimal" | "latest"
         ecosystem: if set, filter to this ecosystem only
 
     Returns:
@@ -160,68 +162,33 @@ def execute_fixes(commands, project_path):
 
 
 # ---------------------------------------------------------------------------
-# Interactive prompt
-# ---------------------------------------------------------------------------
-
-def prompt_fix_strategy(fix_items):
-    """Display fixable items and prompt user for strategy choice.
-
-    Returns:
-        "minimal" | "latest" | dict of {package: version} | None (skip)
-    """
-    if not fix_items:
-        return None
-
-    # Group by ecosystem for display
-    print()
-    print("═" * 52)
-    print(f"  发现 {len(fix_items)} 个可修复的依赖漏洞")
-    print()
-    for i, item in enumerate(fix_items, 1):
-        pkg = item["package"]
-        current = item.get("current_version") or "?"
-        target = item["target_version"]
-        ids = ", ".join(item.get("advisory_ids", [])[:2])
-        if len(item.get("advisory_ids", [])) > 2:
-            ids += f" 等{len(item['advisory_ids'])}个"
-        print(f"  {i}. {pkg}  {current} → {target}  ({ids})")
-
-    print()
-    print("  请选择修复策略：")
-    print("    [1] 最小修复 — 仅升级到已修复版本（推荐，改动最小）")
-    print("    [2] 全部更新 — 升级到最新版本")
-    print("    [Enter] 跳过")
-    print("═" * 52)
-
-    try:
-        choice = input("\n> ").strip()
-    except (EOFError, KeyboardInterrupt):
-        print()
-        return None
-
-    if not choice or choice.lower() in ("q", "quit", "skip", "4"):
-        return None
-
-    if choice == "1":
-        return "minimal"
-
-    if choice == "2":
-        return "latest"
-
-    return None
-
-
-# ---------------------------------------------------------------------------
 # Standalone entry point
 # ---------------------------------------------------------------------------
 
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: fix.py <analysis.json>", file=sys.stderr)
-        return 1
+def parse_args(argv):
+    parser = argparse.ArgumentParser(description="Execute selected Butian dependency fixes")
+    parser.add_argument("analysis_json", help="path to .butian/<run>/assets/analysis.json")
+    parser.add_argument(
+        "--strategy",
+        required=True,
+        choices=["fixed", "minimal", "latest"],
+        help="'fixed'/'minimal' upgrades to known fixed versions; 'latest' upgrades to latest versions",
+    )
+    return parser.parse_args(argv)
 
-    analysis_path = sys.argv[1]
-    with open(analysis_path, "r", encoding="utf-8") as f:
+
+def strategy_label(strategy):
+    return "升级到已修复版本" if strategy == "minimal" else "升级到最新版本"
+
+
+def normalize_strategy(strategy):
+    return "minimal" if strategy == "fixed" else strategy
+
+
+def main(argv=None):
+    args = parse_args(sys.argv[1:] if argv is None else argv)
+
+    with open(args.analysis_json, "r", encoding="utf-8") as f:
         analysis = json.load(f)
 
     fix_items = extract_fixable_items(analysis)
@@ -230,12 +197,7 @@ def main():
         print("没有发现可修复的漏洞。")
         return 0
 
-    strategy = prompt_fix_strategy(fix_items)
-    if not strategy:
-        logger.info("用户跳过修复")
-        print("已跳过修复。")
-        return 0
-
+    strategy = normalize_strategy(args.strategy)
     project_path = analysis.get("project", {}).get("path") or "."
     commands = build_upgrade_commands(fix_items, strategy)
 
@@ -245,7 +207,7 @@ def main():
         return 0
 
     print()
-    label = "最小修复" if strategy == "minimal" else "全部更新"
+    label = strategy_label(strategy)
     logger.info("开始%s: %d 个包", label, len(commands))
     print(f"正在执行{label}...")
 
