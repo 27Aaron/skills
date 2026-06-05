@@ -170,7 +170,7 @@ class ButianScanTests(unittest.TestCase):
                     output,
                     root,
                 ],
-                cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
                 capture_output=True,
                 text=True,
                 check=True,
@@ -296,7 +296,7 @@ class ButianScanTests(unittest.TestCase):
         self.assertFalse(run_audit.should_echo_build_report(SimpleNamespace(compact=True)))
 
     def test_pipeline_scripts_expose_help(self):
-        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         for script_name in [
             "detect.py",
             "scan.py",
@@ -321,7 +321,7 @@ class ButianScanTests(unittest.TestCase):
                 self.assertIn("usage:", result.stdout.lower())
 
     def test_skill_doc_describes_report_writes_without_absolute_read_only_claim(self):
-        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         with open(os.path.join(root, "butian", "SKILL.md"), encoding="utf-8") as handle:
             skill_doc = handle.read()
 
