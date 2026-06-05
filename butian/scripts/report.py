@@ -340,7 +340,7 @@ def render_next_steps(analysis):
             lines.append(f"- {text(item)}")
     else:
         lines.append(
-            "- 阅读报告后再决定是否修复；需要处理时，在对话里明确回复「可以修 / 修复 / OK / Yes」。"
+            "- 阅读报告后回到终端，根据修复策略菜单选择操作（最小修复 / 全部更新）。"
         )
     lines.append("")
     return "\n".join(lines)

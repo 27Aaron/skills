@@ -14,7 +14,8 @@
 | 2   | 参数透传   | 将用户参数传递给各子阶段（包括新增的 verbose/debug/cache/baseline 等） |
 | 3   | 结果汇总   | 收集各阶段的文件路径和风险统计                                         |
 | 4   | 终端摘要   | 输出格式化的终端摘要（包含 Unicode 表格）                              |
-| 5   | 退出码控制 | 根据 `--severity-threshold` 返回语义化退出码                           |
+| 5   | 交互修复   | 检测可修复漏洞 → 弹出策略选择菜单 → 执行升级 → 重扫验证               |
+| 6   | 退出码控制 | 根据 `--severity-threshold` 返回语义化退出码                           |
 
 ## CLI 用法
 
@@ -95,7 +96,7 @@ run_audit.py
 │     → analysis.json
 │
 ├─ 4. report.py <analysis_path> <markdown_path>
-│     → docs/security-report-YYYY-MM-DD.md
+│     → docs/butian/security-report-YYYY-MM-DD_HHMMSS.md
 │
 ├─ 5. visualize.py <analysis_path> <html_path> [--no-open]
 │     → .butian/<run>/content/security-report.html
@@ -105,6 +106,11 @@ run_audit.py
 │     触发条件: --sarif
 │
 └─ 退出码判断 + 输出终端摘要（或紧凑 JSON）
+│
+├─ 7. [交互] fix.py — 检测到可修复漏洞时弹出修复策略选择
+│     触发条件: 有可修复漏洞 + 终端交互模式 (非 --compact)
+│     选项: [1] 最小修复 / [2] 全部更新 / [Enter] 跳过
+│     修复后自动重跑 scan → analyze → report，输出对比摘要
 ```
 
 ## 子进程调用方式
@@ -147,7 +153,7 @@ run_audit.py
 [核心风险包的 Unicode 表格]
 
 📁 报告路径
-- Markdown 审计报告：docs/security-report-2025-01-15.md
+- Markdown 审计报告：docs/butian/security-report-2025-01-15_120000.md
 - HTML 报告：.butian/.../content/security-report.html
 - analysis JSON：.butian/.../assets/analysis.json
 ```
@@ -186,16 +192,23 @@ run_audit.py
   "preflight_file": ".butian/.../assets/preflight.json",
   "scan_file": ".butian/.../assets/scan.json",
   "analysis_file": ".butian/.../assets/analysis.json",
-  "markdown_report": "docs/security-report-2025-01-15.md",
+  "markdown_report": "docs/butian/security-report-2025-01-15_120000.md",
   "html_report": ".butian/.../content/security-report.html",
   "sarif_file": ".butian/.../assets/results.sarif.json",
   "scan_mode": "full_dependency_scan",
   "risk_summary": { "critical": 1, "high": 2, "medium": 3, "low": 1 },
-  "errors": []
+  "errors": [],
+  "fix_applied": {
+    "strategy": "最小修复",
+    "upgraded": ["lodash", "axios"],
+    "failed": [],
+    "pre_fix_vulnerabilities": 5,
+    "post_fix_vulnerabilities": 2
+  }
 }
 ```
 
-> `sarif_file` 仅在 `--sarif` 模式下出现。
+> `sarif_file` 仅在 `--sarif` 模式下出现。`fix_applied` 仅在用户选择修复后出现。
 
 ## 设计要点
 

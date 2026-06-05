@@ -419,7 +419,7 @@ class RenderNextStepsTests(unittest.TestCase):
 
     def test_no_priority(self):
         result = report.render_next_steps({})
-        self.assertIn("阅读报告后再决定", result)
+        self.assertIn("阅读报告后回到终端", result)
 
 
 # ---------------------------------------------------------------------------

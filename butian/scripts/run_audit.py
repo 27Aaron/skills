@@ -28,6 +28,21 @@ except ImportError:
         HYGIENE_ONLY_NOTICE,
     )
 
+try:
+    from .fix import (
+        build_upgrade_commands,
+        extract_fixable_items,
+        execute_fixes,
+        prompt_fix_strategy,
+    )
+except ImportError:
+    from fix import (  # pyright: ignore[reportMissingImports]
+        build_upgrade_commands,
+        extract_fixable_items,
+        execute_fixes,
+        prompt_fix_strategy,
+    )
+
 
 def script_path(name):
     return os.path.join(HERE, name)
@@ -464,7 +479,7 @@ def format_human_summary(summary, scan, analysis, args):
         ),
         "",
         "---",
-        "如需修复，在对话中回复「修复 / OK / 可以修」即可。按「主要修复（紧急/高风险有明确修复版本）→ 次要修复（过期依赖与中风险）」顺序处理，每步执行后跑构建验证。",
+        "扫描完成后将自动提示修复策略选择（最小修复 / 全部更新），请根据提示操作。",
     ]
     return "\n".join(lines)
 
@@ -578,6 +593,118 @@ def main():
         echo=should_echo_build_report(args),
     )
 
+    # ---------------------------------------------------------------
+    # Interactive fix flow
+    # ---------------------------------------------------------------
+    pre_fix_vuln_count = len(analysis.get("top_issues") or [])
+    fix_items = extract_fixable_items(analysis)
+    fix_result = None  # will hold fix metadata for summary
+
+    if fix_items and not args.compact and sys.stdin.isatty():
+        fix_strategy = prompt_fix_strategy(fix_items)
+
+        if fix_strategy:
+            project_path = analysis.get("project", {}).get("path") or "."
+            commands = build_upgrade_commands(fix_items, fix_strategy)
+            if commands:
+                print()
+                label = (
+                    "最小修复" if fix_strategy == "minimal"
+                    else "全部更新" if fix_strategy == "latest"
+                    else "手动修复"
+                )
+                print(f"正在执行{label}...")
+                successes, failures = execute_fixes(commands, project_path)
+
+                if successes:
+                    print()
+                    print("修复完成，正在重新扫描验证...")
+                    # Re-run scan → analyze → report
+                    scan2 = run_json(build_scan_cmd(args, preflight["output_file"]))
+                    analysis_path2 = os.path.join(
+                        os.path.dirname(os.path.abspath(scan2["output_file"])),
+                        "analysis.json",
+                    )
+                    run_text(
+                        [
+                            sys.executable,
+                            script_path("analyze.py"),
+                            scan2["output_file"],
+                            analysis_path2,
+                        ],
+                        echo=False,
+                    )
+                    with open(analysis_path2, "r", encoding="utf-8") as f2:
+                        analysis2 = json.load(f2)
+
+                    post_fix_vuln_count = len(analysis2.get("top_issues") or [])
+
+                    # Regenerate reports
+                    markdown_path2 = os.path.join(
+                        analysis2["project"]["path"],
+                        "docs",
+                        "butian",
+                        f"security-report-{str(analysis2.get('generated_at', 'unknown-date'))[:19].replace(' ', '_').replace(':', '')}.md",
+                    )
+                    run_text(
+                        [
+                            sys.executable,
+                            script_path("report.py"),
+                            analysis_path2,
+                            markdown_path2,
+                        ],
+                        echo=False,
+                    )
+                    html_path2 = os.path.join(
+                        os.path.dirname(os.path.dirname(os.path.abspath(analysis_path2))),
+                        "content",
+                        "security-report.html",
+                    )
+                    run_text(
+                        [
+                            sys.executable,
+                            script_path("visualize.py"),
+                            analysis_path2,
+                            html_path2,
+                            "--no-open",
+                        ],
+                        echo=False,
+                    )
+
+                    # Swap to post-fix data for the final summary
+                    analysis = analysis2
+                    scan = scan2
+                    analysis_path = analysis_path2
+                    markdown_path = markdown_path2
+                    html_path = html_path2
+
+                    fix_result = {
+                        "strategy": label,
+                        "upgraded": successes,
+                        "failed": [pkg for pkg, _ in failures],
+                        "pre_fix_vulnerabilities": pre_fix_vuln_count,
+                        "post_fix_vulnerabilities": post_fix_vuln_count,
+                    }
+
+                    print()
+                    if pre_fix_vuln_count > post_fix_vuln_count:
+                        print(
+                            f"  ✅ 修复前 {pre_fix_vuln_count} 个漏洞 → "
+                            f"修复后 {post_fix_vuln_count} 个漏洞"
+                        )
+                    else:
+                        print(
+                            f"  ⚠️  修复前 {pre_fix_vuln_count} 个漏洞 → "
+                            f"修复后 {post_fix_vuln_count} 个漏洞（无变化）"
+                        )
+                    print(f"  报告已更新：{markdown_path}")
+
+                if failures:
+                    print()
+                    print(f"  ❌ {len(failures)} 个包升级失败:")
+                    for pkg, err in failures:
+                        print(f"    - {pkg}: {err}")
+
     summary = {
         "preflight_file": preflight["output_file"],
         "scan_file": scan["output_file"],
@@ -588,6 +715,8 @@ def main():
         "risk_summary": analysis.get("risk_summary", {}),
         "errors": analysis.get("errors", []),
     }
+    if fix_result:
+        summary["fix_applied"] = fix_result
 
     # SARIF output
     if args.sarif:
