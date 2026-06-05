@@ -1110,6 +1110,42 @@ function renderReportSummary(sm) {
 }
 
 // ---- Repository hygiene ----
+const SECRET_TYPE_LABELS = {
+  aws_access_key: "AWS 访问密钥",
+  aws_secret_key: "AWS Secret Key",
+  gcp_service_account: "GCP 服务账号",
+  gcp_api_key: "GCP API Key",
+  azure_client_secret: "Azure 客户端密钥",
+  aliyun_access_key: "阿里云 AccessKey",
+  tencent_secret_id: "腾讯云 SecretId",
+  huawei_access_key: "华为云 Access Key",
+  oracle_api_key: "Oracle API Key",
+  github_token: "GitHub Token",
+  gitlab_token: "GitLab Token",
+  slack_token: "Slack Token",
+  discord_bot_token: "Discord Bot Token",
+  stripe_secret_key: "Stripe 密钥",
+  openai_key: "OpenAI API Key",
+  anthropic_key: "Anthropic API Key",
+  generic_sk_key: "LLM/API 密钥 (sk-)",
+  generic_password: "疑似密码",
+  generic_api_key: "疑似 API Key",
+  generic_token: "疑似 Token",
+  generic_secret: "疑似 Secret",
+  bearer_token: "Bearer Token",
+  private_key: "私钥",
+  jwt_token: "JWT Token",
+  webhook_url: "Webhook URL",
+};
+const SENSITIVE_TYPE_LABELS = {
+  env_file: "环境变量文件",
+  private_key: "私钥或证书文件",
+  database: "本地数据库或转储文件",
+  log: "日志文件",
+  credentials: "凭证文件",
+  ssh_key: "SSH 私钥",
+};
+
 function renderHygiene(h) {
   h = h || {};
   if (h.skipped || (DATA.scan_config && DATA.scan_config.skip_hygiene)) {
@@ -1169,19 +1205,31 @@ function renderHygiene(h) {
     );
   }
 
-  const examples = [
-    ...secrets
-      .slice(0, 3)
-      .map(
-        (x) =>
-          `${x.file || "-"}${x.line ? ":" + x.line : ""}（${x.type || "secret"}）`,
-      ),
-    ...sensitive
-      .slice(0, 3)
-      .map((x) => `${x.file || "-"}（${x.type || "sensitive"}）`),
+  // Build structured finding items for secrets and sensitive files
+  const findingItems = [
+    ...secrets.slice(0, 5).map((x) => {
+      const loc = `${x.file || "-"}${x.line ? ":" + x.line : ""}`;
+      const label = SECRET_TYPE_LABELS[x.type] || x.type || "密钥";
+      const preview = x.preview
+        ? `<code class="secret-preview">${esc(x.preview)}</code>`
+        : "";
+      return `<div class="finding-item"><span class="finding-loc">${esc(loc)}</span><span class="finding-type">${esc(label)}</span>${preview}</div>`;
+    }),
+    ...sensitive.slice(0, 5).map((x) => {
+      const loc = `${x.file || "-"}`;
+      const label = SENSITIVE_TYPE_LABELS[x.type] || x.type || "敏感文件";
+      return `<div class="finding-item"><span class="finding-loc">${esc(loc)}</span><span class="finding-type">${esc(label)}</span></div>`;
+    }),
   ];
-  const extra = examples.length
-    ? `<div class="field"><div class="label">需要研发确认的位置</div>${esc(examples.join("；"))}</div>`
+  const totalCount = secrets.length + sensitive.length;
+  const shownCount =
+    Math.min(secrets.length, 5) + Math.min(sensitive.length, 5);
+  const extraSummary =
+    totalCount > shownCount
+      ? `<div class="finding-more">…及其他 ${totalCount - shownCount} 处</div>`
+      : "";
+  const extra = findingItems.length
+    ? `<div class="field"><div class="label">待确认项</div><div class="finding-list">${findingItems.join("")}${extraSummary}</div></div>`
     : "";
 
   return section(

@@ -7,7 +7,7 @@
 `analyze.py` 会生成确定性基线：漏洞排序、`risk_summary`、`summary`、`red/yellow/green`、仓库卫生项、过期依赖和扫描错误。agent 之后只能做轻量复核和业务语言润色；不要删除已确认漏洞，不要把过期依赖改写成漏洞，不要把脱敏预览扩展成完整密钥。
 
 - 命中漏洞：所有漏洞按影响程度排序（critical > high > medium > low），全部放入 `top_issues`，不要只放前 5 个。必须透传 `advisory_id`、`aliases`、`cve_id`、`package`、`version`、`severity`、`summary`、`fixed_versions` 等字段，网页会完整展示 GHSA。漏洞表的说明列必须是一句普通人能看懂的话，不要写"事实/为什么/影响/动作"四段，也不要在说明里堆 CVE/GHSA 编号。
-- 仓库卫生扫描：透传 `hygiene.gitignore_missing`、`hygiene.tracked_secrets`、`hygiene.sensitive_tracked`。密钥内容必须脱敏，只写位置、类型、可信度和预览。
+- 仓库卫生扫描：透传 `hygiene.gitignore_missing`、`hygiene.tracked_secrets`、`hygiene.sensitive_tracked`。密钥内容必须脱敏，只写位置、类型、可信度和预览。HTML 报告中"待确认项"使用结构化列表：每条包含文件路径（`finding-loc`，等宽加粗）、中文类型标签（`finding-type`，灰字括号）和脱敏预览（`secret-preview`，code 背景）；最多展示 5 条，超出显示"…及其他 N 处"。类型标签使用 `SECRET_TYPE_LABELS` / `SENSITIVE_TYPE_LABELS` 映射（如 `generic_sk_key` → "LLM/API 密钥 (sk-)"），不裸露英文 type 标识。
 - 过期依赖：透传 `outdated`。过期依赖是维护信号，不等同于漏洞；用低风险、排期处理的语言描述。
 - 风险项分级：`red` 放需优先处理或专业处理的事项；`yellow` 放需业务/部署确认的事项；`green` 可保留给 agent 的内部修复计划，但网页不再单独展示低风险维护区块。
 - 每一项都必须设置 `severity`：`critical`、`high`、`medium`、`low`、`info` 之一。

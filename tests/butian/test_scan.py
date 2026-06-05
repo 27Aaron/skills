@@ -2723,6 +2723,27 @@ class ExhaustiveSecretPatternTests(unittest.TestCase):
         )  # fake fixture
         self.assertEqual(f["confidence"], "medium")
 
+    def test_generic_sk_key_no_false_positive_css(self):
+        # CSS properties like "mask-composite" contain "sk-composite" — must NOT match
+        css_lines = [
+            "-webkit-mask-composite: xor;",
+            "mask-composite: exclude;",
+            "div { -webkit-mask-composite: source-over; }",
+            "  mask-composite: add;",
+        ]
+        for line in css_lines:
+            with tempfile.TemporaryDirectory(prefix="butian-css-") as root:
+                fpath = os.path.join(root, "style.css")
+                with open(fpath, "w") as f:
+                    f.write(line)
+                findings = scan.scan_secrets(root)
+                sk_hits = [f for f in findings if f["type"] == "generic_sk_key"]
+                self.assertEqual(
+                    sk_hits,
+                    [],
+                    f"CSS false positive: '{line}' should NOT match generic_sk_key",
+                )
+
 
 class ExhaustiveSensitiveFileTests(unittest.TestCase):
     def _type_of(self, filename: str) -> str:

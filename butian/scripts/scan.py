@@ -512,9 +512,10 @@ _GENERIC_PATTERNS = [
     # Generic sk- prefix catch-all (MiniMax, DeepSeek, Moonshot, Zhipu, etc.)
     # Many LLM/API providers use sk- as key prefix; medium confidence, user judges
     # Excludes sk-proj- (openai_key) and sk-ant- (anthropic_key) already matched above
+    # \b ensures sk- is not part of a longer word (e.g. "mask-composite" in CSS)
     (
         "generic_sk_key",
-        r"""sk-(?!proj-|ant-)[A-Za-z0-9_-]{8,}""",
+        r"""\bsk-(?!proj-|ant-)[A-Za-z0-9_-]{8,}""",
     ),
 ]
 
@@ -762,6 +763,7 @@ SENSITIVE_TO_GITIGNORE = {
 EXCLUDE_DIRS = {
     ".git",
     ".butian",
+    ".claude",
     "node_modules",
     ".next",
     ".turbo",

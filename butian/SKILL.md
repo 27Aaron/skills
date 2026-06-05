@@ -20,7 +20,7 @@ description: >
 - **依赖漏洞** — 从 lockfile 提取依赖，逐个查已知漏洞（CVE / GHSA），按严重度排序
 - **硬编码密钥** — 扫代码里写死的 API Key / token / 密码，报告只给脱敏预览
 - **敏感文件误提交** — `.env`、私钥、证书是否被 git 跟踪
-- **仓库卫生** — `.gitignore` 该挡的有没有挡住
+- **仓库卫生** — `.gitignore` 该挡的有没有挡住；报告展示中文类型标签（如"LLM/API 密钥 (sk-)"）和脱敏预览，不超过 5 条，超出显示"…及其他 N 处"
 - **过期依赖** — 给升级建议，但不把"过期"夸大成"有漏洞"
 
 支持 JavaScript / TypeScript、Python、Go、Rust。
@@ -40,7 +40,8 @@ description: >
 
 - 只在本地读取用户项目文件；不上传源码、lockfile、env 或密钥；不要上传完整 lockfile、`.env`、私钥、证书、数据库、日志或任意项目文件；除 `.butian/`、`docs/security-report-YYYY-MM-DD.md` 和必要的 `.gitignore` 规则外，不修改源码、依赖、数据库、日志或任意项目文件。
 - 依赖漏洞检查会直接请求 OSV、NVD、CISA KEV 和 FIRST EPSS；只发送最小必要信息：`ecosystem`、`name`、`version`。
-- 报告里不要泄露完整密钥，只能写文件、行号、类型和脱敏预览。
+- 报告里不要泄露完整密钥，只能写文件、行号、类型和脱敏预览。HTML 报告用结构化列表展示：路径（等宽加粗）+ 中文类型标签 + 脱敏 `preview`（code 背景），不裸露英文 type 标识。
+- 扫描自动排除工具配置目录（`.git`、`.butian`、`.claude`、`node_modules`、`.next`、`dist` 等），不扫自身的模板和静态资源文件。`generic_sk_key` 正则使用 `\b` 词边界，避免 CSS `mask-composite` 等误匹配。
 - 完整项目安全扫描必须先在被扫项目的 `docs/` 下生成 Markdown 审计报告；如果当前工作目录就是被扫项目，也就是当前工作目录的 `docs/`。报告文件例如 `docs/security-report-YYYY-MM-DD.md`。用户阅读报告后明确允许修复，才可以执行升级、删除缓存跟踪、修改 `.gitignore`、清理历史或轮换凭证相关操作。
 - 官方漏洞源：OSV 用于按包坐标命中开源依赖漏洞；NVD、CISA KEV 和 FIRST EPSS 只在 OSV 返回 CVE 后做 CVSS/CWE、已知被利用和利用概率富化；不做泛安全情报查询。
 - 脚本路径按本 skill 目录解析；如果当前 shell 不在 skill 根目录，使用这些脚本的绝对路径。扫描目标由脚本参数或 preflight JSON 中的 `project.path` 决定，报告写到被扫项目的 `.butian/` 和 `docs/`。
