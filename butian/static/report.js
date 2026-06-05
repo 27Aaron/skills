@@ -126,8 +126,7 @@ const DATA = (() => {
       d.summary.tldr =
         "发现多项已确认依赖漏洞，可能影响发布判断；建议先处理紧急和高风险项，再评估其余。";
     } else if (riskTotal) {
-      d.summary.tldr =
-        "发现一些中风险或低风险项，建议按影响范围分批处理。";
+      d.summary.tldr = "发现一些中风险或低风险项，建议按影响范围分批处理。";
     } else if (d.errors && d.errors.length) {
       d.summary.tldr = "暂未确认风险，但有部分检查失败，结论需要复核。";
     } else {

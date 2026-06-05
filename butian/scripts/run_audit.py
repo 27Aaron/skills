@@ -416,7 +416,6 @@ def build_scan_cmd(args, preflight_file):
         script_path("scan.py"),
         "--preflight",
         preflight_file,
-        "--compact",
     ]
     if args.skip_outdated:
         cmd.append("--skip-outdated")
