@@ -56,23 +56,22 @@ python3 scripts/run_audit.py
 py -3 scripts/run_audit.py
 ```
 
-`scripts/run_audit.py` 默认扫描当前目录并自动向上识别最近的项目根目录；在 monorepo 子项目中运行时，优先使用当前子项目的 manifest/lockfile，不要跳到上层 git repo。需要扫描其他目录时，把路径作为最后一个参数传入。脚本会按顺序运行预检、扫描、analysis 生成、Markdown 生成和 HTML 生成，生成后会尝试用系统默认浏览器自动打开静态 HTML 报告，并在终端输出固定的人类可读摘要：`📊 风险总览`、`⚠️ 能力边界`、`🚨 重点关注`、`📁 报告路径`；其中能力边界必须使用 Markdown 引用格式 `>` 输出完整文案。只有自动化或测试需要机器可读结果时才使用 `--compact`，此时输出 JSON。如果输出中的模式是 `hygiene_only`，必须告诉用户：`当前项目没有发现支持的依赖文件，暂不支持依赖漏洞扫描；本次只做仓库卫生扫描，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。`
+`scripts/run_audit.py` 默认扫描当前目录并自动向上识别最近的项目根目录；在 monorepo 子项目中运行时，优先使用当前子项目的 manifest/lockfile，不要跳到上层 git repo。需要扫描其他目录时，把路径作为最后一个参数传入。脚本会按顺序运行预检、扫描、analysis 生成、Markdown 生成和 HTML 生成，生成后会尝试用系统默认浏览器自动打开静态 HTML 报告，并在终端输出固定的人类可读摘要：`📊 风险总览`、`⚠️ 能力边界`、`🚨 重点关注`、`📁 报告路径`；其中能力边界必须使用 Markdown 引用格式 `>` 输出完整文案。只有自动化或测试需要机器可读结果时才使用 `--compact`，此时输出 JSON。如果输出中的模式是 `hygiene_only`，必须告诉用户：`当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；本次仅做仓库卫生扫描，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。`
 
 对话最终回复如果需要转述扫描结果，必须使用 Markdown 引用格式 `>` 展示完整能力边界，不要自行压缩成短句，也不要另起"提示"类标题。固定写法如下：
 
 ```text
 ⚠️ 能力边界
 
-> 安全往往不是最显眼的需求，却是产品长期稳定运行的底线。补天会优先帮助你发现依赖漏洞、过期依赖和仓库卫生风险，让容易被忽视的供应链问题更早暴露出来。但它不能替代代码审计、渗透测试或部署安全评估；代码层面的权限、业务逻辑、SQL 注入、XSS 等问题仍需单独复核。
+> 安全往往不是最显眼的需求，却是产品长期稳定运行的底线。此 Skill 会帮助你发现依赖漏洞、过期依赖和仓库卫生风险，帮助团队更早暴露容易被忽视的供应链问题。但它不能替代代码审计、渗透测试或部署安全评估；业务逻辑、权限控制、SQL 注入、XSS 等代码层风险仍需单独复核。
 ```
 
 报告生成完毕后，告诉用户：
 
 - 报告已生成: `.butian/<timestamp>/content/security-report.html`
-- `HTML 已保存到本次运行的 content 目录，之后也可以从这里重新查看。`
-- `HTML 已尝试在默认浏览器中自动打开。` 如果自动打开失败，告诉用户手动打开报告路径。
-- `如果你想继续处理修复，在对话里说一声"可以修 / 修复 / OK / Yes"都可以。`
-- `确认后会按主要修复 -> 次要修复处理。`
+- `HTML 报告已保存，之后也可以从 content 目录重新查看。`
+- `已尝试在默认浏览器中打开报告。` 如果自动打开失败，告诉用户手动打开报告路径。
+- `如需修复，在对话中回复「修复 / OK / 可以修」即可。`
 
 如果流水线中某一步失败，再按下面的分步流程定位。各脚本的调试和性能参数见 `python3 scripts/<script>.py --help`。
 
@@ -91,7 +90,7 @@ py -3 scripts/detect.py
 
 如果 `language_support.supported` 为 `true`，继续执行完整流程：仓库卫生扫描 -> 依赖提取 -> 官方漏洞源检查 -> 过旧依赖检查。
 
-如果 `language_support.supported` 为 `false`，先告诉用户：`当前项目没有发现支持的依赖文件，暂不支持依赖漏洞扫描；本次只做仓库卫生扫描，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。` 然后运行 `scan.py --preflight <preflight_json>` 生成只包含仓库卫生扫描、硬编码密钥和敏感文件跟踪结论的报告；不要调用官方漏洞源，也不要暗示已经检查过依赖漏洞。
+如果 `language_support.supported` 为 `false`，先告诉用户：`当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；本次仅做仓库卫生扫描，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。` 然后运行 `scan.py --preflight <preflight_json>` 生成只包含仓库卫生扫描、硬编码密钥和敏感文件跟踪结论的报告；不要调用官方漏洞源，也不要暗示已经检查过依赖漏洞。
 
 ### Step 1 扫描
 
@@ -174,34 +173,34 @@ py -3 scripts/visualize.py .butian/<timestamp>/assets/analysis.json
 
 ### run_audit.py
 
-| 参数 | 说明 |
-|------|------|
-| `--compact` | 输出 JSON 摘要而非人类可读表格 |
-| `--no-open` | 不自动打开 HTML 报告 |
-| `--verbose` | 输出详细日志到 stderr |
-| `--debug` | 输出调试级别日志 |
-| `--progress` | 显示扫描进度（默认 TTY 自动检测） |
-| `--no-progress` | 禁用进度信息 |
-| `--sarif` | 生成 SARIF v2.1.0 格式结果 |
-| `--baseline` | 启用基线过滤（读取 `.butian-baseline.json`） |
-| `--skip-baseline` | 跳过基线过滤 |
-| `--generate-baseline` | 从当前扫描结果生成基线文件 |
-| `--severity-threshold {low,medium,high,critical}` | 发现不低于该等级的漏洞时退出码 1 |
-| `--follow-symlinks` | 跟随符号链接扫描（默认跳过） |
-| `--no-cache` | 禁用本地缓存 |
-| `--cache-ttl <seconds>` | 缓存过期时间（默认 86400） |
-| `--skip-outdated` | 跳过过期依赖检查 |
-| `--skip-hygiene` | 跳过仓库卫生检查 |
-| `--include-packages` | 在输出中包含完整包列表 |
-| `--max-secret-files <n>` | 密钥扫描最大文件数 |
+| 参数                                              | 说明                                         |
+| ------------------------------------------------- | -------------------------------------------- |
+| `--compact`                                       | 输出 JSON 摘要而非人类可读表格               |
+| `--no-open`                                       | 不自动打开 HTML 报告                         |
+| `--verbose`                                       | 输出详细日志到 stderr                        |
+| `--debug`                                         | 输出调试级别日志                             |
+| `--progress`                                      | 显示扫描进度（默认 TTY 自动检测）            |
+| `--no-progress`                                   | 禁用进度信息                                 |
+| `--sarif`                                         | 生成 SARIF v2.1.0 格式结果                   |
+| `--baseline`                                      | 启用基线过滤（读取 `.butian-baseline.json`） |
+| `--skip-baseline`                                 | 跳过基线过滤                                 |
+| `--generate-baseline`                             | 从当前扫描结果生成基线文件                   |
+| `--severity-threshold {low,medium,high,critical}` | 发现不低于该等级的漏洞时退出码 1             |
+| `--follow-symlinks`                               | 跟随符号链接扫描（默认跳过）                 |
+| `--no-cache`                                      | 禁用本地缓存                                 |
+| `--cache-ttl <seconds>`                           | 缓存过期时间（默认 86400）                   |
+| `--skip-outdated`                                 | 跳过过期依赖检查                             |
+| `--skip-hygiene`                                  | 跳过仓库卫生检查                             |
+| `--include-packages`                              | 在输出中包含完整包列表                       |
+| `--max-secret-files <n>`                          | 密钥扫描最大文件数                           |
 
 ### 退出码
 
-| 退出码 | 含义 |
-|--------|------|
-| 0 | 扫描完成，无超阈值发现 |
-| 1 | 存在不低于 `--severity-threshold` 等级的发现 |
-| 2 | 执行错误（文件读取失败、参数错误等） |
+| 退出码 | 含义                                         |
+| ------ | -------------------------------------------- |
+| 0      | 扫描完成，无超阈值发现                       |
+| 1      | 存在不低于 `--severity-threshold` 等级的发现 |
+| 2      | 执行错误（文件读取失败、参数错误等）         |
 
 ## 基线管理
 

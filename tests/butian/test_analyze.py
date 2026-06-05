@@ -900,8 +900,8 @@ class TestBuildSummary(unittest.TestCase):
         result = analyze.build_summary(scan, analysis)
 
         self.assertIn("未执行依赖漏洞扫描", result["tldr"])
-        self.assertIn("暂不支持依赖漏洞扫描", result["detail"])
-        self.assertTrue(any("暂不支持" in p for p in result["priority"]))
+        self.assertIn("暂无法执行依赖漏洞扫描", result["detail"])
+        self.assertTrue(any("暂无法执行" in p for p in result["priority"]))
 
     def test_critical_high_vulnerabilities(self):
         scan = _make_scan()
@@ -1006,7 +1006,7 @@ class TestBuildSummary(unittest.TestCase):
         self.assertIn("过期依赖 1 个", result["detail"])
 
 
-HYGIENE_ONLY_NOTICE_SHORT = "暂不支持依赖漏洞扫描"
+HYGIENE_ONLY_NOTICE_SHORT = "暂无法执行依赖漏洞扫描"
 
 
 # ===========================================================================

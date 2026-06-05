@@ -42,7 +42,7 @@ class ButianReportAssetTests(unittest.TestCase):
 
         markdown = report.render_markdown(analysis)
 
-        self.assertIn("暂不支持依赖漏洞扫描", markdown)
+        self.assertIn("暂无法执行依赖漏洞扫描", markdown)
         self.assertNotIn("未命中已确认的依赖漏洞。", markdown)
 
     def test_markdown_info_severity_is_pending_not_low_risk(self):
@@ -148,7 +148,7 @@ class ButianReportAssetTests(unittest.TestCase):
         )
         html = result.stdout
 
-        self.assertIn("暂不支持依赖漏洞扫描", html)
+        self.assertIn("暂无法执行依赖漏洞扫描", html)
         self.assertNotIn("未命中已确认的依赖漏洞", html)
 
     def test_fixed_versions_render_as_wrapping_chips(self):

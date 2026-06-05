@@ -230,7 +230,7 @@ class RenderSummaryTests(unittest.TestCase):
             "scan_config": {"scan_mode": "hygiene_only"},
         }
         result = report.render_summary(analysis)
-        self.assertIn("暂不支持依赖漏洞扫描", result)
+        self.assertIn("暂无法执行依赖漏洞扫描", result)
 
     def test_missing_summary(self):
         result = report.render_summary({})
@@ -271,7 +271,7 @@ class RenderVulnerabilitiesTests(unittest.TestCase):
         result = report.render_vulnerabilities(
             {"scan_config": {"scan_mode": "hygiene_only"}}
         )
-        self.assertIn("暂不支持依赖漏洞扫描", result)
+        self.assertIn("暂无法执行依赖漏洞扫描", result)
 
 
 # ---------------------------------------------------------------------------
@@ -360,7 +360,7 @@ class RenderOutdatedTests(unittest.TestCase):
 
     def test_hygiene_only(self):
         result = report.render_outdated({"scan_config": {"scan_mode": "hygiene_only"}})
-        self.assertIn("暂不支持", result)
+        self.assertIn("暂无法执行", result)
 
 
 # ---------------------------------------------------------------------------

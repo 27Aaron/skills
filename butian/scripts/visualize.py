@@ -165,15 +165,15 @@ def main():
     with open(out, "w", encoding="utf-8") as f:
         f.write(html)
     print(f"报告已生成: {out}")
-    print("HTML 已保存到本次运行的 content 目录，之后也可以从这里重新查看。")
+    print("HTML 报告已保存，之后也可以从 content 目录重新查看。")
     if should_open_report(args):
         if open_report(out):
-            print("HTML 已尝试在默认浏览器中自动打开。")
+            print("已尝试在默认浏览器中打开报告。")
         else:
-            print("未能自动打开 HTML，请手动打开上面的报告路径。")
+            print("未能自动打开报告，请手动打开上面的路径。")
     else:
-        print("已跳过自动打开 HTML。")
-    print("如果你想继续处理修复，在对话里说一声“可以修 / 修复 / OK / Yes”就行。")
+        print("已跳过自动打开报告。")
+    print("如需修复，在对话中回复「修复 / OK / 可以修」即可。")
 
 
 if __name__ == "__main__":

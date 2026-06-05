@@ -17,10 +17,9 @@ import re
 import sys
 
 try:
-    from .scan import CAPABILITY_BOUNDARY, HYGIENE_ONLY_NOTICE, run_dir_from_output_file
+    from .scan import HYGIENE_ONLY_NOTICE, run_dir_from_output_file
 except ImportError:
     from scan import (  # pyright: ignore[reportMissingImports]
-        CAPABILITY_BOUNDARY,
         HYGIENE_ONLY_NOTICE,
         run_dir_from_output_file,
     )

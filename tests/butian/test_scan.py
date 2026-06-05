@@ -247,7 +247,7 @@ class ButianScanTests(unittest.TestCase):
             summary, scan_output, analysis, SimpleNamespace(no_open=True)
         )
 
-        self.assertIn("暂不支持依赖漏洞扫描", text)
+        self.assertIn("暂无法执行依赖漏洞扫描", text)
         self.assertNotIn("未发现需要优先处理的依赖漏洞", text)
 
     def test_dependency_fix_items_are_grouped_by_package(self):
