@@ -340,7 +340,7 @@ def render_next_steps(analysis):
             lines.append(f"- {text(item)}")
     else:
         lines.append(
-            "- 阅读报告后回到终端，根据修复策略菜单选择操作（最小修复 / 全部更新）。"
+            "- 阅读报告后再决定是否修复；修复前需要明确确认修复范围和升级策略。"
         )
     lines.append("")
     return "\n".join(lines)
