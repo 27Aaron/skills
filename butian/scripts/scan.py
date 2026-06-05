@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""补天 项目安全扫描器
+"""项目安全扫描器
 
 采集安全相关数据，输出 JSON 供 agent 分析分级：
   1. 仓库卫生检查（gitignore、敏感文件追踪、硬编码密钥）
@@ -119,7 +119,7 @@ def ensure_butian_gitignore(project_path):
         prefix = "\n"
 
     with open(gitignore_path, "a", encoding="utf-8") as handle:
-        handle.write(f"{prefix}# 补天 local workspace\n{BUTIAN_GITIGNORE_ENTRY}\n")
+        handle.write(f"{prefix}# Butian local workspace\n{BUTIAN_GITIGNORE_ENTRY}\n")
     added_entry = True
     status.update(
         {
@@ -2358,7 +2358,7 @@ def _cargo_outdated(cwd, errors=None):
 
 
 def parse_args(argv):
-    parser = argparse.ArgumentParser(description="补天 local project scanner")
+    parser = argparse.ArgumentParser(description="Local project scanner")
     parser.add_argument("project_path", nargs="?", default=".")
     parser.add_argument(
         "--preflight",

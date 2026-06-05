@@ -44,8 +44,6 @@ class ButianReportAssetTests(unittest.TestCase):
 
         self.assertIn("暂不支持依赖漏洞扫描", markdown)
         self.assertNotIn("未命中已确认的依赖漏洞。", markdown)
-        self.assertNotIn("补天 会", markdown)
-        self.assertNotIn("没有发现 补天支持", markdown)
 
     def test_html_hygiene_only_warns_dependency_scan_was_not_run(self):
         if not shutil.which("node"):
@@ -112,8 +110,6 @@ class ButianReportAssetTests(unittest.TestCase):
 
         self.assertIn("暂不支持依赖漏洞扫描", html)
         self.assertNotIn("未命中已确认的依赖漏洞", html)
-        self.assertNotIn("补天 会", html)
-        self.assertNotIn("没有发现 补天支持", html)
 
     def test_fixed_versions_render_as_wrapping_chips(self):
         if not shutil.which("node"):

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Build deterministic 补天 analysis JSON from scan.py output.
+"""Build deterministic analysis JSON from scan.py output.
 
 Usage:
-    python3 scripts/analyze_scan.py .butian/<timestamp>/assets/scan.json
-    python3 scripts/analyze_scan.py scan.json output-analysis.json
+    python3 scripts/analyze.py .butian/<timestamp>/assets/scan.json
+    python3 scripts/analyze.py scan.json output-analysis.json
 
 The agent may still review and refine business-facing wording after this
 script runs, but the required schema, risk counters, and issue lists should

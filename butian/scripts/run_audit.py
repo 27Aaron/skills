@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the complete 补天 local audit pipeline.
+"""Run the complete Butian local audit pipeline.
 
 Usage:
     python3 scripts/run_audit.py [project_path]
@@ -7,7 +7,7 @@ Usage:
     python3 scripts/run_audit.py --skip-outdated [project_path]
 
 Pipeline:
-  preflight -> scan -> analyze_scan -> render_markdown -> build_report
+  detect -> scan -> analyze -> report -> visualize
 """
 
 import argparse
@@ -37,7 +37,7 @@ def script_path(name):
 
 
 def parse_args(argv):
-    parser = argparse.ArgumentParser(description="Run 补天 local audit pipeline")
+    parser = argparse.ArgumentParser(description="Run Butian local audit pipeline")
     parser.add_argument("project_path", nargs="?", default=".")
     parser.add_argument(
         "--no-root-discovery",
@@ -437,7 +437,7 @@ def main():
 
     preflight_cmd = [
         sys.executable,
-        script_path("preflight.py"),
+        script_path("detect.py"),
         "--compact",
     ]
     if args.no_root_discovery:
@@ -454,7 +454,7 @@ def main():
     run_text(
         [
             sys.executable,
-            script_path("analyze_scan.py"),
+            script_path("analyze.py"),
             scan["output_file"],
             analysis_path,
         ],
@@ -471,7 +471,7 @@ def main():
     run_text(
         [
             sys.executable,
-            script_path("render_markdown.py"),
+            script_path("report.py"),
             analysis_path,
             markdown_path,
         ],
@@ -485,7 +485,7 @@ def main():
     )
     build_report_cmd = [
         sys.executable,
-        script_path("build_report.py"),
+        script_path("visualize.py"),
         analysis_path,
         html_path,
     ]

@@ -2,10 +2,10 @@
 """Inject analysis JSON into the HTML template -> a standalone security report.
 
 Usage:
-    build_report.py <analysis.json> [output.html]
-    build_report.py --no-open <analysis.json> [output.html]
+    visualize.py <analysis.json> [output.html]
+    visualize.py --no-open <analysis.json> [output.html]
 
-The analysis JSON is produced by analyze_scan.py and may be lightly reviewed by
+The analysis JSON is produced by analyze.py and may be lightly reviewed by
 the agent after interpreting scan.py output.
 Schema (all sections optional except project):
 
@@ -134,7 +134,7 @@ def default_output_path(analysis_path):
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(
-        description="Build a standalone 补天 HTML report",
+        description="Build a standalone HTML report",
     )
     parser.add_argument("analysis_json")
     parser.add_argument("output_html", nargs="?")

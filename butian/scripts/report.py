@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Render a Markdown security report from 补天 analysis JSON.
+"""Render a Markdown security report from analysis JSON.
 
 Usage:
-    python3 scripts/render_markdown.py .butian/<timestamp>/assets/analysis.json
-    python3 scripts/render_markdown.py analysis.json docs/security-report-YYYY-MM-DD.md
+    python3 scripts/report.py .butian/<timestamp>/assets/analysis.json
+    python3 scripts/report.py analysis.json docs/security-report-YYYY-MM-DD.md
 """
 
 import json
@@ -196,7 +196,7 @@ def render_hygiene(analysis):
         preexisting = "是" if gitignore_state.get("preexisting") else "否"
         added = "是" if gitignore_state.get("added_butian_entry") else "否"
         lines.append(
-            f"- 补天 工作区忽略规则：扫描前是否已有 .gitignore：{preexisting}；本次是否新增 `.butian/`：{added}。"
+            f"- 工作区忽略规则：扫描前是否已有 .gitignore：{preexisting}；本次是否新增 `.butian/`：{added}。"
         )
     if secrets:
         lines.append("")

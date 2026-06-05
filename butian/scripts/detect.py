@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""补天 preflight probe.
+"""Environment detection.
 
 Checks before the full scanner:
   1. Detect supported project dependency files.
@@ -37,7 +37,7 @@ except ImportError:
 
 
 def parse_args(argv):
-    parser = argparse.ArgumentParser(description="Run 补天 preflight checks")
+    parser = argparse.ArgumentParser(description="Run preflight checks")
     parser.add_argument("project_path", nargs="?", default=".")
     parser.add_argument(
         "--no-root-discovery",
