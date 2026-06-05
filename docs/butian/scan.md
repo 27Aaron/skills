@@ -40,7 +40,41 @@ python3 scan.py --skip-hygiene <path>           # 跳过仓库卫生检查
 python3 scan.py --include-packages <path>       # 在输出中包含完整包列表
 python3 scan.py --max-secret-files 300 <path>   # 限制密钥扫描的文件数量
 python3 scan.py --compact                       # 输出紧凑 JSON
+python3 scan.py --verbose                       # 输出详细日志到 stderr
+python3 scan.py --debug                         # 输出调试级别日志
+python3 scan.py --progress                      # 在 stderr 显示扫描进度
+python3 scan.py --follow-symlinks               # 跟随符号链接扫描
+python3 scan.py --no-cache                      # 禁用本地缓存
+python3 scan.py --cache-ttl 3600                # 设置缓存过期时间（秒）
+python3 scan.py --baseline                      # 启用基线过滤
+python3 scan.py --generate-baseline             # 从当前结果生成基线文件
+python3 scan.py --severity-threshold high .     # 发现 high+ 漏洞时退出码 1
 ```
+
+## CLI 参数
+
+| 参数                   | 类型   | 默认值   | 说明                                                         |
+| ---------------------- | ------ | -------- | ------------------------------------------------------------ |
+| `project_path`         | 位置   | `.`      | 项目路径                                                     |
+| `--preflight`          | str    | —        | 复用 preflight JSON 文件                                     |
+| `--output`             | str    | 自动     | 指定输出路径                                                 |
+| `--no-root-discovery`  | flag   | false    | 不向上遍历查找项目根                                         |
+| `--skip-outdated`      | flag   | false    | 跳过过期依赖检查                                             |
+| `--skip-hygiene`       | flag   | false    | 跳过仓库卫生检查                                             |
+| `--max-secret-files`   | int    | 500      | 限制密钥扫描的文件数量                                       |
+| `--include-packages`   | flag   | false    | 在输出中包含完整包列表                                       |
+| `--compact`            | flag   | false    | 输出紧凑 JSON                                                |
+| `--verbose`            | flag   | false    | 输出详细日志到 stderr（INFO 级别）                           |
+| `--debug`              | flag   | false    | 输出调试级别日志到 stderr 和日志文件                         |
+| `--follow-symlinks`    | flag   | false    | 跟随符号链接扫描（默认跳过）                                 |
+| `--progress`           | flag   | 自动检测 | 在 stderr 显示进度信息（默认 TTY 自动检测）                  |
+| `--no-progress`        | flag   | false    | 禁用进度信息                                                 |
+| `--no-cache`           | flag   | false    | 禁用本地缓存                                                 |
+| `--cache-ttl`          | int    | 86400    | 缓存过期时间（秒，默认 24 小时）                             |
+| `--baseline`           | flag   | false    | 启用基线过滤（读取 `.butian-baseline.json`）                 |
+| `--skip-baseline`      | flag   | false    | 跳过基线过滤                                                 |
+| `--generate-baseline`  | flag   | false    | 从当前扫描结果生成基线文件                                   |
+| `--severity-threshold` | choice | —        | 发现不低于该等级的漏洞时退出码 1（low/medium/high/critical） |
 
 ## 核心常量
 
@@ -54,6 +88,8 @@ python3 scan.py --compact                       # 输出紧凑 JSON
 | `BUTIAN_DIR`          | `.butian`                                                       | 工作区目录名            |
 | `BUTIAN_ASSETS_DIR`   | `assets`                                                        | 工作区内的资产子目录    |
 | `BUTIAN_CONTENT_DIR`  | `content`                                                       | 工作区内的内容子目录    |
+| `CACHE_DIR_NAME`      | `cache`                                                         | 缓存子目录名            |
+| `BASELINE_FILENAME`   | `.butian-baseline.json`                                         | 基线文件名              |
 
 ## 关键函数
 
@@ -65,6 +101,83 @@ python3 scan.py --compact                       # 输出紧凑 JSON
 | `ensure_butian_run(project_path, run_id)`               | 创建 `.butian/<timestamp>-<run_id>/` 运行目录                             |
 | `default_asset_path(project_path, filename, preflight)` | 返回默认的资产文件路径                                                    |
 | `butian_gitignore_status(project_path)`                 | 返回 `.gitignore` 中 `.butian/` 条目的状态                                |
+
+### 日志系统
+
+| 函数                                     | 作用                                               |
+| ---------------------------------------- | -------------------------------------------------- |
+| `setup_logging(verbose, debug, log_dir)` | 配置 `butian` logger，输出到 stderr 和可选日志文件 |
+
+- 日志文件路径：`.butian/<timestamp>/logs/scan.log`
+- stderr 级别：默认 WARNING，`--verbose` → INFO，`--debug` → DEBUG
+- 文件始终 DEBUG 级别
+- Logger 名称：`butian`，避免重复添加 handler
+
+### 本地缓存
+
+| 函数                                         | 作用                         |
+| -------------------------------------------- | ---------------------------- |
+| `cache_dir(project_path, source)`            | 返回指定数据源的缓存目录路径 |
+| `cache_read(cache_path, ttl_seconds)`        | 读取缓存（过期返回 None）    |
+| `cache_write(cache_path, data, source, key)` | 写入缓存（含元数据）         |
+| `cache_clean(project_path, ttl_seconds)`     | 清理过期缓存条目             |
+| `fetch_osv_vulnerability_cached(...)`        | 带缓存的 OSV 漏洞查询        |
+
+- 缓存目录：`.butian/cache/{osv,nvd,epss,kev}/`（跨 run 共享）
+- 缓存结构：`{"cached_at": "...", "ttl_seconds": 86400, "source": "osv", "key": "...", "data": {...}}`
+- 默认 TTL：24 小时（86400 秒），可通过 `--cache-ttl` 调整
+- CISA KEV 缓存已从 `/tmp/` 迁移到 `.butian/cache/kev/`
+
+### 进度反馈
+
+| 类 / 函数                                 | 作用                                        |
+| ----------------------------------------- | ------------------------------------------- |
+| `ProgressReporter(enabled)`               | 进度报告器，使用 `\r` 覆盖当前行更新 stderr |
+| `ProgressReporter.update(message)`        | 更新进度行                                  |
+| `ProgressReporter.finish(message)`        | 完成后换行                                  |
+| `ProgressReporter.step(num, total, desc)` | 报告大步骤标记                              |
+
+- 默认自动检测 stderr 是否为 TTY
+- `--progress` 强制开启，`--no-progress` 强制关闭
+- 进度信息示例：`扫描密钥... (42/500 文件)`、`检查漏洞... (批次 3/12)`
+
+### 退出码与严重度阈值
+
+| 函数                                            | 作用                                                    |
+| ----------------------------------------------- | ------------------------------------------------------- |
+| `evaluate_severity_threshold(vulns, threshold)` | 检查是否存在不低于阈值的漏洞，返回 (should_fail, count) |
+| `normalize_severity_for_threshold(value)`       | 标准化严重度字符串用于阈值比较                          |
+
+退出码约定：
+
+| 退出码 | 含义                                     |
+| ------ | ---------------------------------------- |
+| 0      | 扫描完成，无超阈值发现                   |
+| 1      | 存在不低于 `--severity-threshold` 的发现 |
+| 2      | 执行错误                                 |
+
+### 基线（已知问题豁免）
+
+| 函数                                                   | 作用                                                |
+| ------------------------------------------------------ | --------------------------------------------------- |
+| `vulnerability_fingerprint(vuln)`                      | 生成漏洞唯一指纹：`vuln__{eco}__{pkg}__{ver}__{id}` |
+| `secret_fingerprint(secret)`                           | 生成密钥唯一指纹：`secret__{file}__{line}__{type}`  |
+| `sensitive_file_fingerprint(item)`                     | 生成敏感文件唯一指纹：`sensitive__{file}__{type}`   |
+| `load_baseline(project_path)`                          | 加载基线文件，返回 fingerprint 集合                 |
+| `filter_with_baseline(items, fps, fingerprint_fn)`     | 过滤匹配基线的条目                                  |
+| `generate_baseline(scan_output, project_path, reason)` | 从当前扫描结果生成基线文件                          |
+
+- 基线文件：项目根目录 `.butian-baseline.json`
+- 用法详见 `docs/butian/baseline.md`
+
+### 二进制文件 / 符号链接
+
+| 函数                       | 作用                                           |
+| -------------------------- | ---------------------------------------------- |
+| `is_binary_file(filepath)` | 读取前 8KB 检测 NUL 字节，判断是否为二进制文件 |
+
+- 符号链接：默认跳过，`--follow-symlinks` 时跟随
+- 二进制文件：`scan_secrets()` 中自动跳过（在打开文件前检测）
 
 ### 仓库卫生
 
@@ -109,13 +222,18 @@ python3 scan.py --compact                       # 输出紧凑 JSON
 
 ```
 main()
+  ├─ 初始化: setup_logging() + ProgressReporter
+  ├─ cache_clean()                     清理过期缓存
   ├─ Step 1: detect_ecosystems()        识别包管理器生态
   ├─ Step 2: extract_packages()         从 lockfile 提取依赖坐标
   ├─ Step 3-5 (并行 ThreadPoolExecutor):
   │   ├─ run_hygiene_step()             仓库卫生检查
-  │   ├─ run_vulnerability_step()       依赖漏洞查询
+  │   ├─ run_vulnerability_step()       依赖漏洞查询（带缓存）
   │   └─ run_outdated_step()            过期依赖检测
-  └─ 输出 JSON → .butian/<run>/assets/scan.json
+  ├─ load_baseline() + filter_with_baseline()  基线过滤
+  ├─ write_json_output()                输出 JSON
+  ├─ generate_baseline()                生成基线（如果 --generate-baseline）
+  └─ evaluate_severity_threshold()      退出码判断（如果 --severity-threshold）
 ```
 
 ## 输出 JSON 结构
@@ -368,5 +486,28 @@ main()
 - **密钥预览脱敏**：`secret_preview()` 对硬编码密钥只显示前缀字符，不暴露完整值
 - **模板文件识别**：`is_env_template()` 跳过 `.example`、`.sample`、`.template` 后缀的文件
 - **文件大小限制**：默认最大扫描 1MB 的文件内容
+- **二进制文件跳过**：`is_binary_file()` 检测 NUL 字节，自动跳过二进制文件
+- **符号链接处理**：默认跳过符号链接，`--follow-symlinks` 时跟随
 - **API 请求重试**：`_request_with_retry()` 带指数退避，默认重试 2 次
+- **本地缓存**：`.butian/cache/` 缓存 OSV/NVD/EPSS/KEV 数据，减少重复 API 调用
+- **基线过滤**：`--baseline` 加载已知问题豁免列表，减少报告噪音
 - **无外部依赖**：仅使用 Python 标准库
+
+## 工作区结构
+
+```
+.butian/
+├── <timestamp>/                    # 每次扫描的运行目录
+│   ├── assets/
+│   │   ├── scan.json               # 扫描结果
+│   │   └── analysis.json           # 分析结果
+│   ├── content/
+│   │   └── security-report.html    # HTML 报告
+│   └── logs/
+│       └── scan.log                # 扫描日志（需 --verbose 或 --debug）
+├── cache/                          # 跨 run 共享缓存
+│   ├── osv/                        # OSV 漏洞缓存
+│   ├── nvd/                        # NVD CVE 缓存
+│   ├── epss/                       # EPSS 评分缓存
+│   └── kev/                        # CISA KEV 目录缓存
+```

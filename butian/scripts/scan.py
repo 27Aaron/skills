@@ -34,12 +34,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import math
 import os
 import re
 import subprocess
 import sys
-import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -61,6 +61,17 @@ HTTP_USER_AGENT = (
     "Chrome/125.0.0.0 Safari/537.36"
 )
 BUTIAN_DIR = ".butian"
+CACHE_DIR_NAME = "cache"
+
+BASELINE_FILENAME = ".butian-baseline.json"
+
+SEVERITY_THRESHOLD_ORDER = {
+    "critical": 4,
+    "high": 3,
+    "medium": 2,
+    "low": 1,
+    "info": 0,
+}
 BUTIAN_GITIGNORE_ENTRY = ".butian/"
 BUTIAN_ASSETS_DIR = "assets"
 BUTIAN_CONTENT_DIR = "content"
@@ -857,6 +868,326 @@ def run_cmd_checked(cmd, timeout=60, cwd=None, errors=None, step="command"):
     return stdout
 
 
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+
+_LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+_LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+
+
+def setup_logging(verbose=False, debug=False, log_dir=None):
+    """Configure butian logging to stderr and optional log file.
+
+    Args:
+        verbose: If True, set stderr to INFO level.
+        debug: If True, set stderr and file to DEBUG level.
+        log_dir: Directory for log file. If None, no file logging.
+
+    Returns:
+        logging.Logger: The configured 'butian' logger.
+    """
+    logger = logging.getLogger("butian")
+    # Avoid duplicate handlers on repeated calls
+    if logger.handlers:
+        return logger
+    logger.setLevel(logging.DEBUG if debug else logging.WARNING)
+
+    stderr_handler = logging.StreamHandler(sys.stderr)
+    stderr_handler.setFormatter(logging.Formatter(_LOG_FORMAT, _LOG_DATE_FORMAT))
+    if debug:
+        stderr_handler.setLevel(logging.DEBUG)
+    elif verbose:
+        stderr_handler.setLevel(logging.INFO)
+    else:
+        stderr_handler.setLevel(logging.WARNING)
+    logger.addHandler(stderr_handler)
+
+    if log_dir:
+        os.makedirs(log_dir, exist_ok=True)
+        log_path = os.path.join(log_dir, "scan.log")
+        file_handler = logging.FileHandler(log_path, encoding="utf-8")
+        file_handler.setFormatter(logging.Formatter(_LOG_FORMAT, _LOG_DATE_FORMAT))
+        file_handler.setLevel(logging.DEBUG)
+        logger.addHandler(file_handler)
+
+    return logger
+
+
+# ---------------------------------------------------------------------------
+# Binary / symlink helpers
+# ---------------------------------------------------------------------------
+
+
+def is_binary_file(filepath):
+    """Check if a file is binary by reading its first 8KB for NUL bytes."""
+    try:
+        with open(filepath, "rb") as f:
+            chunk = f.read(8192)
+        return b"\x00" in chunk
+    except OSError:
+        return True
+
+
+# ---------------------------------------------------------------------------
+# Local cache
+# ---------------------------------------------------------------------------
+
+
+def cache_dir(project_path, source):
+    """Return the cache directory for a given source (osv/nvd/epss/kev)."""
+    base = os.path.join(project_path, BUTIAN_DIR, CACHE_DIR_NAME, source)
+    os.makedirs(base, exist_ok=True)
+    return base
+
+
+def cache_read(cache_path, ttl_seconds=86400):
+    """Read from cache if not expired. Returns data dict or None."""
+    if not os.path.isfile(cache_path):
+        return None
+    try:
+        mtime = os.path.getmtime(cache_path)
+        if time.time() - mtime > ttl_seconds:
+            return None
+        with open(cache_path, "r", encoding="utf-8") as f:
+            entry = json.load(f)
+        return entry.get("data")
+    except (json.JSONDecodeError, OSError, KeyError):
+        return None
+
+
+def cache_write(cache_path, data, source="unknown", key=""):
+    """Write data to cache with metadata."""
+    entry = {
+        "cached_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "ttl_seconds": 86400,
+        "source": source,
+        "key": key,
+        "data": data,
+    }
+    try:
+        os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+        with open(cache_path, "w", encoding="utf-8") as f:
+            json.dump(entry, f, ensure_ascii=False, separators=(",", ":"))
+    except OSError:
+        pass
+
+
+def cache_clean(project_path, ttl_seconds=86400):
+    """Remove expired cache entries."""
+    cache_base = os.path.join(project_path, BUTIAN_DIR, CACHE_DIR_NAME)
+    if not os.path.isdir(cache_base):
+        return
+    now = time.time()
+    try:
+        for source_name in os.listdir(cache_base):
+            source_path = os.path.join(cache_base, source_name)
+            if not os.path.isdir(source_path):
+                continue
+            for fname in os.listdir(source_path):
+                fpath = os.path.join(source_path, fname)
+                try:
+                    if now - os.path.getmtime(fpath) > ttl_seconds:
+                        os.remove(fpath)
+                except OSError:
+                    pass
+    except OSError:
+        pass
+
+
+# ---------------------------------------------------------------------------
+# Progress reporter
+# ---------------------------------------------------------------------------
+
+
+def _is_stderr_tty():
+    """Check if stderr is connected to a terminal."""
+    try:
+        return os.isatty(sys.stderr.fileno())
+    except Exception:
+        return False
+
+
+class ProgressReporter:
+    """Report progress to stderr using carriage-return updates."""
+
+    def __init__(self, enabled=None):
+        if enabled is None:
+            enabled = _is_stderr_tty()
+        self.enabled = enabled
+        self._last_len = 0
+
+    def update(self, message):
+        """Update the progress line in-place on stderr."""
+        if not self.enabled:
+            return
+        padded = message.ljust(self._last_len)
+        sys.stderr.write(f"\r{padded}")
+        sys.stderr.flush()
+        self._last_len = len(message)
+
+    def finish(self, message=""):
+        """Print final message and move to new line."""
+        if not self.enabled:
+            return
+        if message:
+            sys.stderr.write(f"\r{message.ljust(self._last_len)}\n")
+        else:
+            sys.stderr.write("\n")
+        sys.stderr.flush()
+        self._last_len = 0
+
+    def step(self, step_num, total_steps, description):
+        """Report a major pipeline step."""
+        if not self.enabled:
+            return
+        sys.stderr.write(f"步骤 {step_num}/{total_steps}: {description}...\n")
+        sys.stderr.flush()
+
+
+# ---------------------------------------------------------------------------
+# Severity threshold / exit code
+# ---------------------------------------------------------------------------
+
+
+def normalize_severity_for_threshold(value):
+    """Normalize a severity string for threshold comparison."""
+    return str(value or "info").lower()
+
+
+def evaluate_severity_threshold(vulnerabilities, threshold):
+    """Check if any vulnerability meets or exceeds the severity threshold.
+
+    Args:
+        vulnerabilities: List of vulnerability dicts.
+        threshold: One of "low", "medium", "high", "critical", or None.
+
+    Returns:
+        tuple: (should_fail: bool, count_above_threshold: int)
+    """
+    if not threshold:
+        return False, 0
+    threshold_rank = SEVERITY_THRESHOLD_ORDER.get(threshold.lower(), 0)
+    if threshold_rank == 0:
+        return False, 0
+    count = 0
+    for vuln in vulnerabilities:
+        vuln_sev = normalize_severity_for_threshold(vuln.get("severity"))
+        vuln_rank = SEVERITY_THRESHOLD_ORDER.get(vuln_sev, 0)
+        if vuln_rank >= threshold_rank:
+            count += 1
+    return count > 0, count
+
+
+# ---------------------------------------------------------------------------
+# Baseline (known-issue suppression)
+# ---------------------------------------------------------------------------
+
+
+def vulnerability_fingerprint(vuln):
+    """Generate unique fingerprint for a vulnerability finding."""
+    ecosystem = str(vuln.get("ecosystem", "")).lower()
+    package = str(vuln.get("package") or vuln.get("name", "")).lower()
+    version = str(vuln.get("version", ""))
+    vuln_id = str(vuln.get("advisory_id") or vuln.get("cve_id") or "")
+    return f"vuln__{ecosystem}__{package}__{version}__{vuln_id}"
+
+
+def secret_fingerprint(secret):
+    """Generate unique fingerprint for a secret finding."""
+    file = str(secret.get("file", ""))
+    line = str(secret.get("line", ""))
+    stype = str(secret.get("type", ""))
+    return f"secret__{file}__{line}__{stype}"
+
+
+def sensitive_file_fingerprint(item):
+    """Generate unique fingerprint for a sensitive file finding."""
+    file = str(item.get("file", ""))
+    ftype = str(item.get("type", ""))
+    return f"sensitive__{file}__{ftype}"
+
+
+def load_baseline(project_path):
+    """Load baseline file from project root. Returns set of fingerprints."""
+    path = os.path.join(project_path, BASELINE_FILENAME)
+    if not os.path.isfile(path):
+        return set()
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return {
+            entry["fingerprint"]
+            for entry in data.get("entries", [])
+            if entry.get("fingerprint")
+        }
+    except (json.JSONDecodeError, OSError, KeyError):
+        return set()
+
+
+def filter_with_baseline(items, baseline_fingerprints, fingerprint_fn):
+    """Filter items whose fingerprint is in the baseline."""
+    if not baseline_fingerprints:
+        return items
+    return [item for item in items if fingerprint_fn(item) not in baseline_fingerprints]
+
+
+def generate_baseline(scan_output, project_path, reason="自动生成"):
+    """Generate a baseline file from current scan findings."""
+    entries = []
+    now = time.strftime("%Y-%m-%dT%H:%M:%S")
+
+    for vuln in scan_output.get("vulnerabilities", []):
+        fp = vulnerability_fingerprint(vuln)
+        entries.append(
+            {
+                "fingerprint": fp,
+                "reason": reason,
+                "suppressed_at": now,
+                "package": vuln.get("package", ""),
+                "version": vuln.get("version", ""),
+                "vuln_id": vuln.get("advisory_id") or vuln.get("cve_id", ""),
+            }
+        )
+
+    for secret in scan_output.get("hygiene", {}).get("tracked_secrets") or []:
+        fp = secret_fingerprint(secret)
+        entries.append(
+            {
+                "fingerprint": fp,
+                "reason": reason,
+                "suppressed_at": now,
+                "file": secret.get("file", ""),
+                "line": secret.get("line", ""),
+                "type": secret.get("type", ""),
+            }
+        )
+
+    for item in scan_output.get("hygiene", {}).get("sensitive_tracked") or []:
+        fp = sensitive_file_fingerprint(item)
+        entries.append(
+            {
+                "fingerprint": fp,
+                "reason": reason,
+                "suppressed_at": now,
+                "file": item.get("file", ""),
+                "type": item.get("type", ""),
+            }
+        )
+
+    baseline = {
+        "version": 1,
+        "description": "补天扫描基线：已知/接受的发现将不会出现在最终报告中",
+        "entries": entries,
+    }
+
+    path = os.path.join(project_path, BASELINE_FILENAME)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(baseline, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+    return path
+
+
 def gitignore_rules(content):
     rules = set()
     for line in content.splitlines():
@@ -1208,11 +1539,13 @@ def secret_preview(secret_type, match_text):
     return match_text[:15] + "..." + match_text[-10:]
 
 
-def scan_secrets(project_path, max_files=500, max_bytes=1024 * 1024):
+def scan_secrets(
+    project_path, max_files=500, max_bytes=1024 * 1024, follow_symlinks=False
+):
     findings = []
     entropy_findings = []
     count = 0
-    for root, dirs, files in os.walk(project_path):
+    for root, dirs, files in os.walk(project_path, followlinks=follow_symlinks):
         dirs[:] = [d for d in dirs if d not in EXCLUDE_DIRS]
         for fname in files:
             if count >= max_files:
@@ -1221,6 +1554,12 @@ def scan_secrets(project_path, max_files=500, max_bytes=1024 * 1024):
             if ext not in SCAN_EXTENSIONS and not is_env_secret_scan_file(fname):
                 continue
             fpath = os.path.join(root, fname)
+            # Skip symlinks unless explicitly following
+            if not follow_symlinks and os.path.islink(fpath):
+                continue
+            # Skip binary files
+            if is_binary_file(fpath):
+                continue
             try:
                 if os.path.getsize(fpath) > max_bytes:
                     continue
@@ -1321,10 +1660,12 @@ def scan_secrets(project_path, max_files=500, max_bytes=1024 * 1024):
     return deduped + entropy_deduped
 
 
-def scan_hygiene(project_path, max_secret_files=500):
+def scan_hygiene(project_path, max_secret_files=500, follow_symlinks=False):
     # Scan sensitive files first, then use findings to drive gitignore recommendations
     sensitive_tracked = check_sensitive_tracked(project_path)
-    tracked_secrets = scan_secrets(project_path, max_files=max_secret_files)
+    tracked_secrets = scan_secrets(
+        project_path, max_files=max_secret_files, follow_symlinks=follow_symlinks
+    )
     gitignore_exists, gitignore_missing = check_gitignore(
         project_path, sensitive_tracked
     )
@@ -1626,38 +1967,111 @@ def _yarn_berry_descriptor_name(desc):
 
 
 def parse_requirements_txt(project_path):
+    """Parse requirements.txt with enhanced PEP 440 support.
+
+    Supports:
+    - PEP 440 specifiers: >=, <=, ~=, !=, ===, >, <
+    - Comments and blank lines
+    - -r / --requirement includes (recursive, max depth 5)
+    - Extras with brackets: package[extra1,extra2]==1.0
+    - Environment markers (after ;)
+    - Line continuations with backslash
+
+    Only packages with == or === exact versions are included for
+    vulnerability matching.
+    """
     path = os.path.join(project_path, "requirements.txt")
     if not os.path.isfile(path):
         return []
+
     pkgs = []
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith("#") or line.startswith("-"):
-                    continue
-                line = line.split(";", 1)[0].strip()
-                m = re.match(
-                    r"^([A-Za-z0-9_.-]+)(?:\[[^\]]+\])?\s*(===|==|~=|>=|<=|!=|>|<)\s*([0-9][0-9A-Za-z.*+!_-]*)",
-                    line,
+    seen = set()
+
+    def _parse_file(filepath, depth=0):
+        if depth > 5:
+            return
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+        except OSError:
+            return
+
+        # Handle line continuations (backslash at end of line)
+        merged_lines = []
+        current = ""
+        for raw_line in lines:
+            raw_line = raw_line.rstrip("\n")
+            if raw_line.endswith("\\"):
+                current += raw_line[:-1]
+                continue
+            current += raw_line
+            merged_lines.append(current)
+            current = ""
+        if current:
+            merged_lines.append(current)
+
+        for line in merged_lines:
+            line = line.strip()
+
+            # Skip empty lines and comments
+            if not line or line.startswith("#"):
+                continue
+
+            # Handle -r / --requirement includes
+            if line.startswith("-r ") or line.startswith("--requirement "):
+                parts = line.split(None, 1)
+                if len(parts) == 2:
+                    include_path = parts[1].strip()
+                    if not os.path.isabs(include_path):
+                        include_path = os.path.join(
+                            os.path.dirname(filepath), include_path
+                        )
+                    _parse_file(include_path, depth + 1)
+                continue
+
+            # Skip other pip flags (-i, --index-url, -e, etc.)
+            if line.startswith("-"):
+                continue
+
+            # Remove environment markers (after ;)
+            line = line.split(";", 1)[0].strip()
+            if not line:
+                continue
+
+            # Parse: name[extras] specifier version
+            m = re.match(
+                r"^([A-Za-z0-9_.-]+)"
+                r"(?:\[[^\]]*\])?"  # optional extras
+                r"\s*(===|==|~=|>=|<=|!=|>|<)\s*"
+                r"([0-9][0-9A-Za-z.*+!_-]*)",
+                line,
+            )
+            if not m:
+                continue
+
+            name = m.group(1).lower()
+            specifier = m.group(2)
+            version = m.group(3)
+
+            # Only exact versions for vulnerability matching
+            if specifier not in {"==", "==="} or "*" in version:
+                continue
+
+            key = (name, version)
+            if key not in seen:
+                seen.add(key)
+                pkgs.append(
+                    {
+                        "ecosystem": "pypi",
+                        "name": name,
+                        "version": version,
+                        "specifier": specifier,
+                        "is_direct": True,
+                        "source": "requirements.txt",
+                    }
                 )
-                if m:
-                    specifier = m.group(2)
-                    version = m.group(3)
-                    if specifier not in {"==", "==="} or "*" in version:
-                        continue
-                    pkgs.append(
-                        {
-                            "ecosystem": "pypi",
-                            "name": m.group(1).lower(),
-                            "version": version,
-                            "specifier": specifier,
-                            "is_direct": True,
-                            "source": "requirements.txt",
-                        }
-                    )
-    except OSError:
-        pass
+
+    _parse_file(path)
     return pkgs
 
 
@@ -2227,6 +2641,22 @@ def fetch_osv_vulnerability(vuln_id):
     return get_json(f"{OSV_VULN_URL_PREFIX}{urllib.parse.quote(str(vuln_id), safe='')}")
 
 
+def fetch_osv_vulnerability_cached(
+    vuln_id, project_path, cache_ttl=86400, use_cache=True
+):
+    """Fetch OSV vulnerability with local caching."""
+    cpath = None
+    if use_cache:
+        cpath = os.path.join(cache_dir(project_path, "osv"), f"{vuln_id}.json")
+        cached = cache_read(cpath, cache_ttl)
+        if cached is not None:
+            return cached
+    data = fetch_osv_vulnerability(vuln_id)
+    if use_cache and data and cpath:
+        cache_write(cpath, data, source="osv", key=vuln_id)
+    return data
+
+
 def parse_osv_query_results(data, batch):
     results = data.get("results") if isinstance(data, dict) else []
     if not isinstance(results, list):
@@ -2445,12 +2875,18 @@ def fetch_nvd_enrichments(cve_ids, errors):
     return enrichments
 
 
-def _kev_cache_path():
-    return os.path.join(tempfile.gettempdir(), "butian-kev-cache.json")
+def _kev_cache_path(project_path=None):
+    if project_path:
+        base = os.path.join(project_path, BUTIAN_DIR, CACHE_DIR_NAME, "kev")
+        os.makedirs(base, exist_ok=True)
+        return os.path.join(base, "catalog.json")
+    base = os.path.join(os.path.expanduser("~"), BUTIAN_DIR, CACHE_DIR_NAME, "kev")
+    os.makedirs(base, exist_ok=True)
+    return os.path.join(base, "catalog.json")
 
 
-def _load_kev_cache():
-    cache_path = _kev_cache_path()
+def _load_kev_cache(project_path=None):
+    cache_path = _kev_cache_path(project_path)
     try:
         mtime = os.path.getmtime(cache_path)
     except OSError:
@@ -2464,8 +2900,8 @@ def _load_kev_cache():
         return None
 
 
-def _save_kev_cache(data):
-    cache_path = _kev_cache_path()
+def _save_kev_cache(data, project_path=None):
+    cache_path = _kev_cache_path(project_path)
     try:
         with open(cache_path, "w", encoding="utf-8") as f:
             json.dump(data, f)
@@ -2473,14 +2909,14 @@ def _save_kev_cache(data):
         pass
 
 
-def fetch_cisa_kev_enrichments(cve_ids, errors):
+def fetch_cisa_kev_enrichments(cve_ids, errors, project_path=None):
     if not cve_ids:
         return {}
-    data = _load_kev_cache()
+    data = _load_kev_cache(project_path)
     if data is None:
         try:
             data = get_json(CISA_KEV_JSON_URL)
-            _save_kev_cache(data)
+            _save_kev_cache(data, project_path)
         except (
             urllib.error.HTTPError,
             urllib.error.URLError,
@@ -3162,6 +3598,63 @@ def parse_args(argv):
         action="store_true",
         help="emit compact JSON instead of pretty-printed JSON",
     )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="输出详细日志到 stderr",
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="输出调试级别日志到 stderr 和日志文件",
+    )
+    parser.add_argument(
+        "--follow-symlinks",
+        action="store_true",
+        help="跟随符号链接扫描（默认跳过）",
+    )
+    parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="禁用本地缓存，每次都从 API 获取最新数据",
+    )
+    parser.add_argument(
+        "--cache-ttl",
+        type=int,
+        default=86400,
+        help="缓存过期时间（秒，默认 86400 即 24 小时）",
+    )
+    parser.add_argument(
+        "--progress",
+        action="store_true",
+        default=None,
+        help="在 stderr 显示进度信息（默认自动检测 TTY）",
+    )
+    parser.add_argument(
+        "--no-progress",
+        action="store_true",
+        help="禁用进度信息",
+    )
+    parser.add_argument(
+        "--severity-threshold",
+        choices=["low", "medium", "high", "critical"],
+        help="发现不低于该等级的漏洞时以退出码 1 退出",
+    )
+    parser.add_argument(
+        "--baseline",
+        action="store_true",
+        help="启用基线过滤（读取 .butian-baseline.json）",
+    )
+    parser.add_argument(
+        "--skip-baseline",
+        action="store_true",
+        help="跳过基线过滤，即使存在基线文件",
+    )
+    parser.add_argument(
+        "--generate-baseline",
+        action="store_true",
+        help="从当前扫描结果生成 .butian-baseline.json",
+    )
     return parser.parse_args(argv)
 
 
@@ -3206,7 +3699,24 @@ def main():
     preflight_hygiene_only = preflight_scan_mode == "hygiene_only"
     output_file = args.output or default_output_path(project_path, preflight=preflight)
     errors = []
+    # Setup logging
+    log_dir = os.path.join(os.path.dirname(os.path.dirname(output_file)), "logs")
+    logger = setup_logging(verbose=args.verbose, debug=args.debug, log_dir=log_dir)
+    logger.info("开始扫描项目: %s", project_path)
     step_seconds = {}
+
+    # Clean expired cache entries
+    if not args.no_cache:
+        cache_clean(project_path, ttl_seconds=args.cache_ttl)
+
+    # Progress reporter
+    progress_enabled = None
+    if args.no_progress:
+        progress_enabled = False
+    elif args.progress:
+        progress_enabled = True
+    progress = ProgressReporter(enabled=progress_enabled)
+    progress.step(1, 5, "检测生态")
 
     # Step 1: detect ecosystems
     step_started = time.time()
@@ -3225,6 +3735,7 @@ def main():
     skip_dependency_checks = scan_mode == "hygiene_only"
 
     # Step 2: parse package coordinates
+    progress.step(2, 5, "提取依赖坐标")
     step_started = time.time()
     if skip_dependency_checks:
         packages = []
@@ -3249,6 +3760,9 @@ def main():
     step_seconds["package_extraction"] = round(time.time() - step_started, 3)
 
     # Step 3-5: independent I/O-heavy checks run in parallel.
+    progress.step(3, 5, "仓库卫生扫描")
+
+    # Note: steps 4 and 5 run in parallel; progress reports both
     def run_hygiene_step():
         step_started = time.time()
         if args.skip_hygiene:
@@ -3263,6 +3777,7 @@ def main():
             result = scan_hygiene(
                 project_path,
                 max_secret_files=secret_file_limit,
+                follow_symlinks=args.follow_symlinks,
             )
             return "hygiene", result, [], round(time.time() - step_started, 3)
         except Exception as e:
@@ -3387,12 +3902,74 @@ def main():
     }
     if args.include_packages:
         output["packages"] = packages
+
+    # Baseline filtering
+    use_baseline = args.baseline and not args.skip_baseline
+    if use_baseline:
+        baseline_fps = load_baseline(project_path)
+        if baseline_fps:
+            logger.info("加载基线: %d 条豁免规则", len(baseline_fps))
+            prev_vuln_count = len(vulnerabilities)
+            prev_secret_count = len((hygiene or {}).get("tracked_secrets") or [])
+            prev_sensitive_count = len((hygiene or {}).get("sensitive_tracked") or [])
+            vulnerabilities = filter_with_baseline(
+                vulnerabilities, baseline_fps, vulnerability_fingerprint
+            )
+            if hygiene and hygiene.get("tracked_secrets"):
+                hygiene["tracked_secrets"] = filter_with_baseline(
+                    hygiene["tracked_secrets"], baseline_fps, secret_fingerprint
+                )
+            if hygiene and hygiene.get("sensitive_tracked"):
+                hygiene["sensitive_tracked"] = filter_with_baseline(
+                    hygiene["sensitive_tracked"],
+                    baseline_fps,
+                    sensitive_file_fingerprint,
+                )
+            # Update counts in output
+            output["vulnerabilities"] = vulnerabilities
+            output["vulnerability_count"] = len(vulnerabilities)
+            output["hygiene"] = hygiene
+            filtered_vulns = prev_vuln_count - len(vulnerabilities)
+            filtered_secrets = prev_secret_count - len(
+                (hygiene or {}).get("tracked_secrets") or []
+            )
+            filtered_sensitive = prev_sensitive_count - len(
+                (hygiene or {}).get("sensitive_tracked") or []
+            )
+            logger.info(
+                "基线过滤: %d 漏洞, %d 密钥, %d 敏感文件已豁免",
+                filtered_vulns,
+                filtered_secrets,
+                filtered_sensitive,
+            )
+
     if args.compact:
         text = json.dumps(output, ensure_ascii=False, separators=(",", ":"))
     else:
         text = json.dumps(output, ensure_ascii=False, indent=2)
     write_json_output(output_file, text)
     print(text)
+
+    # Generate baseline if requested
+    if args.generate_baseline:
+        baseline_path = generate_baseline(output, project_path)
+        logger.info("基线文件已生成: %s", baseline_path)
+        progress.finish(f"基线文件已生成: {baseline_path}")
+
+    progress.finish("扫描完成")
+
+    # Exit code based on severity threshold
+    if args.severity_threshold:
+        should_fail, count = evaluate_severity_threshold(
+            vulnerabilities, args.severity_threshold
+        )
+        if should_fail:
+            logger.info(
+                "发现 %d 个不低于 %s 等级的漏洞，退出码设为 1",
+                count,
+                args.severity_threshold,
+            )
+            return 1
 
 
 if __name__ == "__main__":

@@ -167,4 +167,66 @@ py -3 scripts/visualize.py .butian/<timestamp>/assets/analysis.json
 
 - 全部脚本是 Python 3 标准库，零第三方依赖（不用 pip install）。
 - macOS/Linux 自带 python3；Windows 需先装 Python 3，并使用 `py -3` 执行上述 Windows 示例。
-- 依赖扫描支持：JavaScript/TypeScript（`package-lock.json` / `pnpm-lock.yaml` / `yarn.lock`）、Python（`poetry.lock` / `uv.lock` / `Pipfile.lock` / `requirements.txt`）、Go（`go.sum`）、Rust（`Cargo.lock`）。`requirements.txt` 只用 `==` / `===` 精确版本做漏洞匹配；范围约束需要 lockfile 才能确认受影响版本。
+- 依赖扫描支持：JavaScript/TypeScript（`package-lock.json` / `pnpm-lock.yaml` / `yarn.lock`）、Python（`poetry.lock` / `uv.lock` / `Pipfile.lock` / `requirements.txt`）、Go（`go.sum`）、Rust（`Cargo.lock`）。`requirements.txt` 只用 `==` / `===` 精确版本做漏洞匹配；支持 `-r` 文件包含和行续行符。
+
+## CLI 参数参考
+
+### run_audit.py
+
+| 参数 | 说明 |
+|------|------|
+| `--compact` | 输出 JSON 摘要而非人类可读表格 |
+| `--no-open` | 不自动打开 HTML 报告 |
+| `--verbose` | 输出详细日志到 stderr |
+| `--debug` | 输出调试级别日志 |
+| `--progress` | 显示扫描进度（默认 TTY 自动检测） |
+| `--no-progress` | 禁用进度信息 |
+| `--sarif` | 生成 SARIF v2.1.0 格式结果 |
+| `--baseline` | 启用基线过滤（读取 `.butian-baseline.json`） |
+| `--skip-baseline` | 跳过基线过滤 |
+| `--generate-baseline` | 从当前扫描结果生成基线文件 |
+| `--severity-threshold {low,medium,high,critical}` | 发现不低于该等级的漏洞时退出码 1 |
+| `--follow-symlinks` | 跟随符号链接扫描（默认跳过） |
+| `--no-cache` | 禁用本地缓存 |
+| `--cache-ttl <seconds>` | 缓存过期时间（默认 86400） |
+| `--skip-outdated` | 跳过过期依赖检查 |
+| `--skip-hygiene` | 跳过仓库卫生检查 |
+| `--include-packages` | 在输出中包含完整包列表 |
+| `--max-secret-files <n>` | 密钥扫描最大文件数 |
+
+### 退出码
+
+| 退出码 | 含义 |
+|--------|------|
+| 0 | 扫描完成，无超阈值发现 |
+| 1 | 存在不低于 `--severity-threshold` 等级的发现 |
+| 2 | 执行错误（文件读取失败、参数错误等） |
+
+## 基线管理
+
+基线文件 `.butian-baseline.json` 用于标记已确认的、可接受的安全发现。被收录的条目不会出现在最终报告中。
+
+```bash
+# 生成基线（从当前扫描结果）
+python3 scripts/run_audit.py --generate-baseline .
+
+# 使用基线过滤
+python3 scripts/run_audit.py --baseline --severity-threshold high .
+```
+
+基线文件应提交到版本控制，让团队共享。详细用法见 `docs/butian/baseline.md`。
+
+## CI/CD 集成
+
+```bash
+# GitHub Actions / GitLab CI / Jenkins
+python3 scripts/run_audit.py --compact --no-open --sarif --severity-threshold high .
+```
+
+SARIF 输出可上传到 GitHub Advanced Security（codeql-action/upload-sarif）等安全面板。详细模板见 `docs/butian/ci-cd.md`。
+
+## 日志与缓存
+
+- 日志文件：`.butian/<timestamp>/logs/scan.log`
+- 本地缓存：`.butian/cache/`（跨 run 共享，默认 24 小时过期）
+- API 限流说明：`docs/butian/api-limits.md`

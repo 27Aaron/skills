@@ -75,6 +75,68 @@ def parse_args(argv):
         action="store_true",
         help="do not open the generated HTML report in the default browser",
     )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="输出详细日志到 stderr",
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="输出调试级别日志",
+    )
+    parser.add_argument(
+        "--follow-symlinks",
+        action="store_true",
+        help="跟随符号链接扫描",
+    )
+    parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="禁用本地缓存",
+    )
+    parser.add_argument(
+        "--cache-ttl",
+        type=int,
+        default=86400,
+        help="缓存过期时间（秒）",
+    )
+    parser.add_argument(
+        "--progress",
+        action="store_true",
+        default=None,
+        help="在 stderr 显示进度信息",
+    )
+    parser.add_argument(
+        "--no-progress",
+        action="store_true",
+        help="禁用进度信息",
+    )
+    parser.add_argument(
+        "--severity-threshold",
+        choices=["low", "medium", "high", "critical"],
+        help="发现不低于该等级的漏洞时以退出码 1 退出",
+    )
+    parser.add_argument(
+        "--baseline",
+        action="store_true",
+        help="启用基线过滤",
+    )
+    parser.add_argument(
+        "--skip-baseline",
+        action="store_true",
+        help="跳过基线过滤",
+    )
+    parser.add_argument(
+        "--generate-baseline",
+        action="store_true",
+        help="从当前扫描结果生成基线文件",
+    )
+    parser.add_argument(
+        "--sarif",
+        action="store_true",
+        help="生成 SARIF v2.1.0 格式的扫描结果",
+    )
     return parser.parse_args(argv)
 
 
@@ -425,6 +487,28 @@ def build_scan_cmd(args, preflight_file):
         cmd.append("--include-packages")
     if args.max_secret_files is not None:
         cmd.extend(["--max-secret-files", str(args.max_secret_files)])
+    if args.verbose:
+        cmd.append("--verbose")
+    if args.debug:
+        cmd.append("--debug")
+    if args.follow_symlinks:
+        cmd.append("--follow-symlinks")
+    if args.no_cache:
+        cmd.append("--no-cache")
+    if args.cache_ttl != 86400:
+        cmd.extend(["--cache-ttl", str(args.cache_ttl)])
+    if args.progress:
+        cmd.append("--progress")
+    if args.no_progress:
+        cmd.append("--no-progress")
+    if args.severity_threshold:
+        cmd.extend(["--severity-threshold", args.severity_threshold])
+    if args.baseline:
+        cmd.append("--baseline")
+    if args.skip_baseline:
+        cmd.append("--skip-baseline")
+    if args.generate_baseline:
+        cmd.append("--generate-baseline")
     return cmd
 
 
@@ -507,10 +591,39 @@ def main():
         "errors": analysis.get("errors", []),
     }
 
+    # SARIF output
+    if args.sarif:
+        sarif_path = os.path.join(
+            os.path.dirname(os.path.abspath(analysis_path)),
+            "results.sarif.json",
+        )
+        run_text(
+            [sys.executable, script_path("sarif.py"), analysis_path, sarif_path],
+            echo=False,
+        )
+        summary["sarif_file"] = sarif_path
+
     if args.compact:
         print(json.dumps(summary, ensure_ascii=False, separators=(",", ":")))
     else:
         print(format_human_summary(summary, scan, analysis, args))
+
+    # Exit code based on severity threshold
+    if args.severity_threshold:
+        from importlib import import_module
+
+        scan_mod = import_module("butian.scripts.scan")
+        vulns = analysis.get("top_issues") or []
+        should_fail, count = scan_mod.evaluate_severity_threshold(
+            vulns, args.severity_threshold
+        )
+        if should_fail:
+            print(
+                f"发现 {count} 个不低于 {args.severity_threshold} 等级的漏洞",
+                file=sys.stderr,
+            )
+            return 1
+
     return 0
 
 

@@ -9,6 +9,29 @@ from types import SimpleNamespace
 from butian.scripts import run_audit
 
 
+def _scan_args(**overrides):
+    """Build a namespace with all build_scan_cmd attributes and sensible defaults."""
+    defaults = dict(
+        skip_outdated=False,
+        skip_hygiene=False,
+        include_packages=False,
+        max_secret_files=None,
+        verbose=False,
+        debug=False,
+        follow_symlinks=False,
+        no_cache=False,
+        cache_ttl=86400,
+        progress=False,
+        no_progress=False,
+        severity_threshold=None,
+        baseline=False,
+        skip_baseline=False,
+        generate_baseline=False,
+    )
+    defaults.update(overrides)
+    return SimpleNamespace(**defaults)
+
+
 # ---------------------------------------------------------------------------
 # script_path
 # ---------------------------------------------------------------------------
@@ -379,54 +402,29 @@ class FormatHumanSummaryTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 class BuildScanCmdTests(unittest.TestCase):
     def test_basic(self):
-        args = SimpleNamespace(
-            skip_outdated=False,
-            skip_hygiene=False,
-            include_packages=False,
-            max_secret_files=None,
-        )
+        args = _scan_args()
         cmd = run_audit.build_scan_cmd(args, "preflight.json")
         self.assertIn("--preflight", cmd)
         self.assertIn("preflight.json", cmd)
         self.assertNotIn("--skip-outdated", cmd)
 
     def test_skip_outdated(self):
-        args = SimpleNamespace(
-            skip_outdated=True,
-            skip_hygiene=False,
-            include_packages=False,
-            max_secret_files=None,
-        )
+        args = _scan_args(skip_outdated=True)
         cmd = run_audit.build_scan_cmd(args, "preflight.json")
         self.assertIn("--skip-outdated", cmd)
 
     def test_skip_hygiene(self):
-        args = SimpleNamespace(
-            skip_outdated=False,
-            skip_hygiene=True,
-            include_packages=False,
-            max_secret_files=None,
-        )
+        args = _scan_args(skip_hygiene=True)
         cmd = run_audit.build_scan_cmd(args, "preflight.json")
         self.assertIn("--skip-hygiene", cmd)
 
     def test_include_packages(self):
-        args = SimpleNamespace(
-            skip_outdated=False,
-            skip_hygiene=False,
-            include_packages=True,
-            max_secret_files=None,
-        )
+        args = _scan_args(include_packages=True)
         cmd = run_audit.build_scan_cmd(args, "preflight.json")
         self.assertIn("--include-packages", cmd)
 
     def test_max_secret_files(self):
-        args = SimpleNamespace(
-            skip_outdated=False,
-            skip_hygiene=False,
-            include_packages=False,
-            max_secret_files=100,
-        )
+        args = _scan_args(max_secret_files=100)
         cmd = run_audit.build_scan_cmd(args, "preflight.json")
         self.assertIn("--max-secret-files", cmd)
         self.assertIn("100", cmd)

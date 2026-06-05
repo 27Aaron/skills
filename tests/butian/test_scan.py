@@ -1724,20 +1724,20 @@ class CloudProviderKeyTests(unittest.TestCase):
     # --- AWS ---
     def test_aws_access_key(self):
         f = self._detect_one(
-            'AWS_KEY = AKIA' + '1A2B3C4D5E6F7G8H', "aws_access_key"
+            'AWS_KEY = "AKIA' + '1A2B3C4D5E6F7G8H"', "aws_access_key"
         )  # fake fixture
         self.assertEqual(f["confidence"], "high")
 
     def test_aws_session_token(self):
         f = self._detect_one(
-            'TOKEN = ASIA' + '1A2B3C4D5E6F7G8H', "aws_session_token"
+            'TOKEN = "ASIA' + '1A2B3C4D5E6F7G8H"', "aws_session_token"
         )  # fake fixture
         self.assertEqual(f["confidence"], "high")
 
     # --- GCP ---
     def test_gcp_api_key(self):
         f = self._detect_one(
-            'KEY = AIzaSy' + 'A1234567890abcdefghijklmnopqrstuv',
+            'KEY = "AIzaSy' + 'A1234567890abcdefghijklmnopqrstuv"',
             "gcp_api_key",  # fake fixture
         )
         self.assertEqual(f["confidence"], "high")
@@ -1761,14 +1761,14 @@ class CloudProviderKeyTests(unittest.TestCase):
     # --- Alibaba Cloud ---
     def test_aliyun_access_key(self):
         f = self._detect_one(
-            'KEY = LTAI' + '4FABcd1234EFgh56', "aliyun_access_key"
+            'KEY = "LTAI' + '4FABcd1234EFgh56"', "aliyun_access_key"
         )  # fake fixture
         self.assertEqual(f["confidence"], "high")
 
     # --- Tencent Cloud ---
     def test_tencent_secret_id(self):
         f = self._detect_one(
-            'TCLOUD_KEY = AKID' + 'abcd1234efgh5678ijkl9012mnop3456',
+            'TCLOUD_KEY = "AKID' + 'abcd1234efgh5678ijkl9012mnop3456"',
             "tencent_secret_id",  # fake fixture
         )
         self.assertEqual(f["confidence"], "high")
@@ -1776,7 +1776,7 @@ class CloudProviderKeyTests(unittest.TestCase):
     # --- Oracle Cloud ---
     def test_oracle_api_key(self):
         f = self._detect_one(
-            'OCI_KEY = ocid1' + '.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',  # fake fixture
+            'OCI_KEY = "ocid1' + '.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"',  # fake fixture
             "oracle_api_key",
         )
         self.assertEqual(f["confidence"], "high")
@@ -1806,7 +1806,7 @@ class SaasTokenTests(unittest.TestCase):
     # --- GitHub ---
     def test_github_pat(self):
         f = self._detect_one(
-            'GITHUB = ghp_' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij',
+            'GITHUB = "ghp_' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij"',
             "github_token",  # fake fixture
         )
         self.assertEqual(f["confidence"], "high")
@@ -1814,7 +1814,7 @@ class SaasTokenTests(unittest.TestCase):
     # --- GitLab ---
     def test_gitlab_token(self):
         f = self._detect_one(
-            'GITLAB = glpat-' + 'aB3cD5eF7gH9iJ1kLmNoPqRs',
+            'GITLAB = "glpat-' + 'aB3cD5eF7gH9iJ1kLmNoPqRs"',
             "gitlab_token",  # fake fixture
         )
         self.assertEqual(f["confidence"], "high")
@@ -1822,7 +1822,7 @@ class SaasTokenTests(unittest.TestCase):
     # --- Slack ---
     def test_slack_bot_token(self):
         f = self._detect_one(
-            'SLACK = xoxb-' + '123456-abcdef-ghijklmnopqrstuvwx',
+            'SLACK = "xoxb-' + '123456-abcdef-ghijklmnopqrstuvwx"',
             "slack_token",  # fake fixture
         )
         self.assertEqual(f["confidence"], "high")
@@ -1830,7 +1830,7 @@ class SaasTokenTests(unittest.TestCase):
     # --- Discord ---
     def test_discord_token(self):
         f = self._detect_one(
-            'DISCORD = MTIzNDU2' + 'Nzg5MDEyMzQ1Njc4O.Yabcde.abcdefghijk1mnopqrstuvwxzABCD',  # fake fixture
+            'DISCORD = "MTIzNDU2' + 'Nzg5MDEyMzQ1Njc4O.Yabcde.abcdefghijk1mnopqrstuvwxzABCD"',  # fake fixture
             "discord_token",
         )
         self.assertEqual(f["confidence"], "high")
@@ -1838,7 +1838,7 @@ class SaasTokenTests(unittest.TestCase):
     # --- Stripe ---
     def test_stripe_secret_key(self):
         f = self._detect_one(
-            'STRIPE = sk_live_' + 'abcdefghijklmnopqrstuvwxyz1234',
+            'STRIPE = "sk_live_' + 'abcdefghijklmnopqrstuvwxyz1234"',
             "stripe_secret_key",  # fake fixture
         )
         self.assertEqual(f["confidence"], "high")
@@ -1846,7 +1846,7 @@ class SaasTokenTests(unittest.TestCase):
     # --- SendGrid ---
     def test_sendgrid_api_key(self):
         f = self._detect_one(
-            'SENDGRID = SG.' + 'abcdefghijklmnopqrstuv.abcdefghijklmnopqrstuvwxyz1234567890abcdefg',  # fake fixture
+            'SENDGRID = "SG.' + 'abcdefghijklmnopqrstuv.abcdefghijklmnopqrstuvwxyz1234567890abcdefg"',  # fake fixture
             "sendgrid_api_key",
         )
         self.assertEqual(f["confidence"], "high")
@@ -1854,7 +1854,7 @@ class SaasTokenTests(unittest.TestCase):
     # --- Twilio ---
     def test_twilio_account_sid(self):
         f = self._detect_one(
-            'TWILIO = AC' + 'abcdef1234567890abcdef1234567890',
+            'TWILIO = "AC' + 'abcdef1234567890abcdef1234567890"',
             "twilio_account_sid",  # fake fixture
         )
         self.assertEqual(f["confidence"], "high")
@@ -1862,7 +1862,7 @@ class SaasTokenTests(unittest.TestCase):
     # --- Anthropic ---
     def test_anthropic_key(self):
         f = self._detect_one(
-            'CLAUDE = sk-ant-' + 'api03-abcdefghijklmnopqrstuvwxyz',
+            'CLAUDE = "sk-ant-' + 'api03-abcdefghijklmnopqrstuvwxyz"',
             "anthropic_key",  # fake fixture
         )
         self.assertEqual(f["confidence"], "high")
@@ -1870,7 +1870,7 @@ class SaasTokenTests(unittest.TestCase):
     # --- Hugging Face ---
     def test_huggingface_token(self):
         f = self._detect_one(
-            'HF = hf_' + 'abcdefghijklmnopqrstuvwxyz1234567890abcd',  # fake fixture
+            'HF = "hf_' + 'abcdefghijklmnopqrstuvwxyz1234567890abcd"',  # fake fixture
             "huggingface_token",
         )
         self.assertEqual(f["confidence"], "high")
@@ -1878,7 +1878,7 @@ class SaasTokenTests(unittest.TestCase):
     # --- PyPI ---
     def test_pypi_token(self):
         f = self._detect_one(
-            'PYPI = pypi-' + 'AgEIcHxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',  # fake fixture
+            'PYPI = "pypi-' + 'AgEIcHxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"',  # fake fixture
             "pypi_token",
         )
         self.assertEqual(f["confidence"], "high")
@@ -1886,7 +1886,7 @@ class SaasTokenTests(unittest.TestCase):
     # --- Docker Hub ---
     def test_docker_hub_token(self):
         f = self._detect_one(
-            'DOCKER = dckr_pat_' + 'abcdefghijklmnopqrstuvwxyz',
+            'DOCKER = "dckr_pat_' + 'abcdefghijklmnopqrstuvwxyz"',
             "docker_hub_token",  # fake fixture
         )
         self.assertEqual(f["confidence"], "high")
@@ -1894,7 +1894,7 @@ class SaasTokenTests(unittest.TestCase):
     # --- NPM ---
     def test_npmrc_auth_token(self):
         f = self._detect_one(
-            'NPM = npm_' + 'abcdefghijklmnopqrstuvwxyz1234567890',
+            'NPM = "npm_' + 'abcdefghijklmnopqrstuvwxyz1234567890"',
             "npmrc_auth_token",  # fake fixture
         )
         self.assertEqual(f["confidence"], "high")
@@ -1902,7 +1902,7 @@ class SaasTokenTests(unittest.TestCase):
     # --- Sentry DSN ---
     def test_sentry_dsn(self):
         f = self._detect_one(
-            'SENTRY = https://' + 'abc123def456@o123456.ingest.sentry.io/789012',  # fake fixture
+            'SENTRY = "https://' + 'abc123def456@o123456.ingest.sentry.io/789012"',  # fake fixture
             "sentry_dsn",
         )
         self.assertEqual(f["confidence"], "high")
@@ -1910,7 +1910,7 @@ class SaasTokenTests(unittest.TestCase):
     # --- Databricks ---
     def test_databricks_token(self):
         f = self._detect_one(
-            'DATABRICKS = dapi' + 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6',  # fake fixture
+            'DATABRICKS = "dapi' + 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"',  # fake fixture
             "databricks_token",
         )
         self.assertEqual(f["confidence"], "high")
@@ -1928,28 +1928,28 @@ class ConnectionStringTests(unittest.TestCase):
 
     def test_postgres_connection(self):
         f = self._detect_one(
-            'DB = postgresql' + '://admin:secretpass@db.prod.internal:5432/mydb',  # fake fixture
+            'DB = "postgresql' + '://admin:secretpass@db.prod.internal:5432/mydb"',  # fake fixture
             "postgres_connection",
         )
         self.assertEqual(f["confidence"], "high")
 
     def test_mongodb_connection(self):
         f = self._detect_one(
-            'MONGO = mongodb' + '://root:password123@mongo.prod.internal:27017/prod',  # fake fixture
+            'MONGO = "mongodb' + '://root:password123@mongo.prod.internal:27017/prod"',  # fake fixture
             "mongodb_connection",
         )
         self.assertEqual(f["confidence"], "high")
 
     def test_mysql_connection(self):
         f = self._detect_one(
-            'MYSQL = mysql' + '://user:pass123@mysql.prod.internal:3306/db',  # fake fixture
+            'MYSQL = "mysql' + '://user:pass123@mysql.prod.internal:3306/db"',  # fake fixture
             "mysql_connection",
         )
         self.assertEqual(f["confidence"], "high")
 
     def test_redis_connection(self):
         f = self._detect_one(
-            'REDIS = redis' + '://:mysecretpass@redis.prod.internal:6379/0',  # fake fixture
+            'REDIS = "redis' + '://:mysecretpass@redis.prod.internal:6379/0"',  # fake fixture
             "redis_connection",
         )
         self.assertEqual(f["confidence"], "high")
@@ -1967,14 +1967,14 @@ class GenericPatternTests(unittest.TestCase):
 
     def test_jwt_token(self):
         f = self._detect_one(
-            'TOKEN = eyJhbGci' + 'OiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abc123def456ghi789',  # fake fixture
+            'TOKEN = "eyJhbGci' + 'OiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abc123def456ghi789"',  # fake fixture
             "jwt_token",
         )
         self.assertEqual(f["confidence"], "high")
 
     def test_bearer_token(self):
         f = self._detect_one(
-            "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMifQ.sig",  # fake fixture
+            "Authorization: Bearer " + "eyJhbGciOiJIUz" + "I1NiJ9.eyJzdWIiOiIxMjMifQ.sig",  # fake fixture
             "bearer_token",
         )
         self.assertEqual(f["confidence"], "high")
@@ -2009,7 +2009,7 @@ class GenericPatternTests(unittest.TestCase):
 
     def test_encryption_key(self):
         f = self._detect_one(
-            'aes_key = a1b2c3d4' + 'e5f6g7h8i9j0k1l2m3n4o5p6q7r8',  # fake fixture
+            'aes_key = "a1b2c3d4' + 'e5f6g7h8i9j0k1l2m3n4o5p6q7r8"',  # fake fixture
             "encryption_key",
         )
         self.assertEqual(f["confidence"], "medium")
@@ -2068,7 +2068,7 @@ class EntropyEngineTests(unittest.TestCase):
         """High-entropy value with a KEY hint in .env should be detected."""
         with tempfile.TemporaryDirectory(prefix="butian-ent-") as root:
             with open(os.path.join(root, ".env"), "w") as f:
-                f.write('APP_SECRET_KEY="K7gNU3sdo+OL0wNhqoVWhr3g6s1xYv72o0JT3Yw+"\n')
+                f.write('APP_SECRET_KEY="' + "K7gNU3sdo+OL0wNhqoVWhr3g6s1xYv72o0JT3Yw+" + '"\n')
             findings = scan.scan_secrets(root)
             low = [f for f in findings if f["confidence"] == "low"]
             self.assertGreaterEqual(len(low), 1)
@@ -2305,7 +2305,7 @@ class ContextDependentTests(unittest.TestCase):
 
     def test_datadog_with_context(self):
         types = self._detect_types(
-            'datadog_api_key = 9a8b7c6d' + '5e4f3a2b1c0d9e8f7a6b5c4d'  # fake fixture
+            'datadog_api_key = "9a8b7c6d' + '5e4f3a2b1c0d9e8f7a6b5c4d"'  # fake fixture
         )
         self.assertIn("datadog_api_key", types)
 
@@ -2315,7 +2315,7 @@ class ContextDependentTests(unittest.TestCase):
 
     def test_jenkins_with_context(self):
         types = self._detect_types(
-            'jenkins_token = a1b2c3d4' + 'e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0'  # fake fixture
+            'jenkins_token = "a1b2c3d4' + 'e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"'  # fake fixture
         )
         self.assertIn("jenkins_token", types)
 
@@ -2327,7 +2327,7 @@ class ContextDependentTests(unittest.TestCase):
 
     def test_atlassian_with_context(self):
         types = self._detect_types(
-            'jira_token = abcdefgh' + 'ijklmnopqrstuvwx'  # fake fixture
+            'jira_token = "abcdefgh' + 'ijklmnopqrstuvwx"'  # fake fixture
         )
         self.assertIn("atlassian_token", types)
 
@@ -2361,37 +2361,37 @@ class ExhaustiveSecretPatternTests(unittest.TestCase):
 
     def test_gcp_oauth_token(self):
         self._detect_one(
-            'TOKEN = ya29' + '.a0AfH6SMBx...',
+            'TOKEN = "ya29' + '.a0AfH6SMBx..."',
             "gcp_oauth_token",  # fake fixture
         )
 
     def test_azure_client_secret(self):
         self._detect_one(
-            'azure_client_secret = abc123' + 'DEF456-ghi789JKL012-mno345PQR678stu',
+            'azure_client_secret = "abc123' + 'DEF456-ghi789JKL012-mno345PQR678stu"',
             "azure_client_secret",  # fake fixture
         )
 
     def test_azure_sas_token(self):
         self._detect_one(
-            'SAS = sv=' + '2023-01-01&ss=b&srt=sco&sp=rwdlacupx&se=2024-12-31T23:59:59Z&st=2024-01-01T00:00:00Z&spr=https&sig=abcdefghijklm',  # fake fixture
+            'SAS = "sv=' + '2023-01-01&ss=b&srt=sco&sp=rwdlacupx&se=2024-12-31T23:59:59Z&st=2024-01-01T00:00:00Z&spr=https&sig=abcdefghijklm"',  # fake fixture
             "azure_sas_token",
         )
 
     def test_aliyun_secret_key(self):
         self._detect_one(
-            'ALIYUN_SECRET_KEY = a1b2c3d4' + 'e5f6g7h8i9j0k1l2m3n4o5p6q7r8',
+            'ALIYUN_SECRET_KEY = "a1b2c3d4' + 'e5f6g7h8i9j0k1l2m3n4o5p6q7r8"',
             "aliyun_secret_key",  # fake fixture
         )
 
     def test_huawei_access_key(self):
         self._detect_one(
-            'HUAWEI_ACCESS_KEY = ABCDEFGH' + '1234567890abcd',
+            'HUAWEI_ACCESS_KEY = "ABCDEFGH' + '1234567890abcd"',
             "huawei_access_key",  # fake fixture
         )
 
     def test_huawei_secret_key(self):
         self._detect_one(
-            'HUAWEI_SECRET_KEY = a1b2c3d4' + 'e5f6g7h8i9j0k1l2m3n4o5p',
+            'HUAWEI_SECRET_KEY = "a1b2c3d4' + 'e5f6g7h8i9j0k1l2m3n4o5p"',
             "huawei_secret_key",  # fake fixture
         )
 
@@ -2400,7 +2400,7 @@ class ExhaustiveSecretPatternTests(unittest.TestCase):
 
     def test_vultr_api_key(self):
         self._detect_one(
-            'vultr_api_key = ABCDEFGH' + '1234567890abcdefghijklmnopqrstuv',
+            'vultr_api_key = "ABCDEFGH' + '1234567890abcdefghijklmnopqrstuv"',
             "vultr_api_key",  # fake fixture
         )
 
@@ -2411,122 +2411,122 @@ class ExhaustiveSecretPatternTests(unittest.TestCase):
 
     def test_cloudflare_origin_ca(self):
         self._detect_one(
-            'CERT = -----BEGIN ' + 'ORIGIN CERTIFICATE-----\nMII....\n-----END ORIGIN CERTIFICATE-----',  # fake fixture
+            'CERT = "-----BEGIN ' + 'ORIGIN CERTIFICATE-----\nMII....\n-----END ORIGIN CERTIFICATE-----"',  # fake fixture
             "cloudflare_origin_ca",
         )
 
     def test_heroku_api_key(self):
         self._detect_one(
-            'heroku_api_key = 12345678' + '-1234-1234-' + '1234-123456789012',
+            'heroku_api_key = "12345678' + '-1234-1234-' + '1234-123456789012"',
             "heroku_api_key",  # fake fixture
         )
 
     # --- Remaining SaaS Tokens ---
     def test_github_oauth(self):
         self._detect_one(
-            'TOKEN = gho_' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij',
+            'TOKEN = "gho_' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij"',
             "github_oauth",  # fake fixture
         )
 
     def test_github_app_token(self):
         self._detect_one(
-            'TOKEN = ghu_' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij',
+            'TOKEN = "ghu_' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij"',
             "github_app_token",  # fake fixture
         )
 
     def test_github_refresh_token(self):
         self._detect_one(
-            'TOKEN = ghr_' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij',
+            'TOKEN = "ghr_' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij"',
             "github_refresh_token",  # fake fixture
         )
 
     def test_slack_webhook(self):
         self._detect_one(
-            'URL = https://hooks.slack.com' + '/services/T12345678/B12345678/abcdefghijklmnopqrstuvwx',  # fake fixture
+            'URL = "https://hooks.slack.com' + '/services/T12345678/B12345678/abcdefghijklmnopqrstuvwx"',  # fake fixture
             "slack_webhook",
         )
 
     def test_discord_bot_token(self):
         self._detect_one(
-            'BOT_TOKEN = MTIzNDU2' + 'Nzg5MDEyMzQ1Njc4O.Yabcde.abcdefghijk1mnopqrstuvwxzABCD',  # fake fixture
+            'BOT_TOKEN = "MTIzNDU2' + 'Nzg5MDEyMzQ1Njc4O.Yabcde.abcdefghijk1mnopqrstuvwxzABCD"',  # fake fixture
             "discord_bot_token",
         )
 
     def test_discord_webhook(self):
         self._detect_one(
-            'URL = https://discord.com' + '/api/webhooks/123456789012345678/abcdefghijklmnopqrstuvwx',  # fake fixture
+            'URL = "https://discord.com' + '/api/webhooks/123456789012345678/abcdefghijklmnopqrstuvwx"',  # fake fixture
             "discord_webhook",
         )
 
     def test_stripe_publishable_key(self):
         self._detect_one(
-            'KEY = pk_live_' + 'abcdefghijklmnopqrstuvwxyz1234',
+            'KEY = "pk_live_' + 'abcdefghijklmnopqrstuvwxyz1234"',
             "stripe_publishable_key",  # fake fixture
         )
 
     def test_stripe_restricted_key(self):
         self._detect_one(
-            'KEY = rk_live_' + 'abcdefghijklmnopqrstuvwxyz1234',
+            'KEY = "rk_live_' + 'abcdefghijklmnopqrstuvwxyz1234"',
             "stripe_restricted_key",  # fake fixture
         )
 
     def test_twilio_api_key(self):
         self._detect_one(
-            'KEY = SK' + 'abcdef1234567890abcdef1234567890',
+            'KEY = "SK' + 'abcdef1234567890abcdef1234567890"',
             "twilio_api_key",  # fake fixture
         )
 
     def test_mailgun_api_key(self):
         self._detect_one(
-            'KEY = key-' + 'abcdefghijklmnopqrstuvwxyz123456',
+            'KEY = "key-' + 'abcdefghijklmnopqrstuvwxyz123456"',
             "mailgun_api_key",  # fake fixture
         )
 
     def test_mailchimp_api_key(self):
         self._detect_one(
-            'KEY = abcdef01' + '23456789abcdef0123456789-us1',
+            'KEY = "abcdef01' + '23456789abcdef0123456789-us1"',
             "mailchimp_api_key",  # fake fixture
         )
 
     def test_square_access_token(self):
         self._detect_one(
-            'TOKEN = sq0atp-' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+            'TOKEN = "sq0atp-' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ"',
             "square_access_token",  # fake fixture
         )
 
     def test_square_oauth_secret(self):
         self._detect_one(
-            'SECRET = sq0csp-' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklm',  # fake fixture
+            'SECRET = "sq0csp-' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklm"',  # fake fixture
             "square_oauth_secret",
         )
 
     def test_shopify_token(self):
         self._detect_one(
-            'TOKEN = shpat_' + 'abcdef0123456789abcdef',
+            'TOKEN = "shpat_' + 'abcdef0123456789abcdef"',
             "shopify_token",  # fake fixture
         )
 
     def test_paypal_bearer_token(self):
         self._detect_one(
-            'TOKEN = access_token' + '$production$abcdefghijklmnopqrstuvwxyz1234567890abcd',  # fake fixture
+            'TOKEN = "access_token' + '$production$abcdefghijklmnopqrstuvwxyz1234567890abcd"',  # fake fixture
             "paypal_bearer_token",
         )
 
     def test_braintree_token(self):
         self._detect_one(
-            'TOKEN = access_token' + '$production$abcdefghijklmnopqrst$abcdef0123456789abcdef0123456789abcd',  # fake fixture
+            'TOKEN = "access_token' + '$production$abcdefghijklmnopqrst$abcdef0123456789abcdef0123456789abcd"',  # fake fixture
             "braintree_token",
         )
 
     def test_firebase_url(self):
         self._detect_one(
-            'URL = https://' + 'my-project-rtdb.firebaseio.com',
+            'URL = "https://' + 'my-project-rtdb.firebaseio.com"',
             "firebase_url",  # fake fixture
         )
 
     def test_firebase_key(self):
         self._detect_one(
-            'firebase_key = a1b2c3d4' + 'e5f6g7h8i9j0k1l2m3n4o5p6q7r8',  # fake fixture
+            'firebase_key = "a1b2c3d4' + 'e5f6g7h8i9j0k1l2m3n4o5p6q7r8"',  # fake fixture
             "firebase_key",
         )
 
@@ -2535,25 +2535,25 @@ class ExhaustiveSecretPatternTests(unittest.TestCase):
 
     def test_newrelic_key(self):
         self._detect_one(
-            'NR = NRAK' + 'ABCDEFGHIJKLMNOPQRSTUV',
+            'NR = "NRAK' + 'ABCDEFGHIJKLMNOPQRSTUV"',
             "newrelic_key",  # fake fixture
         )
 
     def test_pagerduty_token(self):
         self._detect_one(
-            'pagerduty_token = abcdefgh' + 'ijklmnopqrstuvwxYZ01234567',
+            'pagerduty_token = "abcdefgh' + 'ijklmnopqrstuvwxYZ01234567"',
             "pagerduty_token",  # fake fixture
         )
 
     def test_grafana_api_key(self):
         self._detect_one(
-            'grafana_api_key = eyJhbGci' + 'OiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abc123def456ghi789',  # fake fixture
+            'grafana_api_key = "eyJhbGci' + 'OiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abc123def456ghi789"',  # fake fixture
             "grafana_api_key",
         )
 
     def test_npm_token(self):
         self._detect_one(
-            'NPM = //registry.npmjs.org' + '/:_authToken=12345678-' + '1234-1234-' + '1234-123456789012',  # fake fixture
+            'NPM = "//registry.npmjs.org' + '/:_authToken=12345678-' + '1234-1234-' + '1234-123456789012"',  # fake fixture
             "npm_token",
         )
 
@@ -2565,13 +2565,13 @@ class ExhaustiveSecretPatternTests(unittest.TestCase):
 
     def test_circleci_token(self):
         self._detect_one(
-            'CI = CCIRERES_' + 'ABCDEFGHIJKLMNOPQRSTUV',
+            'CI = "CCIRERES_' + 'ABCDEFGHIJKLMNOPQRSTUV"',
             "circleci_token",  # fake fixture
         )
 
     def test_travis_token(self):
         self._detect_one(
-            'travis_ci_token = ABCDEFGHIJ' + 'KLMNOPQRSTUVWXYZabcdefgh',
+            'travis_ci_token = "ABCDEFGHIJ' + 'KLMNOPQRSTUVWXYZabcdefgh"',
             "travis_token",  # fake fixture
         )
 
@@ -2580,37 +2580,37 @@ class ExhaustiveSecretPatternTests(unittest.TestCase):
 
     def test_jfrog_token(self):
         self._detect_one(
-            'JFROG = cmVmdA' + '.abcdefghijklmnopqrstuvwx',
+            'JFROG = "cmVmdA' + '.abcdefghijklmnopqrstuvwx"',
             "jfrog_token",  # fake fixture
         )
 
     def test_postman_api_key(self):
         self._detect_one(
-            'POSTMAN = PMAK-' + 'abcdefghijklmnopqrstuvwxyz1234',
+            'POSTMAN = "PMAK-' + 'abcdefghijklmnopqrstuvwxyz1234"',
             "postman_api_key",  # fake fixture
         )
 
     def test_openai_key(self):
         self._detect_one(
-            'OPENAI = sk-proj-' + 'abcdefghijklmnopqrstuvwxyz1234567890',
+            'OPENAI = "sk-proj-' + 'abcdefghijklmnopqrstuvwxyz1234567890"',
             "openai_key",  # fake fixture
         )
 
     def test_google_ai_key(self):
         self._detect_one(
-            'GOOGLE_AI = AIzaSy' + 'A1234567890abcdefghijklmnopqrstuv',
+            'GOOGLE_AI = "AIzaSy' + 'A1234567890abcdefghijklmnopqrstuv"',
             "google_ai_key",  # fake fixture
         )
 
     def test_replicate_token(self):
         self._detect_one(
-            'REPLICATE = r8_' + 'abcdefghijklmnopqrstuvwxyz1234',
+            'REPLICATE = "r8_' + 'abcdefghijklmnopqrstuvwxyz1234"',
             "replicate_token",  # fake fixture
         )
 
     def test_rubygems_token(self):
         self._detect_one(
-            'RUBYGEMS = rubygems_' + 'abcdefghijklmnopqrst',
+            'RUBYGEMS = "rubygems_' + 'abcdefghijklmnopqrst"',
             "rubygems_token",  # fake fixture
         )
 
@@ -2631,19 +2631,19 @@ class ExhaustiveSecretPatternTests(unittest.TestCase):
 
     def test_asana_token(self):
         self._detect_one(
-            'ASANA = 2/' + '1234567890:abcdefghijklmnopqrst',
+            'ASANA = "2/' + '1234567890:abcdefghijklmnopqrst"',
             "asana_token",  # fake fixture
         )
 
     def test_fastly_api_key(self):
         self._detect_one(
-            'fastly_api_key = aB3cD5eF' + '7gH9iJ1kLmNoPqRsT2uV4wX6',  # fake fixture
+            'fastly_api_key = "aB3cD5eF' + '7gH9iJ1kLmNoPqRsT2uV4wX6"',  # fake fixture
             "fastly_api_key",
         )
 
     def test_ngrok_token(self):
         self._detect_one(
-            'ngrok_token = aB3cD5eF' + '7gH9iJ1kLmNoPqRsT2uV4wX6yZ8',  # fake fixture
+            'ngrok_token = "aB3cD5eF' + '7gH9iJ1kLmNoPqRsT2uV4wX6yZ8"',  # fake fixture
             "ngrok_token",
         )
 
@@ -2652,51 +2652,51 @@ class ExhaustiveSecretPatternTests(unittest.TestCase):
 
     def test_amqp_connection(self):
         self._detect_one(
-            'AMQP = amqp' + '://user:password123@rabbitmq.prod.internal:5672/vhost',  # fake fixture
+            'AMQP = "amqp' + '://user:password123@rabbitmq.prod.internal:5672/vhost"',  # fake fixture
             "amqp_connection",
         )
 
     def test_kafka_connection(self):
         self._detect_one(
-            'kafka_secret_key = aB3cD5eF' + '7gH9iJ1kLmNoPqRsT',  # fake fixture
+            'kafka_secret_key = "aB3cD5eF' + '7gH9iJ1kLmNoPqRsT"',  # fake fixture
             "kafka_connection",
         )
 
     # --- Remaining Generic Patterns ---
     def test_private_key(self):
         self._detect_one(
-            'CERT = -----BEGIN ' + 'RSA PRIVATE KEY-----\nMIIE...\n-----END RSA PRIVATE KEY-----',  # fake fixture
+            'CERT = "-----BEGIN ' + 'RSA PRIVATE KEY-----\nMIIE...\n-----END RSA PRIVATE KEY-----"',  # fake fixture
             "private_key",
         )
 
     def test_generic_secret(self):
         self._detect_one(
-            'secret_key = a1b2c3d4' + 'e5f6g7h8i9j0k1l2m3n4o5p6q7r8',  # fake fixture
+            'secret_key = "a1b2c3d4' + 'e5f6g7h8i9j0k1l2m3n4o5p6q7r8"',  # fake fixture
             "generic_secret",
         )
 
     def test_base64_secret(self):
         self._detect_one(
-            'secret_base64 = SGVsbG8g' + 'V29ybGQgSGVsbG8gV29ybGQ=',  # fake fixture
+            'secret_base64 = "SGVsbG8g' + 'V29ybGQgSGVsbG8gV29ybGQ="',  # fake fixture
             "base64_secret",
         )
 
     def test_connection_string(self):
         self._detect_one(
-            'connection_string = Host=' + 'db.prod.internal;Port=5432;Database=mydb;User=admin;Password=secret123',  # fake fixture
+            'connection_string = "Host=' + 'db.prod.internal;Port=5432;Database=mydb;User=admin;Password=secret123"',  # fake fixture
             "connection_string",
         )
 
     # --- Generic sk- prefix catch-all ---
     def test_generic_sk_key_minimax(self):
         f = self._detect_one(
-            'MINIMAX = sk-cp-' + 'ZvITPDLf', "generic_sk_key"
+            'MINIMAX = "sk-cp-' + 'ZvITPDLf"', "generic_sk_key"
         )  # fake fixture
         self.assertEqual(f["confidence"], "medium")
 
     def test_generic_sk_key_random(self):
         f = self._detect_one(
-            'MY_KEY = sk-' + 'abc123def456ghi789jkl', "generic_sk_key"
+            'MY_KEY = "sk-' + 'abc123def456ghi789jkl"', "generic_sk_key"
         )  # fake fixture
         self.assertEqual(f["confidence"], "medium")
 
