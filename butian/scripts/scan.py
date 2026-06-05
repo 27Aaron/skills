@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
-"""项目安全扫描器
+"""Project security scanner.
 
-采集安全相关数据，输出 JSON 供 agent 分析分级：
-  1. 仓库卫生检查（gitignore、敏感文件追踪、硬编码密钥）
-  2. 依赖生态识别和包坐标提取
-  3. 直接请求 OSV、NVD、CISA KEV、FIRST EPSS 检查漏洞
-  4. 过旧依赖检查
+Collects security-related data and outputs JSON for agent analysis:
+  1. Repository hygiene (gitignore, sensitive file tracking, hardcoded secrets)
+  2. Dependency ecosystem detection and package coordinate extraction
+  3. Vulnerability checks via OSV, NVD, CISA KEV, and FIRST EPSS
+  4. Outdated dependency checks
 
-扫描只读项目内容；脚本只会创建/更新 .butian/ 本地工作区，并确保
-.gitignore 忽略该目录。
+The scan is read-only: the script only creates/updates the .butian/ local
+workspace and ensures .gitignore covers that directory.
 
 Usage:
     python3 scan.py --preflight <preflight_json>
-    python3 scan.py [project_path]              # 默认向上识别项目根目录
-    python3 scan.py --no-root-discovery <path>  # 严格扫描传入目录
+    python3 scan.py [project_path]              # auto-detect project root
+    python3 scan.py --no-root-discovery <path>  # scan the given path directly
     python3 scan.py <path>
-    python3 scan.py --skip-outdated <path>      # 跳过较慢的过旧依赖检查
-    python3 scan.py --include-packages <path>   # 输出完整包清单
-    python3 scan.py                             # 等同于 python3 scan.py .
+    python3 scan.py --skip-outdated <path>      # skip slower outdated checks
+    python3 scan.py --include-packages <path>   # include full package listing
+    python3 scan.py                             # equivalent to python3 scan.py .
 
 Official vulnerability sources:
   OSV       POST https://api.osv.dev/v1/querybatch
@@ -26,8 +26,8 @@ Official vulnerability sources:
   CISA KEV  GET  https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
   EPSS      GET  https://api.first.org/epss/?cve=...
 
-  OSV 包检查请求: {"queries": [{"package": {"ecosystem":"npm","name":"next"}, "version":"15.5.1"}]}
-  支持 4 类代码项目: JavaScript/TypeScript(npm/pnpm/yarn), Python(pypi), Go, Rust(crates-io)
+  OSV query example: {"queries": [{"package": {"ecosystem":"npm","name":"next"}, "version":"15.5.1"}]}
+  Supported ecosystems: JavaScript/TypeScript (npm/pnpm/yarn), Python (pypi), Go, Rust (crates-io)
 """
 
 import argparse
