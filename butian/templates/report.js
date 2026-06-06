@@ -1057,17 +1057,32 @@ function parseCvssVector(vectorStr) {
   return result;
 }
 
+function attackConditionSentence(vectorStr) {
+  const v = parseCvssVector(vectorStr);
+  const parts = [];
+  const avText = { N: "攻击者可从公网直接利用此漏洞", A: "攻击者需在同一网络内才能利用此漏洞", L: "攻击者需本地访问才能利用此漏洞", P: "攻击者需物理接触设备才能利用此漏洞" };
+  const prText = { N: "无需登录或权限", L: "仅需普通用户权限", H: "需要管理员权限" };
+  const uiText = { N: "无需用户配合", R: "需要用户配合操作" };
+  const acText = { L: "利用难度低", H: "利用难度较高", M: "利用难度中等" };
+  if (v.AV && avText[v.AV]) parts.push(avText[v.AV]);
+  if (v.PR && prText[v.PR]) parts.push(prText[v.PR]);
+  if (v.UI && uiText[v.UI]) parts.push(uiText[v.UI]);
+  if (v.AC && acText[v.AC]) parts.push(acText[v.AC]);
+  if (!parts.length) return "";
+  return parts.join("，") + "。";
+}
+
 function attackConditionTags(vectorStr) {
   const v = parseCvssVector(vectorStr);
   const tags = [];
-  const avMap = { N: "🌐 远程可达", A: "📶 相邻网络", L: "💻 本地访问", P: "🤚 物理接触" };
-  if (v.AV && avMap[v.AV]) tags.push(`<span class="cvss-tag">${avMap[v.AV]}</span>`);
-  const acMap = { L: "⚡ 低复杂度", H: "🔧 高复杂度", M: "🔧 中等复杂度" };
-  if (v.AC && acMap[v.AC]) tags.push(`<span class="cvss-tag">${acMap[v.AC]}</span>`);
-  const prMap = { N: "🔓 无需权限", L: "🔑 低权限", H: "🔐 高权限" };
-  if (v.PR && prMap[v.PR]) tags.push(`<span class="cvss-tag">${prMap[v.PR]}</span>`);
-  const uiMap = { N: "👤 无需交互", R: "👥 需要交互" };
-  if (v.UI && uiMap[v.UI]) tags.push(`<span class="cvss-tag">${uiMap[v.UI]}</span>`);
+  const avMap = { N: { t: "🌐 远程可达", d: "攻击者可通过网络直接利用，不需要物理接触或内网访问" }, A: { t: "📶 相邻网络", d: "攻击者需要在同一网络内（如局域网、蓝牙）才能利用" }, L: { t: "💻 本地访问", d: "攻击者需要本地访问或安装恶意软件才能利用" }, P: { t: "🤚 物理接触", d: "攻击者需要物理接触设备才能利用" } };
+  if (v.AV && avMap[v.AV]) tags.push(`<span class="cvss-tag" title="${esc(avMap[v.AV].d)}">${avMap[v.AV].t}</span>`);
+  const acMap = { L: { t: "⚡ 低复杂度", d: "利用条件简单，不需要特殊配置或时机" }, H: { t: "🔧 高复杂度", d: "利用需要特定条件，如竞态条件或特殊配置" }, M: { t: "🔧 中等复杂度", d: "利用难度中等，需要一定条件" } };
+  if (v.AC && acMap[v.AC]) tags.push(`<span class="cvss-tag" title="${esc(acMap[v.AC].d)}">${acMap[v.AC].t}</span>`);
+  const prMap = { N: { t: "🔓 无需权限", d: "攻击者不需要任何认证或权限即可利用" }, L: { t: "🔑 低权限", d: "攻击者需要普通用户级别的权限" }, H: { t: "🔐 高权限", d: "攻击者需要管理员级别的权限才能利用" } };
+  if (v.PR && prMap[v.PR]) tags.push(`<span class="cvss-tag" title="${esc(prMap[v.PR].d)}">${prMap[v.PR].t}</span>`);
+  const uiMap = { N: { t: "👤 无需交互", d: "不需要受害者进行任何操作即可触发漏洞" }, R: { t: "👥 需要交互", d: "需要受害者进行点击、打开链接等操作才能触发" } };
+  if (v.UI && uiMap[v.UI]) tags.push(`<span class="cvss-tag" title="${esc(uiMap[v.UI].d)}">${uiMap[v.UI].t}</span>`);
   if (!tags.length) return "";
   return tags.join(" ");
 }
@@ -1076,9 +1091,12 @@ function ciaImpactTags(vectorStr) {
   const v = parseCvssVector(vectorStr);
   const tags = [];
   const levelMap = { H: "高", L: "低", N: "无", C: "高", P: "低" };
-  if (v.C && levelMap[v.C]) tags.push(`<span class="cia-tag cia-${v.C.toLowerCase()}">🔒 机密性:${levelMap[v.C]}</span>`);
-  if (v.I && levelMap[v.I]) tags.push(`<span class="cia-tag cia-${v.I.toLowerCase()}">📝 完整性:${levelMap[v.I]}</span>`);
-  if (v.A && levelMap[v.A]) tags.push(`<span class="cia-tag cia-${v.A.toLowerCase()}">⚡ 可用性:${levelMap[v.A]}</span>`);
+  const cDesc = { H: "可能导致敏感数据泄露给未授权方", L: "可能泄露部分非关键信息", N: "不影响数据机密性" };
+  const iDesc = { H: "攻击者可篡改或破坏重要数据", L: "可能造成轻微数据篡改", N: "不影响数据完整性" };
+  const aDesc = { H: "可能导致服务完全不可用", L: "可能导致服务短暂中断", N: "不影响服务可用性" };
+  if (v.C && levelMap[v.C]) tags.push(`<span class="cia-tag cia-${v.C.toLowerCase()}" title="${esc(cDesc[v.C] || cDesc.N || "")}">🔒 机密性:${levelMap[v.C]}</span>`);
+  if (v.I && levelMap[v.I]) tags.push(`<span class="cia-tag cia-${v.I.toLowerCase()}" title="${esc(iDesc[v.I] || iDesc.N || "")}">📝 完整性:${levelMap[v.I]}</span>`);
+  if (v.A && levelMap[v.A]) tags.push(`<span class="cia-tag cia-${v.A.toLowerCase()}" title="${esc(aDesc[v.A] || aDesc.N || "")}">⚡ 可用性:${levelMap[v.A]}</span>`);
   if (!tags.length) return "";
   return tags.join(" ");
 }
@@ -1121,10 +1139,13 @@ function vulnDetailPanel(r) {
   }
 
   if (a.cvssVector) {
+    const sentence = attackConditionSentence(a.cvssVector);
     const atkTags = attackConditionTags(a.cvssVector);
-    if (atkTags) {
+    if (sentence || atkTags) {
+      const sentenceHtml = sentence ? `<div class="attack-sentence">${esc(sentence)}</div>` : "";
+      const tagsHtml = atkTags ? `<div class="attack-tags">${atkTags}</div>` : "";
       fields.push(
-        `<div class="detail-field"><div class="detail-label">攻击条件</div><div class="detail-value">${atkTags}</div></div>`,
+        `<div class="detail-field"><div class="detail-label">攻击条件</div><div class="detail-value">${sentenceHtml}${tagsHtml}</div></div>`,
       );
     }
     const ciaTags = ciaImpactTags(a.cvssVector);
@@ -1340,7 +1361,6 @@ function renderVulnTable(rows) {
           : '<span style="color:var(--sub)">-</span>';
       const extraCls = needToggle && idx >= VULN_SHOW ? " vuln-extra" : "";
       const fixedHtml = fixedVersionHtml(r);
-      const tags = signalTags(r);
       const detail = vulnDetailPanel(r);
       const hasDetail = detail ? " vuln-row" : "";
       const clickAttr = detail ? ` onclick="toggleVulnDetail(this)"` : "";
@@ -1353,7 +1373,7 @@ function renderVulnTable(rows) {
   <td class="ver">${esc(r.version || "")}</td>
   <td class="ver fixed-cell">${fixedHtml}</td>
   <td class="advisory">${advHtml}</td>
-  <td class="summary-cell">${vulnerabilityExplanation(r)}${tags}</td>
+  <td class="summary-cell">${vulnerabilityExplanation(r)}</td>
 </tr>${detailRow}`;
     })
     .join("");

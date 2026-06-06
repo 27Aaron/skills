@@ -1280,6 +1280,29 @@ footer {
         background: rgba(245, 158, 11, 0.14);
         color: #fde68a;
     }
+    .attack-sentence {
+        color: var(--text-soft);
+    }
+    .cvss-tag {
+        border-color: rgba(96, 165, 250, 0.22);
+        background: rgba(96, 165, 250, 0.12);
+        color: #93c5fd;
+    }
+    .cia-h {
+        border-color: rgba(248, 113, 113, 0.24);
+        background: rgba(248, 113, 113, 0.14);
+        color: #fecaca;
+    }
+    .cia-l {
+        border-color: rgba(251, 191, 36, 0.24);
+        background: rgba(251, 191, 36, 0.14);
+        color: #fde68a;
+    }
+    .cia-n {
+        border-color: rgba(148, 163, 184, 0.22);
+        background: rgba(148, 163, 184, 0.12);
+        color: #cbd5e1;
+    }
 }
 
 @media (max-width: 900px) {
@@ -1390,6 +1413,17 @@ footer {
 }
 
 /* ---- CVSS attack condition & CIA impact tags ---- */
+.attack-sentence {
+    color: var(--text-soft);
+    font-size: 13px;
+    line-height: 1.55;
+    margin-bottom: 6px;
+}
+.attack-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
 .cvss-tag {
     display: inline-flex;
     align-items: center;
