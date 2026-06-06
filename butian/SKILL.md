@@ -170,21 +170,17 @@ python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy lates
 
 #### 第二轮：处理残留（复扫后仍有残留时）
 
-复扫后如果仍有同名依赖漏洞残留，报告会标注每个残留的父依赖声明范围和修复版本是否在范围内。脚本会自动分三档处理：
+复扫后如果仍有同名依赖漏洞残留，说明是父依赖锁定了嵌套旧版本。报告会标注父依赖声明的版本范围，帮助理解残留原因。
 
-5. **向用户说明**：顶层依赖已升级成功；残留项来自父依赖锁定的嵌套旧版本；报告中已标注每个残留的 semver 范围分析。
-6. **是否继续**：用 AskUserQuestion 提供 `处理残留依赖` / `暂不处理`。用户选择暂不处理时，总结当前状态并结束。
+5. **向用户说明**：顶层依赖已升级成功；残留项来自父依赖锁定的嵌套旧版本；报告中已标注每个残留的父依赖信息。
+6. **是否继续**：用 AskUserQuestion 提供 `升级父依赖并复扫` / `暂不处理`。用户选择暂不处理时，总结当前状态并结束。
 7. **执行升级**：用户选择继续后，运行：
 
 ```bash
 python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy parent-upgrade
 ```
 
-脚本会自动分类处理：
-
-- **在范围内（re-resolve）**：父依赖声明的 semver 范围已包含修复版本，只需 `npm install <子依赖>@<修复版本>` 重新解析 lockfile，零风险。
-- **不在范围内（upgrade-parent）**：父依赖声明的范围不包含修复版本，需要先 `npm install <父依赖>@latest`，再 `npm install <子依赖>@<修复版本>`。
-- **无法追溯（unfixable）**：无法追溯到 `package.json` 中的根依赖，需要等待上游修复或人工评估。
+脚本会自动：升级父依赖到 latest → 升级有漏洞的子依赖到修复版本。无法追溯到 `package.json` 根依赖的残留会标注出来，需要等待上游修复或人工评估。
 
 8. **复扫并展示结果**：升级完成后，重新运行 `python3 scripts/run_audit.py` 复扫，然后打开 HTML 报告向用户展示最终结果。提醒用户运行项目测试、构建或启动检查。
 

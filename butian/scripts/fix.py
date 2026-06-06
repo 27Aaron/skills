@@ -13,6 +13,7 @@ import argparse
 import json
 import logging
 import os
+import shutil
 import subprocess
 import sys
 
@@ -302,17 +303,11 @@ def _load_json_file(path):
 
 
 def build_npm_parent_upgrade_plan(analysis, project_path=None):
-    """Build npm parent-upgrade actions for vulnerable nested lockfile entries.
-
-    Classifies each residual into:
-      - "re_resolve": target version is within parent's declared range
-      - "upgrade_parent": target version exceeds parent's declared range
-      - "unfixable": cannot trace to a root dependency in package.json
-    """
+    """Build npm parent-upgrade actions for vulnerable nested lockfile entries."""
     project_path = project_path or (analysis.get("project") or {}).get("path") or "."
     lock_path = os.path.join(project_path, "package-lock.json")
     package_json_path = os.path.join(project_path, "package.json")
-    plan = {"re_resolve": [], "upgrade_parent": [], "unfixable": [], "skipped": []}
+    plan = {"upgrades": [], "unfixable": [], "skipped": []}
     if not os.path.isfile(lock_path):
         plan["skipped"].append("未找到 package-lock.json，无法自动分析父依赖。")
         return plan
@@ -365,68 +360,30 @@ def build_npm_parent_upgrade_plan(analysis, project_path=None):
                 )
             continue
 
-        # Read parent's declared range and classify
-        parent_range = _read_parent_range(lock_data, packages, parent_lock_path, package)
-        target_ver = item["target_version"]
-        in_range = parent_range and _semver_satisfies(target_ver, parent_range)
-
         key = (upgrade_package, parent, package, version)
         if key in seen:
             continue
         seen.add(key)
-
-        entry = {
-            "upgrade_package": upgrade_package,
-            "immediate_parent": parent,
-            "parent_lock_path": parent_lock_path,
-            "parent_range": parent_range,
-            "in_range": bool(in_range),
-            "package": package,
-            "current_version": version,
-            "target_version": target_ver,
-            "lock_path": lock_key,
-        }
-        if in_range:
-            plan["re_resolve"].append(entry)
-        else:
-            plan["upgrade_parent"].append(entry)
+        plan["upgrades"].append(
+            {
+                "upgrade_package": upgrade_package,
+                "immediate_parent": parent,
+                "parent_lock_path": parent_lock_path,
+                "package": package,
+                "current_version": version,
+                "target_version": item["target_version"],
+                "lock_path": lock_key,
+            }
+        )
     return plan
 
 
-def _read_parent_range(lock_data, packages, parent_lock_path, child_name):
-    """Read the semver range a parent declares for *child_name*."""
-    parent_meta = packages.get(parent_lock_path) or {}
-    for field in ("requires", "dependencies"):
-        deps = parent_meta.get(field)
-        if isinstance(deps, dict):
-            dep_range = deps.get(child_name)
-            if isinstance(dep_range, str):
-                return dep_range
-    return None
-
-
 def build_parent_upgrade_commands(plan):
-    """Build commands based on three-tier classification.
-
-    - re_resolve: target version is within parent's declared range.
-      Just upgrade the child to target version.
-    - upgrade_parent: target version exceeds parent's range.
-      Upgrade parent to latest, then upgrade child to target version.
-    """
+    """Build commands: upgrade parent to latest, then upgrade child to target."""
     commands = []
     seen_parents = set()
     seen_children = set()
-
-    # Tier 1: in-range → just upgrade the child
-    for entry in plan.get("re_resolve") or []:
-        child = entry["package"]
-        target = entry["target_version"]
-        if child not in seen_children:
-            seen_children.add(child)
-            commands.append((child, ["npm", "install", f"{child}@{target}"]))
-
-    # Tier 2: out-of-range → upgrade parent, then upgrade child
-    for entry in plan.get("upgrade_parent") or []:
+    for entry in plan.get("upgrades") or []:
         parent = entry["upgrade_package"]
         if parent not in seen_parents:
             seen_parents.add(parent)
@@ -436,7 +393,9 @@ def build_parent_upgrade_commands(plan):
         if child not in seen_children:
             seen_children.add(child)
             commands.append((child, ["npm", "install", f"{child}@{target}"]))
-
+    # After all upgrades, dedupe to hoist satisfied nested copies
+    if seen_parents or seen_children:
+        commands.append(("npm dedupe", ["npm", "dedupe"]))
     return commands
 
 
@@ -444,8 +403,7 @@ def execute_parent_upgrade_fixes(analysis, project_path):
     """Upgrade parent and child dependencies for nested npm residuals."""
     plan = build_npm_parent_upgrade_plan(analysis, project_path)
     commands = build_parent_upgrade_commands(plan)
-    has_work = plan.get("re_resolve") or plan.get("upgrade_parent")
-    if not has_work:
+    if not commands:
         skipped = "; ".join(
             plan.get("skipped")
             or [e.get("note", "") for e in (plan.get("unfixable") or [])]
@@ -454,18 +412,11 @@ def execute_parent_upgrade_fixes(analysis, project_path):
         return [], [("npm parent-upgrade", skipped)]
 
     print("  已生成升级计划:")
-    for entry in plan.get("re_resolve") or []:
-        print(
-            f"    - {entry['package']}@{entry['target_version']} "
-            f"({entry['immediate_parent']} 声明 \"{entry['parent_range']}\"，"
-            f"修复版本在范围内，重新解析)"
-        )
-    for entry in plan.get("upgrade_parent") or []:
+    for entry in plan.get("upgrades") or []:
         print(
             f"    - {entry['upgrade_package']}@latest + "
             f"{entry['package']}@{entry['target_version']} "
-            f"({entry['immediate_parent']} 声明 \"{entry['parent_range']}\"，"
-            f"修复版本不在范围内，需升级父依赖)"
+            f"(清理 {entry['immediate_parent']} > {entry['package']}@{entry['current_version']})"
         )
     for entry in plan.get("unfixable") or []:
         print(
@@ -473,7 +424,70 @@ def execute_parent_upgrade_fixes(analysis, project_path):
             f"{entry['note']}"
         )
 
-    return execute_fixes(commands, project_path)
+    successes, failures = execute_fixes(commands, project_path)
+    if failures:
+        return successes, failures
+
+    # Post-upgrade cleanup: delete stale nested entries from lockfile and node_modules,
+    # then re-run npm install to force re-resolution.
+    lock_path = os.path.join(project_path, "package-lock.json")
+    removed = _cleanup_stale_nested(lock_path, project_path, plan)
+    if removed:
+        print("  正在重新解析 lockfile...")
+        ok, err = _run_npm_install(project_path)
+        if ok:
+            print("  ✅ lockfile 已重新解析")
+        else:
+            return successes, [("npm install", err)]
+
+    return successes, []
+
+
+def _cleanup_stale_nested(lock_path, project_path, plan):
+    """Remove stale nested lockfile entries and node_modules directories."""
+    if not os.path.isfile(lock_path):
+        return []
+    try:
+        with open(lock_path, "r", encoding="utf-8") as f:
+            lock_data = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return []
+    packages = lock_data.get("packages") or {}
+    removed = []
+    for entry in plan.get("upgrades") or []:
+        lock_key = entry.get("lock_path")
+        if not lock_key or lock_key not in packages:
+            continue
+        del packages[lock_key]
+        removed.append(lock_key)
+        # Also delete the physical nested directory
+        target = os.path.join(project_path, lock_key.replace("/", os.sep))
+        root = os.path.abspath(project_path)
+        if os.path.exists(target) and os.path.abspath(target).startswith(root):
+            shutil.rmtree(target, ignore_errors=True)
+    if removed:
+        with open(lock_path, "w", encoding="utf-8") as f:
+            json.dump(lock_data, f, indent=2, ensure_ascii=False)
+        for item in removed:
+            print(f"    - 已清理 {item}")
+    return removed
+
+
+def _run_npm_install(project_path):
+    """Run npm install and return (ok, error_message)."""
+    try:
+        result = subprocess.run(
+            ["npm", "install"],
+            cwd=project_path,
+            capture_output=True,
+            text=True,
+            stdin=subprocess.DEVNULL,
+        )
+        if result.returncode == 0:
+            return True, ""
+        return False, result.stderr.strip() or "npm install failed"
+    except FileNotFoundError:
+        return False, "npm not found"
 
 
 # ---------------------------------------------------------------------------

@@ -230,7 +230,6 @@ class NpmParentUpgradePlanTests(unittest.TestCase):
 
             plan = fix_mod.build_npm_parent_upgrade_plan(analysis, tmp)
 
-        self.assertEqual(plan["re_resolve"], [])
         self.assertEqual(
             [
                 (
@@ -239,7 +238,7 @@ class NpmParentUpgradePlanTests(unittest.TestCase):
                     item["package"],
                     item["current_version"],
                 )
-                for item in plan["upgrade_parent"]
+                for item in plan["upgrades"]
             ],
             [("next", "next", "postcss", "8.4.31")],
         )
@@ -285,7 +284,6 @@ class NpmParentUpgradePlanTests(unittest.TestCase):
 
             plan = fix_mod.build_npm_parent_upgrade_plan(analysis, tmp)
 
-        self.assertEqual(plan["re_resolve"], [])
         self.assertEqual(
             [
                 (
@@ -293,12 +291,12 @@ class NpmParentUpgradePlanTests(unittest.TestCase):
                     item["immediate_parent"],
                     item["package"],
                 )
-                for item in plan["upgrade_parent"]
+                for item in plan["upgrades"]
             ],
             [("tsx", "@esbuild-kit/core-utils", "esbuild")],
         )
 
-    def test_in_range_residual_classified_as_re_resolve(self):
+    def test_in_range_residual_still_upgrades_parent(self):
         """When parent declares ^8.4.0 and target is 8.5.10, it's in-range."""
         with tempfile.TemporaryDirectory() as tmp:
             package_lock = {
@@ -334,12 +332,10 @@ class NpmParentUpgradePlanTests(unittest.TestCase):
 
             plan = fix_mod.build_npm_parent_upgrade_plan(analysis, tmp)
 
-        self.assertEqual(plan["upgrade_parent"], [])
-        self.assertEqual(len(plan["re_resolve"]), 1)
-        entry = plan["re_resolve"][0]
+        self.assertEqual(len(plan["upgrades"]), 1)
+        entry = plan["upgrades"][0]
         self.assertEqual(entry["package"], "postcss")
-        self.assertEqual(entry["parent_range"], "^8.4.0")
-        self.assertTrue(entry["in_range"])
+        self.assertEqual(entry["upgrade_package"], "next")
 
 
 # CLI helpers
