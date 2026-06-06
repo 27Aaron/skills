@@ -39,6 +39,13 @@ SEVERITY_LABELS = {
     "low": "低风险",
 }
 
+DEPENDENCY_UPGRADE_SCOPE_NOTE = "该建议只覆盖包管理器可解析的普通升级；修复后必须复扫。"
+
+TRANSITIVE_RESIDUAL_GUIDANCE = (
+    "如果复扫仍出现同名旧版本，通常是间接依赖被父包锁定；需要升级父依赖、等待上游修复，"
+    "或在用户确认强制覆盖更新后使用 overrides/resolutions。"
+)
+
 SECRET_TYPE_LABELS = {
     "aws_access_key": "AWS 访问密钥",
     "private_key": "私钥",
@@ -157,7 +164,24 @@ def vulnerability_summary(item):
         else "建议确认官方修复版本后再安排升级。"
     )
     version_text = f" {version}" if version else ""
-    return f"{package}{version_text} {advisory_issue_phrase(item.get('advisory_summary') or item.get('summary'))}；{fixed_text}"
+    summary = (
+        f"{package}{version_text} "
+        f"{advisory_issue_phrase(item.get('advisory_summary') or item.get('summary'))}；"
+        f"{fixed_text}"
+    )
+    context = item.get("dependency_context") or {}
+    if context.get("kind") == "nested_locked":
+        parents = unique_values(
+            [entry.get("parent") for entry in context.get("locations") or []]
+        )
+        parent_text = "、".join(parents[:3]) if parents else "上游父依赖"
+        if len(parents) > 3:
+            parent_text += f" 等 {len(parents)} 个父依赖"
+        summary += f" 检测到该旧版本属于被父依赖锁定的嵌套副本，父依赖：{parent_text}。"
+        top_versions = unique_values(context.get("top_level_versions") or [])
+        if top_versions:
+            summary += f" 顶层 {package} 当前版本为 {'、'.join(top_versions)}。"
+    return summary
 
 
 def sort_items(items):
@@ -169,6 +193,83 @@ def sort_items(items):
             str(item.get("version") or ""),
         ),
     )
+
+
+def _npm_package_name_at(parts, index):
+    if index >= len(parts):
+        return None
+    name = parts[index]
+    if name.startswith("@") and index + 1 < len(parts):
+        return f"{name}/{parts[index + 1]}"
+    return name
+
+
+def _npm_names_from_lock_path(path):
+    parts = [part for part in str(path or "").split("/") if part]
+    names = []
+    index = 0
+    while index < len(parts):
+        if parts[index] != "node_modules":
+            index += 1
+            continue
+        name = _npm_package_name_at(parts, index + 1)
+        if name:
+            names.append(name)
+            index += 3 if name.startswith("@") else 2
+        else:
+            index += 1
+    return names
+
+
+def _is_top_level_npm_lock_path(path):
+    return len(_npm_names_from_lock_path(path)) == 1
+
+
+def dependency_context_for_issue(scan, issue):
+    """Describe whether an npm vulnerability is a nested locked copy."""
+    if issue.get("ecosystem") != "npm":
+        return None
+    package = issue.get("package") or issue.get("name")
+    version = str(issue.get("version") or "")
+    project_path = (scan.get("project") or {}).get("path")
+    if not package or not version or not project_path:
+        return None
+    lock_path = os.path.join(project_path, "package-lock.json")
+    if not os.path.isfile(lock_path):
+        return None
+    try:
+        with open(lock_path, "r", encoding="utf-8") as handle:
+            lock_data = json.load(handle)
+    except (OSError, json.JSONDecodeError):
+        return None
+
+    locations = []
+    top_level_versions = []
+    for key, meta in (lock_data.get("packages") or {}).items():
+        names = _npm_names_from_lock_path(key)
+        if not names or names[-1] != package:
+            continue
+        found_version = str((meta or {}).get("version") or "")
+        if _is_top_level_npm_lock_path(key) and found_version:
+            top_level_versions.append(found_version)
+        if found_version != version or len(names) < 2:
+            continue
+        locations.append(
+            {
+                "path": key,
+                "parent": names[-2],
+                "version": found_version,
+                "note": "被父依赖锁定的嵌套副本",
+            }
+        )
+    if not locations:
+        return None
+    return {
+        "kind": "nested_locked",
+        "note": "被父依赖锁定的嵌套副本",
+        "locations": locations,
+        "top_level_versions": unique_values(top_level_versions),
+    }
 
 
 def build_top_issues(scan):
@@ -185,6 +286,9 @@ def build_top_issues(scan):
         )
         item["name"] = item.get("package") or item.get("name") or "依赖漏洞"
         item["advisory_summary"] = item.get("summary") or ""
+        context = dependency_context_for_issue(scan, item)
+        if context:
+            item["dependency_context"] = context
         item["summary"] = vulnerability_summary(item)
         issues.append(item)
 
@@ -317,7 +421,7 @@ def build_dependency_fix_items(top_issues):
         highest_issue = sort_items(issues)[0]
         summary = (
             f"{package} 命中 {len(issues)} 个漏洞，建议升级到 {target_version} "
-            "或更高版本后运行测试。"
+            f"或更高版本后运行测试。{DEPENDENCY_UPGRADE_SCOPE_NOTE}"
         )
         if missing_fixed:
             summary += " 其中部分公告未给出明确修复版本，需升级后复扫确认。"
@@ -341,6 +445,8 @@ def build_dependency_fix_items(top_issues):
                     "fixed_versions": unique_values(fixed_versions),
                     "advisory_ids": advisory_ids,
                     "fixed_versions_by_advisory": fixed_versions_by_advisory,
+                    "upgrade_scope": "direct_package",
+                    "residual_guidance": TRANSITIVE_RESIDUAL_GUIDANCE,
                 },
             }
         )
@@ -370,6 +476,13 @@ def build_summary(scan, analysis):
     missing_count = len(hygiene.get("gitignore_missing") or [])
     outdated_count = len(scan.get("outdated") or [])
     errors = scan.get("errors") or []
+    dependency_fix_count = len(
+        [
+            item
+            for item in analysis.get("green") or []
+            if item.get("type") == "dependency_upgrade"
+        ]
+    )
 
     if hygiene_only:
         tldr = "本次没有发现补天支持的依赖文件，因此未执行依赖漏洞扫描；报告结论仅覆盖仓库卫生风险。"
@@ -422,6 +535,11 @@ def build_summary(scan, analysis):
         priority.append("补充 .gitignore 敏感文件规则，降低后续误提交概率。")
     if outdated_count:
         priority.append("过期依赖按维护计划处理，不要在没有漏洞证据时当作安全事故。")
+    if dependency_fix_count:
+        priority.append(
+            "依赖修复后必须重新运行补天扫描；如果仍出现同名旧版本，通常是间接依赖被父包锁定，"
+            "需要升级父依赖、等待上游修复，或询问用户是否确认强制覆盖更新。"
+        )
     if errors:
         priority.append(
             "复查扫描错误，补齐失败的官方漏洞源、包管理器或工具链检查后再确认最终结论。"
