@@ -32,7 +32,7 @@ description: >
 ## 铁律
 
 - **扫描不改业务项目。** 扫描只读取项目文件、调漏洞 API，不修改源码、依赖、数据库、日志或任意项目文件；会创建/更新 `.butian/` 本地报告工作区，并会确保 `.gitignore` 忽略 `.butian/`
-- **修复要你点头。** 报告生成并打开后，Agent 先用 AskUserQuestion 询问是否修复（确认修复 / 取消修复）；确认后再用 AskUserQuestion 询问升级策略（升级到已修复版本 / 升级到最新版本）。Agent 不会自行执行任何升级命令。
+- **修复要你点头同意。** 报告生成并打开后，Agent 先用 AskUserQuestion 询问是否修复（确认修复 / 取消修复）；确认后再用 AskUserQuestion 询问升级策略（升级到已知修复版本 / 全部升级到最新版本）。Agent 不会自行执行任何升级命令。
 - **不把"过旧"说成"有漏洞"。** 只有命中漏洞数据时才说有漏洞
 - **不制造恐慌。** 没有证据时说"不确定"，不说"肯定安全"或"肯定中招"
 
@@ -152,10 +152,10 @@ py -3 scripts/visualize.py .butian/<timestamp>/assets/analysis.json
 
 #### 第一轮：顶层依赖升级
 
-1. **是否修复**：用 AskUserQuestion 提供 `确认修复` / `取消修复`。用户选择取消时，停止修复，只总结报告路径和主要风险。
-2. **修复方式**：用户确认修复后，用 AskUserQuestion 提供 `将依赖升级到已修复版本` / `将依赖升级到最新版本`。
+1. **是否修复**：用 AskUserQuestion 提供 `确认修复` / `取消修复`。提问时用"风险项"替代"依赖漏洞"，格式如"发现 N 个风险项（X高/Y中/Z低），是否执行修复？"（数字与级别之间无空格）。用户选择取消时，停止修复，只总结报告路径和主要风险。
+2. **修复方式**：用户确认修复后，用 AskUserQuestion 提供 `将依赖升级到已修复版本` / `全部依赖升级到最新版本`。提问时写"选择升级策略：升级到已知修复版本还是全部升级到最新版本呢？"
    - **将依赖升级到已修复版本**：把命中漏洞的包升级到已知修复版本（改动最小，推荐）
-   - **将依赖升级到最新版本**：把命中漏洞的包升级到最新版本（一步到位，但可能有重大变更）
+   - **全部依赖升级到最新版本**：把所有旧的依赖包全部升级到最新版本（一步到位，但可能有重大变更）
 3. **执行升级**：用户选择策略后，运行修复脚本：
 
 ```bash
@@ -173,16 +173,16 @@ python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy lates
 复扫后如果仍有同名依赖漏洞残留，说明是父依赖锁定了嵌套旧版本。报告会标注父依赖声明的版本范围，帮助理解残留原因。
 
 5. **向用户说明**：顶层依赖已升级成功；残留项来自父依赖锁定的嵌套旧版本；报告中已标注每个残留的父依赖信息。
-6. **是否继续**：用 AskUserQuestion 提供 `升级父依赖并复扫` / `暂不处理`。用户选择暂不处理时，生成最终报告并结束。
+6. **是否继续**：用 AskUserQuestion 提供 `升级父依赖并重新扫描` / `暂不处理`。用户选择暂不处理时，生成最终报告并结束。
 7. **执行升级**：用户选择继续后，运行：
 
 ```bash
 python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy parent-upgrade
 ```
 
-脚本会自动：升级父依赖到 latest → 升级有漏洞的子依赖到修复版本。无法追溯到 `package.json` 根依赖的残留会标注出来，需要等待上游修复或人工评估。
+脚本会自动：升级父依赖到最新 → 升级有漏洞的子依赖到修复版本。无法追溯到 `package.json` 根依赖的残留会标注出来，需要等待上游修复或人工评估。
 
-8. **复扫并展示结果**：升级完成后，重新运行 `python3 scripts/run_audit.py` 复扫。如果此轮修复后无残留，进入最终报告步骤；如果有残留，继续下一轮。
+8. **重新扫描并展示结果**：升级完成后，重新运行 `python3 scripts/run_audit.py` 重新扫描。如果此轮修复后无残留，进入最终报告步骤；如果有残留，继续下一轮。
 
 #### 第三轮：强制覆盖残留依赖（第二轮后仍有残留时）
 
@@ -198,7 +198,7 @@ python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy force
 
 脚本会自动：读取 analysis.json 中残留的可修复项 → 在 `package.json` 的 `overrides` 字段中添加版本强制约束 → 运行 `npm install` 使 overrides 生效。
 
-12. **复扫并展示结果**：覆盖完成后，重新运行 `python3 scripts/run_audit.py` 复扫。进入最终报告步骤。
+12. **重新扫描并展示结果**：覆盖完成后，重新运行 `python3 scripts/run_audit.py` 重新扫描。进入最终报告步骤。
 
 #### 最终报告
 
@@ -233,17 +233,17 @@ python3 scripts/run_audit.py --final-report
 
 ### run_audit.py
 
-| 参数                      | 说明                                |
-| ------------------------- | ----------------------------------- |
-| `--no-open`               | 不自动打开 HTML 报告                |
-| `--final-report`          | 最终复扫时强制生成 Markdown 报告    |
-| `--verbose`               | 输出详细日志到 stderr               |
-| `--debug`                 | 输出调试级别日志                    |
-| `--follow-symlinks`       | 跟随符号链接扫描（默认跳过）        |
-| `--skip-outdated`         | 跳过过期依赖检查                    |
-| `--skip-hygiene`          | 跳过仓库卫生检查                    |
-| `--include-packages`      | 在输出中包含完整包列表              |
-| `--max-secret-files <n>`  | 密钥扫描最大文件数                  |
+| 参数                     | 说明                             |
+| ------------------------ | -------------------------------- |
+| `--no-open`              | 不自动打开 HTML 报告             |
+| `--final-report`         | 最终复扫时强制生成 Markdown 报告 |
+| `--verbose`              | 输出详细日志到 stderr            |
+| `--debug`                | 输出调试级别日志                 |
+| `--follow-symlinks`      | 跟随符号链接扫描（默认跳过）     |
+| `--skip-outdated`        | 跳过过期依赖检查                 |
+| `--skip-hygiene`         | 跳过仓库卫生检查                 |
+| `--include-packages`     | 在输出中包含完整包列表           |
+| `--max-secret-files <n>` | 密钥扫描最大文件数               |
 
 ## 日志与缓存
 
