@@ -805,8 +805,9 @@ function vulnerabilityExplanation(r) {
   const pkg = r.package || r.name || "该依赖";
   const version = r.version ? ` ${r.version}` : "";
   const context = dependencyContextText(r);
+  if (context) return esc(context);
   return esc(
-    `${pkg}${version} ${advisorySummaryText(r)}；${shortFixedVersionText(r)}${context ? " " + context : ""}`,
+    `${pkg}${version} ${advisorySummaryText(r)}；${shortFixedVersionText(r)}`,
   );
 }
 
