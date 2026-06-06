@@ -90,7 +90,25 @@ def _butian_dir_for(output_path):
     return None
 
 
-_BROWSER_OPENED_MARKER = ".browser-opened"
+FIRST_SCAN_MARKER = ".first-scan-done"
+
+
+def _first_scan_done(output_path):
+    """Return True if a previous scan already completed for this project."""
+    butian_dir = _butian_dir_for(output_path)
+    if butian_dir:
+        return os.path.exists(os.path.join(butian_dir, FIRST_SCAN_MARKER))
+    return False
+
+
+def _mark_first_scan_done(output_path):
+    butian_dir = _butian_dir_for(output_path)
+    if butian_dir:
+        try:
+            with open(os.path.join(butian_dir, FIRST_SCAN_MARKER), "w") as f:
+                f.write("")
+        except OSError:
+            pass
 
 
 def should_open_report(args, output_path=None):
@@ -100,23 +118,9 @@ def should_open_report(args, output_path=None):
     if value.strip().lower() in {"1", "true", "yes", "on"}:
         return False
     # Only open the browser on the very first scan for this project.
-    if output_path:
-        butian_dir = _butian_dir_for(output_path)
-        if butian_dir and os.path.exists(
-            os.path.join(butian_dir, _BROWSER_OPENED_MARKER)
-        ):
-            return False
+    if output_path and _first_scan_done(output_path):
+        return False
     return True
-
-
-def _mark_browser_opened(output_path):
-    butian_dir = _butian_dir_for(output_path)
-    if butian_dir:
-        try:
-            with open(os.path.join(butian_dir, _BROWSER_OPENED_MARKER), "w") as f:
-                f.write("")
-        except OSError:
-            pass
 
 
 def spawn_open_command(cmd):
@@ -199,12 +203,12 @@ def main():
     print("HTML 报告已保存，之后也可以从 content 目录重新查看。")
     if should_open_report(args, out):
         if open_report(out):
-            _mark_browser_opened(out)
+            _mark_first_scan_done(out)
             print("已尝试在默认浏览器中打开报告。")
         else:
             print("未能自动打开报告，请手动打开上面的路径。")
     else:
-        print("已跳过自动打开报告（首次已打开过）。")
+        print("已跳过自动打开报告（首次扫描已完成）。")
 
 
 if __name__ == "__main__":
