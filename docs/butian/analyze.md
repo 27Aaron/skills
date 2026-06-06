@@ -131,6 +131,18 @@ SEVERITY_ORDER = {
       "summary": "next 15.5.1 存在...风险；建议升级到 15.5.2 或更高版本。",
       "advisory_summary": "...",
       "fixed_versions": ["15.5.2"],
+      "dependency_context": {
+        "kind": "nested_locked",
+        "note": "被父依赖锁定的嵌套副本",
+        "locations": [
+          {
+            "path": "node_modules/next/node_modules/postcss",
+            "parent": "next",
+            "version": "8.4.31"
+          }
+        ],
+        "top_level_versions": ["8.5.10"]
+      },
       ...
     }
   ],
@@ -141,7 +153,7 @@ SEVERITY_ORDER = {
       "name": "升级 next",
       "type": "dependency_upgrade",
       "severity": "critical",
-      "summary": "next 命中 2 个漏洞，建议升级到 15.5.2 或更高版本后运行测试。",
+      "summary": "next 命中 2 个漏洞，建议升级到 15.5.2 或更高版本后运行测试。该建议只覆盖包管理器可解析的普通升级；修复后必须复扫。",
       "fix_config": {
         "type": "upgrade",
         "ecosystem": "npm",
@@ -149,6 +161,8 @@ SEVERITY_ORDER = {
         "current_versions": ["15.5.1"],
         "target_version": "15.5.2",
         "advisory_ids": ["GHSA-xxx", "GHSA-yyy"],
+        "upgrade_scope": "direct_package",
+        "residual_guidance": "如果复扫仍出现同名旧版本，通常是间接依赖被父包锁定；需询问用户是否确认强制覆盖更新...",
         ...
       }
     }

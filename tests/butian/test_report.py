@@ -421,6 +421,25 @@ class RenderNextStepsTests(unittest.TestCase):
         result = report.render_next_steps({})
         self.assertIn("阅读报告后再决定是否修复", result)
 
+    def test_dependency_fix_notes_rescan_and_transitive_residuals(self):
+        analysis = {
+            "green": [
+                {
+                    "type": "dependency_upgrade",
+                    "package": "postcss",
+                    "fix_config": {
+                        "upgrade_scope": "direct_package",
+                        "residual_guidance": "复扫仍出现同名旧版本时，通常是间接依赖被父包锁定。",
+                    },
+                }
+            ]
+        }
+        result = report.render_next_steps(analysis)
+        self.assertIn("重新运行补天扫描", result)
+        self.assertIn("间接依赖", result)
+        self.assertIn("overrides", result)
+        self.assertIn("确认强制覆盖", result)
+
 
 # ---------------------------------------------------------------------------
 # parse_args

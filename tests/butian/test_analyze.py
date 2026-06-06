@@ -576,6 +576,43 @@ class TestBuildTopIssues(unittest.TestCase):
         issues = analyze.build_top_issues(scan)
         self.assertIn("lodash", issues[0]["summary"])
 
+    def test_nested_npm_residual_context_is_explained(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            package_lock = {
+                "packages": {
+                    "": {"dependencies": {"postcss": "^8.5.10"}},
+                    "node_modules/postcss": {"version": "8.5.10"},
+                    "node_modules/next": {"version": "16.2.6"},
+                    "node_modules/next/node_modules/postcss": {"version": "8.4.31"},
+                }
+            }
+            with open(
+                os.path.join(tmp, "package-lock.json"), "w", encoding="utf-8"
+            ) as f:
+                json.dump(package_lock, f)
+            scan = _make_scan(
+                project={"name": "demo-app", "path": tmp, "ecosystems": ["npm"]},
+                vulnerabilities=[
+                    {
+                        "package": "postcss",
+                        "version": "8.4.31",
+                        "ecosystem": "npm",
+                        "severity": "medium",
+                        "fixed_versions": ["8.5.10"],
+                        "summary": "PostCSS has XSS",
+                    }
+                ],
+            )
+
+            issues = analyze.build_top_issues(scan)
+
+        self.assertEqual(issues[0]["dependency_context"]["kind"], "nested_locked")
+        self.assertEqual(
+            issues[0]["dependency_context"]["locations"][0]["parent"], "next"
+        )
+        self.assertIn("被父依赖锁定的嵌套副本", issues[0]["summary"])
+        self.assertIn("顶层 postcss 当前版本为 8.5.10", issues[0]["summary"])
+
 
 # ===========================================================================
 # build_hygiene_items
@@ -730,6 +767,9 @@ class TestBuildDependencyFixItems(unittest.TestCase):
         self.assertEqual(green[0]["package"], "lodash")
         self.assertEqual(green[0]["fix_config"]["target_version"], "4.17.23")
         self.assertIn("命中 2 个漏洞", green[0]["summary"])
+        self.assertIn("只覆盖包管理器可解析的普通升级", green[0]["summary"])
+        self.assertEqual(green[0]["fix_config"]["upgrade_scope"], "direct_package")
+        self.assertIn("间接依赖", green[0]["fix_config"]["residual_guidance"])
 
     def test_no_fixed_versions_skipped(self):
         issues = [
@@ -1004,6 +1044,23 @@ class TestBuildSummary(unittest.TestCase):
 
         self.assertTrue(any("过期依赖" in p for p in result["priority"]))
         self.assertIn("过期依赖 1 个", result["detail"])
+
+    def test_dependency_fix_priority_mentions_rescan_and_transitive_residuals(self):
+        scan = _make_scan()
+        analysis = self._make_analysis(
+            green=[
+                {
+                    "type": "dependency_upgrade",
+                    "package": "postcss",
+                    "fix_config": {"upgrade_scope": "direct_package"},
+                }
+            ],
+        )
+        result = analyze.build_summary(scan, analysis)
+
+        self.assertTrue(any("重新运行补天扫描" in p for p in result["priority"]))
+        self.assertTrue(any("间接依赖" in p for p in result["priority"]))
+        self.assertTrue(any("确认强制覆盖" in p for p in result["priority"]))
 
 
 HYGIENE_ONLY_NOTICE_SHORT = "暂无法执行依赖漏洞扫描"

@@ -334,6 +334,11 @@ def render_errors(analysis):
 
 def render_next_steps(analysis):
     priority = to_list((analysis.get("summary") or {}).get("priority"))
+    dependency_fixes = [
+        item
+        for item in (analysis.get("green") or analysis.get("green_items") or [])
+        if item.get("type") == "dependency_upgrade"
+    ]
     lines = []
     if priority:
         for item in priority:
@@ -341,6 +346,12 @@ def render_next_steps(analysis):
     else:
         lines.append(
             "- 阅读报告后再决定是否修复；修复前需要明确确认修复范围和升级策略。"
+        )
+    if dependency_fixes:
+        lines.append("- 依赖修复后必须重新运行补天扫描，确认漏洞是否真正消失。")
+        lines.append(
+            "- 修复脚本只执行普通包管理器升级；如果复扫仍出现同名旧版本，通常是间接依赖被父包锁定，"
+            "需要升级父依赖、等待上游修复，或在用户确认强制覆盖更新后使用 overrides/resolutions。"
         )
     lines.append("")
     return "\n".join(lines)

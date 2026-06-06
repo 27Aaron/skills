@@ -782,11 +782,31 @@ function advisorySummaryText(r) {
   return advisoryIssuePhrase(summary) || readableIssueKind(r);
 }
 
+function dependencyContextText(r) {
+  const ctx = r.dependency_context || r.dependencyContext || {};
+  if (!ctx || ctx.kind !== "nested_locked") return "";
+  const locations = Array.isArray(ctx.locations) ? ctx.locations : [];
+  const parents = [];
+  locations.forEach((item) => {
+    const parent = item && item.parent;
+    if (parent && !parents.includes(parent)) parents.push(parent);
+  });
+  const parentText = parents.length
+    ? `父依赖：${parents.slice(0, 3).join("、")}${parents.length > 3 ? ` 等 ${parents.length} 个` : ""}`
+    : "父依赖待确认";
+  const topVersions = toList(ctx.top_level_versions || ctx.topLevelVersions);
+  const topText = topVersions.length
+    ? `；顶层版本：${topVersions.join("、")}`
+    : "";
+  return `该旧版本属于被父依赖锁定的嵌套副本，${parentText}${topText}。`;
+}
+
 function vulnerabilityExplanation(r) {
   const pkg = r.package || r.name || "该依赖";
   const version = r.version ? ` ${r.version}` : "";
+  const context = dependencyContextText(r);
   return esc(
-    `${pkg}${version} ${advisorySummaryText(r)}；${shortFixedVersionText(r)}`,
+    `${pkg}${version} ${advisorySummaryText(r)}；${shortFixedVersionText(r)}${context ? " " + context : ""}`,
   );
 }
 

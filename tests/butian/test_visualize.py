@@ -61,6 +61,11 @@ class ScriptAssetForHtmlTests(unittest.TestCase):
         text = "var x = 42;"
         self.assertEqual(visualize.script_asset_for_html(text), text)
 
+    def test_report_js_describes_nested_locked_dependencies(self):
+        script = visualize.read_text(visualize.REPORT_JS)
+        self.assertIn("dependencyContextText", script)
+        self.assertIn("被父依赖锁定的嵌套副本", script)
+
 
 # ---------------------------------------------------------------------------
 # style_asset_for_html
