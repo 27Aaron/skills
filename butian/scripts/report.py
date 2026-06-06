@@ -351,7 +351,7 @@ def render_next_steps(analysis):
         lines.append("- 依赖修复后必须重新运行补天扫描，确认漏洞是否真正消失。")
         lines.append(
             "- 修复脚本只执行普通包管理器升级；如果复扫仍出现同名旧版本，通常是间接依赖被父包锁定，"
-            "需要升级父依赖、等待上游修复，或在用户确认强制覆盖更新后使用 overrides/resolutions。"
+            "需要询问用户是否确认升级父依赖到 latest。"
         )
     lines.append("")
     return "\n".join(lines)

@@ -162,7 +162,7 @@ SEVERITY_ORDER = {
         "target_version": "15.5.2",
         "advisory_ids": ["GHSA-xxx", "GHSA-yyy"],
         "upgrade_scope": "direct_package",
-        "residual_guidance": "如果复扫仍出现同名旧版本，通常是间接依赖被父包锁定；需询问用户是否确认强制覆盖更新...",
+        "residual_guidance": "如果复扫仍出现同名旧版本，通常是间接依赖被父包锁定；需询问用户是否确认升级父依赖到 latest...",
         ...
       }
     }

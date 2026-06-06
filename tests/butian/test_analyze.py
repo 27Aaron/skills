@@ -1060,7 +1060,7 @@ class TestBuildSummary(unittest.TestCase):
 
         self.assertTrue(any("重新运行补天扫描" in p for p in result["priority"]))
         self.assertTrue(any("间接依赖" in p for p in result["priority"]))
-        self.assertTrue(any("确认强制覆盖" in p for p in result["priority"]))
+        self.assertTrue(any("确认升级父依赖" in p for p in result["priority"]))
 
 
 HYGIENE_ONLY_NOTICE_SHORT = "暂无法执行依赖漏洞扫描"

@@ -437,8 +437,8 @@ class RenderNextStepsTests(unittest.TestCase):
         result = report.render_next_steps(analysis)
         self.assertIn("重新运行补天扫描", result)
         self.assertIn("间接依赖", result)
-        self.assertIn("overrides", result)
-        self.assertIn("确认强制覆盖", result)
+        self.assertIn("升级父依赖", result)
+        self.assertIn("latest", result)
 
 
 # ---------------------------------------------------------------------------

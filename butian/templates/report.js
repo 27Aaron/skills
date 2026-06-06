@@ -441,7 +441,7 @@ function readableDetail(raw) {
   }
   if (names.size > 1) {
     parts.push(
-      "其余多为传递依赖问题，可以通过 overrides、锁文件更新或包管理器升级分批处理。",
+      "其余多为传递依赖问题，优先升级锁住旧子依赖的父依赖，再重新刷新锁文件。",
     );
   }
   if (/lockfile|node_modules|npm ci/i.test(String(raw || ""))) {
