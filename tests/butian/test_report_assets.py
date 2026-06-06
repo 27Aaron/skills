@@ -305,6 +305,163 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertNotIn("function copyBtn", js)
         self.assertNotIn("function cmdBlock", js)
 
+    def _render_html(self, data):
+        if not shutil.which("node"):
+            self.skipTest("node is required for report asset rendering tests")
+        code = textwrap.dedent(
+            f"""
+            const fs = require("fs");
+            const vm = require("vm");
+            const elements = {{
+              meta: {{ textContent: "" }},
+              app: {{ innerHTML: "" }},
+            }};
+            const context = {{
+              window: {{
+                __BUTIAN_REPORT_DATA__: {json.dumps(data)},
+                location: {{ href: "file:///tmp/report.html" }},
+              }},
+              document: {{
+                getElementById: (id) => elements[id],
+                addEventListener: () => {{}},
+              }},
+              navigator: {{ clipboard: {{ writeText: () => Promise.resolve() }} }},
+              atob: (value) => Buffer.from(value, "base64").toString("binary"),
+              btoa: (value) => Buffer.from(value, "binary").toString("base64"),
+              setTimeout: () => {{}},
+              console,
+            }};
+            vm.createContext(context);
+            vm.runInContext(fs.readFileSync({json.dumps(REPORT_JS)}, "utf8"), context);
+            process.stdout.write(elements.app.innerHTML);
+            """
+        )
+        result = subprocess.run(
+            ["node", "-e", code],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout
+
+    def test_tldr_fallback_uses_risk_item_term_for_critical_high(self):
+        data = {
+            "generated_at": "2026-06-05 09:05:50",
+            "project": {"name": "demo", "path": "/tmp/demo", "ecosystems": ["npm"]},
+            "risk_summary": {"critical": 1, "high": 0, "medium": 0, "low": 0, "info": 0},
+            "summary": {},
+            "top_issues": [
+                {
+                    "package": "bad-pkg",
+                    "version": "1.0.0",
+                    "severity": "critical",
+                    "fixed_versions": ["1.0.1"],
+                    "advisory_id": "GHSA-test",
+                    "summary": "test vuln",
+                }
+            ],
+            "hygiene": {},
+            "outdated": [],
+        }
+        html = self._render_html(data)
+        self.assertIn("已确认依赖风险项", html)
+
+    def test_tldr_fallback_uses_risk_item_term_for_unknown_severity(self):
+        data = {
+            "generated_at": "2026-06-05 09:05:50",
+            "project": {"name": "demo", "path": "/tmp/demo", "ecosystems": ["npm"]},
+            "risk_summary": {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 2},
+            "summary": {},
+            "top_issues": [
+                {
+                    "package": "curious-lib",
+                    "version": "1.0.0",
+                    "severity": "info",
+                    "fixed_versions": [],
+                    "advisory_id": "GHSA-test-info",
+                    "summary": "severity unknown",
+                },
+                {
+                    "package": "other-lib",
+                    "version": "2.0.0",
+                    "severity": "info",
+                    "fixed_versions": [],
+                    "advisory_id": "GHSA-test-info2",
+                    "summary": "severity unknown 2",
+                },
+            ],
+            "hygiene": {},
+            "outdated": [],
+        }
+        html = self._render_html(data)
+        self.assertIn("命中已确认风险项", html)
+
+    def test_detail_and_priority_fallback_use_risk_item_term(self):
+        data = {
+            "generated_at": "2026-06-05 09:05:50",
+            "project": {"name": "demo", "path": "/tmp/demo", "ecosystems": ["npm"]},
+            "risk_summary": {"critical": 0, "high": 1, "medium": 0, "low": 0, "info": 0},
+            "summary": {},
+            "top_issues": [
+                {
+                    "package": "bad-pkg",
+                    "version": "1.0.0",
+                    "severity": "high",
+                    "fixed_versions": ["1.0.1"],
+                    "advisory_id": "GHSA-test",
+                    "summary": "test vuln",
+                }
+            ],
+            "hygiene": {},
+            "outdated": [],
+        }
+        html = self._render_html(data)
+        self.assertIn("已确认风险项 1 个", html)
+        self.assertIn("已确认依赖风险项", html)
+
+    def test_readable_tldr_and_detail_use_risk_item_term(self):
+        data = {
+            "generated_at": "2026-06-05 09:05:50",
+            "project": {
+                "name": "demo",
+                "path": "/tmp/demo",
+                "ecosystems": ["npm"],
+                "total_packages": 5,
+            },
+            "risk_summary": {"critical": 0, "high": 0, "medium": 1, "low": 0, "info": 0},
+            "summary": {"tldr": "", "detail": "", "priority": []},
+            "top_issues": [
+                {
+                    "package": "bad-pkg",
+                    "version": "1.0.0",
+                    "severity": "medium",
+                    "fixed_versions": ["1.0.1"],
+                    "advisory_id": "GHSA-test",
+                    "summary": "test vuln",
+                }
+            ],
+            "hygiene": {},
+            "outdated": [],
+        }
+        html = self._render_html(data)
+        self.assertIn("已确认依赖风险项", html)
+        self.assertIn("已确认风险项", html)
+
+    def test_outdated_section_uses_risk_item_term(self):
+        data = {
+            "generated_at": "2026-06-05 09:05:50",
+            "project": {"name": "demo", "path": "/tmp/demo", "ecosystems": ["npm"]},
+            "scan_config": {"scan_mode": "full_dependency_scan"},
+            "risk_summary": {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0},
+            "summary": {"tldr": "demo", "detail": "demo", "priority": ["demo"]},
+            "top_issues": [],
+            "hygiene": {},
+            "outdated": [],
+        }
+        html = self._render_html(data)
+        self.assertIn("仍以命中风险项为准", html)
+
 
 if __name__ == "__main__":
     unittest.main()

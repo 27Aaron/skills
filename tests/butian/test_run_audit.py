@@ -389,6 +389,7 @@ class FormatHumanSummaryTests(unittest.TestCase):
         self.assertIn("完整依赖漏洞扫描", result)
         self.assertIn("已确认风险项", result)
         self.assertIn("lodash", result)
+        self.assertIn("风险项修复验证", result)
 
 
 # ---------------------------------------------------------------------------

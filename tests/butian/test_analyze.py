@@ -953,6 +953,7 @@ class TestBuildSummary(unittest.TestCase):
 
         self.assertIn("紧急和高风险", result["tldr"])
         self.assertTrue(any("3 个紧急/高风险项" in p for p in result["priority"]))
+        self.assertIn("已确认风险项", result["detail"])
 
     def test_secrets_found(self):
         scan = _make_scan(
@@ -993,6 +994,8 @@ class TestBuildSummary(unittest.TestCase):
         result = analyze.build_summary(scan, analysis)
 
         self.assertIn("中风险或低风险", result["tldr"])
+        self.assertIn("已确认依赖风险项", result["tldr"])
+        self.assertTrue(any("已确认依赖风险项" in p for p in result["priority"]))
 
     def test_vuln_count_but_no_severity(self):
         scan = _make_scan()
@@ -1003,6 +1006,7 @@ class TestBuildSummary(unittest.TestCase):
         result = analyze.build_summary(scan, analysis)
 
         self.assertIn("严重度数据不足", result["tldr"])
+        self.assertIn("命中已确认风险项", result["tldr"])
 
     def test_detail_mentions_project_name(self):
         scan = _make_scan(project={"name": "my-cool-app", "path": "/tmp/app"})
