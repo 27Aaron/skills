@@ -108,11 +108,11 @@ run_audit.py
 └─ 输出终端摘要（或紧凑 JSON）+ 退出码判断
 ```
 
-`run_audit.py` 不执行依赖升级，也不询问用户是否修复。修复确认属于 `SKILL.md` 的 Agent 工作流：用户明确选择修复策略后，再调用 `fix.py --strategy fixed|latest` 执行升级，并重新运行 `run_audit.py` 验证。
+`run_audit.py` 不执行依赖升级，也不询问用户是否修复。修复确认属于 `SKILL.md` 的 Agent 工作流，分两轮进行：
 
-`fix.py --strategy fixed|latest` 只执行普通包管理器升级：`fixed` 升级命中漏洞的包到已知修复版本，`latest` 升级命中漏洞的包到 latest。两种策略都不会自动改父依赖链。如果复扫仍出现同名旧版本，通常是间接依赖被父包锁定，需要再次询问用户是否确认升级父依赖。
+**第一轮**：用户选择修复策略后，调用 `fix.py --strategy fixed|latest` 执行顶层依赖升级，然后重新运行 `run_audit.py` 复扫验证。
 
-用户选择 `确认升级父依赖` 后，才可以调用 `fix.py --strategy parent-upgrade`。当前自动父依赖升级仅支持 npm `package-lock.json` 场景：脚本会为嵌套残留项找到直接父包，并追溯到 `package.json` 中真正需要升级的根父依赖，然后执行 `npm install <根父依赖>@latest`，再执行 `npm update <子依赖>` 在新的父依赖范围内刷新 lockfile。执行后仍需重新运行 `run_audit.py` 验证，并运行项目测试/构建检查兼容性。
+**第二轮**（复扫后仍有残留时）：如果复扫仍出现同名旧版本，通常是间接依赖被父包锁定，报告中已标注需要升级的父依赖。用户可选择继续升级父依赖，调用 `fix.py --strategy parent-upgrade`。当前自动父依赖升级仅支持 npm `package-lock.json` 场景：脚本会为嵌套残留项找到直接父包，并追溯到 `package.json` 中真正需要升级的根父依赖，然后执行 `npm install <根父依赖>@latest`，再执行 `npm update <子依赖>` 在新的父依赖范围内刷新 lockfile。升级后重新运行 `run_audit.py` 复扫，打开 HTML 报告展示最终结果，并提醒用户运行项目测试/构建检查兼容性。
 
 ## 子进程调用方式
 

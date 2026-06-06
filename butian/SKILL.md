@@ -148,19 +148,15 @@ py -3 scripts/visualize.py .butian/<timestamp>/assets/analysis.json
 
 ### Step 5 用户确认修复
 
-扫描完成、Markdown 报告生成、HTML 报告打开、终端摘要输出之后，如果存在可修复依赖漏洞，Agent 必须按下面顺序询问用户；这些询问写在 Skill 工作流里，不写进扫描脚本：
+扫描完成、Markdown 报告生成、HTML 报告打开、终端摘要输出之后，如果存在可修复依赖漏洞，Agent 按以下两轮流程引导用户修复。这些询问写在 Skill 工作流里，不写进扫描脚本。
+
+#### 第一轮：顶层依赖升级
 
 1. **是否修复**：用 AskUserQuestion 提供 `确认修复` / `取消修复`。用户选择取消时，停止修复，只总结报告路径和主要风险。
-2. **修复方式**：用户确认修复后，再用 AskUserQuestion 提供 `将依赖升级到已修复版本` / `将依赖升级到最新版本`。
-3. **父依赖升级确认**：普通修复执行并复扫后，如果仍存在同名依赖漏洞残留，再用 AskUserQuestion 提供 `确认升级父依赖` / `取消升级父依赖`。用户选择取消时，停止修复，并解释残留项来自间接依赖或父包锁定。
-
-修复策略说明：
-- **将依赖升级到已修复版本**：把命中漏洞的包升级到已知修复版本（改动最小，推荐）
-- **将依赖升级到最新版本**：把命中漏洞的包升级到 latest（一步到位，但可能有 breaking changes）
-
-两种策略都只执行普通包管理器升级，不会自动改父依赖链。如果漏洞来自父依赖锁定的嵌套旧版本，普通升级可能只能修复顶层副本，复扫后仍会显示同名旧版本。
-
-用户选择策略后，才允许运行确定性的修复脚本：
+2. **修复方式**：用户确认修复后，用 AskUserQuestion 提供 `将依赖升级到已修复版本` / `将依赖升级到最新版本`。
+   - **将依赖升级到已修复版本**：把命中漏洞的包升级到已知修复版本（改动最小，推荐）
+   - **将依赖升级到最新版本**：把命中漏洞的包升级到最新版本（一步到位，但可能有重大变更）
+3. **执行升级**：用户选择策略后，运行修复脚本：
 
 ```bash
 # 升级到已修复版本
@@ -170,22 +166,27 @@ python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy fixed
 python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy latest
 ```
 
-修复脚本执行完后，重新运行 `python3 scripts/run_audit.py` 验证并生成新报告；人工交互场景不要加 `--no-open`，让 HTML 报告自动弹出。
+4. **复扫验证**：升级完成后，重新运行 `python3 scripts/run_audit.py` 复扫并生成新报告。
 
-复扫后如果仍有同名依赖漏洞残留，必须明确告诉用户：
+#### 第二轮：父依赖升级（复扫后仍有残留时）
 
-- 顶层依赖可能已经升级成功；
-- 残留项通常来自间接依赖或嵌套依赖，被父包版本范围锁住；
-- 下一步优先升级锁住旧子依赖的父依赖到 latest，然后重新刷新相关子依赖并复扫；
-- 父依赖升到 latest 可能带来兼容性变化，因此必须提示用户运行项目测试、构建或启动检查。
+复扫后如果仍有同名依赖漏洞残留，报告会标注这些残留来自父依赖锁定的嵌套旧版本。此时：
 
-用户选择 `确认升级父依赖` 后，才允许运行：
+5. **向用户说明**：顶层依赖已升级成功；残留项来自间接依赖或嵌套依赖，被父包版本范围锁住；报告中已标注需要升级的父依赖。
+6. **是否继续**：用 AskUserQuestion 提供 `升级父依赖` / `暂不处理`。用户选择暂不处理时，总结当前状态并结束。
+7. **执行升级**：用户选择继续后，运行：
 
 ```bash
 python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy parent-upgrade
 ```
 
-当前脚本会自动处理 npm `package-lock.json` 中的嵌套残留项：找到锁住旧子依赖的直接父包，并追溯到 `package.json` 中真正需要升级的根父依赖，然后执行 `npm install <根父依赖>@latest`，再执行 `npm update <子依赖>` 在新的父依赖范围内刷新 lockfile。执行后必须再次运行 `python3 scripts/run_audit.py` 复扫；如果复扫仍有残留，说明上游父依赖最新版可能仍未放开该子依赖，需要等待上游修复或单独人工评估。
+脚本会自动处理 npm `package-lock.json` 中的嵌套残留项：找到锁住旧子依赖的直接父包，追溯到 `package.json` 中的根父依赖，执行 `npm install <根父依赖>@latest`，再执行 `npm update <子依赖>` 刷新 lockfile。
+
+8. **复扫并展示结果**：升级完成后，重新运行 `python3 scripts/run_audit.py` 复扫，然后打开 HTML 报告向用户展示最终结果。提醒用户运行项目测试、构建或启动检查。
+
+#### 两轮后仍有残留
+
+如果两轮升级后仍有残留，说明上游父依赖最新版可能仍未放开该子依赖，需要等待上游修复或单独人工评估。告知用户当前状态并结束。
 
 ## 修复建议规则
 
@@ -206,26 +207,26 @@ python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy paren
 
 ### run_audit.py
 
-| 参数                                              | 说明                                         |
-| ------------------------------------------------- | -------------------------------------------- |
-| `--compact`                                       | 输出 JSON 摘要而非人类可读表格               |
+| 参数                                              | 说明                                          |
+| ------------------------------------------------- | --------------------------------------------- |
+| `--compact`                                       | 输出 JSON 摘要而非人类可读表格                |
 | `--no-open`                                       | 不自动打开 HTML 报告（仅 CI/自动化/测试使用） |
-| `--verbose`                                       | 输出详细日志到 stderr                        |
-| `--debug`                                         | 输出调试级别日志                             |
-| `--progress`                                      | 显示扫描进度（默认 TTY 自动检测）            |
-| `--no-progress`                                   | 禁用进度信息                                 |
-| `--sarif`                                         | 生成 SARIF v2.1.0 格式结果                   |
-| `--baseline`                                      | 启用基线过滤（读取 `.butian-baseline.json`） |
-| `--skip-baseline`                                 | 跳过基线过滤                                 |
-| `--generate-baseline`                             | 从当前扫描结果生成基线文件                   |
-| `--severity-threshold {low,medium,high,critical}` | 发现不低于该等级的漏洞时退出码 1             |
-| `--follow-symlinks`                               | 跟随符号链接扫描（默认跳过）                 |
-| `--no-cache`                                      | 禁用本地缓存                                 |
-| `--cache-ttl <seconds>`                           | 缓存过期时间（默认 86400）                   |
-| `--skip-outdated`                                 | 跳过过期依赖检查                             |
-| `--skip-hygiene`                                  | 跳过仓库卫生检查                             |
-| `--include-packages`                              | 在输出中包含完整包列表                       |
-| `--max-secret-files <n>`                          | 密钥扫描最大文件数                           |
+| `--verbose`                                       | 输出详细日志到 stderr                         |
+| `--debug`                                         | 输出调试级别日志                              |
+| `--progress`                                      | 显示扫描进度（默认 TTY 自动检测）             |
+| `--no-progress`                                   | 禁用进度信息                                  |
+| `--sarif`                                         | 生成 SARIF v2.1.0 格式结果                    |
+| `--baseline`                                      | 启用基线过滤（读取 `.butian-baseline.json`）  |
+| `--skip-baseline`                                 | 跳过基线过滤                                  |
+| `--generate-baseline`                             | 从当前扫描结果生成基线文件                    |
+| `--severity-threshold {low,medium,high,critical}` | 发现不低于该等级的漏洞时退出码 1              |
+| `--follow-symlinks`                               | 跟随符号链接扫描（默认跳过）                  |
+| `--no-cache`                                      | 禁用本地缓存                                  |
+| `--cache-ttl <seconds>`                           | 缓存过期时间（默认 86400）                    |
+| `--skip-outdated`                                 | 跳过过期依赖检查                              |
+| `--skip-hygiene`                                  | 跳过仓库卫生检查                              |
+| `--include-packages`                              | 在输出中包含完整包列表                        |
+| `--max-secret-files <n>`                          | 密钥扫描最大文件数                            |
 
 ### 退出码
 
