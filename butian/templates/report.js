@@ -782,6 +782,47 @@ function advisorySummaryText(r) {
   return advisoryIssuePhrase(summary) || readableIssueKind(r);
 }
 
+function parseVersion(v) {
+  const parts = v.replace(/^v/, "").split(".").map((p) => {
+    const n = parseInt(p, 10);
+    return isNaN(n) ? 0 : n;
+  });
+  while (parts.length < 3) parts.push(0);
+  return parts.slice(0, 3);
+}
+
+function versionCmp(a, b) {
+  for (let i = 0; i < 3; i++) {
+    if (a[i] < b[i]) return -1;
+    if (a[i] > b[i]) return 1;
+  }
+  return 0;
+}
+
+function semverSatisfies(version, range) {
+  range = (range || "").trim();
+  if (!range || range === "*" || range === "latest") return true;
+  if (range.includes("||")) {
+    return range.split("||").some((r) => semverSatisfies(version, r.trim()));
+  }
+  const ver = parseVersion(version);
+  if (range.startsWith("^")) {
+    const base = parseVersion(range.slice(1));
+    if (base[0] > 0) return versionCmp(ver, base) >= 0 && ver[0] === base[0];
+    if (base[1] > 0) return versionCmp(ver, base) >= 0 && ver[0] === 0 && ver[1] === base[1];
+    return versionCmp(ver, base) === 0;
+  }
+  if (range.startsWith("~")) {
+    const base = parseVersion(range.slice(1));
+    return versionCmp(ver, base) >= 0 && ver[0] === base[0] && ver[1] === base[1];
+  }
+  if (range.startsWith(">=")) return versionCmp(ver, parseVersion(range.slice(2))) >= 0;
+  if (range.startsWith(">")) return versionCmp(ver, parseVersion(range.slice(1))) > 0;
+  if (range.startsWith("<=")) return versionCmp(ver, parseVersion(range.slice(2))) <= 0;
+  if (range.startsWith("<")) return versionCmp(ver, parseVersion(range.slice(1))) < 0;
+  return versionCmp(ver, parseVersion(range)) === 0;
+}
+
 function dependencyContextText(r) {
   const ctx = r.dependency_context || r.dependencyContext || {};
   if (!ctx || ctx.kind !== "nested_locked") return "";
@@ -798,7 +839,21 @@ function dependencyContextText(r) {
   const topText = topVersions.length
     ? `；顶层版本：${topVersions.join("、")}`
     : "";
-  return `该旧版本属于被父依赖锁定的嵌套副本，${parentText}${topText}。`;
+  // Show semver range analysis from first location
+  const firstLoc = locations[0] || {};
+  const parentRange = firstLoc.parent_range || firstLoc.parentRange;
+  const targetVer = r.target_version || (r.fix_config || {}).target_version;
+  let rangeText = "";
+  if (parentRange && targetVer) {
+    const inRange = semverSatisfies(targetVer, parentRange);
+    const hint = inRange
+      ? `修复版本 ${targetVer} 在范围内，只需重新解析 lockfile`
+      : `修复版本 ${targetVer} 不在范围内，需升级父依赖`;
+    rangeText = ` ${parents[0] || "父依赖"} 声明 "${parentRange}"，${hint}。`;
+  } else if (parentRange) {
+    rangeText = ` ${parents[0] || "父依赖"} 声明 "${parentRange}"。`;
+  }
+  return `该旧版本属于被父依赖锁定的嵌套副本，${parentText}${topText}。${rangeText}`;
 }
 
 function vulnerabilityExplanation(r) {

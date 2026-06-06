@@ -65,7 +65,8 @@ class ScriptAssetForHtmlTests(unittest.TestCase):
         script = visualize.read_text(visualize.REPORT_JS)
         self.assertIn("dependencyContextText", script)
         self.assertIn("被父依赖锁定的嵌套副本", script)
-        self.assertIn("if (context) return esc(context);", script)
+        self.assertIn("semverSatisfies", script)
+        self.assertIn("parent_range", script)
 
 
 # ---------------------------------------------------------------------------
