@@ -167,12 +167,36 @@ def ensure_butian_workspace(project_path):
     return workspace
 
 
+def _latest_existing_run(workspace):
+    """Return the path of the most recent run directory, or None."""
+    if not os.path.isdir(workspace):
+        return None
+    candidates = sorted(
+        (
+            d for d in os.listdir(workspace)
+            if os.path.isdir(os.path.join(workspace, d))
+            and re.match(r"\d{8}-\d{6}", d)
+        ),
+        reverse=True,
+    )
+    return os.path.join(workspace, candidates[0]) if candidates else None
+
+
 def make_run_id():
     return time.strftime("%Y%m%d-%H%M%S")
 
 
 def ensure_butian_run(project_path, run_id=None):
     workspace = ensure_butian_workspace(project_path)
+
+    # Reuse: if no explicit run_id and a previous run exists, reuse it
+    if run_id is None:
+        latest = _latest_existing_run(workspace)
+        if latest:
+            os.makedirs(os.path.join(latest, BUTIAN_ASSETS_DIR), exist_ok=True)
+            os.makedirs(os.path.join(latest, BUTIAN_CONTENT_DIR), exist_ok=True)
+            return latest
+
     base_run_id = run_id or make_run_id()
     run_dir = os.path.join(workspace, base_run_id)
     suffix = 2
