@@ -17,7 +17,7 @@ import os
 import re
 import sys
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("butian.scripts.analyze")
 
 try:
     from .scan import HYGIENE_ONLY_NOTICE, run_dir_from_output_file, setup_logging

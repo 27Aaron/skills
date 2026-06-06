@@ -19,7 +19,7 @@ import subprocess
 import sys
 from collections import defaultdict
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("butian.scripts.run_audit")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 

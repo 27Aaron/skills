@@ -14,7 +14,7 @@ import re
 import string
 import sys
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("butian.scripts.report")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_PATH = os.path.join(HERE, "..", "templates", "report.md")
