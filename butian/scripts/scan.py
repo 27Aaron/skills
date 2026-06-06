@@ -2717,17 +2717,13 @@ def fetch_nvd_enrichments(cve_ids, errors):
     return enrichments
 
 
-def _kev_cache_path(project_path=None):
-    if project_path:
-        base = os.path.join(project_path, BUTIAN_DIR, CACHE_DIR_NAME, "kev")
-        os.makedirs(base, exist_ok=True)
-        return os.path.join(base, "catalog.json")
-    base = os.path.join(os.path.expanduser("~"), BUTIAN_DIR, CACHE_DIR_NAME, "kev")
+def _kev_cache_path(project_path):
+    base = os.path.join(project_path, BUTIAN_DIR, CACHE_DIR_NAME, "kev")
     os.makedirs(base, exist_ok=True)
     return os.path.join(base, "catalog.json")
 
 
-def _load_kev_cache(project_path=None):
+def _load_kev_cache(project_path):
     cache_path = _kev_cache_path(project_path)
     try:
         mtime = os.path.getmtime(cache_path)
@@ -2742,7 +2738,7 @@ def _load_kev_cache(project_path=None):
         return None
 
 
-def _save_kev_cache(data, project_path=None):
+def _save_kev_cache(data, project_path):
     cache_path = _kev_cache_path(project_path)
     try:
         with open(cache_path, "w", encoding="utf-8") as f:
@@ -2751,7 +2747,7 @@ def _save_kev_cache(data, project_path=None):
         pass
 
 
-def fetch_cisa_kev_enrichments(cve_ids, errors, project_path=None):
+def fetch_cisa_kev_enrichments(cve_ids, errors, project_path):
     if not cve_ids:
         return {}
     data = _load_kev_cache(project_path)
@@ -2811,7 +2807,7 @@ def merge_cve_patch(target, patch):
             target[key] = value
 
 
-def fetch_cve_enrichments(cve_ids, errors):
+def fetch_cve_enrichments(cve_ids, errors, project_path=None):
     cve_ids = unique_nonempty([normalize_cve_id(cve_id) for cve_id in cve_ids])
     enrichments = {
         cve_id: {
@@ -2824,7 +2820,7 @@ def fetch_cve_enrichments(cve_ids, errors):
     }
     sources = [
         fetch_nvd_enrichments(cve_ids, errors),
-        fetch_cisa_kev_enrichments(cve_ids, errors),
+        fetch_cisa_kev_enrichments(cve_ids, errors, project_path=project_path),
         fetch_epss_enrichments(cve_ids, errors),
     ]
     for source in sources:
@@ -2947,7 +2943,7 @@ def build_official_vulnerability(package, osv_record, cve_enrichments_by_id):
     }
 
 
-def check_vulnerability_batch(batch_no, batch):
+def check_vulnerability_batch(batch_no, batch, project_path=None):
     try:
         data = fetch_osv_querybatch(batch)
     except urllib.error.HTTPError as e:
@@ -2998,7 +2994,7 @@ def check_vulnerability_batch(batch_no, batch):
     for _, detail in detail_pairs:
         aliases = unique_nonempty((detail.get("aliases") or []) + [detail.get("id")])
         cve_ids.extend(extract_cve_aliases(aliases))
-    cve_enrichments = fetch_cve_enrichments(cve_ids, errors)
+    cve_enrichments = fetch_cve_enrichments(cve_ids, errors, project_path=project_path)
 
     vulns = [
         build_official_vulnerability(package, detail, cve_enrichments)
@@ -3007,7 +3003,7 @@ def check_vulnerability_batch(batch_no, batch):
     return vulns, errors
 
 
-def check_vulnerabilities(packages, batch_size=100, errors=None, concurrency=1):
+def check_vulnerabilities(packages, batch_size=100, errors=None, concurrency=1, project_path=None):
     if not packages:
         return []
     if errors is None:
@@ -3045,13 +3041,13 @@ def check_vulnerabilities(packages, batch_size=100, errors=None, concurrency=1):
     if workers == 1:
         results = []
         for batch_no, batch in batches:
-            vulns, batch_errors = check_vulnerability_batch(batch_no, batch)
+            vulns, batch_errors = check_vulnerability_batch(batch_no, batch, project_path=project_path)
             results.append((batch_no, vulns, batch_errors))
     else:
         results = []
         with ThreadPoolExecutor(max_workers=workers) as executor:
             future_to_batch = {
-                executor.submit(check_vulnerability_batch, batch_no, batch): batch_no
+                executor.submit(check_vulnerability_batch, batch_no, batch, project_path): batch_no
                 for batch_no, batch in batches
             }
             for future in as_completed(future_to_batch):
@@ -3648,6 +3644,7 @@ def main():
                 packages,
                 errors=step_errors,
                 concurrency=api_workers,
+                project_path=project_path,
             )
             logger.info(
                 "Step 4/5 漏洞检测完成: %d 个风险项, 耗时 %.3fs",
