@@ -62,11 +62,6 @@ def parse_args(argv):
         help="include the full package list in scan output JSON",
     )
     parser.add_argument(
-        "--compact",
-        action="store_true",
-        help="print compact final JSON summary",
-    )
-    parser.add_argument(
         "--no-open",
         action="store_true",
         help="do not open the generated HTML report in the default browser",
@@ -90,48 +85,6 @@ def parse_args(argv):
         "--follow-symlinks",
         action="store_true",
         help="跟随符号链接扫描",
-    )
-    parser.add_argument(
-        "--no-cache",
-        action="store_true",
-        help="禁用本地缓存",
-    )
-    parser.add_argument(
-        "--cache-ttl",
-        type=int,
-        default=86400,
-        help="缓存过期时间（秒）",
-    )
-    parser.add_argument(
-        "--progress",
-        action="store_true",
-        default=None,
-        help="在 stderr 显示进度信息",
-    )
-    parser.add_argument(
-        "--no-progress",
-        action="store_true",
-        help="禁用进度信息",
-    )
-    parser.add_argument(
-        "--severity-threshold",
-        choices=["low", "medium", "high", "critical"],
-        help="发现不低于该等级的漏洞时以退出码 1 退出",
-    )
-    parser.add_argument(
-        "--baseline",
-        action="store_true",
-        help="启用基线过滤",
-    )
-    parser.add_argument(
-        "--skip-baseline",
-        action="store_true",
-        help="跳过基线过滤",
-    )
-    parser.add_argument(
-        "--generate-baseline",
-        action="store_true",
-        help="从当前扫描结果生成基线文件",
     )
     return parser.parse_args(argv)
 
@@ -486,27 +439,7 @@ def build_scan_cmd(args, preflight_file):
         cmd.append("--debug")
     if args.follow_symlinks:
         cmd.append("--follow-symlinks")
-    if args.no_cache:
-        cmd.append("--no-cache")
-    if args.cache_ttl != 86400:
-        cmd.extend(["--cache-ttl", str(args.cache_ttl)])
-    if args.progress:
-        cmd.append("--progress")
-    if args.no_progress:
-        cmd.append("--no-progress")
-    if args.severity_threshold:
-        cmd.extend(["--severity-threshold", args.severity_threshold])
-    if args.baseline:
-        cmd.append("--baseline")
-    if args.skip_baseline:
-        cmd.append("--skip-baseline")
-    if args.generate_baseline:
-        cmd.append("--generate-baseline")
     return cmd
-
-
-def should_echo_build_report(args):
-    return not getattr(args, "compact", False)
 
 
 def main():
@@ -580,7 +513,7 @@ def main():
         build_report_cmd.append("--no-open")
     run_text(
         build_report_cmd,
-        echo=should_echo_build_report(args),
+        echo=True,
     )
 
     summary = {
@@ -594,28 +527,7 @@ def main():
         "errors": analysis.get("errors", []),
     }
 
-    if args.compact:
-        print(json.dumps(summary, ensure_ascii=False, separators=(",", ":")))
-    else:
-        print(format_human_summary(summary, scan, analysis, args))
-
-    # Exit code based on severity threshold
-    if args.severity_threshold:
-        _SEVERITY_ORDER = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
-        threshold_rank = _SEVERITY_ORDER.get(args.severity_threshold.lower(), 0)
-        if threshold_rank:
-            vulns = analysis.get("top_issues") or []
-            count = 0
-            for vuln in vulns:
-                vuln_sev = str(vuln.get("severity") or "info").lower()
-                if _SEVERITY_ORDER.get(vuln_sev, 0) >= threshold_rank:
-                    count += 1
-            if count > 0:
-                print(
-                    f"发现 {count} 个不低于 {args.severity_threshold} 等级的漏洞",
-                    file=sys.stderr,
-                )
-                return 1
+    print(format_human_summary(summary, scan, analysis, args))
 
     return 0
 

@@ -11,12 +11,11 @@
 | #   | 职责          | 说明                                                                                       |
 | --- | ------------- | ------------------------------------------------------------------------------------------ |
 | 1   | 管线编排      | 按序调用 detect → scan → analyze → report → visualize                                      |
-| 2   | 参数透传      | 将用户参数传递给各子阶段（包括新增的 verbose/debug/cache/baseline 等）                     |
+| 2   | 参数透传      | 将用户参数传递给各子阶段（verbose/debug/follow-symlinks）                                 |
 | 3   | 结果汇总      | 收集各阶段的文件路径和风险统计                                                             |
 | 4   | 终端摘要      | 输出格式化的终端摘要（包含 Unicode 表格）                                                  |
 | 5   | 报告打开      | 首次扫描自动用系统浏览器打开 HTML 报告，复扫跳过（由 `.butian/.first-scan-done` 标记控制） |
-| 6   | 退出码控制    | 根据 `--severity-threshold` 返回语义化退出码                                               |
-| 7   | Markdown 控制 | 首次扫描 + 最终复扫（`--final-report`）生成 Markdown，中间复扫跳过                         |
+| 6   | Markdown 控制 | 首次扫描 + 最终复扫（`--final-report`）生成 Markdown，中间复扫跳过                         |
 
 ## CLI 用法
 
@@ -25,19 +24,12 @@
 python3 run_audit.py                        # 当前目录，完整扫描
 python3 run_audit.py /path/to/project       # 指定项目路径
 python3 run_audit.py --skip-outdated .      # 跳过过期依赖检查
-python3 run_audit.py --compact .            # 输出紧凑 JSON 摘要
 python3 run_audit.py --no-open .            # CI/自动化场景：不自动打开 HTML 报告
 
-# 新增功能
+# 可选参数
 python3 run_audit.py --verbose .            # 详细日志输出
 python3 run_audit.py --debug .              # 调试级别日志
-python3 run_audit.py --progress .           # 显示扫描进度
-python3 run_audit.py --baseline .           # 启用基线过滤
-python3 run_audit.py --generate-baseline .  # 生成基线文件
-python3 run_audit.py --severity-threshold high .  # high+ 漏洞时退出码 1
 python3 run_audit.py --follow-symlinks .    # 跟随符号链接
-python3 run_audit.py --no-cache .           # 禁用缓存
-python3 run_audit.py --cache-ttl 3600 .     # 自定义缓存过期时间
 python3 run_audit.py --final-report .       # 最终复扫：强制生成 Markdown 报告
 ```
 
@@ -51,44 +43,25 @@ python3 run_audit.py --final-report .       # 最终复扫：强制生成 Markdo
 | `--skip-hygiene`       | flag     | false    | 跳过仓库卫生检查                       |
 | `--max-secret-files`   | int      | None     | 限制密钥扫描的文件数量                 |
 | `--include-packages`   | flag     | false    | 在扫描输出中包含完整包列表             |
-| `--compact`            | flag     | false    | 输出紧凑 JSON                          |
 | `--no-open`            | flag     | false    | 不自动打开 HTML 报告                   |
 | `--final-report`       | flag     | false    | 最终复扫时强制生成 Markdown 报告       |
 | `--verbose`            | flag     | false    | 输出详细日志到 stderr                  |
 | `--debug`              | flag     | false    | 输出调试级别日志                       |
 | `--follow-symlinks`    | flag     | false    | 跟随符号链接扫描                       |
-| `--no-cache`           | flag     | false    | 禁用本地缓存                           |
-| `--cache-ttl`          | int      | 86400    | 缓存过期时间（秒）                     |
-| `--progress`           | flag     | 自动检测 | 显示扫描进度                           |
-| `--no-progress`        | flag     | false    | 禁用进度信息                           |
-| `--severity-threshold` | choice   | —        | 退出码阈值（low/medium/high/critical） |
-| `--baseline`           | flag     | false    | 启用基线过滤                           |
-| `--skip-baseline`      | flag     | false    | 跳过基线过滤                           |
-| `--generate-baseline`  | flag     | false    | 从当前扫描结果生成基线文件             |
-
-## 退出码
-
-| 退出码 | 含义                                     |
-| ------ | ---------------------------------------- |
-| 0      | 扫描完成，无超阈值发现                   |
-| 1      | 存在不低于 `--severity-threshold` 的发现 |
-| 2      | 执行错误（子进程失败等）                 |
 
 ## 管线流程
 
 ```
 run_audit.py
 │
-├─ 1. detect.py --compact [--no-root-discovery] <project_path>
+├─ 1. detect.py [--no-root-discovery] <project_path>
 │     → preflight.json
 │     → stdout: preflight JSON
 │
 ├─ 2. scan.py --preflight <preflight_file> [新增参数透传]
 │     → scan.json
 │     → stdout: scan JSON
-│     透传: --verbose, --debug, --follow-symlinks, --no-cache,
-│           --cache-ttl, --progress, --severity-threshold,
-│           --baseline, --generate-baseline
+│     透传: --verbose, --debug, --follow-symlinks
 │
 ├─ 3. analyze.py <scan_file> <analysis_path>
 │     → analysis.json
@@ -100,7 +73,7 @@ run_audit.py
 │     → .butian/<run>/content/security-report.html
 │     首次扫描自动打开浏览器，复扫跳过（.first-scan-done 标记）
 │
-└─ 输出终端摘要（或紧凑 JSON）+ 退出码判断
+└─ 输出终端摘要
 ```
 
 `run_audit.py` 不执行依赖升级，也不询问用户是否修复。修复确认属于 `SKILL.md` 的 Agent 工作流，分三轮进行：
@@ -125,7 +98,7 @@ run_audit.py
 
 ## 终端摘要格式
 
-当不使用 `--compact` 时，输出包含以下内容：
+输出包含以下内容：
 
 ```
 ⏺ 扫描完成 ✅ 模式：full_dependency_scan（完整依赖漏洞扫描）。
@@ -197,32 +170,12 @@ run_audit.py
 | ----------------------------------- | ------------------------------------ |
 | `relative_path(path, project_path)` | 将绝对路径转为相对于项目根的相对路径 |
 
-## 输出 JSON 结构（--compact 模式）
-
-```json
-{
-  "preflight_file": ".butian/.../assets/preflight.json",
-  "scan_file": ".butian/.../assets/scan.json",
-  "analysis_file": ".butian/.../assets/analysis.json",
-  "markdown_report": "docs/butian/security-report-2025-01-15_120000.md",
-  "html_report": ".butian/.../content/security-report.html",
-  "scan_mode": "full_dependency_scan",
-  "risk_summary": { "critical": 1, "high": 2, "medium": 3, "low": 1 },
-  "errors": []
-}
-```
-
-> `markdown_report` 在中间复扫时为 `null`（首次扫描或 `--final-report` 时才有值）。依赖修复不属于 `run_audit.py` 的输出结构。
-
 ## 设计要点
 
 - **子进程编排**：每个阶段作为独立 Python 子进程运行，通过 JSON stdout 传递数据
-- **双模式输出**：`--compact` 适合程序消费（JSON），默认模式适合人类阅读（Unicode 表格）
 - **CJK 宽度感知**：`display_width()` 正确处理中文字符的终端显示宽度
-- **参数透传**：`build_scan_cmd()` 将所有相关参数（含新增的 verbose/debug/cache/baseline 等）传递给 `scan.py`
-- **错误传播**：子进程非零退出码通过 `SystemExit` 向上传播
+- **参数透传**：`build_scan_cmd()` 将 verbose/debug/follow-symlinks 传递给 `scan.py`
 - **能力边界声明**：终端摘要中包含明确的能力边界说明
-- **语义化退出码**：`--severity-threshold` 控制管线退出码
 - **首次标记**：`.butian/.first-scan-done` 标记控制浏览器弹出和 Markdown 生成，复扫不重复
 - **最终报告**：`--final-report` 在修复完成后强制生成最终 Markdown 审计报告
 
@@ -231,5 +184,3 @@ run_audit.py
 | 文档                        | 说明                     |
 | --------------------------- | ------------------------ |
 | `docs/butian/scan.md`       | scan.py 核心引擎技术文档 |
-| `docs/butian/baseline.md`   | 基线文件使用指南         |
-| `docs/butian/api-limits.md` | API 限流与使用策略       |

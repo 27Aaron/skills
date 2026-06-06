@@ -57,7 +57,7 @@ python3 scripts/run_audit.py
 py -3 scripts/run_audit.py
 ```
 
-`scripts/run_audit.py` 默认扫描当前目录并自动向上识别最近的项目根目录；在 monorepo 子项目中运行时，优先使用当前子项目的 manifest/lockfile，不要跳到上层 git repo。需要扫描其他目录时，把路径作为最后一个参数传入。脚本会按顺序运行预检、扫描、analysis 生成、Markdown 生成和 HTML 生成，生成后会尝试用系统默认浏览器自动打开静态 HTML 报告（仅首次扫描自动打开，复扫不会重复弹出），并在终端输出固定的人类可读摘要：`📊 风险总览`、`⚠️ 能力边界`、`🚨 重点关注`、`📁 报告路径`；其中能力边界必须使用 Markdown 引用格式 `>` 输出完整文案。人工交互扫描默认不要加 `--no-open`；只有 CI、自动化或测试需要避免弹浏览器时才使用 `--no-open`。只有自动化或测试需要机器可读结果时才使用 `--compact`，此时输出 JSON。如果输出中的模式是 `hygiene_only`，必须告诉用户：`当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；本次仅做仓库卫生扫描，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。`
+`scripts/run_audit.py` 默认扫描当前目录并自动向上识别最近的项目根目录；在 monorepo 子项目中运行时，优先使用当前子项目的 manifest/lockfile，不要跳到上层 git repo。需要扫描其他目录时，把路径作为最后一个参数传入。脚本会按顺序运行预检、扫描、analysis 生成、Markdown 生成和 HTML 生成，生成后会尝试用系统默认浏览器自动打开静态 HTML 报告（仅首次扫描自动打开，复扫不会重复弹出），并在终端输出固定的人类可读摘要：`📊 风险总览`、`⚠️ 能力边界`、`🚨 重点关注`、`📁 报告路径`；其中能力边界必须使用 Markdown 引用格式 `>` 输出完整文案。人工交互扫描默认不要加 `--no-open`；只有 CI、自动化或测试需要避免弹浏览器时才使用 `--no-open`。如果输出中的模式是 `hygiene_only`，必须告诉用户：`当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；本次仅做仓库卫生扫描，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。`
 
 对话最终回复如果需要转述扫描结果，必须使用 Markdown 引用格式 `>` 展示完整能力边界，不要自行压缩成短句，也不要另起"提示"类标题。固定写法如下：
 
@@ -233,51 +233,19 @@ python3 scripts/run_audit.py --final-report
 
 ### run_audit.py
 
-| 参数                                              | 说明                                          |
-| ------------------------------------------------- | --------------------------------------------- |
-| `--compact`                                       | 输出 JSON 摘要而非人类可读表格                |
-| `--no-open`                                       | 不自动打开 HTML 报告                          |
-| `--final-report`                                  | 最终复扫时强制生成 Markdown 报告              |
-| `--verbose`                                       | 输出详细日志到 stderr                         |
-| `--debug`                                         | 输出调试级别日志                              |
-| `--progress`                                      | 显示扫描进度（默认 TTY 自动检测）             |
-| `--no-progress`                                   | 禁用进度信息                                  |
-| `--baseline`                                      | 启用基线过滤（读取 `.butian-baseline.json`）  |
-| `--skip-baseline`                                 | 跳过基线过滤                                  |
-| `--generate-baseline`                             | 从当前扫描结果生成基线文件                    |
-| `--severity-threshold {low,medium,high,critical}` | 发现不低于该等级的漏洞时退出码 1              |
-| `--follow-symlinks`                               | 跟随符号链接扫描（默认跳过）                  |
-| `--no-cache`                                      | 禁用本地缓存                                  |
-| `--cache-ttl <seconds>`                           | 缓存过期时间（默认 86400）                    |
-| `--skip-outdated`                                 | 跳过过期依赖检查                              |
-| `--skip-hygiene`                                  | 跳过仓库卫生检查                              |
-| `--include-packages`                              | 在输出中包含完整包列表                        |
-| `--max-secret-files <n>`                          | 密钥扫描最大文件数                            |
-
-### 退出码
-
-| 退出码 | 含义                                         |
-| ------ | -------------------------------------------- |
-| 0      | 扫描完成，无超阈值发现                       |
-| 1      | 存在不低于 `--severity-threshold` 等级的发现 |
-| 2      | 执行错误（文件读取失败、参数错误等）         |
-
-## 基线管理
-
-基线文件 `.butian-baseline.json` 用于标记已确认的、可接受的安全发现。被收录的条目不会出现在最终报告中。
-
-```bash
-# 生成基线（从当前扫描结果）
-python3 scripts/run_audit.py --generate-baseline .
-
-# 使用基线过滤
-python3 scripts/run_audit.py --baseline --severity-threshold high .
-```
-
-基线文件应提交到版本控制，让团队共享。详细用法见 `docs/butian/baseline.md`。
+| 参数                      | 说明                                |
+| ------------------------- | ----------------------------------- |
+| `--no-open`               | 不自动打开 HTML 报告                |
+| `--final-report`          | 最终复扫时强制生成 Markdown 报告    |
+| `--verbose`               | 输出详细日志到 stderr               |
+| `--debug`                 | 输出调试级别日志                    |
+| `--follow-symlinks`       | 跟随符号链接扫描（默认跳过）        |
+| `--skip-outdated`         | 跳过过期依赖检查                    |
+| `--skip-hygiene`          | 跳过仓库卫生检查                    |
+| `--include-packages`      | 在输出中包含完整包列表              |
+| `--max-secret-files <n>`  | 密钥扫描最大文件数                  |
 
 ## 日志与缓存
 
 - 日志文件：`.butian/<timestamp>/logs/scan.log`
 - 本地缓存：`.butian/cache/`（跨 run 共享，默认 24 小时过期）
-- API 限流说明：`docs/butian/api-limits.md`

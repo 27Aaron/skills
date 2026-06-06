@@ -63,15 +63,6 @@ HTTP_USER_AGENT = (
 BUTIAN_DIR = ".butian"
 CACHE_DIR_NAME = "cache"
 
-BASELINE_FILENAME = ".butian-baseline.json"
-
-SEVERITY_THRESHOLD_ORDER = {
-    "critical": 4,
-    "high": 3,
-    "medium": 2,
-    "low": 1,
-    "info": 0,
-}
 BUTIAN_GITIGNORE_ENTRY = ".butian/"
 BUTIAN_GITIGNORE_EXTRA_ENTRIES = ("docs/butian",)
 BUTIAN_ASSETS_DIR = "assets"
@@ -1020,192 +1011,8 @@ def cache_clean(project_path, ttl_seconds=86400):
 # ---------------------------------------------------------------------------
 
 
-def _is_stderr_tty():
-    """Check if stderr is connected to a terminal."""
-    try:
-        return os.isatty(sys.stderr.fileno())
-    except Exception:
-        return False
 
 
-class ProgressReporter:
-    """Report progress to stderr using carriage-return updates."""
-
-    def __init__(self, enabled=None):
-        if enabled is None:
-            enabled = _is_stderr_tty()
-        self.enabled = enabled
-        self._last_len = 0
-
-    def update(self, message):
-        """Update the progress line in-place on stderr."""
-        if not self.enabled:
-            return
-        padded = message.ljust(self._last_len)
-        sys.stderr.write(f"\r{padded}")
-        sys.stderr.flush()
-        self._last_len = len(message)
-
-    def finish(self, message=""):
-        """Print final message and move to new line."""
-        if not self.enabled:
-            return
-        if message:
-            sys.stderr.write(f"\r{message.ljust(self._last_len)}\n")
-        else:
-            sys.stderr.write("\n")
-        sys.stderr.flush()
-        self._last_len = 0
-
-    def step(self, step_num, total_steps, description):
-        """Report a major pipeline step."""
-        if not self.enabled:
-            return
-        sys.stderr.write(f"步骤 {step_num}/{total_steps}: {description}...\n")
-        sys.stderr.flush()
-
-
-# ---------------------------------------------------------------------------
-# Severity threshold / exit code
-# ---------------------------------------------------------------------------
-
-
-def normalize_severity_for_threshold(value):
-    """Normalize a severity string for threshold comparison."""
-    return str(value or "info").lower()
-
-
-def evaluate_severity_threshold(vulnerabilities, threshold):
-    """Check if any vulnerability meets or exceeds the severity threshold.
-
-    Args:
-        vulnerabilities: List of vulnerability dicts.
-        threshold: One of "low", "medium", "high", "critical", or None.
-
-    Returns:
-        tuple: (should_fail: bool, count_above_threshold: int)
-    """
-    if not threshold:
-        return False, 0
-    threshold_rank = SEVERITY_THRESHOLD_ORDER.get(threshold.lower(), 0)
-    if threshold_rank == 0:
-        return False, 0
-    count = 0
-    for vuln in vulnerabilities:
-        vuln_sev = normalize_severity_for_threshold(vuln.get("severity"))
-        vuln_rank = SEVERITY_THRESHOLD_ORDER.get(vuln_sev, 0)
-        if vuln_rank >= threshold_rank:
-            count += 1
-    return count > 0, count
-
-
-# ---------------------------------------------------------------------------
-# Baseline (known-issue suppression)
-# ---------------------------------------------------------------------------
-
-
-def vulnerability_fingerprint(vuln):
-    """Generate unique fingerprint for a vulnerability finding."""
-    ecosystem = str(vuln.get("ecosystem", "")).lower()
-    package = str(vuln.get("package") or vuln.get("name", "")).lower()
-    version = str(vuln.get("version", ""))
-    vuln_id = str(vuln.get("advisory_id") or vuln.get("cve_id") or "")
-    return f"vuln__{ecosystem}__{package}__{version}__{vuln_id}"
-
-
-def secret_fingerprint(secret):
-    """Generate unique fingerprint for a secret finding."""
-    file = str(secret.get("file", ""))
-    line = str(secret.get("line", ""))
-    stype = str(secret.get("type", ""))
-    return f"secret__{file}__{line}__{stype}"
-
-
-def sensitive_file_fingerprint(item):
-    """Generate unique fingerprint for a sensitive file finding."""
-    file = str(item.get("file", ""))
-    ftype = str(item.get("type", ""))
-    return f"sensitive__{file}__{ftype}"
-
-
-def load_baseline(project_path):
-    """Load baseline file from project root. Returns set of fingerprints."""
-    path = os.path.join(project_path, BASELINE_FILENAME)
-    if not os.path.isfile(path):
-        return set()
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return {
-            entry["fingerprint"]
-            for entry in data.get("entries", [])
-            if entry.get("fingerprint")
-        }
-    except (json.JSONDecodeError, OSError, KeyError):
-        return set()
-
-
-def filter_with_baseline(items, baseline_fingerprints, fingerprint_fn):
-    """Filter items whose fingerprint is in the baseline."""
-    if not baseline_fingerprints:
-        return items
-    return [item for item in items if fingerprint_fn(item) not in baseline_fingerprints]
-
-
-def generate_baseline(scan_output, project_path, reason="自动生成"):
-    """Generate a baseline file from current scan findings."""
-    entries = []
-    now = time.strftime("%Y-%m-%dT%H:%M:%S")
-
-    for vuln in scan_output.get("vulnerabilities", []):
-        fp = vulnerability_fingerprint(vuln)
-        entries.append(
-            {
-                "fingerprint": fp,
-                "reason": reason,
-                "suppressed_at": now,
-                "package": vuln.get("package", ""),
-                "version": vuln.get("version", ""),
-                "vuln_id": vuln.get("advisory_id") or vuln.get("cve_id", ""),
-            }
-        )
-
-    for secret in scan_output.get("hygiene", {}).get("tracked_secrets") or []:
-        fp = secret_fingerprint(secret)
-        entries.append(
-            {
-                "fingerprint": fp,
-                "reason": reason,
-                "suppressed_at": now,
-                "file": secret.get("file", ""),
-                "line": secret.get("line", ""),
-                "type": secret.get("type", ""),
-            }
-        )
-
-    for item in scan_output.get("hygiene", {}).get("sensitive_tracked") or []:
-        fp = sensitive_file_fingerprint(item)
-        entries.append(
-            {
-                "fingerprint": fp,
-                "reason": reason,
-                "suppressed_at": now,
-                "file": item.get("file", ""),
-                "type": item.get("type", ""),
-            }
-        )
-
-    baseline = {
-        "version": 1,
-        "description": "补天扫描基线：已知/接受的发现将不会出现在最终报告中",
-        "entries": entries,
-    }
-
-    path = os.path.join(project_path, BASELINE_FILENAME)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(baseline, f, ensure_ascii=False, indent=2)
-        f.write("\n")
-    return path
 
 
 def gitignore_rules(content):
@@ -2671,21 +2478,6 @@ def fetch_osv_vulnerability(vuln_id):
     return get_json(f"{OSV_VULN_URL_PREFIX}{urllib.parse.quote(str(vuln_id), safe='')}")
 
 
-def fetch_osv_vulnerability_cached(
-    vuln_id, project_path, cache_ttl=86400, use_cache=True
-):
-    """Fetch OSV vulnerability with local caching."""
-    cpath = None
-    if use_cache:
-        cpath = os.path.join(cache_dir(project_path, "osv"), f"{vuln_id}.json")
-        cached = cache_read(cpath, cache_ttl)
-        if cached is not None:
-            return cached
-    data = fetch_osv_vulnerability(vuln_id)
-    if use_cache and data and cpath:
-        cache_write(cpath, data, source="osv", key=vuln_id)
-    return data
-
 
 def parse_osv_query_results(data, batch):
     results = data.get("results") if isinstance(data, dict) else []
@@ -3624,11 +3416,6 @@ def parse_args(argv):
         help="include the full package list in output JSON",
     )
     parser.add_argument(
-        "--compact",
-        action="store_true",
-        help="emit compact JSON instead of pretty-printed JSON",
-    )
-    parser.add_argument(
         "--verbose",
         action="store_true",
         help="输出详细日志到 stderr",
@@ -3642,48 +3429,6 @@ def parse_args(argv):
         "--follow-symlinks",
         action="store_true",
         help="跟随符号链接扫描（默认跳过）",
-    )
-    parser.add_argument(
-        "--no-cache",
-        action="store_true",
-        help="禁用本地缓存，每次都从 API 获取最新数据",
-    )
-    parser.add_argument(
-        "--cache-ttl",
-        type=int,
-        default=86400,
-        help="缓存过期时间（秒，默认 86400 即 24 小时）",
-    )
-    parser.add_argument(
-        "--progress",
-        action="store_true",
-        default=None,
-        help="在 stderr 显示进度信息（默认自动检测 TTY）",
-    )
-    parser.add_argument(
-        "--no-progress",
-        action="store_true",
-        help="禁用进度信息",
-    )
-    parser.add_argument(
-        "--severity-threshold",
-        choices=["low", "medium", "high", "critical"],
-        help="发现不低于该等级的漏洞时以退出码 1 退出",
-    )
-    parser.add_argument(
-        "--baseline",
-        action="store_true",
-        help="启用基线过滤（读取 .butian-baseline.json）",
-    )
-    parser.add_argument(
-        "--skip-baseline",
-        action="store_true",
-        help="跳过基线过滤，即使存在基线文件",
-    )
-    parser.add_argument(
-        "--generate-baseline",
-        action="store_true",
-        help="从当前扫描结果生成 .butian-baseline.json",
     )
     return parser.parse_args(argv)
 
@@ -3735,18 +3480,7 @@ def main():
     logger.info("开始扫描项目: %s", project_path)
     step_seconds = {}
 
-    # Clean expired cache entries
-    if not args.no_cache:
-        cache_clean(project_path, ttl_seconds=args.cache_ttl)
 
-    # Progress reporter
-    progress_enabled = None
-    if args.no_progress:
-        progress_enabled = False
-    elif args.progress:
-        progress_enabled = True
-    progress = ProgressReporter(enabled=progress_enabled)
-    progress.step(1, 5, "检测生态")
 
     # Step 1: detect ecosystems
     step_started = time.time()
@@ -3774,7 +3508,6 @@ def main():
     skip_dependency_checks = scan_mode == "hygiene_only"
 
     # Step 2: parse package coordinates
-    progress.step(2, 5, "提取依赖坐标")
     step_started = time.time()
     if skip_dependency_checks:
         packages = []
@@ -3806,9 +3539,8 @@ def main():
     step_seconds["package_extraction"] = round(time.time() - step_started, 3)
 
     # Step 3-5: independent I/O-heavy checks run in parallel.
-    progress.step(3, 5, "仓库卫生扫描")
 
-    # Note: steps 4 and 5 run in parallel; progress reports both
+    # Note: steps 4 and 5 run in parallel
     def run_hygiene_step():
         step_started = time.time()
         if args.skip_hygiene:
@@ -3988,59 +3720,11 @@ def main():
     if args.include_packages:
         output["packages"] = packages
 
-    # Baseline filtering
-    use_baseline = args.baseline and not args.skip_baseline
-    if use_baseline:
-        baseline_fps = load_baseline(project_path)
-        if baseline_fps:
-            logger.info("加载基线: %d 条豁免规则", len(baseline_fps))
-            prev_vuln_count = len(vulnerabilities)
-            prev_secret_count = len((hygiene or {}).get("tracked_secrets") or [])
-            prev_sensitive_count = len((hygiene or {}).get("sensitive_tracked") or [])
-            vulnerabilities = filter_with_baseline(
-                vulnerabilities, baseline_fps, vulnerability_fingerprint
-            )
-            if hygiene and hygiene.get("tracked_secrets"):
-                hygiene["tracked_secrets"] = filter_with_baseline(
-                    hygiene["tracked_secrets"], baseline_fps, secret_fingerprint
-                )
-            if hygiene and hygiene.get("sensitive_tracked"):
-                hygiene["sensitive_tracked"] = filter_with_baseline(
-                    hygiene["sensitive_tracked"],
-                    baseline_fps,
-                    sensitive_file_fingerprint,
-                )
-            # Update counts in output
-            output["vulnerabilities"] = vulnerabilities
-            output["vulnerability_count"] = len(vulnerabilities)
-            output["hygiene"] = hygiene
-            filtered_vulns = prev_vuln_count - len(vulnerabilities)
-            filtered_secrets = prev_secret_count - len(
-                (hygiene or {}).get("tracked_secrets") or []
-            )
-            filtered_sensitive = prev_sensitive_count - len(
-                (hygiene or {}).get("sensitive_tracked") or []
-            )
-            logger.info(
-                "基线过滤: %d 漏洞, %d 密钥, %d 敏感文件已豁免",
-                filtered_vulns,
-                filtered_secrets,
-                filtered_sensitive,
-            )
-
-    if args.compact:
-        text = json.dumps(output, ensure_ascii=False, separators=(",", ":"))
-    else:
-        text = json.dumps(output, ensure_ascii=False, indent=2)
+    text = json.dumps(output, ensure_ascii=False, indent=2)
     write_json_output(output_file, text)
     logger.info("结果已写入: %s (%d bytes)", output_file, len(text))
     print(text)
 
-    # Generate baseline if requested
-    if args.generate_baseline:
-        baseline_path = generate_baseline(output, project_path)
-        logger.info("基线文件已生成: %s", baseline_path)
-        progress.finish(f"基线文件已生成: {baseline_path}")
 
     total_seconds = round(time.time() - started, 1)
     logger.info(
@@ -4050,20 +3734,7 @@ def main():
         len(outdated),
         len(errors),
     )
-    progress.finish("扫描完成")
 
-    # Exit code based on severity threshold
-    if args.severity_threshold:
-        should_fail, count = evaluate_severity_threshold(
-            vulnerabilities, args.severity_threshold
-        )
-        if should_fail:
-            logger.info(
-                "发现 %d 个不低于 %s 等级的漏洞，退出码设为 1",
-                count,
-                args.severity_threshold,
-            )
-            return 1
 
 
 if __name__ == "__main__":
