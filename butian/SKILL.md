@@ -148,7 +148,7 @@ py -3 scripts/visualize.py .butian/<timestamp>/assets/analysis.json
 
 ### Step 5 用户确认修复
 
-扫描完成、Markdown 报告生成、HTML 报告打开、终端摘要输出之后，如果存在可修复依赖漏洞，Agent 按以下两轮流程引导用户修复。这些询问写在 Skill 工作流里，不写进扫描脚本。
+扫描完成、Markdown 报告生成、HTML 报告打开、终端摘要输出之后，如果存在可修复依赖漏洞，Agent 按以下三轮流程引导用户修复。这些询问写在 Skill 工作流里，不写进扫描脚本。
 
 #### 第一轮：顶层依赖升级
 
@@ -184,9 +184,25 @@ python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy paren
 
 8. **复扫并展示结果**：升级完成后，重新运行 `python3 scripts/run_audit.py` 复扫，然后打开 HTML 报告向用户展示最终结果。提醒用户运行项目测试、构建或启动检查。
 
-#### 两轮后仍有残留
+#### 第三轮：强制覆盖残留依赖（第二轮后仍有残留时）
 
-如果两轮升级后仍有残留（通常是无法追溯的间接依赖），说明需要等待上游修复或单独人工评估。告知用户当前状态并结束。
+第二轮 `parent-upgrade` 后如果仍有残留（无法追溯到 `package.json` 根依赖的间接依赖），可通过 npm `overrides` 强制覆盖所有嵌套实例。
+
+9. **向用户说明**：第二轮升级后仍有残留，这些依赖无法追溯到根依赖；可通过在 `package.json` 中写入 `overrides` 强制所有嵌套实例升级到修复版本。
+10. **是否继续**：用 AskUserQuestion 提供 `强制覆盖残留依赖` / `暂不处理`。用户选择暂不处理时，总结当前状态并结束。
+11. **执行覆盖**：用户选择继续后，运行：
+
+```bash
+python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy force-residual
+```
+
+脚本会自动：读取 analysis.json 中残留的可修复项 → 在 `package.json` 的 `overrides` 字段中添加版本强制约束 → 运行 `npm install` 使 overrides 生效。
+
+12. **复扫并展示结果**：覆盖完成后，重新运行 `python3 scripts/run_audit.py` 复扫，然后打开 HTML 报告向用户展示最终结果。提醒用户运行项目测试、构建或启动检查。
+
+#### 三轮后仍有残留
+
+如果三轮升级后仍有残留（极少见），说明可能是非 npm 生态或特殊依赖结构，需要人工评估。告知用户当前状态并结束。
 
 ## 修复建议规则
 

@@ -378,6 +378,107 @@ def build_npm_parent_upgrade_plan(analysis, project_path=None):
     return plan
 
 
+def build_force_residual_overrides(analysis, project_path=None):
+    """Build npm overrides map for unfixable nested residuals.
+
+    Returns a dict with:
+      - overrides: {package_name: target_version_or_ref, ...}
+      - items: list of dicts with package, current_version, target_version, note
+      - skipped: list of strings explaining what was skipped
+    """
+    project_path = project_path or (analysis.get("project") or {}).get("path") or "."
+    package_json_path = os.path.join(project_path, "package.json")
+
+    result = {"overrides": {}, "items": [], "skipped": []}
+
+    if not os.path.isfile(package_json_path):
+        result["skipped"].append("未找到 package.json，无法写入 overrides。")
+        return result
+
+    # Get the parent upgrade plan to find unfixable items
+    plan = build_npm_parent_upgrade_plan(analysis, project_path)
+    unfixable = list(plan.get("unfixable") or [])
+
+    if not unfixable:
+        # Fallback: all fixable npm items (covers standalone usage)
+        fix_items = extract_fixable_items(analysis)
+        npm_items = [i for i in fix_items if i.get("ecosystem") == "npm"]
+        for item in npm_items:
+            unfixable.append(
+                {
+                    "parent": "(unknown)",
+                    "package": item["package"],
+                    "current_version": item.get("current_version")
+                    or (item.get("current_versions") or [None])[0],
+                    "target_version": item["target_version"],
+                    "note": "analysis.json 中的可修复项",
+                }
+            )
+
+    if not unfixable:
+        result["skipped"].append("没有需要强制覆盖的残留依赖。")
+        return result
+
+    # Determine which packages are direct root dependencies
+    pkg_json = _load_json_file(package_json_path) if os.path.isfile(package_json_path) else {}
+    root_deps = set()
+    for key in ("dependencies", "devDependencies", "optionalDependencies"):
+        root_deps.update((pkg_json.get(key) or {}).keys())
+
+    for entry in unfixable:
+        pkg = entry["package"]
+        target = entry["target_version"]
+        if pkg and target:
+            # For root deps, use "$pkg" ref to avoid Override conflict;
+            # for pure transitive deps, use explicit version.
+            if pkg in root_deps:
+                result["overrides"][pkg] = f"${pkg}"
+            else:
+                result["overrides"][pkg] = target
+            result["items"].append(entry)
+
+    return result
+
+
+def execute_force_residual_fixes(analysis, project_path):
+    """Force-update unfixable nested residuals via npm overrides."""
+    result = build_force_residual_overrides(analysis, project_path)
+
+    if result["skipped"] or not result["overrides"]:
+        skipped_text = "; ".join(result["skipped"] or ["没有残留依赖"])
+        return [], [("force-residual", skipped_text)]
+
+    package_json_path = os.path.join(project_path, "package.json")
+
+    # Read current package.json
+    with open(package_json_path, "r", encoding="utf-8") as f:
+        pkg_data = json.load(f)
+
+    # Merge overrides (preserve existing user overrides)
+    existing_overrides = pkg_data.get("overrides") or {}
+    new_overrides = result["overrides"]
+    merged = {**existing_overrides, **new_overrides}
+    pkg_data["overrides"] = merged
+
+    # Write back
+    with open(package_json_path, "w", encoding="utf-8") as f:
+        json.dump(pkg_data, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+
+    print("  已写入 package.json overrides:")
+    for pkg, ver in sorted(new_overrides.items()):
+        print(f'    - "{pkg}": "{ver}"')
+
+    # Run npm install to apply overrides
+    print("  正在运行 npm install...")
+    ok, err = _run_npm_install(project_path)
+    if ok:
+        print("  ✅ npm install 完成")
+        return list(new_overrides.keys()), []
+    else:
+        return [], [("npm install", err)]
+
+
 def build_parent_upgrade_commands(plan):
     """Build commands: upgrade parent to latest, then upgrade child to target."""
     commands = []
@@ -543,11 +644,12 @@ def parse_args(argv):
     parser.add_argument(
         "--strategy",
         required=True,
-        choices=["fixed", "minimal", "latest", "parent-upgrade"],
+        choices=["fixed", "minimal", "latest", "parent-upgrade", "force-residual"],
         help=(
             "'fixed'/'minimal' upgrades to known fixed versions; "
             "'latest' upgrades to latest versions; "
-            "'parent-upgrade' upgrades root parent dependencies for nested residuals"
+            "'parent-upgrade' upgrades root parent dependencies for nested residuals; "
+            "'force-residual' forces override versions for untraceable nested residuals"
         ),
     )
     return parser.parse_args(argv)
@@ -558,6 +660,8 @@ def strategy_label(strategy):
         return "升级到已修复版本"
     if strategy == "parent-upgrade":
         return "升级父依赖"
+    if strategy == "force-residual":
+        return "强制覆盖残留依赖"
     return "升级到最新版本"
 
 
@@ -573,6 +677,13 @@ def post_fix_guidance(strategy):
             "升级后复扫会生成新报告，打开 HTML 报告查看最终修复状态。",
             "部分父依赖升到 latest 可能带来兼容性变化；请运行项目测试、构建或启动检查。",
             "如果复扫仍有残留（通常来自无法追溯的间接依赖），需要等待上游修复或人工评估。",
+        ]
+    if strategy == "force-residual":
+        return [
+            "强制覆盖已完成，请重新运行补天扫描验证结果。",
+            "npm overrides 已写入 package.json，强制所有嵌套实例使用指定版本。",
+            "请运行项目测试、构建或启动检查，确认 overrides 不会导致兼容性问题。",
+            "overrides 是永久性的版本约束，已记录在 package.json 中，后续 npm install 会自动遵守。",
         ]
     label = strategy_label(strategy)
     return [
@@ -603,6 +714,22 @@ def main(argv=None):
         print()
         if successes:
             print(f"  成功升级 {len(successes)} 个依赖")
+        if failures:
+            print(f"  失败 {len(failures)} 个:")
+            for pkg, err in failures:
+                print(f"    - {pkg}: {err}")
+        print()
+        for line in post_fix_guidance(strategy):
+            print(f"  {line}")
+        return 0
+
+    if strategy == "force-residual":
+        print()
+        print("正在通过 npm overrides 强制覆盖残留依赖...")
+        successes, failures = execute_force_residual_fixes(analysis, project_path)
+        print()
+        if successes:
+            print(f"  成功覆盖 {len(successes)} 个依赖")
         if failures:
             print(f"  失败 {len(failures)} 个:")
             for pkg, err in failures:
