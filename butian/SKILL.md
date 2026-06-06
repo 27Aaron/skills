@@ -236,13 +236,12 @@ python3 scripts/run_audit.py --final-report
 | 参数                                              | 说明                                          |
 | ------------------------------------------------- | --------------------------------------------- |
 | `--compact`                                       | 输出 JSON 摘要而非人类可读表格                |
-| `--no-open`                                       | 不自动打开 HTML 报告（仅 CI/自动化/测试使用） |
+| `--no-open`                                       | 不自动打开 HTML 报告                          |
 | `--final-report`                                  | 最终复扫时强制生成 Markdown 报告              |
 | `--verbose`                                       | 输出详细日志到 stderr                         |
 | `--debug`                                         | 输出调试级别日志                              |
 | `--progress`                                      | 显示扫描进度（默认 TTY 自动检测）             |
 | `--no-progress`                                   | 禁用进度信息                                  |
-| `--sarif`                                         | 生成 SARIF v2.1.0 格式结果                    |
 | `--baseline`                                      | 启用基线过滤（读取 `.butian-baseline.json`）  |
 | `--skip-baseline`                                 | 跳过基线过滤                                  |
 | `--generate-baseline`                             | 从当前扫描结果生成基线文件                    |
@@ -276,15 +275,6 @@ python3 scripts/run_audit.py --baseline --severity-threshold high .
 ```
 
 基线文件应提交到版本控制，让团队共享。详细用法见 `docs/butian/baseline.md`。
-
-## CI/CD 集成
-
-```bash
-# GitHub Actions / GitLab CI / Jenkins
-python3 scripts/run_audit.py --compact --no-open --sarif --severity-threshold high .
-```
-
-SARIF 输出可上传到 GitHub Advanced Security（codeql-action/upload-sarif）等安全面板。详细模板见 `docs/butian/ci-cd.md`。
 
 ## 日志与缓存
 

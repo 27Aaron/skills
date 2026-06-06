@@ -133,11 +133,6 @@ def parse_args(argv):
         action="store_true",
         help="从当前扫描结果生成基线文件",
     )
-    parser.add_argument(
-        "--sarif",
-        action="store_true",
-        help="生成 SARIF v2.1.0 格式的扫描结果",
-    )
     return parser.parse_args(argv)
 
 
@@ -598,18 +593,6 @@ def main():
         "risk_summary": analysis.get("risk_summary", {}),
         "errors": analysis.get("errors", []),
     }
-
-    # SARIF output
-    if args.sarif:
-        sarif_path = os.path.join(
-            os.path.dirname(os.path.abspath(analysis_path)),
-            "results.sarif.json",
-        )
-        run_text(
-            [sys.executable, script_path("sarif.py"), analysis_path, sarif_path],
-            echo=False,
-        )
-        summary["sarif_file"] = sarif_path
 
     if args.compact:
         print(json.dumps(summary, ensure_ascii=False, separators=(",", ":")))
