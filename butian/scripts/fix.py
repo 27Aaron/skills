@@ -13,12 +13,10 @@ import argparse
 import json
 import logging
 import os
-import shutil
 import subprocess
 import sys
 
 logger = logging.getLogger("butian")
-MAX_NPM_OVERRIDE_REFRESH_ATTEMPTS = 3
 
 # ---------------------------------------------------------------------------
 # Ecosystem → upgrade command builders
@@ -131,7 +129,7 @@ def build_upgrade_commands(fix_items, strategy, ecosystem=None):
 
 
 # ---------------------------------------------------------------------------
-# npm overrides for confirmed forced updates
+# npm parent upgrades for nested residuals
 # ---------------------------------------------------------------------------
 
 
@@ -160,17 +158,111 @@ def _npm_parent_name_from_lock_path(path):
     return _npm_package_name_at(parts, indices[-2] + 1)
 
 
-def build_npm_override_plan(analysis, project_path=None):
-    """Build parent-scoped npm overrides for vulnerable nested lockfile entries."""
+def _npm_names_from_lock_path(path):
+    parts = [part for part in str(path or "").split("/") if part]
+    names = []
+    index = 0
+    while index < len(parts):
+        if parts[index] != "node_modules":
+            index += 1
+            continue
+        name = _npm_package_name_at(parts, index + 1)
+        if name:
+            names.append(name)
+            index += 3 if name.startswith("@") else 2
+        else:
+            index += 1
+    return names
+
+
+def _npm_lock_path_for_names(names):
+    path = ""
+    for name in names:
+        name_path = name.replace("/", os.sep).replace(os.sep, "/")
+        path = f"{path}/node_modules/{name_path}" if path else f"node_modules/{name_path}"
+    return path
+
+
+def _npm_parent_lock_path(path):
+    names = _npm_names_from_lock_path(path)
+    if len(names) <= 1:
+        return ""
+    return _npm_lock_path_for_names(names[:-1])
+
+
+def _npm_dep_lock_path_from(package_key, dependency):
+    dep_path = dependency.replace("/", os.sep).replace(os.sep, "/")
+    return f"{package_key}/node_modules/{dep_path}" if package_key else f"node_modules/{dep_path}"
+
+
+def _resolve_npm_dependency(packages, package_key, dependency):
+    current = package_key
+    while True:
+        candidate = _npm_dep_lock_path_from(current, dependency)
+        if candidate in packages:
+            return candidate
+        if not current:
+            return None
+        current = _npm_parent_lock_path(current)
+
+
+def _root_dependency_names(lock_data, package_json):
+    names = []
+    root_meta = (lock_data.get("packages") or {}).get("") or {}
+    for source in (root_meta, package_json or {}):
+        for key in ("dependencies", "devDependencies", "optionalDependencies"):
+            deps = source.get(key) or {}
+            if not isinstance(deps, dict):
+                continue
+            for name in deps:
+                if name not in names:
+                    names.append(name)
+    return names
+
+
+def _direct_root_for_npm_lock_path(lock_data, package_json, target_lock_path):
+    packages = lock_data.get("packages") or {}
+    root_names = _root_dependency_names(lock_data, package_json)
+    for root_name in root_names:
+        root_path = _resolve_npm_dependency(packages, "", root_name)
+        if not root_path:
+            continue
+        if root_path == target_lock_path:
+            return root_name
+        stack = [root_path]
+        seen = set()
+        while stack:
+            current = stack.pop()
+            if current in seen:
+                continue
+            seen.add(current)
+            if current == target_lock_path:
+                return root_name
+            meta = packages.get(current) or {}
+            for dep_name in (meta.get("dependencies") or {}):
+                dep_path = _resolve_npm_dependency(packages, current, dep_name)
+                if dep_path and dep_path not in seen:
+                    stack.append(dep_path)
+    return None
+
+
+def _load_json_file(path):
+    with open(path, "r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def build_npm_parent_upgrade_plan(analysis, project_path=None):
+    """Build npm parent-upgrade actions for vulnerable nested lockfile entries."""
     project_path = project_path or (analysis.get("project") or {}).get("path") or "."
     lock_path = os.path.join(project_path, "package-lock.json")
-    plan = {"overrides": [], "global_overrides": [], "skipped": []}
+    package_json_path = os.path.join(project_path, "package.json")
+    plan = {"upgrades": [], "child_updates": [], "skipped": []}
     if not os.path.isfile(lock_path):
-        plan["skipped"].append("未找到 package-lock.json，无法自动生成 npm overrides。")
+        plan["skipped"].append("未找到 package-lock.json，无法自动分析父依赖。")
         return plan
 
-    with open(lock_path, "r", encoding="utf-8") as handle:
-        lock_data = json.load(handle)
+    lock_data = _load_json_file(lock_path)
+    package_json = _load_json_file(package_json_path) if os.path.isfile(package_json_path) else {}
     packages = lock_data.get("packages") or {}
     fix_items = {
         item["package"]: item
@@ -178,7 +270,7 @@ def build_npm_override_plan(analysis, project_path=None):
         if item.get("ecosystem") == "npm" and item.get("package")
     }
     seen = set()
-    global_seen = set()
+    child_seen = set()
     for lock_key, meta in packages.items():
         package = _npm_package_name_from_lock_path(lock_key)
         if not package or package not in fix_items:
@@ -195,198 +287,68 @@ def build_npm_override_plan(analysis, project_path=None):
         parent = _npm_parent_name_from_lock_path(lock_key)
         if not parent:
             plan["skipped"].append(
-                f"{package}@{version} 是顶层依赖，普通升级应优先处理，不自动添加 overrides。"
+                f"{package}@{version} 是顶层依赖，普通升级应优先处理。"
             )
             continue
-        key = (parent, package, item["target_version"])
+        parent_lock_path = _npm_parent_lock_path(lock_key)
+        upgrade_package = _direct_root_for_npm_lock_path(
+            lock_data, package_json, parent_lock_path
+        )
+        if not upgrade_package:
+            plan["skipped"].append(
+                f"{parent} > {package}@{version} 无法追溯到 package.json 中的根父依赖。"
+            )
+            continue
+        key = (upgrade_package, parent, package, version)
         if key in seen:
             continue
         seen.add(key)
-        plan["overrides"].append(
+        plan["upgrades"].append(
             {
-                "parent": parent,
+                "upgrade_package": upgrade_package,
+                "immediate_parent": parent,
+                "parent_lock_path": parent_lock_path,
                 "package": package,
                 "current_version": version,
                 "target_version": item["target_version"],
                 "lock_path": lock_key,
             }
         )
-        global_key = (package, item["target_version"])
-        if global_key not in global_seen:
-            global_seen.add(global_key)
-            plan["global_overrides"].append(
-                {
-                    "package": package,
-                    "target_version": item["target_version"],
-                }
-            )
+        if package not in child_seen:
+            child_seen.add(package)
+            plan["child_updates"].append(package)
     return plan
 
 
-def _root_dependency_spec(package_json, package):
-    for key in (
-        "dependencies",
-        "devDependencies",
-        "optionalDependencies",
-        "peerDependencies",
-    ):
-        deps = package_json.get(key) or {}
-        if isinstance(deps, dict) and package in deps:
-            return deps[package]
-    return None
-
-
-def apply_npm_overrides(project_path, plan):
-    """Write parent-scoped overrides into package.json. Returns True when changed."""
-    entries = plan.get("overrides") or []
-    global_entries = plan.get("global_overrides") or []
-    if not entries and not global_entries:
-        return False
-    package_json_path = os.path.join(project_path, "package.json")
-    with open(package_json_path, "r", encoding="utf-8") as handle:
-        package_json = json.load(handle)
-
-    overrides = package_json.setdefault("overrides", {})
-    if not isinstance(overrides, dict):
-        raise ValueError(
-            "package.json overrides must be an object before Butian can update it"
-        )
-
-    changed = False
-    for entry in entries:
-        parent = entry["parent"]
-        package = entry["package"]
-        target_version = entry["target_version"]
-        parent_override = overrides.get(parent)
-        if parent_override is None:
-            overrides[parent] = {package: target_version}
-            changed = True
+def build_parent_upgrade_commands(plan):
+    commands = []
+    seen = set()
+    for entry in plan.get("upgrades") or []:
+        package = entry["upgrade_package"]
+        if package in seen:
             continue
-        if not isinstance(parent_override, dict):
-            overrides[parent] = {".": parent_override, package: target_version}
-            changed = True
-            continue
-        if parent_override.get(package) != target_version:
-            parent_override[package] = target_version
-            changed = True
-
-    for entry in global_entries:
-        package = entry["package"]
-        target_version = entry["target_version"]
-        target_spec = (
-            f"${package}"
-            if _root_dependency_spec(package_json, package)
-            else target_version
-        )
-        if overrides.get(package) != target_spec:
-            overrides[package] = target_spec
-            changed = True
-
-    if changed:
-        with open(package_json_path, "w", encoding="utf-8") as handle:
-            json.dump(package_json, handle, ensure_ascii=False, indent=2)
-            handle.write("\n")
-    return changed
+        seen.add(package)
+        commands.append((package, ["npm", "install", f"{package}@latest"]))
+    for package in plan.get("child_updates") or []:
+        commands.append((package, ["npm", "update", package]))
+    return commands
 
 
-def _run_npm_install(project_path):
-    result = subprocess.run(
-        ["npm", "install"],
-        cwd=project_path,
-        capture_output=True,
-        text=True,
-        stdin=subprocess.DEVNULL,
-    )
-    if result.returncode != 0:
-        return False, result.stderr.strip() or "npm install failed"
-    return True, ""
-
-
-def _project_child_path(project_path, relative_path):
-    root = os.path.abspath(project_path)
-    child = os.path.abspath(os.path.join(root, relative_path))
-    if child == root or not child.startswith(root + os.sep):
-        return None
-    return child
-
-
-def _remove_residual_npm_paths(project_path, plan):
-    removed = []
-    for entry in plan.get("overrides") or []:
-        lock_path = entry.get("lock_path")
-        if not lock_path or not str(lock_path).startswith("node_modules/"):
-            continue
-        target = _project_child_path(project_path, lock_path)
-        if not target or not os.path.exists(target):
-            continue
-        if os.path.isdir(target):
-            shutil.rmtree(target)
-        else:
-            os.remove(target)
-        removed.append(lock_path)
-    return removed
-
-
-def _remove_package_lock(project_path):
-    try:
-        os.remove(os.path.join(project_path, "package-lock.json"))
-    except FileNotFoundError:
-        pass
-
-
-def execute_override_fixes(analysis, project_path):
-    """Apply confirmed npm overrides and refresh the lockfile."""
-    plan = build_npm_override_plan(analysis, project_path)
-    if not plan.get("overrides"):
-        skipped = "; ".join(plan.get("skipped") or ["没有可写入的 overrides"])
-        return [], [("npm overrides", skipped)]
-
-    try:
-        changed = apply_npm_overrides(project_path, plan)
-    except (OSError, ValueError, json.JSONDecodeError) as exc:
-        return [], [("package.json", str(exc))]
-
-    successes = [
-        f"{entry['parent']} > {entry['package']}@{entry['target_version']}"
-        for entry in plan["overrides"]
-    ]
-    if changed:
-        print("  已写入 package.json overrides:")
-        for item in successes:
-            print(f"    - {item}")
-    else:
-        print("  package.json overrides 已包含目标规则。")
-
-    ok, err_msg = _run_npm_install(project_path)
-    if not ok:
-        return [], [("npm install", err_msg)]
-    print("  ✅ npm install")
-
-    residual_plan = build_npm_override_plan(analysis, project_path)
-    for attempt in range(1, MAX_NPM_OVERRIDE_REFRESH_ATTEMPTS + 1):
-        if not residual_plan.get("overrides"):
-            return successes, []
+def execute_parent_upgrade_fixes(analysis, project_path):
+    """Upgrade root parent dependencies for nested npm residuals."""
+    plan = build_npm_parent_upgrade_plan(analysis, project_path)
+    commands = build_parent_upgrade_commands(plan)
+    if not commands:
+        skipped = "; ".join(plan.get("skipped") or ["没有可升级的父依赖"])
+        return [], [("npm parent-upgrade", skipped)]
+    print("  已生成父依赖升级计划:")
+    for entry in plan.get("upgrades") or []:
         print(
-            f"  检测到 lockfile 中仍有嵌套旧版本，正在第 {attempt} 次清理残留路径并重建 package-lock.json..."
+            "    - "
+            f"{entry['upgrade_package']}@latest "
+            f"(处理 {entry['immediate_parent']} > {entry['package']}@{entry['current_version']})"
         )
-        try:
-            removed = _remove_residual_npm_paths(project_path, residual_plan)
-            _remove_package_lock(project_path)
-        except OSError as exc:
-            return [], [("node_modules/package-lock.json", str(exc))]
-        for item in removed:
-            print(f"    - 已清理 {item}")
-        ok, err_msg = _run_npm_install(project_path)
-        if not ok:
-            return [], [("npm install", err_msg)]
-        print("  ✅ package-lock.json 已重建")
-        residual_plan = build_npm_override_plan(analysis, project_path)
-
-    remaining = ", ".join(
-        f"{entry['parent']} > {entry['package']}@{entry['current_version']}"
-        for entry in residual_plan.get("overrides") or []
-    )
-    return successes, [("npm overrides", f"强制更新重试后仍有残留: {remaining}")]
+    return execute_fixes(commands, project_path)
 
 
 # ---------------------------------------------------------------------------
@@ -442,11 +404,11 @@ def parse_args(argv):
     parser.add_argument(
         "--strategy",
         required=True,
-        choices=["fixed", "minimal", "latest", "overrides"],
+        choices=["fixed", "minimal", "latest", "parent-upgrade"],
         help=(
             "'fixed'/'minimal' upgrades to known fixed versions; "
             "'latest' upgrades to latest versions; "
-            "'overrides' applies confirmed npm overrides for nested residuals"
+            "'parent-upgrade' upgrades root parent dependencies for nested residuals"
         ),
     )
     return parser.parse_args(argv)
@@ -455,8 +417,8 @@ def parse_args(argv):
 def strategy_label(strategy):
     if strategy in {"fixed", "minimal"}:
         return "升级到已修复版本"
-    if strategy == "overrides":
-        return "强制覆盖更新"
+    if strategy == "parent-upgrade":
+        return "升级父依赖"
     return "升级到最新版本"
 
 
@@ -466,18 +428,18 @@ def normalize_strategy(strategy):
 
 def post_fix_guidance(strategy):
     """Return human-readable guidance for the required verification scan."""
-    if strategy == "overrides":
+    if strategy == "parent-upgrade":
         return [
-            "强制覆盖更新已执行完毕后，请重新运行补天扫描验证结果。",
-            "如果 lockfile 仍有嵌套旧版本，脚本会自动清理对应 node_modules 残留路径并重建 package-lock.json，最多重试 3 轮。",
-            "这会强制改变父依赖解析到的子依赖版本，可能带来兼容性问题；请运行项目测试、构建或启动检查。",
-            "如果复扫仍有残留，需要继续追踪父依赖版本或等待上游发布修复。",
+            "父依赖 latest 升级已执行完毕后，请重新运行补天扫描验证结果。",
+            "本策略会先升级锁住嵌套旧版本的根父依赖，再刷新相关子依赖。",
+            "父依赖升到 latest 可能带来兼容性变化；请运行项目测试、构建或启动检查。",
+            "如果复扫仍有残留，说明上游父依赖最新版可能仍未放开该子依赖，需要等待上游修复或单独人工评估。",
         ]
     label = strategy_label(strategy)
     return [
         f"{label}已执行完毕后，请重新运行补天扫描验证结果。",
-        "本脚本只执行普通包管理器升级，不会自动改父依赖链，也不会自动添加 overrides/resolutions。",
-        "如果复扫仍出现同名旧版本，通常是间接依赖被父包锁定；需要升级父依赖、等待上游修复，或询问用户是否确认强制覆盖更新。",
+        "本脚本只执行普通包管理器升级，不会自动改父依赖链。",
+        "如果复扫仍出现同名旧版本，通常是间接依赖被父包锁定；需要询问用户是否升级父依赖到 latest。",
     ]
 
 
@@ -495,13 +457,13 @@ def main(argv=None):
 
     strategy = normalize_strategy(args.strategy)
     project_path = analysis.get("project", {}).get("path") or "."
-    if strategy == "overrides":
+    if strategy == "parent-upgrade":
         print()
-        print("正在执行强制覆盖更新...")
-        successes, failures = execute_override_fixes(analysis, project_path)
+        print("正在升级锁住嵌套旧版本的父依赖...")
+        successes, failures = execute_parent_upgrade_fixes(analysis, project_path)
         print()
         if successes:
-            print(f"  成功写入 {len(successes)} 条 overrides 并刷新 lockfile")
+            print(f"  成功执行 {len(successes)} 个父依赖/子依赖刷新命令")
         if failures:
             print(f"  失败 {len(failures)} 个:")
             for pkg, err in failures:

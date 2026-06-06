@@ -5,7 +5,6 @@ import os
 import sys
 import tempfile
 import unittest
-from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from butian.scripts import fix as fix_mod
@@ -193,21 +192,20 @@ class BuildUpgradeCommandsTests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# npm overrides
+# npm parent dependency upgrades
 # ---------------------------------------------------------------------------
-class NpmOverridePlanTests(unittest.TestCase):
-    def test_builds_parent_scoped_overrides_for_nested_vulnerable_versions(self):
+class NpmParentUpgradePlanTests(unittest.TestCase):
+    def test_builds_direct_parent_upgrade_for_nested_vulnerable_versions(self):
         with tempfile.TemporaryDirectory() as tmp:
             package_lock = {
                 "packages": {
-                    "": {"dependencies": {"postcss": "^8.5.10"}},
+                    "": {"dependencies": {"next": "^16.2.6", "postcss": "^8.5.10"}},
                     "node_modules/postcss": {"version": "8.5.10"},
-                    "node_modules/next": {"version": "16.2.6"},
-                    "node_modules/next/node_modules/postcss": {"version": "8.4.31"},
-                    "node_modules/@scope/parent": {"version": "1.0.0"},
-                    "node_modules/@scope/parent/node_modules/esbuild": {
-                        "version": "0.18.20"
+                    "node_modules/next": {
+                        "version": "16.2.6",
+                        "dependencies": {"postcss": "8.4.31"},
                     },
+                    "node_modules/next/node_modules/postcss": {"version": "8.4.31"},
                 }
             }
             with open(
@@ -226,7 +224,51 @@ class NpmOverridePlanTests(unittest.TestCase):
                             "current_versions": ["8.4.31"],
                             "target_version": "8.5.10",
                         },
+                    }
+                ],
+            }
+
+            plan = fix_mod.build_npm_parent_upgrade_plan(analysis, tmp)
+
+        self.assertEqual(
+            [
+                (
+                    item["upgrade_package"],
+                    item["immediate_parent"],
+                    item["package"],
+                    item["current_version"],
+                )
+                for item in plan["upgrades"]
+            ],
+            [("next", "next", "postcss", "8.4.31")],
+        )
+        self.assertEqual(plan["skipped"], [])
+
+    def test_traces_transitive_parent_to_direct_root_dependency(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            package_lock = {
+                "packages": {
+                    "": {"devDependencies": {"tsx": "^4.21.0"}},
+                    "node_modules/tsx": {
+                        "version": "4.21.0",
+                        "dependencies": {"@esbuild-kit/core-utils": "3.3.2"},
                     },
+                    "node_modules/@esbuild-kit/core-utils": {
+                        "version": "3.3.2",
+                        "dependencies": {"esbuild": "~0.18.20"},
+                    },
+                    "node_modules/@esbuild-kit/core-utils/node_modules/esbuild": {
+                        "version": "0.18.20"
+                    },
+                }
+            }
+            with open(
+                os.path.join(tmp, "package-lock.json"), "w", encoding="utf-8"
+            ) as f:
+                json.dump(package_lock, f)
+            analysis = {
+                "project": {"path": tmp},
+                "green": [
                     {
                         "type": "dependency_upgrade",
                         "package": "esbuild",
@@ -236,228 +278,25 @@ class NpmOverridePlanTests(unittest.TestCase):
                             "current_versions": ["0.18.20"],
                             "target_version": "0.25.0",
                         },
-                    },
-                ],
-            }
-
-            plan = fix_mod.build_npm_override_plan(analysis, tmp)
-
-        self.assertEqual(
-            [
-                (item["parent"], item["package"], item["target_version"])
-                for item in plan["overrides"]
-            ],
-            [
-                ("next", "postcss", "8.5.10"),
-                ("@scope/parent", "esbuild", "0.25.0"),
-            ],
-        )
-        self.assertEqual(
-            [
-                (item["package"], item["target_version"])
-                for item in plan["global_overrides"]
-            ],
-            [("postcss", "8.5.10"), ("esbuild", "0.25.0")],
-        )
-
-    def test_apply_npm_overrides_preserves_existing_parent_override_and_adds_global_fallback(
-        self,
-    ):
-        with tempfile.TemporaryDirectory() as tmp:
-            package_json = {
-                "dependencies": {"next": "^16.2.6", "postcss": "^8.5.10"},
-                "overrides": {"next": {"styled-jsx": "5.1.6"}},
-            }
-            package_json_path = os.path.join(tmp, "package.json")
-            with open(package_json_path, "w", encoding="utf-8") as f:
-                json.dump(package_json, f)
-            plan = {
-                "overrides": [
-                    {
-                        "parent": "next",
-                        "package": "postcss",
-                        "target_version": "8.5.10",
-                    }
-                ],
-                "global_overrides": [
-                    {"package": "postcss", "target_version": "8.5.10"}
-                ],
-            }
-
-            changed = fix_mod.apply_npm_overrides(tmp, plan)
-
-            with open(package_json_path, "r", encoding="utf-8") as f:
-                updated = json.load(f)
-
-        self.assertTrue(changed)
-        self.assertEqual(updated["overrides"]["next"]["styled-jsx"], "5.1.6")
-        self.assertEqual(updated["overrides"]["next"]["postcss"], "8.5.10")
-        self.assertEqual(updated["overrides"]["postcss"], "$postcss")
-
-    def test_execute_override_fixes_rebuilds_lockfile_when_first_install_leaves_residuals(
-        self,
-    ):
-        with tempfile.TemporaryDirectory() as tmp:
-            package_json_path = os.path.join(tmp, "package.json")
-            lock_path = os.path.join(tmp, "package-lock.json")
-            with open(package_json_path, "w", encoding="utf-8") as f:
-                json.dump(
-                    {"dependencies": {"next": "^16.2.6", "postcss": "^8.5.10"}},
-                    f,
-                )
-            with open(lock_path, "w", encoding="utf-8") as f:
-                json.dump(
-                    {
-                        "packages": {
-                            "": {"dependencies": {"postcss": "^8.5.10"}},
-                            "node_modules/postcss": {"version": "8.5.10"},
-                            "node_modules/next": {"version": "16.2.6"},
-                            "node_modules/next/node_modules/postcss": {
-                                "version": "8.4.31"
-                            },
-                        }
-                    },
-                    f,
-                )
-            analysis = {
-                "project": {"path": tmp},
-                "green": [
-                    {
-                        "type": "dependency_upgrade",
-                        "package": "postcss",
-                        "fix_config": {
-                            "ecosystem": "npm",
-                            "package": "postcss",
-                            "current_versions": ["8.4.31"],
-                            "target_version": "8.5.10",
-                        },
                     }
                 ],
             }
 
-            def fake_install(project_path):
-                self.assertEqual(project_path, tmp)
-                if not os.path.exists(lock_path):
-                    with open(lock_path, "w", encoding="utf-8") as f:
-                        json.dump(
-                            {
-                                "packages": {
-                                    "": {"dependencies": {"postcss": "^8.5.10"}},
-                                    "node_modules/postcss": {"version": "8.5.10"},
-                                    "node_modules/next": {"version": "16.2.6"},
-                                    "node_modules/next/node_modules/postcss": {
-                                        "version": "8.5.10"
-                                    },
-                                }
-                            },
-                            f,
-                        )
-                return True, ""
+            plan = fix_mod.build_npm_parent_upgrade_plan(analysis, tmp)
 
-            with mock.patch.object(
-                fix_mod, "_run_npm_install", side_effect=fake_install
-            ) as install:
-                successes, failures = fix_mod.execute_override_fixes(analysis, tmp)
-
-            with open(lock_path, "r", encoding="utf-8") as f:
-                rebuilt_lock = json.load(f)
-
-        self.assertEqual(install.call_count, 2)
-        self.assertEqual(successes, ["next > postcss@8.5.10"])
-        self.assertEqual(failures, [])
         self.assertEqual(
-            rebuilt_lock["packages"]["node_modules/next/node_modules/postcss"][
-                "version"
-            ],
-            "8.5.10",
-        )
-
-    def test_execute_override_fixes_removes_stale_nested_node_modules_before_rebuild(
-        self,
-    ):
-        with tempfile.TemporaryDirectory() as tmp:
-            package_json_path = os.path.join(tmp, "package.json")
-            lock_path = os.path.join(tmp, "package-lock.json")
-            stale_path = os.path.join(tmp, "node_modules", "next", "node_modules", "postcss")
-            os.makedirs(stale_path, exist_ok=True)
-            with open(os.path.join(stale_path, "package.json"), "w", encoding="utf-8") as f:
-                json.dump({"name": "postcss", "version": "8.4.31"}, f)
-            with open(package_json_path, "w", encoding="utf-8") as f:
-                json.dump(
-                    {"dependencies": {"next": "^16.2.6", "postcss": "^8.5.10"}},
-                    f,
+            [
+                (
+                    item["upgrade_package"],
+                    item["immediate_parent"],
+                    item["package"],
                 )
-            with open(lock_path, "w", encoding="utf-8") as f:
-                json.dump(
-                    {
-                        "packages": {
-                            "": {"dependencies": {"postcss": "^8.5.10"}},
-                            "node_modules/postcss": {"version": "8.5.10"},
-                            "node_modules/next": {"version": "16.2.6"},
-                            "node_modules/next/node_modules/postcss": {
-                                "version": "8.4.31"
-                            },
-                        }
-                    },
-                    f,
-                )
-            analysis = {
-                "project": {"path": tmp},
-                "green": [
-                    {
-                        "type": "dependency_upgrade",
-                        "package": "postcss",
-                        "fix_config": {
-                            "ecosystem": "npm",
-                            "package": "postcss",
-                            "current_versions": ["8.4.31"],
-                            "target_version": "8.5.10",
-                        },
-                    }
-                ],
-            }
-
-            def fake_install(project_path):
-                self.assertEqual(project_path, tmp)
-                if not os.path.exists(lock_path):
-                    stale_exists = os.path.exists(stale_path)
-                    with open(lock_path, "w", encoding="utf-8") as f:
-                        json.dump(
-                            {
-                                "packages": {
-                                    "": {"dependencies": {"postcss": "^8.5.10"}},
-                                    "node_modules/postcss": {"version": "8.5.10"},
-                                    "node_modules/next": {"version": "16.2.6"},
-                                    "node_modules/next/node_modules/postcss": {
-                                        "version": "8.4.31" if stale_exists else "8.5.10"
-                                    },
-                                }
-                            },
-                            f,
-                        )
-                return True, ""
-
-            with mock.patch.object(
-                fix_mod, "_run_npm_install", side_effect=fake_install
-            ) as install:
-                successes, failures = fix_mod.execute_override_fixes(analysis, tmp)
-
-            with open(lock_path, "r", encoding="utf-8") as f:
-                rebuilt_lock = json.load(f)
-
-        self.assertEqual(install.call_count, 2)
-        self.assertFalse(os.path.exists(stale_path))
-        self.assertEqual(successes, ["next > postcss@8.5.10"])
-        self.assertEqual(failures, [])
-        self.assertEqual(
-            rebuilt_lock["packages"]["node_modules/next/node_modules/postcss"][
-                "version"
+                for item in plan["upgrades"]
             ],
-            "8.5.10",
+            [("tsx", "@esbuild-kit/core-utils", "esbuild")],
         )
 
 
-# ---------------------------------------------------------------------------
 # CLI helpers
 # ---------------------------------------------------------------------------
 class CliHelperTests(unittest.TestCase):
@@ -466,9 +305,9 @@ class CliHelperTests(unittest.TestCase):
         self.assertEqual(args.analysis_json, "analysis.json")
         self.assertEqual(args.strategy, "fixed")
 
-    def test_parse_args_accepts_overrides_strategy(self):
-        args = fix_mod.parse_args(["analysis.json", "--strategy", "overrides"])
-        self.assertEqual(args.strategy, "overrides")
+    def test_parse_args_accepts_parent_upgrade_strategy(self):
+        args = fix_mod.parse_args(["analysis.json", "--strategy", "parent-upgrade"])
+        self.assertEqual(args.strategy, "parent-upgrade")
 
     def test_fixed_strategy_maps_to_minimal(self):
         self.assertEqual(fix_mod.normalize_strategy("fixed"), "minimal")
@@ -478,6 +317,7 @@ class CliHelperTests(unittest.TestCase):
         self.assertEqual(fix_mod.strategy_label("minimal"), "升级到已修复版本")
         self.assertEqual(fix_mod.strategy_label("fixed"), "升级到已修复版本")
         self.assertEqual(fix_mod.strategy_label("latest"), "升级到最新版本")
+        self.assertEqual(fix_mod.strategy_label("parent-upgrade"), "升级父依赖")
 
     def test_post_fix_guidance_explains_rescan_and_transitive_residuals(self):
         lines = fix_mod.post_fix_guidance("minimal")
@@ -485,12 +325,12 @@ class CliHelperTests(unittest.TestCase):
         self.assertIn("重新运行补天扫描", text)
         self.assertIn("普通包管理器升级", text)
         self.assertIn("间接依赖", text)
-        self.assertIn("overrides", text)
+        self.assertIn("升级父依赖", text)
 
-    def test_post_fix_guidance_for_overrides_warns_about_forced_updates(self):
-        text = "\n".join(fix_mod.post_fix_guidance("overrides"))
-        self.assertIn("强制覆盖更新", text)
-        self.assertIn("兼容性", text)
+    def test_post_fix_guidance_for_parent_upgrade_warns_about_parent_versions(self):
+        text = "\n".join(fix_mod.post_fix_guidance("parent-upgrade"))
+        self.assertIn("父依赖", text)
+        self.assertIn("latest", text)
 
 
 if __name__ == "__main__":
