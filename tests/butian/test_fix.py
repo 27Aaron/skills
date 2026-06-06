@@ -357,7 +357,7 @@ class CliHelperTests(unittest.TestCase):
     def test_strategy_label(self):
         self.assertEqual(fix_mod.strategy_label("minimal"), "升级到已修复版本")
         self.assertEqual(fix_mod.strategy_label("fixed"), "升级到已修复版本")
-        self.assertEqual(fix_mod.strategy_label("latest"), "升级到最新版本")
+        self.assertEqual(fix_mod.strategy_label("latest"), "全部依赖升级到最新版本")
         self.assertEqual(fix_mod.strategy_label("parent-upgrade"), "升级父依赖")
 
     def test_post_fix_guidance_explains_rescan_and_transitive_residuals(self):

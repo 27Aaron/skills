@@ -104,6 +104,89 @@ def _latest_commands(ecosystem, package):
 
 
 # ---------------------------------------------------------------------------
+# Upgrade ALL dependencies to latest (not just vulnerable ones)
+# ---------------------------------------------------------------------------
+
+
+def build_all_latest_commands(project_path):
+    """Build commands to upgrade ALL project dependencies to latest versions.
+
+    Detects ecosystems from project files and generates bulk-upgrade
+    commands for each detected ecosystem.
+
+    Returns:
+        list of (label, command_list) tuples
+    """
+    commands = []
+
+    # --- Node.js (npm / pnpm / yarn) ---
+    pkg_json_path = os.path.join(project_path, "package.json")
+    if os.path.isfile(pkg_json_path):
+        try:
+            with open(pkg_json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            data = {}
+        all_deps = []
+        for key in ("dependencies", "devDependencies", "optionalDependencies"):
+            for name in data.get(key) or {}:
+                if name not in all_deps:
+                    all_deps.append(name)
+        if all_deps:
+            pnpm_lock = os.path.join(project_path, "pnpm-lock.yaml")
+            yarn_lock = os.path.join(project_path, "yarn.lock")
+            if os.path.isfile(pnpm_lock):
+                commands.append(("all-deps", ["pnpm", "update", "--latest"]))
+            elif os.path.isfile(yarn_lock):
+                commands.append(("all-deps", ["yarn", "upgrade"]))
+            else:
+                args = [f"{dep}@latest" for dep in all_deps]
+                commands.append(("all-deps", ["npm", "install"] + args))
+
+    # --- Python ---
+    poetry_lock = os.path.join(project_path, "poetry.lock")
+    uv_lock = os.path.join(project_path, "uv.lock")
+    pipfile_lock = os.path.join(project_path, "Pipfile.lock")
+    req_txt = os.path.join(project_path, "requirements.txt")
+
+    if os.path.isfile(poetry_lock):
+        commands.append(("all-deps", ["poetry", "update"]))
+    elif os.path.isfile(uv_lock):
+        commands.append(("all-deps", ["uv", "lock", "--upgrade"]))
+    elif os.path.isfile(pipfile_lock):
+        commands.append(("all-deps", ["pipenv", "update"]))
+    elif os.path.isfile(req_txt):
+        names = []
+        with open(req_txt, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or line.startswith("-"):
+                    continue
+                if " #" in line:
+                    line = line[: line.index(" #")]
+                name = line
+                for sep in ("==", ">=", "<=", "~=", "!=", ">", "<", "["):
+                    name = name.split(sep)[0]
+                name = name.strip()
+                if name and not name.startswith("-") and name not in names:
+                    names.append(name)
+        for name in names:
+            commands.append(
+                (name, [sys.executable, "-m", "pip", "install", "--upgrade", name])
+            )
+
+    # --- Go ---
+    if os.path.isfile(os.path.join(project_path, "go.sum")):
+        commands.append(("all-deps", ["go", "get", "-u", "./..."]))
+
+    # --- Rust ---
+    if os.path.isfile(os.path.join(project_path, "Cargo.lock")):
+        commands.append(("all-deps", ["cargo", "update"]))
+
+    return commands
+
+
+# ---------------------------------------------------------------------------
 # Extract fixable items from analysis
 # ---------------------------------------------------------------------------
 
@@ -658,6 +741,8 @@ def parse_args(argv):
 def strategy_label(strategy):
     if strategy in {"fixed", "minimal"}:
         return "升级到已修复版本"
+    if strategy == "latest":
+        return "全部依赖升级到最新版本"
     if strategy == "parent-upgrade":
         return "升级父依赖"
     if strategy == "force-residual":
@@ -671,6 +756,12 @@ def normalize_strategy(strategy):
 
 def post_fix_guidance(strategy):
     """Return human-readable guidance for the required verification scan."""
+    if strategy == "latest":
+        return [
+            "全部依赖已升级到最新版本，请重新运行补天扫描验证结果。",
+            "跨大版本升级可能引入兼容性变化；请运行项目测试、构建或启动检查。",
+            "如果复扫仍出现同名旧版本（通常来自嵌套依赖），报告会标注父依赖信息。",
+        ]
     if strategy == "parent-upgrade":
         return [
             "父依赖和子依赖升级已完成，请重新运行补天扫描验证结果。",
@@ -699,14 +790,35 @@ def main(argv=None):
     with open(args.analysis_json, "r", encoding="utf-8") as f:
         analysis = json.load(f)
 
-    fix_items = extract_fixable_items(analysis)
-    if not fix_items:
-        logger.info("未发现可修复的漏洞")
-        print("没有发现可修复的漏洞。")
-        return 0
-
     strategy = normalize_strategy(args.strategy)
     project_path = analysis.get("project", {}).get("path") or "."
+
+    # --- Strategy: latest — upgrade ALL deps (not just vulnerable ones) ---
+    if strategy == "latest":
+        commands = build_all_latest_commands(project_path)
+        if not commands:
+            logger.info("未发现可升级的依赖")
+            print("没有发现可升级的依赖。")
+            return 0
+        print()
+        label = strategy_label(strategy)
+        logger.info("开始%s: 升级全部依赖到最新版本", label)
+        print(f"正在执行{label}...")
+        successes, failures = execute_fixes(commands, project_path)
+        logger.info("升级完成: %d 成功, %d 失败", len(successes), len(failures))
+        print()
+        if successes:
+            print(f"  成功升级 {len(successes)} 个包")
+        if failures:
+            print(f"  失败 {len(failures)} 个:")
+            for pkg, err in failures:
+                print(f"    - {pkg}: {err}")
+        print()
+        for line in post_fix_guidance(strategy):
+            print(f"  {line}")
+        return 0
+
+    # --- Strategy: parent-upgrade ---
     if strategy == "parent-upgrade":
         print()
         print("正在升级父依赖和残留子依赖到最新版本...")
@@ -723,6 +835,7 @@ def main(argv=None):
             print(f"  {line}")
         return 0
 
+    # --- Strategy: force-residual ---
     if strategy == "force-residual":
         print()
         print("正在通过 npm overrides 强制覆盖残留依赖...")
@@ -737,6 +850,13 @@ def main(argv=None):
         print()
         for line in post_fix_guidance(strategy):
             print(f"  {line}")
+        return 0
+
+    # --- Strategy: minimal/fixed — only upgrade vulnerable packages ---
+    fix_items = extract_fixable_items(analysis)
+    if not fix_items:
+        logger.info("未发现可修复的漏洞")
+        print("没有发现可修复的漏洞。")
         return 0
 
     commands = build_upgrade_commands(fix_items, strategy)
