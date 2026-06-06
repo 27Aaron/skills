@@ -3274,6 +3274,39 @@ def project_python_executable(cwd):
 
 
 def _pip_outdated(cwd, errors=None):
+    # uv-managed projects: use uv pip list for outdated check
+    if os.path.isfile(os.path.join(cwd, "uv.lock")):
+        output = run_cmd_checked(
+            ["uv", "pip", "list", "--outdated", "--format=json"],
+            cwd=cwd,
+            timeout=60,
+            errors=errors,
+            step="outdated_check",
+        )
+        if not output:
+            return []
+        try:
+            data = json.loads(output)
+        except json.JSONDecodeError:
+            if errors is not None:
+                errors.append(
+                    {
+                        "step": "outdated_check",
+                        "message": "uv pip list --outdated 输出不是有效 JSON",
+                    }
+                )
+            return []
+        return [
+            {
+                "package": p.get("name", ""),
+                "current": p.get("version", ""),
+                "latest": p.get("latest_version", p.get("latest", "")),
+                "ecosystem": "pypi",
+            }
+            for p in data
+            if isinstance(p, dict)
+        ]
+
     python = project_python_executable(cwd)
     if not python:
         if errors is not None:

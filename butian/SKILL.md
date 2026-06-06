@@ -214,7 +214,10 @@ python3 scripts/run_audit.py --final-report
 
 最终报告生成后，用 AskUserQuestion 询问用户是否运行项目构建验证，提供 `运行构建验证` / `暂不验证`。用户选择运行后，根据项目生态自动执行对应的构建/测试命令：
 - **npm/pnpm/yarn**：`npm run build`、`npm run dev`
-- **Python**：`pip install -e . && python -m pytest`
+- **Python (pip)**：`pip install -e . && python -m pytest`
+- **Python (uv)**：`uv sync && uv run pytest`
+- **Python (poetry)**：`poetry install && poetry run pytest`
+- **Python (pipenv)**：`pipenv install --dev && pipenv run pytest`
 - **Go**：`go build ./...`、`go test ./...`
 - **Rust**：`cargo build`、`cargo test`
 

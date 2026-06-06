@@ -83,6 +83,41 @@ def _go_version(ver):
     return ver
 
 
+def _pypi_manager(project_path):
+    """Detect Python package manager from lockfile presence."""
+    if os.path.isfile(os.path.join(project_path, "uv.lock")):
+        return "uv"
+    if os.path.isfile(os.path.join(project_path, "poetry.lock")):
+        return "poetry"
+    if os.path.isfile(os.path.join(project_path, "Pipfile.lock")):
+        return "pipenv"
+    return "pip"
+
+
+def _pypi_fixed_cmd(pkg, ver, project_path="."):
+    """Build fixed-version install command for the detected Python package manager."""
+    mgr = _pypi_manager(project_path)
+    if mgr == "uv":
+        return ["uv", "pip", "install", f"{pkg}=={ver}"]
+    if mgr == "poetry":
+        return ["poetry", "add", f"{pkg}@{ver}"]
+    if mgr == "pipenv":
+        return ["pipenv", "install", f"{pkg}=={ver}"]
+    return [sys.executable, "-m", "pip", "install", f"{pkg}=={ver}"]
+
+
+def _pypi_latest_cmd(pkg, project_path="."):
+    """Build latest-version upgrade command for the detected Python package manager."""
+    mgr = _pypi_manager(project_path)
+    if mgr == "uv":
+        return ["uv", "pip", "install", "--upgrade", pkg]
+    if mgr == "poetry":
+        return ["poetry", "add", f"{pkg}@latest"]
+    if mgr == "pipenv":
+        return ["pipenv", "install", pkg]
+    return [sys.executable, "-m", "pip", "install", "--upgrade", pkg]
+
+
 _UPGRADE_BUILDERS = {
     "npm": lambda pkg, ver: ["npm", "install", f"{pkg}@{ver}"],
     "pnpm": lambda pkg, ver: ["pnpm", "add", f"{pkg}@{ver}"],
@@ -93,7 +128,7 @@ _UPGRADE_BUILDERS = {
 }
 
 
-def _latest_commands(ecosystem, package):
+def _latest_commands(ecosystem, package, project_path=None):
     """Build commands to upgrade a package to its latest version."""
     if ecosystem == "npm":
         return ["npm", "install", f"{package}@latest"]
@@ -102,7 +137,7 @@ def _latest_commands(ecosystem, package):
     if ecosystem == "yarn":
         return ["yarn", "add", f"{package}@latest"]
     if ecosystem == "pypi":
-        return [sys.executable, "-m", "pip", "install", "--upgrade", package]
+        return _pypi_latest_cmd(package, project_path or ".")
     if ecosystem == "go":
         return ["go", "get", f"{package}@latest"]
     if ecosystem == "crates-io":
@@ -235,32 +270,36 @@ def extract_fixable_items(analysis):
 # ---------------------------------------------------------------------------
 
 
-def build_upgrade_commands(fix_items, strategy, ecosystem=None):
+def build_upgrade_commands(fix_items, strategy, ecosystem=None, project_path=None):
     """Build upgrade commands for fixable items.
 
     Args:
         fix_items: list from extract_fixable_items()
         strategy: "minimal" | "latest"
         ecosystem: if set, filter to this ecosystem only
+        project_path: project root (used to detect uv vs pip)
 
     Returns:
         list of (package, command_list) tuples
     """
+    project_path = project_path or "."
     commands = []
     for item in fix_items:
         eco = item.get("ecosystem")
         if ecosystem and eco != ecosystem:
             continue
         pkg = item["package"]
-        builder = _UPGRADE_BUILDERS.get(eco)
-        if not builder:
-            continue
 
         if strategy == "minimal":
-            ver = item["target_version"]
-            cmd = builder(pkg, ver)
+            if eco == "pypi":
+                cmd = _pypi_fixed_cmd(pkg, item["target_version"], project_path)
+            else:
+                builder = _UPGRADE_BUILDERS.get(eco)
+                if not builder:
+                    continue
+                cmd = builder(pkg, item["target_version"])
         elif strategy == "latest":
-            cmd = _latest_commands(eco, pkg)
+            cmd = _latest_commands(eco, pkg, project_path)
         else:
             continue
 
@@ -866,7 +905,7 @@ def main(argv=None):
         print("没有发现可修复的漏洞。")
         return 0
 
-    commands = build_upgrade_commands(fix_items, strategy)
+    commands = build_upgrade_commands(fix_items, strategy, project_path=project_path)
 
     if not commands:
         logger.info("没有匹配到可执行的升级命令")
