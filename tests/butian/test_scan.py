@@ -243,7 +243,10 @@ class ButianScanTests(unittest.TestCase):
         }
 
         text = run_audit.format_human_summary(
-            summary, scan_output, analysis, SimpleNamespace(no_open=True, final_report=False)
+            summary,
+            scan_output,
+            analysis,
+            SimpleNamespace(no_open=True, final_report=False),
         )
 
         self.assertIn("暂无法执行依赖漏洞扫描", text)

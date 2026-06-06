@@ -20,11 +20,12 @@ import sys
 logger = logging.getLogger(__name__)
 
 try:
-    from .scan import HYGIENE_ONLY_NOTICE, run_dir_from_output_file
+    from .scan import HYGIENE_ONLY_NOTICE, run_dir_from_output_file, setup_logging
 except ImportError:
     from scan import (  # pyright: ignore[reportMissingImports]
         HYGIENE_ONLY_NOTICE,
         run_dir_from_output_file,
+        setup_logging,
     )
 
 SEVERITY_ORDER = {
@@ -784,6 +785,8 @@ def main():
     args = parse_args(sys.argv[1:])
 
     scan_path = args.scan_json
+    log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(scan_path))), "logs")
+    setup_logging(log_dir=log_dir, log_file="analyze.log")
     output_path = args.output_json or default_output_path(scan_path)
     logger.info("analyze.py 开始: scan=%s, output=%s", scan_path, output_path)
 

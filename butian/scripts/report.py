@@ -20,11 +20,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_PATH = os.path.join(HERE, "..", "templates", "report.md")
 
 try:
-    from .scan import CAPABILITY_BOUNDARY, HYGIENE_ONLY_NOTICE
+    from .scan import CAPABILITY_BOUNDARY, HYGIENE_ONLY_NOTICE, setup_logging
 except ImportError:
     from scan import (  # pyright: ignore[reportMissingImports]
         CAPABILITY_BOUNDARY,
         HYGIENE_ONLY_NOTICE,
+        setup_logging,
     )
 
 SEVERITY_LABELS = {
@@ -405,6 +406,8 @@ def main():
     args = parse_args(sys.argv[1:])
 
     src = args.analysis_json
+    log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(src))), "logs")
+    setup_logging(log_dir=log_dir, log_file="report.log")
     logger.info("report.py 开始: analysis=%s", src)
 
     with open(src, "r", encoding="utf-8") as handle:

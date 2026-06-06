@@ -349,7 +349,13 @@ class ButianReportAssetTests(unittest.TestCase):
         data = {
             "generated_at": "2026-06-05 09:05:50",
             "project": {"name": "demo", "path": "/tmp/demo", "ecosystems": ["npm"]},
-            "risk_summary": {"critical": 1, "high": 0, "medium": 0, "low": 0, "info": 0},
+            "risk_summary": {
+                "critical": 1,
+                "high": 0,
+                "medium": 0,
+                "low": 0,
+                "info": 0,
+            },
             "summary": {},
             "top_issues": [
                 {
@@ -371,7 +377,13 @@ class ButianReportAssetTests(unittest.TestCase):
         data = {
             "generated_at": "2026-06-05 09:05:50",
             "project": {"name": "demo", "path": "/tmp/demo", "ecosystems": ["npm"]},
-            "risk_summary": {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 2},
+            "risk_summary": {
+                "critical": 0,
+                "high": 0,
+                "medium": 0,
+                "low": 0,
+                "info": 2,
+            },
             "summary": {},
             "top_issues": [
                 {
@@ -401,7 +413,13 @@ class ButianReportAssetTests(unittest.TestCase):
         data = {
             "generated_at": "2026-06-05 09:05:50",
             "project": {"name": "demo", "path": "/tmp/demo", "ecosystems": ["npm"]},
-            "risk_summary": {"critical": 0, "high": 1, "medium": 0, "low": 0, "info": 0},
+            "risk_summary": {
+                "critical": 0,
+                "high": 1,
+                "medium": 0,
+                "low": 0,
+                "info": 0,
+            },
             "summary": {},
             "top_issues": [
                 {
@@ -429,7 +447,13 @@ class ButianReportAssetTests(unittest.TestCase):
                 "ecosystems": ["npm"],
                 "total_packages": 5,
             },
-            "risk_summary": {"critical": 0, "high": 0, "medium": 1, "low": 0, "info": 0},
+            "risk_summary": {
+                "critical": 0,
+                "high": 0,
+                "medium": 1,
+                "low": 0,
+                "info": 0,
+            },
             "summary": {"tldr": "", "detail": "", "priority": []},
             "top_issues": [
                 {
@@ -453,7 +477,13 @@ class ButianReportAssetTests(unittest.TestCase):
             "generated_at": "2026-06-05 09:05:50",
             "project": {"name": "demo", "path": "/tmp/demo", "ecosystems": ["npm"]},
             "scan_config": {"scan_mode": "full_dependency_scan"},
-            "risk_summary": {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0},
+            "risk_summary": {
+                "critical": 0,
+                "high": 0,
+                "medium": 0,
+                "low": 0,
+                "info": 0,
+            },
             "summary": {"tldr": "demo", "detail": "demo", "priority": ["demo"]},
             "top_issues": [],
             "hygiene": {},

@@ -24,11 +24,12 @@ logger = logging.getLogger(__name__)
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 try:
-    from .scan import CAPABILITY_BOUNDARY, HYGIENE_ONLY_NOTICE
+    from .scan import CAPABILITY_BOUNDARY, HYGIENE_ONLY_NOTICE, setup_logging
 except ImportError:
     from scan import (  # pyright: ignore[reportMissingImports]
         CAPABILITY_BOUNDARY,
         HYGIENE_ONLY_NOTICE,
+        setup_logging,
     )
 
 def script_path(name):
@@ -447,6 +448,8 @@ def build_scan_cmd(args, preflight_file):
 
 def main():
     args = parse_args(sys.argv[1:])
+    # Early logging to stderr; file logging set up after scan produces output_file
+    setup_logging()
     logger.info("补天审计流水线开始: 路径=%s", args.project_path)
 
     # Step 1: preflight
@@ -468,6 +471,24 @@ def main():
     # Step 2: scan
     scan = run_json(build_scan_cmd(args, preflight["output_file"]))
     scan_mode = scan.get("scan_config", {}).get("scan_mode", "unknown")
+
+    # Set up file logging now that we know the workspace layout
+    scan_log_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(scan["output_file"]))),
+        "logs",
+    )
+    butian_logger = logging.getLogger("butian")
+    if not any(isinstance(h, logging.FileHandler) for h in butian_logger.handlers):
+        os.makedirs(scan_log_dir, exist_ok=True)
+        fh = logging.FileHandler(
+            os.path.join(scan_log_dir, "run_audit.log"), encoding="utf-8",
+        )
+        fh.setFormatter(logging.Formatter(
+            "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+            "%Y-%m-%d %H:%M:%S",
+        ))
+        fh.setLevel(logging.DEBUG)
+        butian_logger.addHandler(fh)
     vuln_count = len(scan.get("vulnerabilities") or [])
     logger.info(
         "扫描完成: 模式=%s, 依赖=%d, 风险项=%d, 过期=%d, 错误=%d",

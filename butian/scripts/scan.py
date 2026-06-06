@@ -885,13 +885,14 @@ _LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 _LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
-def setup_logging(verbose=False, debug=False, log_dir=None):
+def setup_logging(verbose=False, debug=False, log_dir=None, log_file="scan.log"):
     """Configure butian logging to stderr and optional log file.
 
     Args:
         verbose: If True, set stderr to INFO level.
         debug: If True, set stderr and file to DEBUG level.
         log_dir: Directory for log file. If None, no file logging.
+        log_file: Log file name within log_dir (default "scan.log").
 
     Returns:
         logging.Logger: The configured 'butian' logger.
@@ -916,7 +917,7 @@ def setup_logging(verbose=False, debug=False, log_dir=None):
 
     if log_dir:
         os.makedirs(log_dir, exist_ok=True)
-        log_path = os.path.join(log_dir, "scan.log")
+        log_path = os.path.join(log_dir, log_file)
         file_handler = logging.FileHandler(log_path, encoding="utf-8")
         file_handler.setFormatter(logging.Formatter(_LOG_FORMAT, _LOG_DATE_FORMAT))
         file_handler.setLevel(logging.DEBUG)
