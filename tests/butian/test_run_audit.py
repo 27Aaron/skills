@@ -19,14 +19,6 @@ def _scan_args(**overrides):
         verbose=False,
         debug=False,
         follow_symlinks=False,
-        no_cache=False,
-        cache_ttl=86400,
-        progress=False,
-        no_progress=False,
-        severity_threshold=None,
-        baseline=False,
-        skip_baseline=False,
-        generate_baseline=False,
     )
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
@@ -355,7 +347,7 @@ class FormatHumanSummaryTests(unittest.TestCase):
             "outdated_count": 0,
             "errors": [],
         }
-        args = SimpleNamespace(no_open=True)
+        args = SimpleNamespace(no_open=True, final_report=False)
         result = run_audit.format_human_summary(summary, scan, analysis, args)
         self.assertIn("仓库卫生扫描", result)
         self.assertIn("暂无法执行依赖漏洞扫描", result)
@@ -391,7 +383,7 @@ class FormatHumanSummaryTests(unittest.TestCase):
             "outdated_count": 0,
             "errors": [],
         }
-        args = SimpleNamespace(no_open=True)
+        args = SimpleNamespace(no_open=True, final_report=False)
         result = run_audit.format_human_summary(summary, scan, analysis, args)
         self.assertIn("完整依赖漏洞扫描", result)
         self.assertIn("lodash", result)
@@ -431,21 +423,6 @@ class BuildScanCmdTests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# should_echo_build_report
-# ---------------------------------------------------------------------------
-class ShouldEchoBuildReportTests(unittest.TestCase):
-    def test_non_compact(self):
-        self.assertTrue(
-            run_audit.should_echo_build_report(SimpleNamespace(compact=False))
-        )
-
-    def test_compact(self):
-        self.assertFalse(
-            run_audit.should_echo_build_report(SimpleNamespace(compact=True))
-        )
-
-
-# ---------------------------------------------------------------------------
 # quote_line
 # ---------------------------------------------------------------------------
 class QuoteLineTests(unittest.TestCase):
@@ -465,7 +442,6 @@ class ParseArgsTests(unittest.TestCase):
         self.assertFalse(args.skip_hygiene)
         self.assertIsNone(args.max_secret_files)
         self.assertFalse(args.include_packages)
-        self.assertFalse(args.compact)
         self.assertFalse(args.no_open)
 
     def test_all_flags(self):
@@ -475,7 +451,6 @@ class ParseArgsTests(unittest.TestCase):
                 "--skip-outdated",
                 "--skip-hygiene",
                 "--include-packages",
-                "--compact",
                 "--no-open",
                 "--max-secret-files",
                 "200",
@@ -487,7 +462,6 @@ class ParseArgsTests(unittest.TestCase):
         self.assertTrue(args.skip_outdated)
         self.assertTrue(args.skip_hygiene)
         self.assertTrue(args.include_packages)
-        self.assertTrue(args.compact)
         self.assertTrue(args.no_open)
         self.assertEqual(args.max_secret_files, 200)
 

@@ -121,7 +121,6 @@ class ButianScanTests(unittest.TestCase):
                     "--no-root-discovery",
                     "--skip-hygiene",
                     "--skip-outdated",
-                    "--compact",
                     root,
                 ],
                 cwd=os.path.dirname(
@@ -244,7 +243,7 @@ class ButianScanTests(unittest.TestCase):
         }
 
         text = run_audit.format_human_summary(
-            summary, scan_output, analysis, SimpleNamespace(no_open=True)
+            summary, scan_output, analysis, SimpleNamespace(no_open=True, final_report=False)
         )
 
         self.assertIn("暂无法执行依赖漏洞扫描", text)
@@ -323,12 +322,8 @@ class ButianScanTests(unittest.TestCase):
         self.assertIn("部分公告未给出明确修复版本", upgrade["summary"])
 
     def test_build_report_output_is_visible_in_human_mode(self):
-        self.assertTrue(
-            run_audit.should_echo_build_report(SimpleNamespace(compact=False))
-        )
-        self.assertFalse(
-            run_audit.should_echo_build_report(SimpleNamespace(compact=True))
-        )
+        # verify run_audit no longer has should_echo_build_report (removed with --compact)
+        self.assertFalse(hasattr(run_audit, "should_echo_build_report"))
 
     def test_pipeline_scripts_expose_help(self):
         root = os.path.dirname(

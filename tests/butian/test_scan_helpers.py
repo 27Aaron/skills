@@ -1,4 +1,4 @@
-"""Tests for scan.py helper functions: logging, progress, exit codes, binary detection."""
+"""Tests for scan.py helper functions: logging, binary detection."""
 
 import os
 import sys
@@ -26,65 +26,6 @@ class IsBinaryFileTests(unittest.TestCase):
 
     def test_missing_file_is_binary(self):
         self.assertTrue(scan.is_binary_file("/nonexistent/file.txt"))
-
-
-class EvaluateSeverityThresholdTests(unittest.TestCase):
-    def _vuln(self, severity):
-        return {"severity": severity}
-
-    def test_no_threshold(self):
-        should_fail, count = scan.evaluate_severity_threshold(
-            [self._vuln("critical")], None
-        )
-        self.assertFalse(should_fail)
-        self.assertEqual(count, 0)
-
-    def test_below_threshold(self):
-        should_fail, count = scan.evaluate_severity_threshold(
-            [self._vuln("low")], "high"
-        )
-        self.assertFalse(should_fail)
-        self.assertEqual(count, 0)
-
-    def test_at_threshold(self):
-        should_fail, count = scan.evaluate_severity_threshold(
-            [self._vuln("high")], "high"
-        )
-        self.assertTrue(should_fail)
-        self.assertEqual(count, 1)
-
-    def test_above_threshold(self):
-        should_fail, count = scan.evaluate_severity_threshold(
-            [self._vuln("critical")], "high"
-        )
-        self.assertTrue(should_fail)
-        self.assertEqual(count, 1)
-
-    def test_multiple_vulns_count(self):
-        vulns = [self._vuln("high"), self._vuln("critical"), self._vuln("low")]
-        should_fail, count = scan.evaluate_severity_threshold(vulns, "high")
-        self.assertTrue(should_fail)
-        self.assertEqual(count, 2)
-
-    def test_empty_list(self):
-        should_fail, count = scan.evaluate_severity_threshold([], "critical")
-        self.assertFalse(should_fail)
-        self.assertEqual(count, 0)
-
-
-class ProgressReporterTests(unittest.TestCase):
-    def test_disabled_produces_no_output(self):
-        reporter = scan.ProgressReporter(enabled=False)
-        # These should be no-ops
-        reporter.update("test")
-        reporter.finish("test")
-        reporter.step(1, 5, "test")
-
-    def test_enabled_does_not_crash(self):
-        reporter = scan.ProgressReporter(enabled=True)
-        reporter.update("scanning...")
-        reporter.finish("done")
-        reporter.step(1, 5, "detect")
 
 
 class SetupLoggingTests(unittest.TestCase):
