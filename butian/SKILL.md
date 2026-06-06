@@ -57,7 +57,7 @@ python3 scripts/run_audit.py
 py -3 scripts/run_audit.py
 ```
 
-`scripts/run_audit.py` 默认扫描当前目录并自动向上识别最近的项目根目录；在 monorepo 子项目中运行时，优先使用当前子项目的 manifest/lockfile，不要跳到上层 git repo。需要扫描其他目录时，把路径作为最后一个参数传入。脚本会按顺序运行预检、扫描、analysis 生成、Markdown 生成和 HTML 生成，生成后会尝试用系统默认浏览器自动打开静态 HTML 报告，并在终端输出固定的人类可读摘要：`📊 风险总览`、`⚠️ 能力边界`、`🚨 重点关注`、`📁 报告路径`；其中能力边界必须使用 Markdown 引用格式 `>` 输出完整文案。人工交互扫描默认不要加 `--no-open`；只有 CI、自动化或测试需要避免弹浏览器时才使用 `--no-open`。只有自动化或测试需要机器可读结果时才使用 `--compact`，此时输出 JSON。如果输出中的模式是 `hygiene_only`，必须告诉用户：`当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；本次仅做仓库卫生扫描，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。`
+`scripts/run_audit.py` 默认扫描当前目录并自动向上识别最近的项目根目录；在 monorepo 子项目中运行时，优先使用当前子项目的 manifest/lockfile，不要跳到上层 git repo。需要扫描其他目录时，把路径作为最后一个参数传入。脚本会按顺序运行预检、扫描、analysis 生成、Markdown 生成和 HTML 生成，生成后会尝试用系统默认浏览器自动打开静态 HTML 报告（仅首次扫描自动打开，复扫不会重复弹出），并在终端输出固定的人类可读摘要：`📊 风险总览`、`⚠️ 能力边界`、`🚨 重点关注`、`📁 报告路径`；其中能力边界必须使用 Markdown 引用格式 `>` 输出完整文案。人工交互扫描默认不要加 `--no-open`；只有 CI、自动化或测试需要避免弹浏览器时才使用 `--no-open`。只有自动化或测试需要机器可读结果时才使用 `--compact`，此时输出 JSON。如果输出中的模式是 `hygiene_only`，必须告诉用户：`当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；本次仅做仓库卫生扫描，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。`
 
 对话最终回复如果需要转述扫描结果，必须使用 Markdown 引用格式 `>` 展示完整能力边界，不要自行压缩成短句，也不要另起"提示"类标题。固定写法如下：
 
@@ -166,7 +166,7 @@ python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy fixed
 python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy latest
 ```
 
-4. **复扫验证**：升级完成后，重新运行 `python3 scripts/run_audit.py` 复扫并生成新报告。
+4. **复扫验证**：升级完成后，重新运行 `python3 scripts/run_audit.py` 复扫并生成新报告。复扫不会重复弹出浏览器（仅首次扫描自动打开）。
 
 #### 第二轮：处理残留（复扫后仍有残留时）
 
@@ -182,7 +182,7 @@ python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy paren
 
 脚本会自动：升级父依赖到 latest → 升级有漏洞的子依赖到修复版本。无法追溯到 `package.json` 根依赖的残留会标注出来，需要等待上游修复或人工评估。
 
-8. **复扫并展示结果**：升级完成后，重新运行 `python3 scripts/run_audit.py` 复扫，然后打开 HTML 报告向用户展示最终结果。提醒用户运行项目测试、构建或启动检查。
+8. **复扫并展示结果**：升级完成后，重新运行 `python3 scripts/run_audit.py` 复扫。复扫不会重复弹出浏览器；向用户展示最终结果（报告路径已在终端输出）。提醒用户运行项目测试、构建或启动检查。
 
 #### 第三轮：强制覆盖残留依赖（第二轮后仍有残留时）
 
@@ -198,7 +198,7 @@ python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy force
 
 脚本会自动：读取 analysis.json 中残留的可修复项 → 在 `package.json` 的 `overrides` 字段中添加版本强制约束 → 运行 `npm install` 使 overrides 生效。
 
-12. **复扫并展示结果**：覆盖完成后，重新运行 `python3 scripts/run_audit.py` 复扫，然后打开 HTML 报告向用户展示最终结果。提醒用户运行项目测试、构建或启动检查。
+12. **复扫并展示结果**：覆盖完成后，重新运行 `python3 scripts/run_audit.py` 复扫。复扫不会重复弹出浏览器；向用户展示最终结果（报告路径已在终端输出）。提醒用户运行项目测试、构建或启动检查。
 
 #### 三轮后仍有残留
 

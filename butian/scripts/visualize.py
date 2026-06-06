@@ -80,11 +80,43 @@ def parse_args(argv):
     return parser.parse_args(argv)
 
 
-def should_open_report(args):
+def _butian_dir_for(output_path):
+    """Find the .butian/ directory that contains *output_path*."""
+    current = os.path.dirname(os.path.abspath(output_path))
+    while current != os.path.dirname(current):
+        if os.path.basename(current) == ".butian":
+            return current
+        current = os.path.dirname(current)
+    return None
+
+
+_BROWSER_OPENED_MARKER = ".browser-opened"
+
+
+def should_open_report(args, output_path=None):
     if args.no_open:
         return False
     value = os.environ.get("BUTIAN_NO_OPEN", "")
-    return value.strip().lower() not in {"1", "true", "yes", "on"}
+    if value.strip().lower() in {"1", "true", "yes", "on"}:
+        return False
+    # Only open the browser on the very first scan for this project.
+    if output_path:
+        butian_dir = _butian_dir_for(output_path)
+        if butian_dir and os.path.exists(
+            os.path.join(butian_dir, _BROWSER_OPENED_MARKER)
+        ):
+            return False
+    return True
+
+
+def _mark_browser_opened(output_path):
+    butian_dir = _butian_dir_for(output_path)
+    if butian_dir:
+        try:
+            with open(os.path.join(butian_dir, _BROWSER_OPENED_MARKER), "w") as f:
+                f.write("")
+        except OSError:
+            pass
 
 
 def spawn_open_command(cmd):
@@ -165,13 +197,14 @@ def main():
         f.write(html)
     print(f"报告已生成: {out}")
     print("HTML 报告已保存，之后也可以从 content 目录重新查看。")
-    if should_open_report(args):
+    if should_open_report(args, out):
         if open_report(out):
+            _mark_browser_opened(out)
             print("已尝试在默认浏览器中打开报告。")
         else:
             print("未能自动打开报告，请手动打开上面的路径。")
     else:
-        print("已跳过自动打开报告。")
+        print("已跳过自动打开报告（首次已打开过）。")
 
 
 if __name__ == "__main__":
