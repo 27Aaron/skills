@@ -112,7 +112,7 @@ run_audit.py
 
 **第一轮**：用户选择修复策略后，调用 `fix.py --strategy fixed|latest` 执行顶层依赖升级，然后重新运行 `run_audit.py` 复扫验证。
 
-**第二轮**（复扫后仍有残留时）：如果复扫仍出现同名旧版本，通常是间接依赖被父包锁定，报告中已标注需要升级的父依赖。用户可选择继续升级父依赖，调用 `fix.py --strategy parent-upgrade`。当前自动父依赖升级仅支持 npm `package-lock.json` 场景：脚本会为嵌套残留项找到直接父包，并追溯到 `package.json` 中真正需要升级的根父依赖，然后执行 `npm install <根父依赖>@latest`，再执行 `npm update <子依赖>` 在新的父依赖范围内刷新 lockfile。升级后重新运行 `run_audit.py` 复扫，打开 HTML 报告展示最终结果，并提醒用户运行项目测试/构建检查兼容性。
+**第二轮**（复扫后仍有残留时）：如果复扫仍出现同名旧版本，通常是间接依赖被父包锁定。脚本会自动分析父依赖声明的 semver 范围，分三档处理：修复版本在范围内（只需重新解析 lockfile）、不在范围内（升级父依赖到 latest）、无法追溯到根依赖（报告给用户）。调用 `fix.py --strategy parent-upgrade`。当前仅支持 npm `package-lock.json` 场景。升级后重新运行 `run_audit.py` 复扫，打开 HTML 报告展示最终结果，并提醒用户运行项目测试/构建检查兼容性。
 
 ## 子进程调用方式
 
