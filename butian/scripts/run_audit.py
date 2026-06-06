@@ -558,11 +558,18 @@ def main():
         logger.info("Markdown 报告已生成: %s", markdown_path)
 
     # Step 5: HTML report
+    html_run_id = (
+        str(analysis.get("generated_at", "unknown-date"))[:10].replace("-", "")
+        + "-"
+        + str(analysis.get("generated_at", ""))[11:16].replace(":", "")
+    )
     html_path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(analysis_path))),
+        butian_dir,
+        html_run_id,
         "content",
         "security-report.html",
     )
+    os.makedirs(os.path.dirname(html_path), exist_ok=True)
     build_report_cmd = [
         sys.executable,
         script_path("visualize.py"),

@@ -973,6 +973,9 @@ function aggregateEnrichments(r) {
   let kevRequiredAction = "";
   let ransomware = false;
   let description = "";
+  let publishedAt = "";
+  let cvssVector = "";
+  let bestCvssVersion = 0;
   for (const e of enrichments) {
     if (!e || typeof e !== "object") continue;
     const epss = parseFloat(e.epss) || 0;
@@ -992,6 +995,12 @@ function aggregateEnrichments(r) {
     if (String(e.kevKnownRansomwareCampaignUse || "").toLowerCase() === "known")
       ransomware = true;
     if (e.description && !description) description = e.description;
+    if (e.nvdPublishedAt && (!publishedAt || e.nvdPublishedAt < publishedAt)) publishedAt = e.nvdPublishedAt;
+    const metrics = Array.isArray(e.cvssMetrics) ? e.cvssMetrics : [];
+    for (const m of metrics) {
+      const v = parseFloat(m.version) || 0;
+      if (v > bestCvssVersion && m.vector) { bestCvssVersion = v; cvssVector = m.vector; }
+    }
   }
   return {
     maxEpss,
@@ -1004,6 +1013,8 @@ function aggregateEnrichments(r) {
     kevRequiredAction,
     ransomware,
     description,
+    publishedAt,
+    cvssVector,
   };
 }
 
@@ -1011,6 +1022,65 @@ function shortDate(iso) {
   if (!iso) return "";
   const m = String(iso).match(/(\d{4})-(\d{2})/);
   return m ? `${m[1]}-${m[2]}` : "";
+}
+
+function fullDate(iso) {
+  if (!iso) return "";
+  const m = String(iso).match(/(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : shortDate(iso);
+}
+
+function publishedAgeText(isoDate) {
+  if (!isoDate) return "";
+  const d = new Date(isoDate);
+  const dateStr = fullDate(isoDate);
+  if (isNaN(d.getTime())) return dateStr;
+  const now = new Date();
+  const diffDays = Math.floor((now - d) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return dateStr;
+  if (diffDays < 30) return `${dateStr}（已公开 ${diffDays} 天）`;
+  if (diffDays < 365) {
+    const months = Math.floor(diffDays / 30);
+    return `${dateStr}（已公开 ${months} 个月）`;
+  }
+  const years = Math.floor(diffDays / 365);
+  return `${dateStr}（已公开 ${years} 年+）`;
+}
+
+function parseCvssVector(vectorStr) {
+  const result = {};
+  if (!vectorStr) return result;
+  String(vectorStr).split("/").forEach((part) => {
+    const idx = part.indexOf(":");
+    if (idx > 0) result[part.slice(0, idx)] = part.slice(idx + 1);
+  });
+  return result;
+}
+
+function attackConditionTags(vectorStr) {
+  const v = parseCvssVector(vectorStr);
+  const tags = [];
+  const avMap = { N: "🌐 远程可达", A: "📶 相邻网络", L: "💻 本地访问", P: "🤚 物理接触" };
+  if (v.AV && avMap[v.AV]) tags.push(`<span class="cvss-tag">${avMap[v.AV]}</span>`);
+  const acMap = { L: "⚡ 低复杂度", H: "🔧 高复杂度", M: "🔧 中等复杂度" };
+  if (v.AC && acMap[v.AC]) tags.push(`<span class="cvss-tag">${acMap[v.AC]}</span>`);
+  const prMap = { N: "🔓 无需权限", L: "🔑 低权限", H: "🔐 高权限" };
+  if (v.PR && prMap[v.PR]) tags.push(`<span class="cvss-tag">${prMap[v.PR]}</span>`);
+  const uiMap = { N: "👤 无需交互", R: "👥 需要交互" };
+  if (v.UI && uiMap[v.UI]) tags.push(`<span class="cvss-tag">${uiMap[v.UI]}</span>`);
+  if (!tags.length) return "";
+  return tags.join(" ");
+}
+
+function ciaImpactTags(vectorStr) {
+  const v = parseCvssVector(vectorStr);
+  const tags = [];
+  const levelMap = { H: "高", L: "低", N: "无", C: "高", P: "低" };
+  if (v.C && levelMap[v.C]) tags.push(`<span class="cia-tag cia-${v.C.toLowerCase()}">🔒 机密性:${levelMap[v.C]}</span>`);
+  if (v.I && levelMap[v.I]) tags.push(`<span class="cia-tag cia-${v.I.toLowerCase()}">📝 完整性:${levelMap[v.I]}</span>`);
+  if (v.A && levelMap[v.A]) tags.push(`<span class="cia-tag cia-${v.A.toLowerCase()}">⚡ 可用性:${levelMap[v.A]}</span>`);
+  if (!tags.length) return "";
+  return tags.join(" ");
 }
 
 function signalTags(r) {
@@ -1042,6 +1112,27 @@ function vulnDetailPanel(r) {
     fields.push(
       `<div class="detail-field"><div class="detail-label">漏洞描述</div><div class="detail-value">${esc(a.description)}</div></div>`,
     );
+  }
+
+  if (a.publishedAt) {
+    fields.push(
+      `<div class="detail-field"><div class="detail-label">发布时间</div><div class="detail-value">${esc(publishedAgeText(a.publishedAt))}</div></div>`,
+    );
+  }
+
+  if (a.cvssVector) {
+    const atkTags = attackConditionTags(a.cvssVector);
+    if (atkTags) {
+      fields.push(
+        `<div class="detail-field"><div class="detail-label">攻击条件</div><div class="detail-value">${atkTags}</div></div>`,
+      );
+    }
+    const ciaTags = ciaImpactTags(a.cvssVector);
+    if (ciaTags) {
+      fields.push(
+        `<div class="detail-field"><div class="detail-label">影响维度</div><div class="detail-value">${ciaTags}</div></div>`,
+      );
+    }
   }
 
   if (a.maxEpss > 0) {
