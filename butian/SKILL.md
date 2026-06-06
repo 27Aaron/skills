@@ -185,7 +185,7 @@ python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy lates
 python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy overrides
 ```
 
-当前脚本会自动处理 npm `package-lock.json` 中的嵌套残留项：先写入父包作用域的 `package.json#overrides`，再写入全局兜底覆盖（根依赖存在时使用 npm 的 `$包名` 引用，避免和直接依赖冲突），然后运行 `npm install` 刷新 lockfile。如果旧 lockfile 仍保留嵌套旧版本，脚本会重建 `package-lock.json` 并再次运行 `npm install`。这一步会比普通升级改变更多解析结果，执行后必须再次运行 `python3 scripts/run_audit.py` 复扫，并提醒用户跑项目测试/构建。如果当前项目不是 npm/package-lock 场景，告诉用户该强制覆盖需要人工评估对应包管理器的 `overrides` / `resolutions` 写法。
+当前脚本会自动处理 npm `package-lock.json` 中的嵌套残留项：先写入父包作用域的 `package.json#overrides`，再写入全局兜底覆盖（根依赖存在时使用 npm 的 `$包名` 引用，避免和直接依赖冲突），然后运行 `npm install` 刷新 lockfile。如果旧 lockfile 仍保留嵌套旧版本，脚本会清理对应的 `node_modules/<父依赖>/node_modules/<子依赖>` 残留目录，重建 `package-lock.json`，并最多重试 3 轮。强制更新期间不要向用户报告半途结论；等待脚本结束并重新运行 `python3 scripts/run_audit.py` 复扫后，再汇总最终效果。这一步会比普通升级改变更多解析结果，必须提醒用户跑项目测试/构建。如果当前项目不是 npm/package-lock 场景，告诉用户该强制覆盖需要人工评估对应包管理器的 `overrides` / `resolutions` 写法。
 
 ## 修复建议规则
 

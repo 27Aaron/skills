@@ -112,7 +112,7 @@ run_audit.py
 
 `fix.py --strategy fixed|latest` 只执行普通包管理器升级：`fixed` 升级命中漏洞的包到已知修复版本，`latest` 升级命中漏洞的包到 latest。两种策略都不会自动改父依赖链，也不会自动添加 `overrides` / `resolutions`。如果复扫仍出现同名旧版本，通常是间接依赖被父包锁定，需要升级父依赖、等待上游修复，或再次询问用户是否确认强制更新。
 
-用户选择 `确认强制更新` 后，才可以调用 `fix.py --strategy overrides`。当前自动强制覆盖仅支持 npm `package-lock.json` 场景：脚本会为嵌套残留项写入父包作用域的 `package.json#overrides`，同时写入全局兜底覆盖（根依赖存在时使用 npm 的 `$包名` 引用，避免和直接依赖冲突），再运行 `npm install` 刷新 lockfile。如果现有 lockfile 仍保留嵌套旧版本，脚本会重建 `package-lock.json` 并再次运行 `npm install`。执行后仍需重新运行 `run_audit.py` 验证，并运行项目测试/构建检查兼容性。
+用户选择 `确认强制更新` 后，才可以调用 `fix.py --strategy overrides`。当前自动强制覆盖仅支持 npm `package-lock.json` 场景：脚本会为嵌套残留项写入父包作用域的 `package.json#overrides`，同时写入全局兜底覆盖（根依赖存在时使用 npm 的 `$包名` 引用，避免和直接依赖冲突），再运行 `npm install` 刷新 lockfile。如果现有 lockfile 仍保留嵌套旧版本，脚本会清理对应的 `node_modules/<父依赖>/node_modules/<子依赖>` 残留目录，重建 `package-lock.json`，并最多重试 3 轮。执行后仍需重新运行 `run_audit.py` 验证，并运行项目测试/构建检查兼容性。
 
 ## 子进程调用方式
 
