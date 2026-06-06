@@ -212,7 +212,13 @@ python3 scripts/run_audit.py --final-report
 
 #### Step 6 修复后验证
 
-最终报告生成后，用 AskUserQuestion 询问用户是否运行项目构建验证，提供 `运行构建验证` / `暂不验证`。用户选择运行后，根据项目生态自动执行对应的构建/测试命令（如 `npm run build`、`npm run dev`、`pip install && python -m pytest` 等）。如果构建或启动报错，帮助用户分析错误并尝试修复（如版本冲突、缺失依赖等），修复后重新验证直到通过。用户选择暂不验证时，仅提醒后续自行验证即可结束。
+最终报告生成后，用 AskUserQuestion 询问用户是否运行项目构建验证，提供 `运行构建验证` / `暂不验证`。用户选择运行后，根据项目生态自动执行对应的构建/测试命令：
+- **npm/pnpm/yarn**：`npm run build`、`npm run dev`
+- **Python**：`pip install -e . && python -m pytest`
+- **Go**：`go build ./...`、`go test ./...`
+- **Rust**：`cargo build`、`cargo test`
+
+如果构建或启动报错，帮助用户分析错误并尝试修复（如版本冲突、缺失依赖等），修复后重新验证直到通过。用户选择暂不验证时，仅提醒后续自行验证即可结束。
 
 #### 三轮后仍有残留
 

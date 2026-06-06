@@ -76,12 +76,19 @@ def _semver_satisfies(version, range_str):
 # Maps ecosystem name to a fixed-version upgrade command builder.
 # Each builder receives (package, version) and returns a command list.
 
+def _go_version(ver):
+    """Ensure Go version has 'v' prefix (Go requires v1.2.3, not 1.2.3)."""
+    if ver and not ver.startswith("v"):
+        return f"v{ver}"
+    return ver
+
+
 _UPGRADE_BUILDERS = {
     "npm": lambda pkg, ver: ["npm", "install", f"{pkg}@{ver}"],
     "pnpm": lambda pkg, ver: ["pnpm", "add", f"{pkg}@{ver}"],
     "yarn": lambda pkg, ver: ["yarn", "add", f"{pkg}@{ver}"],
     "pypi": lambda pkg, ver: [sys.executable, "-m", "pip", "install", f"{pkg}=={ver}"],
-    "go": lambda pkg, ver: ["go", "get", f"{pkg}@{ver}"],
+    "go": lambda pkg, ver: ["go", "get", f"{pkg}@{_go_version(ver)}"],
     "crates-io": lambda pkg, ver: ["cargo", "update", "-p", pkg, "--precise", ver],
 }
 
