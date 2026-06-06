@@ -152,13 +152,13 @@ py -3 scripts/visualize.py .butian/<timestamp>/assets/analysis.json
 
 1. **是否修复**：用 AskUserQuestion 提供 `确认修复` / `取消修复`。用户选择取消时，停止修复，只总结报告路径和主要风险。
 2. **修复方式**：用户确认修复后，再用 AskUserQuestion 提供 `将依赖升级到已修复版本` / `将依赖升级到最新版本`。
-3. **强制更新确认**：普通修复执行并复扫后，如果仍存在同名依赖漏洞残留，再用 AskUserQuestion 提供 `确认强制更新` / `取消强制更新`。用户选择取消时，停止修复，并解释残留项来自间接依赖或父包锁定。
+3. **父依赖升级确认**：普通修复执行并复扫后，如果仍存在同名依赖漏洞残留，再用 AskUserQuestion 提供 `确认升级父依赖` / `取消升级父依赖`。用户选择取消时，停止修复，并解释残留项来自间接依赖或父包锁定。
 
 修复策略说明：
 - **将依赖升级到已修复版本**：把命中漏洞的包升级到已知修复版本（改动最小，推荐）
 - **将依赖升级到最新版本**：把命中漏洞的包升级到 latest（一步到位，但可能有 breaking changes）
 
-两种策略都只执行普通包管理器升级，不会自动改父依赖链，也不会自动添加 `overrides` / `resolutions`。如果漏洞来自父依赖锁定的嵌套旧版本，普通升级可能只能修复顶层副本，复扫后仍会显示同名旧版本。
+两种策略都只执行普通包管理器升级，不会自动改父依赖链。如果漏洞来自父依赖锁定的嵌套旧版本，普通升级可能只能修复顶层副本，复扫后仍会显示同名旧版本。
 
 用户选择策略后，才允许运行确定性的修复脚本：
 
@@ -176,16 +176,16 @@ python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy lates
 
 - 顶层依赖可能已经升级成功；
 - 残留项通常来自间接依赖或嵌套依赖，被父包版本范围锁住；
-- 下一步可以升级父依赖、等待上游修复，或在用户确认后执行强制更新；
-- 强制更新会写入 `overrides` / `resolutions` 类配置并重新解析 lockfile，可能导致父包使用它原本没有声明兼容的子依赖版本，因此必须提示兼容性风险。
+- 下一步优先升级锁住旧子依赖的父依赖到 latest，然后重新刷新相关子依赖并复扫；
+- 父依赖升到 latest 可能带来兼容性变化，因此必须提示用户运行项目测试、构建或启动检查。
 
-用户选择 `确认强制更新` 后，才允许运行：
+用户选择 `确认升级父依赖` 后，才允许运行：
 
 ```bash
-python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy overrides
+python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy parent-upgrade
 ```
 
-当前脚本会自动处理 npm `package-lock.json` 中的嵌套残留项：先写入父包作用域的 `package.json#overrides`，再写入全局兜底覆盖（根依赖存在时使用 npm 的 `$包名` 引用，避免和直接依赖冲突），然后运行 `npm install` 刷新 lockfile。如果旧 lockfile 仍保留嵌套旧版本，脚本会清理对应的 `node_modules/<父依赖>/node_modules/<子依赖>` 残留目录，重建 `package-lock.json`，并最多重试 3 轮。强制更新期间不要向用户报告半途结论；等待脚本结束并重新运行 `python3 scripts/run_audit.py` 复扫后，再汇总最终效果。这一步会比普通升级改变更多解析结果，必须提醒用户跑项目测试/构建。如果当前项目不是 npm/package-lock 场景，告诉用户该强制覆盖需要人工评估对应包管理器的 `overrides` / `resolutions` 写法。
+当前脚本会自动处理 npm `package-lock.json` 中的嵌套残留项：找到锁住旧子依赖的直接父包，并追溯到 `package.json` 中真正需要升级的根父依赖，然后执行 `npm install <根父依赖>@latest`，再执行 `npm update <子依赖>` 在新的父依赖范围内刷新 lockfile。执行后必须再次运行 `python3 scripts/run_audit.py` 复扫；如果复扫仍有残留，说明上游父依赖最新版可能仍未放开该子依赖，需要等待上游修复或单独人工评估。
 
 ## 修复建议规则
 
