@@ -568,6 +568,22 @@ def build_dependency_fix_items(top_issues):
         target_version = highest_version(fixed_versions)
         if not target_version:
             continue
+        # Go requires 'v' prefix on versions (e.g. v1.2.3, not 1.2.3);
+        # OSV sometimes omits it — normalize here so downstream tools
+        # and reports always see correct Go version format.
+        if ecosystem == "go":
+            fixed_versions = [
+                v if v.startswith("v") else f"v{v}" for v in fixed_versions
+            ]
+            for aid, fvs in fixed_versions_by_advisory.items():
+                fixed_versions_by_advisory[aid] = [
+                    v if v.startswith("v") else f"v{v}" for v in fvs
+                ]
+            target_version = (
+                target_version
+                if target_version.startswith("v")
+                else f"v{target_version}"
+            )
         highest_issue = sort_items(issues)[0]
         summary = (
             f"{package} 命中 {len(issues)} 个风险项，建议升级到 {target_version} "
