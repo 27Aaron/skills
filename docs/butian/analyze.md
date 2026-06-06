@@ -1,6 +1,6 @@
 # analyze.py 技术文档
 
-> 源码路径：`butian/scripts/analyze.py`（516 行）
+> 源码路径：`butian/scripts/analyze.py`（837 行）
 
 ## 概览
 
@@ -51,6 +51,7 @@ SEVERITY_ORDER = {
 | `high`     | 高风险 |
 | `medium`   | 中风险 |
 | `low`      | 低风险 |
+| `info`     | 待确认 |
 
 ### 密钥类型标签
 
