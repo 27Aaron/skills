@@ -8,14 +8,15 @@
 
 ## 职责
 
-| #   | 职责       | 说明                                                                   |
-| --- | ---------- | ---------------------------------------------------------------------- |
-| 1   | 管线编排   | 按序调用 detect → scan → analyze → report → visualize [+ sarif]        |
-| 2   | 参数透传   | 将用户参数传递给各子阶段（包括新增的 verbose/debug/cache/baseline 等） |
-| 3   | 结果汇总   | 收集各阶段的文件路径和风险统计                                         |
-| 4   | 终端摘要   | 输出格式化的终端摘要（包含 Unicode 表格）                              |
-| 5   | 报告打开   | 默认尝试用系统浏览器打开 HTML 报告，`--no-open` 仅供 CI/自动化使用      |
-| 6   | 退出码控制 | 根据 `--severity-threshold` 返回语义化退出码                           |
+| #   | 职责          | 说明                                                                                       |
+| --- | ------------- | ------------------------------------------------------------------------------------------ |
+| 1   | 管线编排      | 按序调用 detect → scan → analyze → report → visualize [+ sarif]                            |
+| 2   | 参数透传      | 将用户参数传递给各子阶段（包括新增的 verbose/debug/cache/baseline 等）                     |
+| 3   | 结果汇总      | 收集各阶段的文件路径和风险统计                                                             |
+| 4   | 终端摘要      | 输出格式化的终端摘要（包含 Unicode 表格）                                                  |
+| 5   | 报告打开      | 首次扫描自动用系统浏览器打开 HTML 报告，复扫跳过（由 `.butian/.first-scan-done` 标记控制） |
+| 6   | 退出码控制    | 根据 `--severity-threshold` 返回语义化退出码                                               |
+| 7   | Markdown 控制 | 首次扫描 + 最终复扫（`--final-report`）生成 Markdown，中间复扫跳过                         |
 
 ## CLI 用法
 
@@ -38,6 +39,7 @@ python3 run_audit.py --severity-threshold high .  # high+ 漏洞时退出码 1
 python3 run_audit.py --follow-symlinks .    # 跟随符号链接
 python3 run_audit.py --no-cache .           # 禁用缓存
 python3 run_audit.py --cache-ttl 3600 .     # 自定义缓存过期时间
+python3 run_audit.py --final-report .       # 最终复扫：强制生成 Markdown 报告
 
 # CI/CD 组合用法
 python3 run_audit.py --compact --no-open --sarif --severity-threshold high .
@@ -55,6 +57,7 @@ python3 run_audit.py --compact --no-open --sarif --severity-threshold high .
 | `--include-packages`   | flag     | false    | 在扫描输出中包含完整包列表             |
 | `--compact`            | flag     | false    | 输出紧凑 JSON                          |
 | `--no-open`            | flag     | false    | 不自动打开 HTML 报告                   |
+| `--final-report`       | flag     | false    | 最终复扫时强制生成 Markdown 报告       |
 | `--verbose`            | flag     | false    | 输出详细日志到 stderr                  |
 | `--debug`              | flag     | false    | 输出调试级别日志                       |
 | `--follow-symlinks`    | flag     | false    | 跟随符号链接扫描                       |
@@ -95,11 +98,12 @@ run_audit.py
 ├─ 3. analyze.py <scan_file> <analysis_path>
 │     → analysis.json
 │
-├─ 4. report.py <analysis_path> <markdown_path>
+├─ 4. report.py <analysis_path> <markdown_path>  ← 首次扫描或 --final-report 时执行
 │     → docs/butian/security-report-YYYY-MM-DD_HHMMSS.md
-│
+│     复扫时跳过（由 .butian/.first-scan-done 标记控制）
 ├─ 5. visualize.py <analysis_path> <html_path> [--no-open]
 │     → .butian/<run>/content/security-report.html
+│     首次扫描自动打开浏览器，复扫跳过（.first-scan-done 标记）
 │
 ├─ 6. [可选] sarif.py <analysis_path> <sarif_path>    ← 新增
 │     → .butian/<run>/assets/results.sarif.json
@@ -108,11 +112,15 @@ run_audit.py
 └─ 输出终端摘要（或紧凑 JSON）+ 退出码判断
 ```
 
-`run_audit.py` 不执行依赖升级，也不询问用户是否修复。修复确认属于 `SKILL.md` 的 Agent 工作流，分两轮进行：
+`run_audit.py` 不执行依赖升级，也不询问用户是否修复。修复确认属于 `SKILL.md` 的 Agent 工作流，分三轮进行：
 
-**第一轮**：用户选择修复策略后，调用 `fix.py --strategy fixed|latest` 执行顶层依赖升级，然后重新运行 `run_audit.py` 复扫验证。
+**第一轮**：用户选择修复策略后，调用 `fix.py --strategy fixed|latest` 执行顶层依赖升级，然后重新运行 `run_audit.py` 复扫验证。复扫不会重复弹出浏览器，也不会生成 Markdown。
 
-**第二轮**（复扫后仍有残留时）：如果复扫仍出现同名旧版本，通常是间接依赖被父包锁定。脚本会自动分析父依赖声明的 semver 范围，分三档处理：修复版本在范围内（只需重新解析 lockfile）、不在范围内（升级父依赖到 latest）、无法追溯到根依赖（报告给用户）。调用 `fix.py --strategy parent-upgrade`。当前仅支持 npm `package-lock.json` 场景。升级后重新运行 `run_audit.py` 复扫，打开 HTML 报告展示最终结果，并提醒用户运行项目测试/构建检查兼容性。
+**第二轮**（复扫后仍有残留时）：如果复扫仍出现同名旧版本，通常是间接依赖被父包锁定。脚本会自动分析父依赖声明的 semver 范围，分三档处理：修复版本在范围内（只需重新解析 lockfile）、不在范围内（升级父依赖到 latest）、无法追溯到根依赖（报告给用户）。调用 `fix.py --strategy parent-upgrade`。当前仅支持 npm `package-lock.json` 场景。升级后重新运行 `run_audit.py` 复扫。
+
+**第三轮**（第二轮后仍有残留时）：通过 `fix.py --strategy force-residual` 在 `package.json` 的 `overrides` 字段强制覆盖残留依赖。
+
+**最终报告**：所有修复轮次结束后，运行 `run_audit.py --final-report` 生成最终 Markdown 审计报告。终端摘要以 `📁 最终报告路径` 标注。
 
 ## 子进程调用方式
 
@@ -155,6 +163,18 @@ run_audit.py
 
 📁 报告路径
 - Markdown 审计报告：docs/butian/security-report-2025-01-15_120000.md
+- HTML 报告：.butian/.../content/security-report.html
+- analysis JSON：.butian/.../assets/analysis.json
+
+# 或最终复扫时：
+📁 报告路径
+- 最终Markdown 审计报告：docs/butian/security-report-2025-01-15_143000.md
+- HTML 报告：.butian/.../content/security-report.html
+- analysis JSON：.butian/.../assets/analysis.json
+
+# 或中间复扫时（无 Markdown 生成）：
+📁 报告路径
+- Markdown 审计报告：复扫未生成（首次扫描已有）
 - HTML 报告：.butian/.../content/security-report.html
 - analysis JSON：.butian/.../assets/analysis.json
 ```
@@ -202,7 +222,7 @@ run_audit.py
 }
 ```
 
-> `sarif_file` 仅在 `--sarif` 模式下出现。依赖修复不属于 `run_audit.py` 的输出结构。
+> `sarif_file` 仅在 `--sarif` 模式下出现。`markdown_report` 在中间复扫时为 `null`（首次扫描或 `--final-report` 时才有值）。依赖修复不属于 `run_audit.py` 的输出结构。
 
 ## 设计要点
 
@@ -214,6 +234,8 @@ run_audit.py
 - **能力边界声明**：终端摘要中包含明确的能力边界说明
 - **语义化退出码**：`--severity-threshold` 控制管线退出码，支持 CI/CD 集成
 - **SARIF 输出**：`--sarif` 生成标准化安全结果，可上传到 GitHub Advanced Security 等
+- **首次标记**：`.butian/.first-scan-done` 标记控制浏览器弹出和 Markdown 生成，复扫不重复
+- **最终报告**：`--final-report` 在修复完成后强制生成最终 Markdown 审计报告
 
 ## 相关文档
 

@@ -73,6 +73,7 @@ SEVERITY_THRESHOLD_ORDER = {
     "info": 0,
 }
 BUTIAN_GITIGNORE_ENTRY = ".butian/"
+BUTIAN_GITIGNORE_EXTRA_ENTRIES = ("docs/butian",)
 BUTIAN_ASSETS_DIR = "assets"
 BUTIAN_CONTENT_DIR = "content"
 _GITIGNORE_STATUS_BY_PROJECT = {}
@@ -139,7 +140,10 @@ def ensure_butian_gitignore(project_path):
         prefix = "\n"
 
     with open(gitignore_path, "a", encoding="utf-8") as handle:
-        handle.write(f"{prefix}# Butian local workspace\n{BUTIAN_GITIGNORE_ENTRY}\n")
+        entries = "\n".join(
+            [BUTIAN_GITIGNORE_ENTRY] + list(BUTIAN_GITIGNORE_EXTRA_ENTRIES)
+        )
+        handle.write(f"{prefix}# Butian local workspace\n{entries}\n")
     added_entry = True
     status.update(
         {

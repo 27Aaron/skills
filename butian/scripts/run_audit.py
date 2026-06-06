@@ -72,6 +72,11 @@ def parse_args(argv):
         help="do not open the generated HTML report in the default browser",
     )
     parser.add_argument(
+        "--final-report",
+        action="store_true",
+        help="force generate Markdown report (use on the last re-scan after all fixes)",
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="输出详细日志到 stderr",
@@ -454,7 +459,7 @@ def format_human_summary(summary, scan, analysis, args):
         "",
         "📁 报告路径",
         "",
-        f"- Markdown 审计报告：{relative_path(summary.get('markdown_report'), project_path) if summary.get('markdown_report') else '复扫未生成（首次扫描已有）'}",
+        f"- {'最终' if args.final_report else ''}Markdown 审计报告：{relative_path(summary.get('markdown_report'), project_path) if summary.get('markdown_report') else '复扫未生成（首次扫描已有）'}",
         f"- HTML 报告（{html_state}）：{relative_path(summary.get('html_report'), project_path)}",
         f"- analysis JSON：{relative_path(summary.get('analysis_file'), project_path)}",
         "",
@@ -541,11 +546,12 @@ def main():
     with open(analysis_path, "r", encoding="utf-8") as handle:
         analysis = json.load(handle)
 
-    # Re-scan: skip Markdown generation (only produce on first scan)
+    # Markdown: generate on first scan or when --final-report is set
     butian_dir = os.path.join(analysis["project"]["path"], ".butian")
     first_scan_marker = os.path.join(butian_dir, ".first-scan-done")
+    skip_markdown = os.path.exists(first_scan_marker) and not args.final_report
 
-    if os.path.exists(first_scan_marker):
+    if skip_markdown:
         markdown_path = None
     else:
         markdown_path = os.path.join(

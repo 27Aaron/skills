@@ -1,6 +1,6 @@
 # visualize.py 技术文档
 
-> 源码路径：`butian/scripts/visualize.py`（180 行）
+> 源码路径：`butian/scripts/visualize.py`
 
 ## 概览
 
@@ -8,12 +8,12 @@
 
 ## 职责
 
-| #   | 职责            | 说明                                     |
-| --- | --------------- | ---------------------------------------- |
-| 1   | JSON 安全序列化 | 将分析数据转义后嵌入 `<script>` 标签     |
-| 2   | 资产内联        | 将 CSS 和 JS 文件内容直接嵌入 HTML       |
-| 3   | 报告生成        | 将数据注入模板占位符，输出独立 HTML 文件 |
-| 4   | 自动打开        | 可选在默认浏览器中自动打开报告           |
+| #   | 职责            | 说明                                         |
+| --- | --------------- | -------------------------------------------- |
+| 1   | JSON 安全序列化 | 将分析数据转义后嵌入 `<script>` 标签         |
+| 2   | 资产内联        | 将 CSS 和 JS 文件内容直接嵌入 HTML           |
+| 3   | 报告生成        | 将数据注入模板占位符，输出独立 HTML 文件     |
+| 4   | 自动打开        | 首次扫描在默认浏览器中自动打开报告，复扫跳过 |
 
 ## CLI 用法
 
@@ -29,7 +29,7 @@ python3 visualize.py --no-open analysis.json                      # 不自动打
 | --------------- | -------- | ------- | ------------------------------------------------------------------- |
 | `analysis_json` | 位置参数 | ✅      | `analyze.py` 输出的 JSON 路径                                       |
 | `output_html`   | 位置参数 | ❌      | 输出 HTML 路径（默认 `.butian/<run>/content/security-report.html`） |
-| `--no-open`     | flag     | `false` | 不在浏览器中自动打开报告                                            |
+| `--no-open`     | flag     | `false` | 不在浏览器中自动打开报告（CI/自动化使用）                           |
 
 ## 环境变量
 
@@ -55,11 +55,16 @@ python3 visualize.py --no-open analysis.json                      # 不自动打
 
 ### 浏览器打开
 
-| 函数                       | 作用                                                                                                                    |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `should_open_report(args)` | 综合判断 `--no-open` 参数和 `BUTIAN_NO_OPEN` 环境变量                                                                   |
-| `open_report(path)`        | 跨平台打开 HTML 报告（macOS `open`、Windows `startfile`、Linux `xdg-open`/`gio`/`wslview`，最终 fallback `webbrowser`） |
-| `spawn_open_command(cmd)`  | 以 `Popen` 后台启动打开命令，不阻塞脚本执行                                                                             |
+| 函数                                    | 作用                                                                                                                    |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `should_open_report(args, output_path)` | 综合 `--no-open`、`BUTIAN_NO_OPEN` 环境变量和 `.first-scan-done` 标记判断是否打开                                       |
+| `_first_scan_done(output_path)`         | 检查 `.butian/.first-scan-done` 标记文件是否存在                                                                        |
+| `_mark_first_scan_done(output_path)`    | 创建 `.butian/.first-scan-done` 标记文件                                                                                |
+| `_butian_dir_for(output_path)`          | 从输出路径向上查找 `.butian/` 目录                                                                                      |
+| `open_report(path)`                     | 跨平台打开 HTML 报告（macOS `open`、Windows `startfile`、Linux `xdg-open`/`gio`/`wslview`，最终 fallback `webbrowser`） |
+| `spawn_open_command(cmd)`               | 以 `Popen` 后台启动打开命令，不阻塞脚本执行                                                                             |
+
+首次扫描时浏览器打开成功后，会创建 `.butian/.first-scan-done` 标记文件。后续复扫检测到该标记后跳过浏览器打开，打印 `"已跳过自动打开报告（首次扫描已完成）。"`。
 
 ## 模板注入流程
 
@@ -92,3 +97,5 @@ Fallback → webbrowser.open_new_tab(file://...)
 - **占位符校验**：生成后检查是否所有 `__REPORT_*__` 占位符都已替换，防止输出损坏的 HTML
 - **环境变量控制**：CI/CD 环境中可通过 `BUTIAN_NO_OPEN=1` 禁止自动打开浏览器
 - **后台打开**：使用 `Popen` 启动浏览器进程，不阻塞脚本退出
+- **首次标记**：`.butian/.first-scan-done` 标记确保浏览器只在首次扫描时弹出，复扫不重复
+- **常量导出**：`FIRST_SCAN_MARKER = ".first-scan-done"` 可供其他模块（如 `run_audit.py`）复用

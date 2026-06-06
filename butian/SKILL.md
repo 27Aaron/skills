@@ -166,14 +166,14 @@ python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy fixed
 python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy latest
 ```
 
-4. **复扫验证**：升级完成后，重新运行 `python3 scripts/run_audit.py` 复扫并生成新报告。复扫不会重复弹出浏览器（仅首次扫描自动打开）。
+4. **复扫验证**：升级完成后，重新运行 `python3 scripts/run_audit.py` 复扫并生成新报告。复扫不会重复弹出浏览器（仅首次扫描自动打开）。如果此轮修复后无残留，进入最终报告步骤；如果有残留，继续下一轮。
 
 #### 第二轮：处理残留（复扫后仍有残留时）
 
 复扫后如果仍有同名依赖漏洞残留，说明是父依赖锁定了嵌套旧版本。报告会标注父依赖声明的版本范围，帮助理解残留原因。
 
 5. **向用户说明**：顶层依赖已升级成功；残留项来自父依赖锁定的嵌套旧版本；报告中已标注每个残留的父依赖信息。
-6. **是否继续**：用 AskUserQuestion 提供 `升级父依赖并复扫` / `暂不处理`。用户选择暂不处理时，总结当前状态并结束。
+6. **是否继续**：用 AskUserQuestion 提供 `升级父依赖并复扫` / `暂不处理`。用户选择暂不处理时，生成最终报告并结束。
 7. **执行升级**：用户选择继续后，运行：
 
 ```bash
@@ -182,14 +182,14 @@ python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy paren
 
 脚本会自动：升级父依赖到 latest → 升级有漏洞的子依赖到修复版本。无法追溯到 `package.json` 根依赖的残留会标注出来，需要等待上游修复或人工评估。
 
-8. **复扫并展示结果**：升级完成后，重新运行 `python3 scripts/run_audit.py` 复扫。复扫不会重复弹出浏览器；向用户展示最终结果（报告路径已在终端输出）。提醒用户运行项目测试、构建或启动检查。
+8. **复扫并展示结果**：升级完成后，重新运行 `python3 scripts/run_audit.py` 复扫。如果此轮修复后无残留，进入最终报告步骤；如果有残留，继续下一轮。
 
 #### 第三轮：强制覆盖残留依赖（第二轮后仍有残留时）
 
 第二轮 `parent-upgrade` 后如果仍有残留（无法追溯到 `package.json` 根依赖的间接依赖），可通过 npm `overrides` 强制覆盖所有嵌套实例。
 
 9. **向用户说明**：第二轮升级后仍有残留，这些依赖无法追溯到根依赖；可通过在 `package.json` 中写入 `overrides` 强制所有嵌套实例升级到修复版本。
-10. **是否继续**：用 AskUserQuestion 提供 `强制覆盖残留依赖` / `暂不处理`。用户选择暂不处理时，总结当前状态并结束。
+10. **是否继续**：用 AskUserQuestion 提供 `强制覆盖残留依赖` / `暂不处理`。用户选择暂不处理时，生成最终报告并结束。
 11. **执行覆盖**：用户选择继续后，运行：
 
 ```bash
@@ -198,7 +198,17 @@ python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy force
 
 脚本会自动：读取 analysis.json 中残留的可修复项 → 在 `package.json` 的 `overrides` 字段中添加版本强制约束 → 运行 `npm install` 使 overrides 生效。
 
-12. **复扫并展示结果**：覆盖完成后，重新运行 `python3 scripts/run_audit.py` 复扫。复扫不会重复弹出浏览器；向用户展示最终结果（报告路径已在终端输出）。提醒用户运行项目测试、构建或启动检查。
+12. **复扫并展示结果**：覆盖完成后，重新运行 `python3 scripts/run_audit.py` 复扫。进入最终报告步骤。
+
+#### 最终报告
+
+所有修复轮次结束后（无论哪一轮结束），用 `--final-report` 生成最终 Markdown 审计报告：
+
+```bash
+python3 scripts/run_audit.py --final-report
+```
+
+终端摘要会以 `📁 最终报告路径` 标注最终 Markdown。提醒用户运行项目测试、构建或启动检查。
 
 #### 三轮后仍有残留
 
@@ -227,6 +237,7 @@ python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy force
 | ------------------------------------------------- | --------------------------------------------- |
 | `--compact`                                       | 输出 JSON 摘要而非人类可读表格                |
 | `--no-open`                                       | 不自动打开 HTML 报告（仅 CI/自动化/测试使用） |
+| `--final-report`                                  | 最终复扫时强制生成 Markdown 报告              |
 | `--verbose`                                       | 输出详细日志到 stderr                         |
 | `--debug`                                         | 输出调试级别日志                              |
 | `--progress`                                      | 显示扫描进度（默认 TTY 自动检测）             |
