@@ -181,6 +181,16 @@ def vulnerability_summary(item):
         top_versions = unique_values(context.get("top_level_versions") or [])
         if top_versions:
             summary += f" 顶层 {package} 当前版本为 {'、'.join(top_versions)}。"
+        # Show semver range analysis
+        target_ver = str(item.get("target_version") or "")
+        for loc in (context.get("locations") or [])[:1]:
+            parent_range = loc.get("parent_range")
+            if parent_range and target_ver:
+                in_range = _semver_satisfies(target_ver, parent_range)
+                hint = "在范围内，只需重新解析 lockfile" if in_range else "不在范围内，需升级父依赖"
+                summary += f" {parent_text} 声明 {package}: \"{parent_range}\"，修复版本 {target_ver} {hint}。"
+            elif parent_range:
+                summary += f" {parent_text} 声明 {package}: \"{parent_range}\"。"
     return summary
 
 
@@ -193,6 +203,122 @@ def sort_items(items):
             str(item.get("version") or ""),
         ),
     )
+
+
+def _parse_version(version_str):
+    """Parse "1.2.3" into (1, 2, 3), stripping pre-release tags."""
+    parts = version_str.lstrip("v").split(".")
+    result = []
+    for part in parts:
+        num = ""
+        for ch in part:
+            if ch.isdigit():
+                num += ch
+            else:
+                break
+        result.append(int(num) if num else 0)
+    while len(result) < 3:
+        result.append(0)
+    return tuple(result[:3])
+
+
+def _semver_satisfies(version, range_str):
+    """Check if *version* satisfies an npm-style semver *range_str*.
+
+    Covers the patterns most commonly used in package.json dependency
+    declarations: ^, ~, >=, >, <=, <, exact, *, x-ranges, and || unions.
+    """
+    range_str = range_str.strip()
+    if not range_str or range_str == "*" or range_str == "latest":
+        return True
+
+    # Union (||) — any sub-range matching is enough.
+    if "||" in range_str:
+        return any(
+            _semver_satisfies(version, part.strip())
+            for part in range_str.split("||")
+        )
+
+    # Space-separated intersection (e.g. ">=1.0.0 <2.0.0").
+    tokens = range_str.split()
+    if len(tokens) > 1:
+        return all(_semver_satisfies(version, t) for t in tokens)
+
+    ver = _parse_version(version)
+
+    # Caret range  ^X.Y.Z
+    if range_str.startswith("^"):
+        base = _parse_version(range_str[1:])
+        if base[0] > 0:
+            return ver >= base and ver[0] == base[0]
+        if base[1] > 0:
+            return ver >= base and ver[0] == 0 and ver[1] == base[1]
+        return ver == base
+
+    # Tilde range  ~X.Y.Z
+    if range_str.startswith("~"):
+        base = _parse_version(range_str[1:])
+        return ver >= base and ver[0] == base[0] and ver[1] == base[1]
+
+    # Comparison operators (>=, >, <=, <)
+    if range_str.startswith(">="):
+        return ver >= _parse_version(range_str[2:])
+    if range_str.startswith(">"):
+        return ver > _parse_version(range_str[1:])
+    if range_str.startswith("<="):
+        return ver <= _parse_version(range_str[2:])
+    if range_str.startswith("<"):
+        return ver < _parse_version(range_str[1:])
+
+    # x-range  "1.x", "1.2.x"
+    cleaned = range_str.lower().replace("x", "0")
+    if cleaned != range_str.lower():
+        base = _parse_version(cleaned)
+        # "1.x" is like ^1.0.0, "1.2.x" is like ~1.2.0
+        parts = range_str.lower().split(".")
+        if len(parts) == 2:
+            return ver >= base and ver[0] == base[0]
+        return ver >= base and ver[0] == base[0] and ver[1] == base[1]
+
+    # Exact version
+    return ver == _parse_version(range_str)
+
+
+def _parent_dep_range(lock_data, parent_lock_path, child_name):
+    """Read the semver range a parent declares for *child_name*.
+
+    Checks the lockfile ``packages`` entry first (``requires`` then
+    ``dependencies``), then falls back to ``node_modules/<parent>/package.json``.
+    Returns the range string (e.g. "^8.4.0") or None.
+    """
+    packages = lock_data.get("packages") or {}
+    parent_meta = packages.get(parent_lock_path) or {}
+
+    # lockfile v2/v3 "requires" field (declared ranges)
+    for field in ("requires", "dependencies"):
+        deps = parent_meta.get(field)
+        if isinstance(deps, dict):
+            dep_range = deps.get(child_name)
+            if isinstance(dep_range, str):
+                return dep_range
+
+    # Fallback: read from node_modules
+    if parent_lock_path:
+        pkg_json_path = parent_lock_path.replace("/", os.sep)
+        pkg_json_path = os.path.join(pkg_json_path, "package.json")
+        try:
+            with open(pkg_json_path, "r", encoding="utf-8") as f:
+                pkg_json = json.load(f)
+            for field in ("dependencies", "devDependencies", "peerDependencies"):
+                deps = pkg_json.get(field)
+                if isinstance(deps, dict):
+                    dep_range = deps.get(child_name)
+                    if isinstance(dep_range, str):
+                        return dep_range
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    return None
 
 
 def _npm_package_name_at(parts, index):
@@ -219,6 +345,14 @@ def _npm_names_from_lock_path(path):
         else:
             index += 1
     return names
+
+
+def _npm_lock_path_for_names(names):
+    """Build a lockfile path like 'node_modules/next/node_modules/postcss'."""
+    path = ""
+    for name in names:
+        path = f"{path}/node_modules/{name}" if path else f"node_modules/{name}"
+    return path
 
 
 def _is_top_level_npm_lock_path(path):
@@ -254,10 +388,15 @@ def dependency_context_for_issue(scan, issue):
             top_level_versions.append(found_version)
         if found_version != version or len(names) < 2:
             continue
+        # Read the parent's declared semver range for this child
+        parent_lock_path = _npm_lock_path_for_names(names[:-1])
+        parent_range = _parent_dep_range(lock_data, parent_lock_path, package)
         locations.append(
             {
                 "path": key,
                 "parent": names[-2],
+                "parent_lock_path": parent_lock_path,
+                "parent_range": parent_range,
                 "version": found_version,
                 "note": "被父依赖锁定的嵌套副本",
             }
@@ -448,6 +587,7 @@ def build_dependency_fix_items(top_issues):
                     "upgrade_scope": "direct_package",
                     "residual_guidance": TRANSITIVE_RESIDUAL_GUIDANCE,
                 },
+                "dependency_context": highest_issue.get("dependency_context"),
             }
         )
     return green
