@@ -124,12 +124,12 @@ const DATA = (() => {
       (rs.critical || 0) + (rs.high || 0) + (rs.medium || 0) + (rs.low || 0);
     if (rs.critical || 0 || rs.high || 0) {
       d.summary.tldr =
-        "发现多项已确认依赖漏洞，可能影响发布判断；建议先处理紧急和高风险项，再评估其余。";
+        "发现多项已确认依赖风险项，可能影响发布判断；建议先处理紧急和高风险项，再评估其余。";
     } else if (riskTotal) {
       d.summary.tldr = "发现一些中风险或低风险项，建议按影响范围分批处理。";
     } else if (d.vulns && d.vulns.length) {
       d.summary.tldr =
-        "命中已确认漏洞，但严重度数据不足，需要结合公告复核影响范围。";
+        "命中已确认风险项，但严重度数据不足，需要结合公告复核影响范围。";
     } else if (d.errors && d.errors.length) {
       d.summary.tldr = "暂未确认风险，但有部分检查失败，结论需要复核。";
     } else {
@@ -144,7 +144,7 @@ const DATA = (() => {
       (d.hygiene.sensitive_tracked || []).length +
       (d.hygiene.gitignore_missing || []).length;
     const outdatedCount = d.outdated.length;
-    d.summary.detail = `本报告面向产品经理和项目负责人：本次检查覆盖依赖漏洞、仓库卫生和过期依赖。已确认漏洞 ${confirmed} 个，仓库卫生待关注项 ${hygieneIssues} 个，过期依赖 ${outdatedCount} 个。`;
+    d.summary.detail = `本报告面向产品经理和项目负责人：本次检查覆盖依赖漏洞、仓库卫生和过期依赖。已确认风险项 ${confirmed} 个，仓库卫生待关注项 ${hygieneIssues} 个，过期依赖 ${outdatedCount} 个。`;
   }
   if (!d.summary.priority || !d.summary.priority.length) {
     const priority = [];
@@ -156,7 +156,7 @@ const DATA = (() => {
       );
     } else if (d.vulns && d.vulns.length) {
       priority.push(
-        `处理 ${d.vulns.length} 个已确认依赖漏洞，按影响程度从高到低分批升级。`,
+        `处理 ${d.vulns.length} 个已确认依赖风险项，按影响程度从高到低分批升级。`,
       );
     }
     if (d.yellow && d.yellow.length) {
@@ -412,7 +412,7 @@ function readableTldr(raw) {
       ? `${group.name}${group.items[0] && group.items[0].version ? " " + group.items[0].version : ""}`
       : "少数 npm 依赖";
     const fixed = commonFixedVersion(group.items);
-    return `本次扫描发现 ${count} 个已确认依赖漏洞，风险主要集中在 ${target}；建议先升级${fixed ? "到 " + fixed : "主要受影响包"}，再处理传递依赖。`;
+    return `本次扫描发现 ${count} 个已确认依赖风险项，风险主要集中在 ${target}；建议先升级${fixed ? "到 " + fixed : "主要受影响包"}，再处理传递依赖。`;
   }
   return normalizeSecurityLanguage(
     raw || "本次扫描没有发现明确风险，可以把这份报告作为当前项目安全状态记录。",
@@ -430,7 +430,7 @@ function readableDetail(raw) {
   const parts = [];
   if (packages || vulns.length) {
     parts.push(
-      `本次扫描覆盖 ${packages || "多个"} 个依赖包，发现 ${vulns.length || DATA.project.total_vulnerabilities || 0} 个已确认漏洞，涉及 ${names.size || "多个"} 个包。`,
+      `本次扫描覆盖 ${packages || "多个"} 个依赖包，发现 ${vulns.length || DATA.project.total_vulnerabilities || 0} 个已确认风险项，涉及 ${names.size || "多个"} 个包。`,
     );
   }
   if (group.name) {
@@ -1088,7 +1088,7 @@ function renderVulnTable(rows) {
   if (!rows || !rows.length) {
     if (DATA.scan_config && DATA.scan_config.scan_mode === "hygiene_only") {
       return section(
-        "命中漏洞",
+        "命中风险项",
         null,
         `<div class="summary vuln-empty">${miniFields([
           { label: "扫描范围", value: HYGIENE_ONLY_NOTICE },
@@ -1103,9 +1103,9 @@ function renderVulnTable(rows) {
       );
     }
     return section(
-      "命中漏洞",
+      "命中风险项",
       0,
-      `<div class="empty">未命中已确认的依赖漏洞。</div>`,
+      `<div class="empty">未命中已确认的依赖风险项。</div>`,
       "",
       "search",
     );
@@ -1141,7 +1141,7 @@ function renderVulnTable(rows) {
     ? `<tr class="vuln-toggle"><td colspan="6"><button class="fix-btn open" onclick="toggleVulns(this)">显示更多（还有 ${sortedRows.length - VULN_SHOW} 项）</button></td></tr>`
     : "";
   return section(
-    "命中漏洞",
+    "命中风险项",
     sortedRows.length,
     `<div class="table-scroll"><table class="stable-table vuln-table" style="${packageColumnWidthStyle(sortedRows)}">
   ${renderTableColgroup(["severity", "package", "version", "fixed", "advisory", "summary"])}
@@ -1329,7 +1329,7 @@ function renderOutdated(items) {
         {
           label: "提醒",
           value:
-            "本次未执行依赖版本维护检查；过期依赖不等于漏洞，真正安全优先级仍以命中漏洞为准。",
+            "本次未执行依赖版本维护检查；过期依赖不等于漏洞，真正安全优先级仍以命中风险项为准。",
         },
       ])}</div>`,
       "",
@@ -1367,7 +1367,7 @@ function renderOutdated(items) {
         {
           label: "提醒",
           value:
-            "过期依赖只是维护信号，不代表一定存在漏洞；真正的安全优先级仍以命中漏洞为准。",
+            "过期依赖只是维护信号，不代表一定存在漏洞；真正的安全优先级仍以命中风险项为准。",
         },
       ])}</div>`,
       "",

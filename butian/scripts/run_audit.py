@@ -314,7 +314,7 @@ def format_focus(analysis, scan_mode=None):
     )[:6]
     selected_count = sum(len(items) for _, items in ranked)
     total_priority = len(priority) if priority else len(issues)
-    noun = "紧急/高风险项" if priority else "已确认漏洞"
+    noun = "紧急/高风险项" if priority else "已确认风险项"
     lines = [
         f"核心风险集中在 {len(ranked)} 个包（{total_priority} 个{noun}中它们占 {selected_count} 个）：",
         "",
@@ -392,7 +392,7 @@ def format_human_summary(summary, scan, analysis, args):
         ),
         "",
         f"- 总依赖：{total_packages} 个{dependency_unit}",
-        f"- 已确认漏洞：{analysis.get('vulnerability_count', len(analysis.get('top_issues') or []))} 个",
+        f"- 已确认风险项：{analysis.get('vulnerability_count', len(analysis.get('top_issues') or []))} 个",
         f"- 仓库卫生：{secret_count} 个硬编码凭证 / {sensitive_count} 个跟踪的敏感文件 / {gitignore_label}",
         f"- 过期依赖：{analysis.get('outdated_count', len(analysis.get('outdated') or []))} 个（仅作维护信号，不算漏洞）",
         f"- 扫描错误：{error_label}",
@@ -412,7 +412,7 @@ def format_human_summary(summary, scan, analysis, args):
         f"- analysis JSON：{relative_path(summary.get('analysis_file'), project_path)}",
         "",
         quote_line(
-            "如果存在紧急/高风险项，建议先处理有明确修复版本的依赖；过期依赖作为维护信号，放在漏洞修复验证之后排期。"
+            "如果存在紧急/高风险项，建议先处理有明确修复版本的依赖；过期依赖作为维护信号，放在风险项修复验证之后排期。"
         ),
     ]
     return "\n".join(lines)

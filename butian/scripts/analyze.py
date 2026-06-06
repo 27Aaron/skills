@@ -559,7 +559,7 @@ def build_dependency_fix_items(top_issues):
             continue
         highest_issue = sort_items(issues)[0]
         summary = (
-            f"{package} 命中 {len(issues)} 个漏洞，建议升级到 {target_version} "
+            f"{package} 命中 {len(issues)} 个风险项，建议升级到 {target_version} "
             f"或更高版本后运行测试。{DEPENDENCY_UPGRADE_SCOPE_NOTE}"
         )
         if missing_fixed:
@@ -631,9 +631,9 @@ def build_summary(scan, analysis):
     elif secret_count or sensitive_count:
         tldr = "未发现高优先级依赖漏洞，但仓库里有凭证或敏感文件迹象，需要研发确认。"
     elif vuln_count and medium_low:
-        tldr = "发现已确认依赖漏洞，当前以中风险或低风险为主，建议按维护窗口分批升级。"
+        tldr = "发现已确认依赖风险项，当前以中风险或低风险为主，建议按维护窗口分批升级。"
     elif vuln_count:
-        tldr = "命中已确认漏洞，但严重度数据不足，需要结合公告复核影响范围。"
+        tldr = "命中已确认风险项，但严重度数据不足，需要结合公告复核影响范围。"
     elif errors:
         tldr = (
             "本次扫描暂未确认安全风险，但有部分检查失败，结论需要复核后再作为发布依据。"
@@ -651,7 +651,7 @@ def build_summary(scan, analysis):
         detail = (
             f"本次检查覆盖项目 {project.get('name') or '-'}，识别到 "
             f"{project.get('total_packages', scan.get('package_count', 0)) or 0} 个依赖包，"
-            f"命中 {vuln_count} 个已确认漏洞。仓库卫生方面，发现疑似硬编码凭证 {secret_count} 处、"
+            f"命中 {vuln_count} 个已确认风险项。仓库卫生方面，发现疑似硬编码凭证 {secret_count} 处、"
             f"被 git 跟踪的敏感文件 {sensitive_count} 个、建议补充的 .gitignore 规则 {missing_count} 条。"
             f"过期依赖 {outdated_count} 个仅作为维护信号，不等同于漏洞。"
         )
@@ -665,7 +665,7 @@ def build_summary(scan, analysis):
         )
     elif vuln_count:
         priority.append(
-            f"按影响程度处理 {vuln_count} 个已确认依赖漏洞，优先选择兼容范围内的修复版本。"
+            f"按影响程度处理 {vuln_count} 个已确认依赖风险项，优先选择兼容范围内的修复版本。"
         )
     if secret_count or sensitive_count:
         priority.append(

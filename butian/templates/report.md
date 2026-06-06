@@ -9,7 +9,7 @@
 
 $summary
 
-## 命中漏洞
+## 命中风险项
 
 $vulnerabilities
 

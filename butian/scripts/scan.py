@@ -3599,7 +3599,7 @@ def main():
                 concurrency=api_workers,
             )
             logger.info(
-                "Step 4/5 漏洞检测完成: %d 个漏洞, 耗时 %.3fs",
+                "Step 4/5 漏洞检测完成: %d 个风险项, 耗时 %.3fs",
                 len(result),
                 round(time.time() - step_started, 3),
             )
@@ -3728,7 +3728,7 @@ def main():
 
     total_seconds = round(time.time() - started, 1)
     logger.info(
-        "扫描完成: 总耗时 %.1fs, %d 漏洞, %d 过时, %d 错误",
+        "扫描完成: 总耗时 %.1fs, %d 风险项, %d 过时, %d 错误",
         total_seconds,
         len(vulnerabilities),
         len(outdated),
