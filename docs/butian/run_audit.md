@@ -184,3 +184,4 @@ run_audit.py
 | 文档                        | 说明                     |
 | --------------------------- | ------------------------ |
 | `docs/butian/scan.md`       | scan.py 核心引擎技术文档 |
+| `docs/butian/api-limits.md` | API 限流与使用策略       |

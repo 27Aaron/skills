@@ -249,3 +249,4 @@ python3 scripts/run_audit.py --final-report
 
 - 日志文件：`.butian/<timestamp>/logs/scan.log`
 - 本地缓存：`.butian/cache/`（跨 run 共享，默认 24 小时过期）
+- API 限流说明：`docs/butian/api-limits.md`
