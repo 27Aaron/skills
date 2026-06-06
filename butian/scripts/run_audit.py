@@ -12,11 +12,14 @@ Pipeline:
 
 import argparse
 import json
+import logging
 import os
 import re
 import subprocess
 import sys
 from collections import defaultdict
+
+logger = logging.getLogger(__name__)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -444,7 +447,9 @@ def build_scan_cmd(args, preflight_file):
 
 def main():
     args = parse_args(sys.argv[1:])
+    logger.info("补天审计流水线开始: 路径=%s", args.project_path)
 
+    # Step 1: preflight
     preflight_cmd = [
         sys.executable,
         script_path("detect.py"),
@@ -454,9 +459,26 @@ def main():
         preflight_cmd.append("--no-root-discovery")
     preflight_cmd.append(args.project_path)
     preflight = run_json(preflight_cmd)
+    logger.info(
+        "预检完成: 模式=%s, 输出=%s",
+        preflight.get("recommended_scan_mode", "-"),
+        preflight["output_file"],
+    )
 
+    # Step 2: scan
     scan = run_json(build_scan_cmd(args, preflight["output_file"]))
+    scan_mode = scan.get("scan_config", {}).get("scan_mode", "unknown")
+    vuln_count = len(scan.get("vulnerabilities") or [])
+    logger.info(
+        "扫描完成: 模式=%s, 依赖=%d, 风险项=%d, 过期=%d, 错误=%d",
+        scan_mode,
+        scan.get("package_count", 0),
+        vuln_count,
+        len(scan.get("outdated") or []),
+        len(scan.get("errors") or []),
+    )
 
+    # Step 3: analyze
     analysis_path = os.path.join(
         os.path.dirname(os.path.abspath(scan["output_file"])),
         "analysis.json",
@@ -474,13 +496,22 @@ def main():
     with open(analysis_path, "r", encoding="utf-8") as handle:
         analysis = json.load(handle)
 
-    # Markdown: generate on first scan or when --final-report is set
+    risk_summary = analysis.get("risk_summary") or {}
+    logger.info(
+        "分析完成: c=%d h=%d m=%d l=%d info=%d",
+        risk_summary.get("critical", 0), risk_summary.get("high", 0),
+        risk_summary.get("medium", 0), risk_summary.get("low", 0),
+        risk_summary.get("info", 0),
+    )
+
+    # Step 4: Markdown report
     butian_dir = os.path.join(analysis["project"]["path"], ".butian")
     first_scan_marker = os.path.join(butian_dir, ".first-scan-done")
     skip_markdown = os.path.exists(first_scan_marker) and not args.final_report
 
     if skip_markdown:
         markdown_path = None
+        logger.info("跳过 Markdown 报告（非首次扫描）")
     else:
         markdown_path = os.path.join(
             analysis["project"]["path"],
@@ -497,7 +528,9 @@ def main():
             ],
             echo=False,
         )
+        logger.info("Markdown 报告已生成: %s", markdown_path)
 
+    # Step 5: HTML report
     html_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(analysis_path))),
         "content",
@@ -515,6 +548,7 @@ def main():
         build_report_cmd,
         echo=True,
     )
+    logger.info("HTML 报告已生成: %s", html_path)
 
     summary = {
         "preflight_file": preflight["output_file"],
@@ -522,13 +556,13 @@ def main():
         "analysis_file": analysis_path,
         "markdown_report": markdown_path,
         "html_report": html_path,
-        "scan_mode": scan.get("scan_config", {}).get("scan_mode"),
+        "scan_mode": scan_mode,
         "risk_summary": analysis.get("risk_summary", {}),
         "errors": analysis.get("errors", []),
     }
 
     print(format_human_summary(summary, scan, analysis, args))
-
+    logger.info("补天审计流水线完成")
     return 0
 
 

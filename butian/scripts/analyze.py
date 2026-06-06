@@ -12,9 +12,12 @@ come from this deterministic baseline.
 
 import argparse
 import json
+import logging
 import os
 import re
 import sys
+
+logger = logging.getLogger(__name__)
 
 try:
     from .scan import HYGIENE_ONLY_NOTICE, run_dir_from_output_file
@@ -412,6 +415,8 @@ def dependency_context_for_issue(scan, issue):
 
 
 def build_top_issues(scan):
+    raw = scan.get("vulnerabilities") or []
+    logger.debug("build_top_issues: %d 个原始漏洞记录", len(raw))
     issues = []
     for vuln in scan.get("vulnerabilities") or []:
         item = dict(vuln)
@@ -434,6 +439,7 @@ def build_top_issues(scan):
     ranked = sort_items(issues)
     for index, item in enumerate(ranked, 1):
         item["rank"] = index
+    logger.info("build_top_issues: 排序后 %d 个风险项", len(ranked))
     return ranked
 
 
@@ -517,6 +523,10 @@ def build_hygiene_items(scan):
             }
         )
 
+    logger.info(
+        "build_hygiene_items: red=%d, yellow=%d, green=%d",
+        len(red), len(yellow), len(green),
+    )
     return red, yellow, green
 
 
@@ -590,6 +600,7 @@ def build_dependency_fix_items(top_issues):
                 "dependency_context": highest_issue.get("dependency_context"),
             }
         )
+    logger.info("build_dependency_fix_items: %d 个升级建议", len(green))
     return green
 
 
@@ -702,6 +713,13 @@ def build_summary(scan, analysis):
 
 
 def build_analysis(scan, source_scan_file=None, output_file=None):
+    project = scan.get("project") or {}
+    scan_mode = (scan.get("scan_config") or {}).get("scan_mode", "unknown")
+    logger.info(
+        "build_analysis 开始: 项目=%s, 模式=%s",
+        project.get("name") or "-", scan_mode,
+    )
+
     top_issues = build_top_issues(scan)
     red, yellow, hygiene_green = build_hygiene_items(scan)
     dependency_green = build_dependency_fix_items(top_issues)
@@ -731,6 +749,15 @@ def build_analysis(scan, source_scan_file=None, output_file=None):
         "butian_workspace": scan.get("butian_workspace") or {},
     }
     analysis["summary"] = build_summary(scan, analysis)
+
+    risk_summary = analysis["risk_summary"]
+    logger.info(
+        "build_analysis 完成: %d 个风险项 (c=%d h=%d m=%d l=%d), %d 过期, %d 错误",
+        len(top_issues),
+        risk_summary.get("critical", 0), risk_summary.get("high", 0),
+        risk_summary.get("medium", 0), risk_summary.get("low", 0),
+        analysis["outdated_count"], len(analysis["errors"]),
+    )
     return analysis
 
 
@@ -741,6 +768,7 @@ def write_json(path, data):
     with open(path, "w", encoding="utf-8") as handle:
         json.dump(data, handle, ensure_ascii=False, indent=2)
         handle.write("\n")
+    logger.debug("write_json: %s", path)
 
 
 def parse_args(argv):
@@ -757,6 +785,7 @@ def main():
 
     scan_path = args.scan_json
     output_path = args.output_json or default_output_path(scan_path)
+    logger.info("analyze.py 开始: scan=%s, output=%s", scan_path, output_path)
 
     with open(scan_path, "r", encoding="utf-8") as handle:
         scan = json.load(handle)
@@ -767,6 +796,7 @@ def main():
         output_file=output_path,
     )
     write_json(output_path, analysis)
+    logger.info("analysis 已写入: %s", output_path)
     print(f"analysis 已生成: {output_path}")
     return 0
 

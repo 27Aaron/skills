@@ -8,10 +8,13 @@ Usage:
 
 import argparse
 import json
+import logging
 import os
 import re
 import string
 import sys
+
+logger = logging.getLogger(__name__)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_PATH = os.path.join(HERE, "..", "templates", "report.md")
@@ -364,6 +367,12 @@ def load_template():
 
 def render_markdown(analysis):
     project = analysis.get("project") or {}
+    risk_summary = analysis.get("risk_summary") or {}
+    logger.info(
+        "render_markdown: 项目=%s, 风险项=%d",
+        project.get("name") or "-",
+        sum(risk_summary.values()),
+    )
     tpl = load_template()
     return (
         tpl.substitute(
@@ -396,6 +405,8 @@ def main():
     args = parse_args(sys.argv[1:])
 
     src = args.analysis_json
+    logger.info("report.py 开始: analysis=%s", src)
+
     with open(src, "r", encoding="utf-8") as handle:
         analysis = json.load(handle)
 
@@ -404,6 +415,7 @@ def main():
     with open(out, "w", encoding="utf-8") as handle:
         handle.write(render_markdown(analysis))
 
+    logger.info("Markdown 报告已写入: %s", out)
     print(f"Markdown 报告已生成: {out}")
     return 0
 
