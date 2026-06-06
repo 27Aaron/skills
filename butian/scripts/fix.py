@@ -18,6 +18,56 @@ import sys
 
 logger = logging.getLogger("butian")
 
+
+def _parse_version(version_str):
+    """Parse "1.2.3" into (1, 2, 3), stripping pre-release tags."""
+    parts = version_str.lstrip("v").split(".")
+    result = []
+    for part in parts:
+        num = ""
+        for ch in part:
+            if ch.isdigit():
+                num += ch
+            else:
+                break
+        result.append(int(num) if num else 0)
+    while len(result) < 3:
+        result.append(0)
+    return tuple(result[:3])
+
+
+def _semver_satisfies(version, range_str):
+    """Check if *version* satisfies an npm-style semver range (simplified)."""
+    range_str = range_str.strip()
+    if not range_str or range_str in ("*", "latest"):
+        return True
+    if "||" in range_str:
+        return any(
+            _semver_satisfies(version, r.strip())
+            for r in range_str.split("||")
+        )
+    ver = _parse_version(version)
+    if range_str.startswith("^"):
+        base = _parse_version(range_str[1:])
+        if base[0] > 0:
+            return ver >= base and ver[0] == base[0]
+        if base[1] > 0:
+            return ver >= base and ver[0] == 0 and ver[1] == base[1]
+        return ver == base
+    if range_str.startswith("~"):
+        base = _parse_version(range_str[1:])
+        return ver >= base and ver[0] == base[0] and ver[1] == base[1]
+    if range_str.startswith(">="):
+        return ver >= _parse_version(range_str[2:])
+    if range_str.startswith(">"):
+        return ver > _parse_version(range_str[1:])
+    if range_str.startswith("<="):
+        return ver <= _parse_version(range_str[2:])
+    if range_str.startswith("<"):
+        return ver < _parse_version(range_str[1:])
+    return ver == _parse_version(range_str)
+
+
 # ---------------------------------------------------------------------------
 # Ecosystem → upgrade command builders
 # ---------------------------------------------------------------------------
@@ -252,11 +302,17 @@ def _load_json_file(path):
 
 
 def build_npm_parent_upgrade_plan(analysis, project_path=None):
-    """Build npm parent-upgrade actions for vulnerable nested lockfile entries."""
+    """Build npm parent-upgrade actions for vulnerable nested lockfile entries.
+
+    Classifies each residual into:
+      - "re_resolve": target version is within parent's declared range
+      - "upgrade_parent": target version exceeds parent's declared range
+      - "unfixable": cannot trace to a root dependency in package.json
+    """
     project_path = project_path or (analysis.get("project") or {}).get("path") or "."
     lock_path = os.path.join(project_path, "package-lock.json")
     package_json_path = os.path.join(project_path, "package.json")
-    plan = {"upgrades": [], "child_updates": [], "skipped": []}
+    plan = {"re_resolve": [], "upgrade_parent": [], "unfixable": [], "skipped": []}
     if not os.path.isfile(lock_path):
         plan["skipped"].append("未找到 package-lock.json，无法自动分析父依赖。")
         return plan
@@ -269,8 +325,8 @@ def build_npm_parent_upgrade_plan(analysis, project_path=None):
         for item in extract_fixable_items(analysis)
         if item.get("ecosystem") == "npm" and item.get("package")
     }
+
     seen = set()
-    child_seen = set()
     for lock_key, meta in packages.items():
         package = _npm_package_name_from_lock_path(lock_key)
         if not package or package not in fix_items:
@@ -295,64 +351,128 @@ def build_npm_parent_upgrade_plan(analysis, project_path=None):
             lock_data, package_json, parent_lock_path
         )
         if not upgrade_package:
-            plan["skipped"].append(
-                f"{parent} > {package}@{version} 无法追溯到 package.json 中的根父依赖。"
-            )
+            key = (parent, package, version)
+            if key not in seen:
+                seen.add(key)
+                plan["unfixable"].append(
+                    {
+                        "parent": parent,
+                        "package": package,
+                        "current_version": version,
+                        "target_version": item["target_version"],
+                        "note": f"{parent} > {package}@{version} 无法追溯到 package.json 中的根依赖",
+                    }
+                )
             continue
+
+        # Read parent's declared range and classify
+        parent_range = _read_parent_range(lock_data, packages, parent_lock_path, package)
+        target_ver = item["target_version"]
+        in_range = parent_range and _semver_satisfies(target_ver, parent_range)
+
         key = (upgrade_package, parent, package, version)
         if key in seen:
             continue
         seen.add(key)
-        plan["upgrades"].append(
-            {
-                "upgrade_package": upgrade_package,
-                "immediate_parent": parent,
-                "parent_lock_path": parent_lock_path,
-                "package": package,
-                "current_version": version,
-                "target_version": item["target_version"],
-                "lock_path": lock_key,
-            }
-        )
-        if package not in child_seen:
-            child_seen.add(package)
-            plan["child_updates"].append(package)
+
+        entry = {
+            "upgrade_package": upgrade_package,
+            "immediate_parent": parent,
+            "parent_lock_path": parent_lock_path,
+            "parent_range": parent_range,
+            "in_range": bool(in_range),
+            "package": package,
+            "current_version": version,
+            "target_version": target_ver,
+            "lock_path": lock_key,
+        }
+        if in_range:
+            plan["re_resolve"].append(entry)
+        else:
+            plan["upgrade_parent"].append(entry)
     return plan
 
 
+def _read_parent_range(lock_data, packages, parent_lock_path, child_name):
+    """Read the semver range a parent declares for *child_name*."""
+    parent_meta = packages.get(parent_lock_path) or {}
+    for field in ("requires", "dependencies"):
+        deps = parent_meta.get(field)
+        if isinstance(deps, dict):
+            dep_range = deps.get(child_name)
+            if isinstance(dep_range, str):
+                return dep_range
+    return None
+
+
 def build_parent_upgrade_commands(plan):
+    """Build commands based on three-tier classification.
+
+    - re_resolve: target version is within parent's declared range.
+      Just upgrade the child to target version.
+    - upgrade_parent: target version exceeds parent's range.
+      Upgrade parent to latest, then upgrade child to target version.
+    """
     commands = []
     seen_parents = set()
     seen_children = set()
-    for entry in plan.get("upgrades") or []:
-        # Upgrade parent dependency to latest
+
+    # Tier 1: in-range → just upgrade the child
+    for entry in plan.get("re_resolve") or []:
+        child = entry["package"]
+        target = entry["target_version"]
+        if child not in seen_children:
+            seen_children.add(child)
+            commands.append((child, ["npm", "install", f"{child}@{target}"]))
+
+    # Tier 2: out-of-range → upgrade parent, then upgrade child
+    for entry in plan.get("upgrade_parent") or []:
         parent = entry["upgrade_package"]
         if parent not in seen_parents:
             seen_parents.add(parent)
             commands.append((parent, ["npm", "install", f"{parent}@latest"]))
-        # Upgrade child dependency to latest
         child = entry["package"]
+        target = entry["target_version"]
         if child not in seen_children:
             seen_children.add(child)
-            commands.append((child, ["npm", "install", f"{child}@latest"]))
+            commands.append((child, ["npm", "install", f"{child}@{target}"]))
+
     return commands
 
 
 def execute_parent_upgrade_fixes(analysis, project_path):
-    """Upgrade parent and child dependencies to latest for nested npm residuals."""
+    """Upgrade parent and child dependencies for nested npm residuals."""
     plan = build_npm_parent_upgrade_plan(analysis, project_path)
     commands = build_parent_upgrade_commands(plan)
-    if not commands:
-        skipped = "; ".join(plan.get("skipped") or ["没有可升级的父依赖"])
-        return [], [("npm parent-upgrade", skipped)]
-    print("  已生成升级计划:")
-    for entry in plan.get("upgrades") or []:
-        print(
-            "    - "
-            f"{entry['upgrade_package']}@latest + "
-            f"{entry['package']}@latest "
-            f"(清理 {entry['immediate_parent']} > {entry['package']}@{entry['current_version']})"
+    has_work = plan.get("re_resolve") or plan.get("upgrade_parent")
+    if not has_work:
+        skipped = "; ".join(
+            plan.get("skipped")
+            or [e.get("note", "") for e in (plan.get("unfixable") or [])]
+            or ["没有可升级的父依赖"]
         )
+        return [], [("npm parent-upgrade", skipped)]
+
+    print("  已生成升级计划:")
+    for entry in plan.get("re_resolve") or []:
+        print(
+            f"    - {entry['package']}@{entry['target_version']} "
+            f"({entry['immediate_parent']} 声明 \"{entry['parent_range']}\"，"
+            f"修复版本在范围内，重新解析)"
+        )
+    for entry in plan.get("upgrade_parent") or []:
+        print(
+            f"    - {entry['upgrade_package']}@latest + "
+            f"{entry['package']}@{entry['target_version']} "
+            f"({entry['immediate_parent']} 声明 \"{entry['parent_range']}\"，"
+            f"修复版本不在范围内，需升级父依赖)"
+        )
+    for entry in plan.get("unfixable") or []:
+        print(
+            f"    - ⚠ {entry['parent']} > {entry['package']}@{entry['current_version']}: "
+            f"{entry['note']}"
+        )
+
     return execute_fixes(commands, project_path)
 
 
@@ -435,10 +555,10 @@ def post_fix_guidance(strategy):
     """Return human-readable guidance for the required verification scan."""
     if strategy == "parent-upgrade":
         return [
-            "父依赖和子依赖已升级到最新版本，请重新运行补天扫描验证结果。",
+            "父依赖和子依赖升级已完成，请重新运行补天扫描验证结果。",
             "升级后复扫会生成新报告，打开 HTML 报告查看最终修复状态。",
-            "父依赖和子依赖都升到 latest 可能带来兼容性变化；请运行项目测试、构建或启动检查。",
-            "如果复扫仍有残留，说明上游父依赖最新版可能仍未放开该子依赖，需要等待上游修复或人工评估。",
+            "部分父依赖升到 latest 可能带来兼容性变化；请运行项目测试、构建或启动检查。",
+            "如果复扫仍有残留（通常来自无法追溯的间接依赖），需要等待上游修复或人工评估。",
         ]
     label = strategy_label(strategy)
     return [

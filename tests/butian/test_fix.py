@@ -230,6 +230,7 @@ class NpmParentUpgradePlanTests(unittest.TestCase):
 
             plan = fix_mod.build_npm_parent_upgrade_plan(analysis, tmp)
 
+        self.assertEqual(plan["re_resolve"], [])
         self.assertEqual(
             [
                 (
@@ -238,7 +239,7 @@ class NpmParentUpgradePlanTests(unittest.TestCase):
                     item["package"],
                     item["current_version"],
                 )
-                for item in plan["upgrades"]
+                for item in plan["upgrade_parent"]
             ],
             [("next", "next", "postcss", "8.4.31")],
         )
@@ -284,6 +285,7 @@ class NpmParentUpgradePlanTests(unittest.TestCase):
 
             plan = fix_mod.build_npm_parent_upgrade_plan(analysis, tmp)
 
+        self.assertEqual(plan["re_resolve"], [])
         self.assertEqual(
             [
                 (
@@ -291,10 +293,53 @@ class NpmParentUpgradePlanTests(unittest.TestCase):
                     item["immediate_parent"],
                     item["package"],
                 )
-                for item in plan["upgrades"]
+                for item in plan["upgrade_parent"]
             ],
             [("tsx", "@esbuild-kit/core-utils", "esbuild")],
         )
+
+    def test_in_range_residual_classified_as_re_resolve(self):
+        """When parent declares ^8.4.0 and target is 8.5.10, it's in-range."""
+        with tempfile.TemporaryDirectory() as tmp:
+            package_lock = {
+                "packages": {
+                    "": {"dependencies": {"next": "^16.2.6", "postcss": "^8.5.10"}},
+                    "node_modules/postcss": {"version": "8.5.10"},
+                    "node_modules/next": {
+                        "version": "16.2.6",
+                        "requires": {"postcss": "^8.4.0"},
+                    },
+                    "node_modules/next/node_modules/postcss": {"version": "8.4.31"},
+                }
+            }
+            with open(
+                os.path.join(tmp, "package-lock.json"), "w", encoding="utf-8"
+            ) as f:
+                json.dump(package_lock, f)
+            analysis = {
+                "project": {"path": tmp},
+                "green": [
+                    {
+                        "type": "dependency_upgrade",
+                        "package": "postcss",
+                        "fix_config": {
+                            "ecosystem": "npm",
+                            "package": "postcss",
+                            "current_versions": ["8.4.31"],
+                            "target_version": "8.5.10",
+                        },
+                    }
+                ],
+            }
+
+            plan = fix_mod.build_npm_parent_upgrade_plan(analysis, tmp)
+
+        self.assertEqual(plan["upgrade_parent"], [])
+        self.assertEqual(len(plan["re_resolve"]), 1)
+        entry = plan["re_resolve"][0]
+        self.assertEqual(entry["package"], "postcss")
+        self.assertEqual(entry["parent_range"], "^8.4.0")
+        self.assertTrue(entry["in_range"])
 
 
 # CLI helpers
