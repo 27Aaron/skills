@@ -122,7 +122,7 @@ py -3 scripts/analyze.py .butian/<timestamp>/assets/scan.json
 
 ### Step 3 Markdown 报告
 
-先把结论写到被扫项目的 `docs/security-report-YYYY-MM-DD.md`。默认用脚本从 analysis JSON 生成：
+先把结论写到被扫项目的 `docs/security-report-YYYY-MM-DD.md`。默认用脚本从 analysis JSON 生成（仅首次扫描生成，复扫跳过）：
 
 ```bash
 # macOS / Linux
