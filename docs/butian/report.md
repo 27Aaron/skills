@@ -10,7 +10,7 @@
 
 | #   | 职责         | 说明                                                                   |
 | --- | ------------ | ---------------------------------------------------------------------- |
-| 1   | 漏洞表格渲染 | 将漏洞列表渲染为 Markdown 表格（含严重度、包名、版本、GHSA、修复版本） |
+| 1   | 风险项表格渲染 | 将风险项列表渲染为 Markdown 表格（含严重度、包名、版本、GHSA、修复版本） |
 | 2   | 仓库卫生报告 | 渲染硬编码密钥、敏感文件、gitignore 状态                               |
 | 3   | 过期依赖报告 | 渲染版本维护信号表格                                                   |
 | 4   | 人工确认事项 | 渲染 red + yellow 事项的详细描述                                       |
@@ -49,7 +49,7 @@ CAPABILITY_BOUNDARY = (
 | 函数                               | 输出内容                                                    |
 | ---------------------------------- | ----------------------------------------------------------- |
 | `render_summary(analysis)`         | TL;DR + 详细说明 + 扫描范围 + 能力边界 + 优先级建议         |
-| `render_vulnerabilities(analysis)` | 漏洞表格（严重度、包名、版本、GHSA、修复版本、说明）        |
+| `render_vulnerabilities(analysis)` | 风险项表格（严重度、包名、版本、GHSA、修复版本、说明）        |
 | `render_hygiene(analysis)`         | 硬编码密钥统计 + 表格、敏感文件统计 + 表格、gitignore 状态  |
 | `render_outdated(analysis)`        | 过期依赖表格（包名、当前版本、最近版本、建议）              |
 | `render_manual_items(analysis)`    | red + yellow 事项的详细说明（关注原因、可能影响、建议动作） |
@@ -60,7 +60,7 @@ CAPABILITY_BOUNDARY = (
 
 | 函数                           | 作用                                                             |
 | ------------------------------ | ---------------------------------------------------------------- |
-| `security_ids(item)`           | 从漏洞记录中提取所有 GHSA ID（支持嵌套列表、逗号分隔等格式）     |
+| `security_ids(item)`           | 从风险项记录中提取所有 GHSA ID（支持嵌套列表、逗号分隔等格式）     |
 | `severity_label(value)`        | 将严重度字符串映射为中文标签（紧急/高风险/中风险/低风险/待确认） |
 | `is_hygiene_only(analysis)`    | 判断是否为仅卫生扫描模式                                         |
 | `date_from_analysis(analysis)` | 从 `generated_at` 提取日期部分                                   |
@@ -99,7 +99,7 @@ def render_markdown(analysis):
 生成的 Markdown 报告包含以下章节：
 
 1. **摘要** — TL;DR、详细说明、扫描范围、能力边界、优先级建议
-2. **命中漏洞** — 依赖漏洞详情表格（仅 `full_dependency_scan` 模式）
+2. **命中风险项** — 依赖风险项详情表格（仅 `full_dependency_scan` 模式）
 3. **仓库卫生** — 硬编码密钥、敏感文件、gitignore 状态
 4. **过期依赖** — 版本维护信号表格（附"不等同于漏洞"提示）
 5. **需要人工确认的事项** — red + yellow 分级事项详情

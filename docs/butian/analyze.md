@@ -153,7 +153,7 @@ SEVERITY_ORDER = {
       "name": "升级 next",
       "type": "dependency_upgrade",
       "severity": "critical",
-      "summary": "next 命中 2 个漏洞，建议升级到 15.5.2 或更高版本后运行测试。该建议只覆盖包管理器可解析的普通升级；修复后必须复扫。",
+      "summary": "next 命中 2 个风险项，建议升级到 15.5.2 或更高版本后运行测试。该建议只覆盖包管理器可解析的普通升级；修复后必须复扫。",
       "fix_config": {
         "type": "upgrade",
         "ecosystem": "npm",
@@ -175,7 +175,7 @@ SEVERITY_ORDER = {
   "butian_workspace": { ... },
   "summary": {
     "tldr": "发现需要优先安排的依赖安全风险...",
-    "detail": "本次检查覆盖项目 ...，识别到 142 个依赖包，命中 5 个已确认漏洞...",
+    "detail": "本次检查覆盖项目 ...，识别到 142 个依赖包，命中 5 个已确认风险项...",
     "priority": ["优先处理 3 个紧急/高风险项...", ...],
     "tier_stats": {
       "red": "3 项优先处理",

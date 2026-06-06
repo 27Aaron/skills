@@ -114,7 +114,7 @@ run_audit.py
 └──────────────────────┴───────┘
 
 - 总依赖：142 个 npm 包
-- 已确认漏洞：5 个
+- 已确认风险项：5 个
 - 仓库卫生：0 个硬编码凭证 / 0 个跟踪的敏感文件 / .gitignore 完整
 - 过期依赖：3 个（仅作维护信号，不算漏洞）
 - 扫描错误：无
@@ -157,10 +157,10 @@ run_audit.py
 
 | 函数                                                  | 作用                                                  |
 | ----------------------------------------------------- | ----------------------------------------------------- |
-| `format_focus(analysis, scan_mode)`                   | 生成重点关注区域的表格（按命中漏洞数排序的前 6 个包） |
+| `format_focus(analysis, scan_mode)`                   | 生成重点关注区域的表格（按命中风险项数排序的前 6 个包） |
 | `format_risk_rows(risk_summary)`                      | 格式化风险统计行（含 emoji 指示器）                   |
 | `format_human_summary(summary, scan, analysis, args)` | 组装完整的终端摘要文本                                |
-| `best_fixed_version(issues)`                          | 从多个漏洞记录中选出最佳修复版本                      |
+| `best_fixed_version(issues)`                          | 从多个风险项记录中选出最佳修复版本                      |
 | `risk_nature(issues)`                                 | 通过模式匹配识别风险类型（SSRF、XSS、DoS 等）         |
 | `mode_label(scan_mode)`                               | 将扫描模式映射为中文标签                              |
 
