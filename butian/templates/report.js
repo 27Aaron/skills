@@ -920,7 +920,8 @@ function isRenderableOutdated(it) {
 }
 
 function securityIds(r) {
-  const values = [];
+  const cves = [];
+  const ghsas = [];
   const push = (v) => {
     if (Array.isArray(v)) {
       v.forEach(push);
@@ -932,21 +933,24 @@ function securityIds(r) {
       .map((x) => x.trim())
       .filter(Boolean)
       .forEach((id) => {
-        if (!/^GHSA-/i.test(id)) return;
-        if (!values.some((x) => x.toLowerCase() === id.toLowerCase())) {
-          values.push(id);
+        if (/^CVE-/i.test(id)) {
+          if (!cves.some((x) => x.toLowerCase() === id.toLowerCase()))
+            cves.push(id);
+        } else if (/^GHSA-/i.test(id)) {
+          if (!ghsas.some((x) => x.toLowerCase() === id.toLowerCase()))
+            ghsas.push(id);
         }
       });
   };
 
+  push(r.cve_id);
+  push(r.cve_ids);
   push(r.advisory_id);
   push(r.advisory_ids);
   push(r.aliases);
   push(r.advisory_aliases);
-  push(r.cve_id);
-  push(r.cve_ids);
 
-  return values;
+  return [...cves, ...ghsas];
 }
 
 function securityIdUrl(id) {
@@ -954,6 +958,114 @@ function securityIdUrl(id) {
     return `https://www.cve.org/CVERecord?id=${encodeURIComponent(id.toUpperCase())}`;
   }
   return `https://osv.dev/vulnerability/${encodeURIComponent(id)}`;
+}
+
+// ---- Signal tags from cve_enrichments ----
+function aggregateEnrichments(r) {
+  const enrichments = Array.isArray(r.cve_enrichments) ? r.cve_enrichments : [];
+  let maxEpss = 0;
+  let maxEpssPercentile = 0;
+  let epssDate = "";
+  const allCweIds = [];
+  let kevListed = false;
+  let kevDueDate = "";
+  let kevDateAdded = "";
+  let kevRequiredAction = "";
+  let ransomware = false;
+  let description = "";
+  for (const e of enrichments) {
+    if (!e || typeof e !== "object") continue;
+    const epss = parseFloat(e.epss) || 0;
+    const pct = parseFloat(e.epssPercentile) || 0;
+    if (pct > maxEpssPercentile) {
+      maxEpss = epss;
+      maxEpssPercentile = pct;
+      epssDate = e.epssScoreDate || "";
+    }
+    for (const cwe of Array.isArray(e.cweIds) ? e.cweIds : []) {
+      if (cwe && !allCweIds.includes(cwe)) allCweIds.push(cwe);
+    }
+    if (e.kevListed) kevListed = true;
+    if (e.kevDueDate) kevDueDate = e.kevDueDate;
+    if (e.kevDateAdded) kevDateAdded = e.kevDateAdded;
+    if (e.kevRequiredAction) kevRequiredAction = e.kevRequiredAction;
+    if (String(e.kevKnownRansomwareCampaignUse || "").toLowerCase() === "known")
+      ransomware = true;
+    if (e.description && !description) description = e.description;
+  }
+  return {
+    maxEpss,
+    maxEpssPercentile,
+    epssDate,
+    allCweIds,
+    kevListed,
+    kevDueDate,
+    kevDateAdded,
+    kevRequiredAction,
+    ransomware,
+    description,
+  };
+}
+
+function shortDate(iso) {
+  if (!iso) return "";
+  const m = String(iso).match(/(\d{4})-(\d{2})/);
+  return m ? `${m[1]}-${m[2]}` : "";
+}
+
+function signalTags(r) {
+  const a = aggregateEnrichments(r);
+  const tags = [];
+  if (a.kevListed) {
+    tags.push('<span class="sig-tag sig-kev">KEV 已知利用</span>');
+  }
+  if (a.ransomware) {
+    tags.push('<span class="sig-tag sig-ransom">勒索攻击</span>');
+  }
+  if (a.maxEpssPercentile >= 0.7) {
+    const pct = (a.maxEpssPercentile * 100).toFixed(1);
+    tags.push(`<span class="sig-tag sig-epss">EPSS ${esc(pct)}%</span>`);
+  }
+  if (a.kevDueDate) {
+    const d = shortDate(a.kevDueDate);
+    tags.push(`<span class="sig-tag sig-due">KEV 截止 ${esc(d)}</span>`);
+  }
+  if (!tags.length) return "";
+  return `<div class="signal-tags">${tags.join("")}</div>`;
+}
+
+function vulnDetailPanel(r) {
+  const a = aggregateEnrichments(r);
+  const fields = [];
+
+  if (a.description) {
+    fields.push(
+      `<div class="detail-field"><div class="detail-label">漏洞描述</div><div class="detail-value">${esc(a.description)}</div></div>`,
+    );
+  }
+
+  if (a.maxEpss > 0) {
+    const prob = (a.maxEpss * 100).toFixed(2);
+    const pct = (a.maxEpssPercentile * 100).toFixed(1);
+    const dateStr = shortDate(a.epssDate);
+    fields.push(
+      `<div class="detail-field"><div class="detail-label">EPSS 利用预测</div><div class="detail-value">30 天内被利用概率 <b>${esc(prob)}%</b>，百分位 ${esc(pct)}%${dateStr ? "（评分日期 " + esc(dateStr) + "）" : ""}</div></div>`,
+    );
+  }
+
+  if (a.kevListed) {
+    const parts = ["已被 CISA 列入已知被利用漏洞目录"];
+    if (a.kevDateAdded)
+      parts.push(`收录日期 ${esc(shortDate(a.kevDateAdded))}`);
+    if (a.kevDueDate) parts.push(`修复截止 ${esc(shortDate(a.kevDueDate))}`);
+    if (a.kevRequiredAction) parts.push(esc(a.kevRequiredAction));
+    fields.push(
+      `<div class="detail-field"><div class="detail-label">CISA KEV</div><div class="detail-value">${parts.join("；")}</div></div>`,
+    );
+  }
+
+  if (!fields.length) return "";
+  return `<div class="vuln-detail">${fields.join("")}</div>`;
 }
 
 // ---- Overview ----
@@ -1135,16 +1247,23 @@ function renderVulnTable(rows) {
               })
               .join("")}</div>`
           : '<span style="color:var(--sub)">-</span>';
-      const cls = needToggle && idx >= VULN_SHOW ? ' class="vuln-extra"' : "";
+      const extraCls = needToggle && idx >= VULN_SHOW ? " vuln-extra" : "";
       const fixedHtml = fixedVersionHtml(r);
-      return `<tr${cls}>
+      const tags = signalTags(r);
+      const detail = vulnDetailPanel(r);
+      const hasDetail = detail ? " vuln-row" : "";
+      const clickAttr = detail ? ` onclick="toggleVulnDetail(this)"` : "";
+      const detailRow = detail
+        ? `<tr class="vuln-detail-row${extraCls}"><td colspan="6">${detail}</td></tr>`
+        : "";
+      return `<tr class="${hasDetail}${extraCls}"${clickAttr}>
   <td class="sev">${sevBadge(r.severity)}</td>
   <td class="package-cell"><b title="${esc(packageName)}">${esc(packageName)}</b></td>
   <td class="ver">${esc(r.version || "")}</td>
   <td class="ver fixed-cell">${fixedHtml}</td>
   <td class="advisory">${advHtml}</td>
-  <td class="summary-cell">${vulnerabilityExplanation(r)}</td>
-</tr>`;
+  <td class="summary-cell">${vulnerabilityExplanation(r)}${tags}</td>
+</tr>${detailRow}`;
     })
     .join("");
   const toggle = needToggle
@@ -1155,7 +1274,7 @@ function renderVulnTable(rows) {
     sortedRows.length,
     `<div class="table-scroll"><table class="stable-table vuln-table" style="${packageColumnWidthStyle(sortedRows)}">
   ${renderTableColgroup(["severity", "package", "version", "fixed", "advisory", "summary"])}
-  <thead><tr><th>影响程度</th><th>依赖名称</th><th>当前版本</th><th>修复版本</th><th>GHSA</th><th>说明</th></tr></thead>
+  <thead><tr><th>影响程度</th><th>依赖名称</th><th>当前版本</th><th>修复版本</th><th>安全编号</th><th>说明</th></tr></thead>
   <tbody>${body}${toggle}</tbody></table></div>`,
     "",
     "search",
@@ -1166,9 +1285,16 @@ function toggleVulns(btn) {
   const table = btn.closest("table");
   table.classList.toggle("vuln-expanded");
   const expanded = table.classList.contains("vuln-expanded");
-  const extras = table.querySelectorAll(".vuln-extra");
+  const rows = table.querySelectorAll(".vuln-extra:not(.vuln-detail-row)");
   btn.setAttribute("aria-expanded", expanded ? "true" : "false");
-  btn.textContent = expanded ? "收起" : `显示更多（还有 ${extras.length} 项）`;
+  btn.textContent = expanded ? "收起" : `显示更多（还有 ${rows.length} 项）`;
+}
+
+function toggleVulnDetail(tr) {
+  const next = tr.nextElementSibling;
+  if (!next || !next.classList.contains("vuln-detail-row")) return;
+  const open = next.classList.toggle("vuln-detail-open");
+  tr.classList.toggle("vuln-row-open", open);
 }
 
 // ---- Report summary ----

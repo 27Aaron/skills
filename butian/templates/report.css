@@ -401,6 +401,12 @@ tbody tr:hover {
 .outdated-expanded .outdated-extra {
     display: table-row;
 }
+.vuln-detail-row {
+    display: none !important;
+}
+.vuln-detail-row.vuln-detail-open {
+    display: table-row !important;
+}
 .vuln-toggle td,
 .outdated-toggle td {
     text-align: center;
@@ -1338,6 +1344,92 @@ footer {
         grid-template-columns: 1fr;
     }
 }
+
+/* ---- Signal tags (EPSS / KEV / Ransomware / CWE) ---- */
+.signal-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+}
+.sig-tag {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 1px 7px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+.sig-kev {
+    border: 1px solid rgba(220, 38, 38, 0.22);
+    background: rgba(254, 242, 242, 0.85);
+    color: #991b1b;
+}
+.sig-ransom {
+    border: 1px solid rgba(153, 27, 27, 0.28);
+    background: rgba(254, 226, 226, 0.9);
+    color: #7f1d1d;
+    font-weight: 700;
+}
+.sig-epss {
+    border: 1px solid rgba(124, 58, 237, 0.18);
+    background: rgba(237, 233, 254, 0.7);
+    color: #5b21b6;
+}
+.sig-cwe {
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: rgba(241, 245, 249, 0.7);
+    color: var(--sub);
+}
+.sig-due {
+    border: 1px solid rgba(234, 88, 12, 0.2);
+    background: rgba(255, 237, 213, 0.7);
+    color: #9a3412;
+}
+
+/* ---- Expandable vuln detail row ---- */
+.vuln-row {
+    cursor: pointer;
+}
+.vuln-row:hover {
+    background: var(--hover-soft);
+}
+.vuln-row-open {
+    background: var(--accent-bg) !important;
+}
+.vuln-detail-row > td {
+    padding: 8px 16px 16px;
+    border-top: none;
+}
+.vuln-detail {
+    display: grid;
+    gap: 8px;
+    padding: 12px 14px;
+    border: 1px solid var(--field-border);
+    border-radius: 0.7rem;
+    background: var(--field-bg);
+}
+.detail-field {
+    display: grid;
+    grid-template-columns: 90px minmax(0, 1fr);
+    gap: 8px;
+    align-items: start;
+}
+.detail-label {
+    color: var(--sub);
+    font-weight: 650;
+    font-size: 12px;
+    white-space: nowrap;
+}
+.detail-value {
+    color: var(--ink);
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
 @media print {
     body {
         background: #fff;
