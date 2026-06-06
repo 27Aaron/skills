@@ -1693,7 +1693,7 @@ class ProjectPythonExecutableTests(unittest.TestCase):
 class MakeRunIdTests(unittest.TestCase):
     def test_format(self):
         run_id = scan.make_run_id()
-        self.assertRegex(run_id, r"^\d{8}-\d{6}$")
+        self.assertRegex(run_id, r"^\d{8}-\d{4}$")
 
 
 if __name__ == "__main__":

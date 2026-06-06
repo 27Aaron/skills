@@ -175,7 +175,7 @@ def _latest_existing_run(workspace):
         (
             d for d in os.listdir(workspace)
             if os.path.isdir(os.path.join(workspace, d))
-            and re.match(r"\d{8}-\d{6}", d)
+            and re.match(r"\d{8}-\d{4}", d)
         ),
         reverse=True,
     )
@@ -183,7 +183,7 @@ def _latest_existing_run(workspace):
 
 
 def make_run_id():
-    return time.strftime("%Y%m%d-%H%M%S")
+    return time.strftime("%Y%m%d-%H%M")
 
 
 def ensure_butian_run(project_path, run_id=None):

@@ -79,12 +79,12 @@ def date_from_analysis(analysis):
 
 
 def datetime_from_analysis(analysis):
-    """Extract filesystem-safe datetime string (YYYY-MM-DD_HHMMSS) from analysis."""
+    """Extract filesystem-safe datetime string (YYYYMMDD-HHMM) from analysis."""
     generated_at = text(analysis.get("generated_at"))
     # generated_at format: "2026-06-06 00:45:27"
     cleaned = re.sub(r"[^\d]", "", generated_at)  # "20260606004527"
-    if len(cleaned) >= 14:
-        return f"{cleaned[:4]}-{cleaned[4:6]}-{cleaned[6:8]}_{cleaned[8:10]}{cleaned[10:12]}{cleaned[12:14]}"
+    if len(cleaned) >= 12:
+        return f"{cleaned[:4]}{cleaned[4:6]}{cleaned[6:8]}-{cleaned[8:10]}{cleaned[10:12]}"
     return date_from_analysis(analysis)
 
 

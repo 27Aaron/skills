@@ -538,7 +538,7 @@ def main():
             analysis["project"]["path"],
             "docs",
             "butian",
-            f"security-report-{str(analysis.get('generated_at', 'unknown-date'))[:19].replace(' ', '_').replace(':', '')}.md",
+            f"security-report-{str(analysis.get('generated_at', 'unknown-date'))[:10].replace('-', '')}-{str(analysis.get('generated_at', ''))[11:16].replace(':', '')}.md",
         )
         run_text(
             [
