@@ -766,7 +766,7 @@ class TestBuildDependencyFixItems(unittest.TestCase):
         self.assertEqual(len(green), 1)
         self.assertEqual(green[0]["package"], "lodash")
         self.assertEqual(green[0]["fix_config"]["target_version"], "4.17.23")
-        self.assertIn("命中 2 个漏洞", green[0]["summary"])
+        self.assertIn("命中 2 个风险项", green[0]["summary"])
         self.assertIn("只覆盖包管理器可解析的普通升级", green[0]["summary"])
         self.assertEqual(green[0]["fix_config"]["upgrade_scope"], "direct_package")
         self.assertIn("间接依赖", green[0]["fix_config"]["residual_guidance"])

@@ -318,6 +318,7 @@ class FormatFocusTests(unittest.TestCase):
         }
         result = run_audit.format_focus(analysis)
         self.assertIn("中风险", result)
+        self.assertIn("已确认风险项", result)
 
 
 # ---------------------------------------------------------------------------
@@ -386,6 +387,7 @@ class FormatHumanSummaryTests(unittest.TestCase):
         args = SimpleNamespace(no_open=True, final_report=False)
         result = run_audit.format_human_summary(summary, scan, analysis, args)
         self.assertIn("完整依赖漏洞扫描", result)
+        self.assertIn("已确认风险项", result)
         self.assertIn("lodash", result)
 
 

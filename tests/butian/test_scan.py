@@ -318,7 +318,7 @@ class ButianScanTests(unittest.TestCase):
                 "GHSA-info": [],
             },
         )
-        self.assertIn("命中 3 个漏洞", upgrade["summary"])
+        self.assertIn("命中 3 个风险项", upgrade["summary"])
         self.assertIn("部分公告未给出明确修复版本", upgrade["summary"])
 
     def test_build_report_output_is_visible_in_human_mode(self):

@@ -265,7 +265,7 @@ class RenderVulnerabilitiesTests(unittest.TestCase):
         result = report.render_vulnerabilities(
             {"scan_config": {"scan_mode": "full_dependency_scan"}}
         )
-        self.assertIn("未命中", result)
+        self.assertIn("未命中已确认的依赖风险项", result)
 
     def test_no_issues_hygiene_only(self):
         result = report.render_vulnerabilities(
