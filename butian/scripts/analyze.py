@@ -191,10 +191,14 @@ def vulnerability_summary(item):
             parent_range = loc.get("parent_range")
             if parent_range and target_ver:
                 in_range = _semver_satisfies(target_ver, parent_range)
-                hint = "在范围内，只需重新解析 lockfile" if in_range else "不在范围内，需升级父依赖"
-                summary += f" {parent_text} 声明 {package}: \"{parent_range}\"，修复版本 {target_ver} {hint}。"
+                hint = (
+                    "在范围内，只需重新解析 lockfile"
+                    if in_range
+                    else "不在范围内，需升级父依赖"
+                )
+                summary += f' {parent_text} 声明 {package}: "{parent_range}"，修复版本 {target_ver} {hint}。'
             elif parent_range:
-                summary += f" {parent_text} 声明 {package}: \"{parent_range}\"。"
+                summary += f' {parent_text} 声明 {package}: "{parent_range}"。'
     return summary
 
 
@@ -239,8 +243,7 @@ def _semver_satisfies(version, range_str):
     # Union (||) — any sub-range matching is enough.
     if "||" in range_str:
         return any(
-            _semver_satisfies(version, part.strip())
-            for part in range_str.split("||")
+            _semver_satisfies(version, part.strip()) for part in range_str.split("||")
         )
 
     # Space-separated intersection (e.g. ">=1.0.0 <2.0.0").
@@ -526,7 +529,9 @@ def build_hygiene_items(scan):
 
     logger.info(
         "build_hygiene_items: red=%d, yellow=%d, green=%d",
-        len(red), len(yellow), len(green),
+        len(red),
+        len(yellow),
+        len(green),
     )
     return red, yellow, green
 
@@ -659,7 +664,9 @@ def build_summary(scan, analysis):
     elif secret_count or sensitive_count:
         tldr = "未发现高优先级依赖漏洞，但仓库里有凭证或敏感文件迹象，需要研发确认。"
     elif vuln_count and medium_low:
-        tldr = "发现已确认依赖风险项，当前以中风险或低风险为主，建议按维护窗口分批升级。"
+        tldr = (
+            "发现已确认依赖风险项，当前以中风险或低风险为主，建议按维护窗口分批升级。"
+        )
     elif vuln_count:
         tldr = "命中已确认风险项，但严重度数据不足，需要结合公告复核影响范围。"
     elif errors:
@@ -734,7 +741,8 @@ def build_analysis(scan, source_scan_file=None, output_file=None):
     scan_mode = (scan.get("scan_config") or {}).get("scan_mode", "unknown")
     logger.info(
         "build_analysis 开始: 项目=%s, 模式=%s",
-        project.get("name") or "-", scan_mode,
+        project.get("name") or "-",
+        scan_mode,
     )
 
     top_issues = build_top_issues(scan)
@@ -771,9 +779,12 @@ def build_analysis(scan, source_scan_file=None, output_file=None):
     logger.info(
         "build_analysis 完成: %d 个风险项 (c=%d h=%d m=%d l=%d), %d 过期, %d 错误",
         len(top_issues),
-        risk_summary.get("critical", 0), risk_summary.get("high", 0),
-        risk_summary.get("medium", 0), risk_summary.get("low", 0),
-        analysis["outdated_count"], len(analysis["errors"]),
+        risk_summary.get("critical", 0),
+        risk_summary.get("high", 0),
+        risk_summary.get("medium", 0),
+        risk_summary.get("low", 0),
+        analysis["outdated_count"],
+        len(analysis["errors"]),
     )
     return analysis
 
@@ -801,7 +812,9 @@ def main():
     args = parse_args(sys.argv[1:])
 
     scan_path = args.scan_json
-    log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(scan_path))), "logs")
+    log_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(scan_path))), "logs"
+    )
     setup_logging(log_dir=log_dir, log_file="analyze.log")
     output_path = args.output_json or default_output_path(scan_path)
     logger.info("analyze.py 开始: scan=%s, output=%s", scan_path, output_path)

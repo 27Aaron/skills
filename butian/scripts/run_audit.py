@@ -32,6 +32,7 @@ except ImportError:
         setup_logging,
     )
 
+
 def script_path(name):
     return os.path.join(HERE, name)
 
@@ -481,12 +482,15 @@ def main():
     if not any(isinstance(h, logging.FileHandler) for h in butian_logger.handlers):
         os.makedirs(scan_log_dir, exist_ok=True)
         fh = logging.FileHandler(
-            os.path.join(scan_log_dir, "run_audit.log"), encoding="utf-8",
+            os.path.join(scan_log_dir, "run_audit.log"),
+            encoding="utf-8",
         )
-        fh.setFormatter(logging.Formatter(
-            "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-            "%Y-%m-%d %H:%M:%S",
-        ))
+        fh.setFormatter(
+            logging.Formatter(
+                "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+                "%Y-%m-%d %H:%M:%S",
+            )
+        )
         fh.setLevel(logging.DEBUG)
         butian_logger.addHandler(fh)
     vuln_count = len(scan.get("vulnerabilities") or [])
@@ -520,8 +524,10 @@ def main():
     risk_summary = analysis.get("risk_summary") or {}
     logger.info(
         "分析完成: c=%d h=%d m=%d l=%d info=%d",
-        risk_summary.get("critical", 0), risk_summary.get("high", 0),
-        risk_summary.get("medium", 0), risk_summary.get("low", 0),
+        risk_summary.get("critical", 0),
+        risk_summary.get("high", 0),
+        risk_summary.get("medium", 0),
+        risk_summary.get("low", 0),
         risk_summary.get("info", 0),
     )
 

@@ -46,19 +46,19 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 
 ## CLI 参数
 
-| 参数                   | 类型   | 默认值   | 说明                                                         |
-| ---------------------- | ------ | -------- | ------------------------------------------------------------ |
-| `project_path`         | 位置   | `.`      | 项目路径                                                     |
-| `--preflight`          | str    | —        | 复用 preflight JSON 文件                                     |
-| `--output`             | str    | 自动     | 指定输出路径                                                 |
-| `--no-root-discovery`  | flag   | false    | 不向上遍历查找项目根                                         |
-| `--skip-outdated`      | flag   | false    | 跳过过期依赖检查                                             |
-| `--skip-hygiene`       | flag   | false    | 跳过仓库卫生检查                                             |
-| `--max-secret-files`   | int    | 500      | 限制密钥扫描的文件数量                                       |
-| `--include-packages`   | flag   | false    | 在输出中包含完整包列表                                       |
-| `--verbose`            | flag   | false    | 输出详细日志到 stderr（INFO 级别）                           |
-| `--debug`              | flag   | false    | 输出调试级别日志到 stderr 和日志文件                         |
-| `--follow-symlinks`    | flag   | false    | 跟随符号链接扫描（默认跳过）                                 |
+| 参数                  | 类型 | 默认值 | 说明                                 |
+| --------------------- | ---- | ------ | ------------------------------------ |
+| `project_path`        | 位置 | `.`    | 项目路径                             |
+| `--preflight`         | str  | —      | 复用 preflight JSON 文件             |
+| `--output`            | str  | 自动   | 指定输出路径                         |
+| `--no-root-discovery` | flag | false  | 不向上遍历查找项目根                 |
+| `--skip-outdated`     | flag | false  | 跳过过期依赖检查                     |
+| `--skip-hygiene`      | flag | false  | 跳过仓库卫生检查                     |
+| `--max-secret-files`  | int  | 500    | 限制密钥扫描的文件数量               |
+| `--include-packages`  | flag | false  | 在输出中包含完整包列表               |
+| `--verbose`           | flag | false  | 输出详细日志到 stderr（INFO 级别）   |
+| `--debug`             | flag | false  | 输出调试级别日志到 stderr 和日志文件 |
+| `--follow-symlinks`   | flag | false  | 跟随符号链接扫描（默认跳过）         |
 
 ## 核心常量
 

@@ -11,7 +11,7 @@
 | #   | 职责          | 说明                                                                                       |
 | --- | ------------- | ------------------------------------------------------------------------------------------ |
 | 1   | 管线编排      | 按序调用 detect → scan → analyze → report → visualize                                      |
-| 2   | 参数透传      | 将用户参数传递给各子阶段（verbose/debug/follow-symlinks）                                 |
+| 2   | 参数透传      | 将用户参数传递给各子阶段（verbose/debug/follow-symlinks）                                  |
 | 3   | 结果汇总      | 收集各阶段的文件路径和风险统计                                                             |
 | 4   | 终端摘要      | 输出格式化的终端摘要（包含 Unicode 表格）                                                  |
 | 5   | 报告打开      | 首次扫描自动用系统浏览器打开 HTML 报告，复扫跳过（由 `.butian/.first-scan-done` 标记控制） |
@@ -35,19 +35,19 @@ python3 run_audit.py --final-report .       # 最终复扫：强制生成 Markdo
 
 ## CLI 参数
 
-| 参数                   | 类型     | 默认值   | 说明                                   |
-| ---------------------- | -------- | -------- | -------------------------------------- |
-| `project_path`         | 位置参数 | `.`      | 项目路径                               |
-| `--no-root-discovery`  | flag     | false    | 不向上遍历查找项目根                   |
-| `--skip-outdated`      | flag     | false    | 跳过过期依赖检查                       |
-| `--skip-hygiene`       | flag     | false    | 跳过仓库卫生检查                       |
-| `--max-secret-files`   | int      | None     | 限制密钥扫描的文件数量                 |
-| `--include-packages`   | flag     | false    | 在扫描输出中包含完整包列表             |
-| `--no-open`            | flag     | false    | 不自动打开 HTML 报告                   |
-| `--final-report`       | flag     | false    | 最终复扫时强制生成 Markdown 报告       |
-| `--verbose`            | flag     | false    | 输出详细日志到 stderr                  |
-| `--debug`              | flag     | false    | 输出调试级别日志                       |
-| `--follow-symlinks`    | flag     | false    | 跟随符号链接扫描                       |
+| 参数                  | 类型     | 默认值 | 说明                             |
+| --------------------- | -------- | ------ | -------------------------------- |
+| `project_path`        | 位置参数 | `.`    | 项目路径                         |
+| `--no-root-discovery` | flag     | false  | 不向上遍历查找项目根             |
+| `--skip-outdated`     | flag     | false  | 跳过过期依赖检查                 |
+| `--skip-hygiene`      | flag     | false  | 跳过仓库卫生检查                 |
+| `--max-secret-files`  | int      | None   | 限制密钥扫描的文件数量           |
+| `--include-packages`  | flag     | false  | 在扫描输出中包含完整包列表       |
+| `--no-open`           | flag     | false  | 不自动打开 HTML 报告             |
+| `--final-report`      | flag     | false  | 最终复扫时强制生成 Markdown 报告 |
+| `--verbose`           | flag     | false  | 输出详细日志到 stderr            |
+| `--debug`             | flag     | false  | 输出调试级别日志                 |
+| `--follow-symlinks`   | flag     | false  | 跟随符号链接扫描                 |
 
 ## 管线流程
 
@@ -155,14 +155,14 @@ run_audit.py
 
 ### 漏洞分析
 
-| 函数                                                  | 作用                                                  |
-| ----------------------------------------------------- | ----------------------------------------------------- |
+| 函数                                                  | 作用                                                    |
+| ----------------------------------------------------- | ------------------------------------------------------- |
 | `format_focus(analysis, scan_mode)`                   | 生成重点关注区域的表格（按命中风险项数排序的前 6 个包） |
-| `format_risk_rows(risk_summary)`                      | 格式化风险统计行（含 emoji 指示器）                   |
-| `format_human_summary(summary, scan, analysis, args)` | 组装完整的终端摘要文本                                |
+| `format_risk_rows(risk_summary)`                      | 格式化风险统计行（含 emoji 指示器）                     |
+| `format_human_summary(summary, scan, analysis, args)` | 组装完整的终端摘要文本                                  |
 | `best_fixed_version(issues)`                          | 从多个风险项记录中选出最佳修复版本                      |
-| `risk_nature(issues)`                                 | 通过模式匹配识别风险类型（SSRF、XSS、DoS 等）         |
-| `mode_label(scan_mode)`                               | 将扫描模式映射为中文标签                              |
+| `risk_nature(issues)`                                 | 通过模式匹配识别风险类型（SSRF、XSS、DoS 等）           |
+| `mode_label(scan_mode)`                               | 将扫描模式映射为中文标签                                |
 
 ### 路径工具
 

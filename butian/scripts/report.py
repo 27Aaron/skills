@@ -84,7 +84,9 @@ def datetime_from_analysis(analysis):
     # generated_at format: "2026-06-06 00:45:27"
     cleaned = re.sub(r"[^\d]", "", generated_at)  # "20260606004527"
     if len(cleaned) >= 12:
-        return f"{cleaned[:4]}{cleaned[4:6]}{cleaned[6:8]}-{cleaned[8:10]}{cleaned[10:12]}"
+        return (
+            f"{cleaned[:4]}{cleaned[4:6]}{cleaned[6:8]}-{cleaned[8:10]}{cleaned[10:12]}"
+        )
     return date_from_analysis(analysis)
 
 
@@ -406,7 +408,9 @@ def main():
     args = parse_args(sys.argv[1:])
 
     src = args.analysis_json
-    log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(src))), "logs")
+    log_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(src))), "logs"
+    )
     setup_logging(log_dir=log_dir, log_file="report.log")
     logger.info("report.py 开始: analysis=%s", src)
 

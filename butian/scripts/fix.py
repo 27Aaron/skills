@@ -43,10 +43,7 @@ def _semver_satisfies(version, range_str):
     if not range_str or range_str in ("*", "latest"):
         return True
     if "||" in range_str:
-        return any(
-            _semver_satisfies(version, r.strip())
-            for r in range_str.split("||")
-        )
+        return any(_semver_satisfies(version, r.strip()) for r in range_str.split("||"))
     ver = _parse_version(version)
     if range_str.startswith("^"):
         base = _parse_version(range_str[1:])
@@ -75,6 +72,7 @@ def _semver_satisfies(version, range_str):
 
 # Maps ecosystem name to a fixed-version upgrade command builder.
 # Each builder receives (package, version) and returns a command list.
+
 
 def _go_version(ver):
     """Ensure Go version has 'v' prefix (Go requires v1.2.3, not 1.2.3)."""
@@ -359,7 +357,9 @@ def _npm_lock_path_for_names(names):
     path = ""
     for name in names:
         name_path = name.replace("/", os.sep).replace(os.sep, "/")
-        path = f"{path}/node_modules/{name_path}" if path else f"node_modules/{name_path}"
+        path = (
+            f"{path}/node_modules/{name_path}" if path else f"node_modules/{name_path}"
+        )
     return path
 
 
@@ -372,7 +372,11 @@ def _npm_parent_lock_path(path):
 
 def _npm_dep_lock_path_from(package_key, dependency):
     dep_path = dependency.replace("/", os.sep).replace(os.sep, "/")
-    return f"{package_key}/node_modules/{dep_path}" if package_key else f"node_modules/{dep_path}"
+    return (
+        f"{package_key}/node_modules/{dep_path}"
+        if package_key
+        else f"node_modules/{dep_path}"
+    )
 
 
 def _resolve_npm_dependency(packages, package_key, dependency):
@@ -419,7 +423,7 @@ def _direct_root_for_npm_lock_path(lock_data, package_json, target_lock_path):
             if current == target_lock_path:
                 return root_name
             meta = packages.get(current) or {}
-            for dep_name in (meta.get("dependencies") or {}):
+            for dep_name in meta.get("dependencies") or {}:
                 dep_path = _resolve_npm_dependency(packages, current, dep_name)
                 if dep_path and dep_path not in seen:
                     stack.append(dep_path)
@@ -442,7 +446,9 @@ def build_npm_parent_upgrade_plan(analysis, project_path=None):
         return plan
 
     lock_data = _load_json_file(lock_path)
-    package_json = _load_json_file(package_json_path) if os.path.isfile(package_json_path) else {}
+    package_json = (
+        _load_json_file(package_json_path) if os.path.isfile(package_json_path) else {}
+    )
     packages = lock_data.get("packages") or {}
     fix_items = {
         item["package"]: item
@@ -549,7 +555,9 @@ def build_force_residual_overrides(analysis, project_path=None):
         return result
 
     # Determine which packages are direct root dependencies
-    pkg_json = _load_json_file(package_json_path) if os.path.isfile(package_json_path) else {}
+    pkg_json = (
+        _load_json_file(package_json_path) if os.path.isfile(package_json_path) else {}
+    )
     root_deps = set()
     for key in ("dependencies", "devDependencies", "optionalDependencies"):
         root_deps.update((pkg_json.get(key) or {}).keys())

@@ -783,10 +783,13 @@ function advisorySummaryText(r) {
 }
 
 function parseVersion(v) {
-  const parts = v.replace(/^v/, "").split(".").map((p) => {
-    const n = parseInt(p, 10);
-    return isNaN(n) ? 0 : n;
-  });
+  const parts = v
+    .replace(/^v/, "")
+    .split(".")
+    .map((p) => {
+      const n = parseInt(p, 10);
+      return isNaN(n) ? 0 : n;
+    });
   while (parts.length < 3) parts.push(0);
   return parts.slice(0, 3);
 }
@@ -809,17 +812,24 @@ function semverSatisfies(version, range) {
   if (range.startsWith("^")) {
     const base = parseVersion(range.slice(1));
     if (base[0] > 0) return versionCmp(ver, base) >= 0 && ver[0] === base[0];
-    if (base[1] > 0) return versionCmp(ver, base) >= 0 && ver[0] === 0 && ver[1] === base[1];
+    if (base[1] > 0)
+      return versionCmp(ver, base) >= 0 && ver[0] === 0 && ver[1] === base[1];
     return versionCmp(ver, base) === 0;
   }
   if (range.startsWith("~")) {
     const base = parseVersion(range.slice(1));
-    return versionCmp(ver, base) >= 0 && ver[0] === base[0] && ver[1] === base[1];
+    return (
+      versionCmp(ver, base) >= 0 && ver[0] === base[0] && ver[1] === base[1]
+    );
   }
-  if (range.startsWith(">=")) return versionCmp(ver, parseVersion(range.slice(2))) >= 0;
-  if (range.startsWith(">")) return versionCmp(ver, parseVersion(range.slice(1))) > 0;
-  if (range.startsWith("<=")) return versionCmp(ver, parseVersion(range.slice(2))) <= 0;
-  if (range.startsWith("<")) return versionCmp(ver, parseVersion(range.slice(1))) < 0;
+  if (range.startsWith(">="))
+    return versionCmp(ver, parseVersion(range.slice(2))) >= 0;
+  if (range.startsWith(">"))
+    return versionCmp(ver, parseVersion(range.slice(1))) > 0;
+  if (range.startsWith("<="))
+    return versionCmp(ver, parseVersion(range.slice(2))) <= 0;
+  if (range.startsWith("<"))
+    return versionCmp(ver, parseVersion(range.slice(1))) < 0;
   return versionCmp(ver, parseVersion(range)) === 0;
 }
 

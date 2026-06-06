@@ -173,9 +173,9 @@ def _latest_existing_run(workspace):
         return None
     candidates = sorted(
         (
-            d for d in os.listdir(workspace)
-            if os.path.isdir(os.path.join(workspace, d))
-            and re.match(r"\d{8}-\d{4}", d)
+            d
+            for d in os.listdir(workspace)
+            if os.path.isdir(os.path.join(workspace, d)) and re.match(r"\d{8}-\d{4}", d)
         ),
         reverse=True,
     )
@@ -1034,10 +1034,6 @@ def cache_clean(project_path, ttl_seconds=86400):
 # ---------------------------------------------------------------------------
 # Progress reporter
 # ---------------------------------------------------------------------------
-
-
-
-
 
 
 def gitignore_rules(content):
@@ -2503,7 +2499,6 @@ def fetch_osv_vulnerability(vuln_id):
     return get_json(f"{OSV_VULN_URL_PREFIX}{urllib.parse.quote(str(vuln_id), safe='')}")
 
 
-
 def parse_osv_query_results(data, batch):
     results = data.get("results") if isinstance(data, dict) else []
     if not isinstance(results, list):
@@ -3538,8 +3533,6 @@ def main():
     logger.info("开始扫描项目: %s", project_path)
     step_seconds = {}
 
-
-
     # Step 1: detect ecosystems
     step_started = time.time()
     if preflight_hygiene_only:
@@ -3783,7 +3776,6 @@ def main():
     logger.info("结果已写入: %s (%d bytes)", output_file, len(text))
     print(text)
 
-
     total_seconds = round(time.time() - started, 1)
     logger.info(
         "扫描完成: 总耗时 %.1fs, %d 风险项, %d 过时, %d 错误",
@@ -3792,7 +3784,6 @@ def main():
         len(outdated),
         len(errors),
     )
-
 
 
 if __name__ == "__main__":
