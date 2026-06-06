@@ -13,10 +13,12 @@ import argparse
 import json
 import logging
 import os
+import shutil
 import subprocess
 import sys
 
 logger = logging.getLogger("butian")
+MAX_NPM_OVERRIDE_REFRESH_ATTEMPTS = 3
 
 # ---------------------------------------------------------------------------
 # Ecosystem → upgrade command builders
@@ -300,6 +302,38 @@ def _run_npm_install(project_path):
     return True, ""
 
 
+def _project_child_path(project_path, relative_path):
+    root = os.path.abspath(project_path)
+    child = os.path.abspath(os.path.join(root, relative_path))
+    if child == root or not child.startswith(root + os.sep):
+        return None
+    return child
+
+
+def _remove_residual_npm_paths(project_path, plan):
+    removed = []
+    for entry in plan.get("overrides") or []:
+        lock_path = entry.get("lock_path")
+        if not lock_path or not str(lock_path).startswith("node_modules/"):
+            continue
+        target = _project_child_path(project_path, lock_path)
+        if not target or not os.path.exists(target):
+            continue
+        if os.path.isdir(target):
+            shutil.rmtree(target)
+        else:
+            os.remove(target)
+        removed.append(lock_path)
+    return removed
+
+
+def _remove_package_lock(project_path):
+    try:
+        os.remove(os.path.join(project_path, "package-lock.json"))
+    except FileNotFoundError:
+        pass
+
+
 def execute_override_fixes(analysis, project_path):
     """Apply confirmed npm overrides and refresh the lockfile."""
     plan = build_npm_override_plan(analysis, project_path)
@@ -327,28 +361,32 @@ def execute_override_fixes(analysis, project_path):
     if not ok:
         return [], [("npm install", err_msg)]
     print("  ✅ npm install")
+
     residual_plan = build_npm_override_plan(analysis, project_path)
-    if residual_plan.get("overrides"):
-        lock_path = os.path.join(project_path, "package-lock.json")
-        print("  检测到 lockfile 中仍有嵌套旧版本，正在重建 package-lock.json...")
+    for attempt in range(1, MAX_NPM_OVERRIDE_REFRESH_ATTEMPTS + 1):
+        if not residual_plan.get("overrides"):
+            return successes, []
+        print(
+            f"  检测到 lockfile 中仍有嵌套旧版本，正在第 {attempt} 次清理残留路径并重建 package-lock.json..."
+        )
         try:
-            os.remove(lock_path)
-        except FileNotFoundError:
-            pass
+            removed = _remove_residual_npm_paths(project_path, residual_plan)
+            _remove_package_lock(project_path)
         except OSError as exc:
-            return [], [("package-lock.json", str(exc))]
+            return [], [("node_modules/package-lock.json", str(exc))]
+        for item in removed:
+            print(f"    - 已清理 {item}")
         ok, err_msg = _run_npm_install(project_path)
         if not ok:
             return [], [("npm install", err_msg)]
         print("  ✅ package-lock.json 已重建")
-        final_plan = build_npm_override_plan(analysis, project_path)
-        if final_plan.get("overrides"):
-            remaining = ", ".join(
-                f"{entry['parent']} > {entry['package']}@{entry['current_version']}"
-                for entry in final_plan["overrides"]
-            )
-            return successes, [("npm overrides", f"强制更新后仍有残留: {remaining}")]
-    return successes, []
+        residual_plan = build_npm_override_plan(analysis, project_path)
+
+    remaining = ", ".join(
+        f"{entry['parent']} > {entry['package']}@{entry['current_version']}"
+        for entry in residual_plan.get("overrides") or []
+    )
+    return successes, [("npm overrides", f"强制更新重试后仍有残留: {remaining}")]
 
 
 # ---------------------------------------------------------------------------
@@ -431,6 +469,7 @@ def post_fix_guidance(strategy):
     if strategy == "overrides":
         return [
             "强制覆盖更新已执行完毕后，请重新运行补天扫描验证结果。",
+            "如果 lockfile 仍有嵌套旧版本，脚本会自动清理对应 node_modules 残留路径并重建 package-lock.json，最多重试 3 轮。",
             "这会强制改变父依赖解析到的子依赖版本，可能带来兼容性问题；请运行项目测试、构建或启动检查。",
             "如果复扫仍有残留，需要继续追踪父依赖版本或等待上游发布修复。",
         ]

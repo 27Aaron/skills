@@ -372,6 +372,90 @@ class NpmOverridePlanTests(unittest.TestCase):
             "8.5.10",
         )
 
+    def test_execute_override_fixes_removes_stale_nested_node_modules_before_rebuild(
+        self,
+    ):
+        with tempfile.TemporaryDirectory() as tmp:
+            package_json_path = os.path.join(tmp, "package.json")
+            lock_path = os.path.join(tmp, "package-lock.json")
+            stale_path = os.path.join(tmp, "node_modules", "next", "node_modules", "postcss")
+            os.makedirs(stale_path, exist_ok=True)
+            with open(os.path.join(stale_path, "package.json"), "w", encoding="utf-8") as f:
+                json.dump({"name": "postcss", "version": "8.4.31"}, f)
+            with open(package_json_path, "w", encoding="utf-8") as f:
+                json.dump(
+                    {"dependencies": {"next": "^16.2.6", "postcss": "^8.5.10"}},
+                    f,
+                )
+            with open(lock_path, "w", encoding="utf-8") as f:
+                json.dump(
+                    {
+                        "packages": {
+                            "": {"dependencies": {"postcss": "^8.5.10"}},
+                            "node_modules/postcss": {"version": "8.5.10"},
+                            "node_modules/next": {"version": "16.2.6"},
+                            "node_modules/next/node_modules/postcss": {
+                                "version": "8.4.31"
+                            },
+                        }
+                    },
+                    f,
+                )
+            analysis = {
+                "project": {"path": tmp},
+                "green": [
+                    {
+                        "type": "dependency_upgrade",
+                        "package": "postcss",
+                        "fix_config": {
+                            "ecosystem": "npm",
+                            "package": "postcss",
+                            "current_versions": ["8.4.31"],
+                            "target_version": "8.5.10",
+                        },
+                    }
+                ],
+            }
+
+            def fake_install(project_path):
+                self.assertEqual(project_path, tmp)
+                if not os.path.exists(lock_path):
+                    stale_exists = os.path.exists(stale_path)
+                    with open(lock_path, "w", encoding="utf-8") as f:
+                        json.dump(
+                            {
+                                "packages": {
+                                    "": {"dependencies": {"postcss": "^8.5.10"}},
+                                    "node_modules/postcss": {"version": "8.5.10"},
+                                    "node_modules/next": {"version": "16.2.6"},
+                                    "node_modules/next/node_modules/postcss": {
+                                        "version": "8.4.31" if stale_exists else "8.5.10"
+                                    },
+                                }
+                            },
+                            f,
+                        )
+                return True, ""
+
+            with mock.patch.object(
+                fix_mod, "_run_npm_install", side_effect=fake_install
+            ) as install:
+                successes, failures = fix_mod.execute_override_fixes(analysis, tmp)
+
+            with open(lock_path, "r", encoding="utf-8") as f:
+                rebuilt_lock = json.load(f)
+
+        self.assertEqual(install.call_count, 2)
+        self.assertFalse(os.path.exists(stale_path))
+        self.assertEqual(successes, ["next > postcss@8.5.10"])
+        self.assertEqual(failures, [])
+        self.assertEqual(
+            rebuilt_lock["packages"]["node_modules/next/node_modules/postcss"][
+                "version"
+            ],
+            "8.5.10",
+        )
+
 
 # ---------------------------------------------------------------------------
 # CLI helpers
