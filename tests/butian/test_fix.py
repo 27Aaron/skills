@@ -324,7 +324,7 @@ class CliHelperTests(unittest.TestCase):
         text = "\n".join(lines)
         self.assertIn("重新运行补天扫描", text)
         self.assertIn("普通包管理器升级", text)
-        self.assertIn("间接依赖", text)
+        self.assertIn("父依赖信息", text)
         self.assertIn("升级父依赖", text)
 
     def test_post_fix_guidance_for_parent_upgrade_warns_about_parent_versions(self):

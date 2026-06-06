@@ -322,31 +322,36 @@ def build_npm_parent_upgrade_plan(analysis, project_path=None):
 
 def build_parent_upgrade_commands(plan):
     commands = []
-    seen = set()
+    seen_parents = set()
+    seen_children = set()
     for entry in plan.get("upgrades") or []:
-        package = entry["upgrade_package"]
-        if package in seen:
-            continue
-        seen.add(package)
-        commands.append((package, ["npm", "install", f"{package}@latest"]))
-    for package in plan.get("child_updates") or []:
-        commands.append((package, ["npm", "update", package]))
+        # Upgrade parent dependency to latest
+        parent = entry["upgrade_package"]
+        if parent not in seen_parents:
+            seen_parents.add(parent)
+            commands.append((parent, ["npm", "install", f"{parent}@latest"]))
+        # Upgrade child dependency to latest
+        child = entry["package"]
+        if child not in seen_children:
+            seen_children.add(child)
+            commands.append((child, ["npm", "install", f"{child}@latest"]))
     return commands
 
 
 def execute_parent_upgrade_fixes(analysis, project_path):
-    """Upgrade root parent dependencies for nested npm residuals."""
+    """Upgrade parent and child dependencies to latest for nested npm residuals."""
     plan = build_npm_parent_upgrade_plan(analysis, project_path)
     commands = build_parent_upgrade_commands(plan)
     if not commands:
         skipped = "; ".join(plan.get("skipped") or ["没有可升级的父依赖"])
         return [], [("npm parent-upgrade", skipped)]
-    print("  已生成父依赖升级计划:")
+    print("  已生成升级计划:")
     for entry in plan.get("upgrades") or []:
         print(
             "    - "
-            f"{entry['upgrade_package']}@latest "
-            f"(处理 {entry['immediate_parent']} > {entry['package']}@{entry['current_version']})"
+            f"{entry['upgrade_package']}@latest + "
+            f"{entry['package']}@latest "
+            f"(清理 {entry['immediate_parent']} > {entry['package']}@{entry['current_version']})"
         )
     return execute_fixes(commands, project_path)
 
@@ -430,16 +435,16 @@ def post_fix_guidance(strategy):
     """Return human-readable guidance for the required verification scan."""
     if strategy == "parent-upgrade":
         return [
-            "父依赖 latest 升级已执行完毕后，请重新运行补天扫描验证结果。",
-            "本策略会先升级锁住嵌套旧版本的根父依赖，再刷新相关子依赖。",
-            "父依赖升到 latest 可能带来兼容性变化；请运行项目测试、构建或启动检查。",
-            "如果复扫仍有残留，说明上游父依赖最新版可能仍未放开该子依赖，需要等待上游修复或单独人工评估。",
+            "父依赖和子依赖已升级到最新版本，请重新运行补天扫描验证结果。",
+            "升级后复扫会生成新报告，打开 HTML 报告查看最终修复状态。",
+            "父依赖和子依赖都升到 latest 可能带来兼容性变化；请运行项目测试、构建或启动检查。",
+            "如果复扫仍有残留，说明上游父依赖最新版可能仍未放开该子依赖，需要等待上游修复或人工评估。",
         ]
     label = strategy_label(strategy)
     return [
-        f"{label}已执行完毕后，请重新运行补天扫描验证结果。",
+        f"{label}已完成，请重新运行补天扫描验证结果。",
         "本脚本只执行普通包管理器升级，不会自动改父依赖链。",
-        "如果复扫仍出现同名旧版本，通常是间接依赖被父包锁定；需要询问用户是否升级父依赖到 latest。",
+        "如果复扫仍出现同名旧版本，报告会标注父依赖信息，可继续升级父依赖。",
     ]
 
 
@@ -459,11 +464,11 @@ def main(argv=None):
     project_path = analysis.get("project", {}).get("path") or "."
     if strategy == "parent-upgrade":
         print()
-        print("正在升级锁住嵌套旧版本的父依赖...")
+        print("正在升级父依赖和残留子依赖到最新版本...")
         successes, failures = execute_parent_upgrade_fixes(analysis, project_path)
         print()
         if successes:
-            print(f"  成功执行 {len(successes)} 个父依赖/子依赖刷新命令")
+            print(f"  成功升级 {len(successes)} 个依赖")
         if failures:
             print(f"  失败 {len(failures)} 个:")
             for pkg, err in failures:
