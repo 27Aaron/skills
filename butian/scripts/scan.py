@@ -82,7 +82,7 @@ _GITIGNORE_STATUS_BY_PROJECT = {}
 HYGIENE_ONLY_NOTICE = (
     "当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；"
     "本次仅做仓库安检，检查硬编码密钥、敏感文件跟踪、.gitignore、"
-    "GitHub Actions、仓库治理/供应链和 IaC/容器配置风险。"
+    "GitHub Actions、依赖与发布治理和 IaC/容器配置风险。"
 )
 CAPABILITY_BOUNDARY = (
     "安全往往不是最显眼的需求，却是产品长期稳定运行的底线。"

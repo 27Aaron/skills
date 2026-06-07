@@ -12,7 +12,7 @@ const toList = (value) => {
 const CAPABILITY_BOUNDARY =
   "安全往往不是最显眼的需求，却是产品长期稳定运行的底线。此 Skill 会帮助你发现依赖漏洞、过期依赖和仓库暴露风险，帮助团队更早暴露容易被忽视的供应链问题。但它不能替代代码审计、渗透测试或部署安全评估；业务逻辑、权限控制、SQL 注入、XSS 等代码层风险仍需单独复核。";
 const HYGIENE_ONLY_NOTICE =
-  "当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；本次仅做仓库安检，检查硬编码密钥、敏感文件跟踪、.gitignore、GitHub Actions、仓库治理/供应链和 IaC/容器配置风险。";
+  "当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；本次仅做仓库安检，检查硬编码密钥、敏感文件跟踪、.gitignore、GitHub Actions、依赖与发布治理和 IaC/容器配置风险。";
 
 // ---- Normalize: accept common field name variations from different agents ----
 const DATA = (() => {
@@ -2734,7 +2734,7 @@ function renderHygiene(h) {
   const missing = toList(h.gitignore_missing);
   const localGroups = [
     ["GitHub Actions 工作流安全", toList(h.workflow_checks)],
-    ["仓库治理与供应链配置", toList(h.repository_checks)],
+    ["依赖与发布治理", toList(h.repository_checks)],
     ["IaC / 容器 / 部署配置", toList(h.iac_checks)],
   ];
   const localCount = localGroups.reduce(
@@ -2761,22 +2761,7 @@ function renderHygiene(h) {
       value: `.gitignore 建议补充 ${missing.slice(0, 8).join("、")}${missing.length > 8 ? " 等规则" : ""}，避免后续误提交敏感文件。`,
     });
   }
-  for (const [label, items] of localGroups) {
-    if (items.length) {
-      const allAdvice = items.every(
-        (item) =>
-          item.kind === "maintenance_advice" ||
-          visibleSeverity(item.severity) === "info",
-      );
-      rows.push({
-        label,
-        value: allAdvice
-          ? `有 ${items.length} 条维护建议，可按项目成熟度决定是否采纳。`
-          : `发现 ${items.length} 个本地规则命中的检查项，需要结合项目场景确认。`,
-      });
-    }
-  }
-  if (!rows.length) {
+  if (!rows.length && !localCount) {
     return "";
   }
 
@@ -2814,13 +2799,13 @@ function renderHygiene(h) {
         const loc = `${x.file || "-"}${x.line ? ":" + x.line : ""}`;
         const badge =
           x.kind === "maintenance_advice"
-            ? `<span class="sev-badge sev-info">维护建议</span>`
+            ? `<span class="sev-badge sev-low">建议</span>`
             : sevBadge(x.severity);
         const evidence = x.evidence
-          ? `<div class="hygiene-finding-detail"><span>证据</span><code class="secret-preview">${esc(x.evidence)}</code></div>`
+          ? `<div class="hygiene-finding-detail"><span>依据</span><code class="secret-preview">${esc(x.evidence)}</code></div>`
           : "";
         const recommendation = x.recommendation
-          ? `<div class="hygiene-finding-detail hygiene-finding-advice"><span>建议</span><p>${esc(x.recommendation)}</p></div>`
+          ? `<div class="hygiene-finding-detail hygiene-finding-advice"><span>处理</span><p>${esc(x.recommendation)}</p></div>`
           : "";
           return `<article class="hygiene-finding"><div class="hygiene-finding-top"><div class="hygiene-finding-title">${badge}<b>${esc(x.title || x.id || "仓库安检项")}</b></div><div class="hygiene-finding-loc">${esc(loc)}</div></div><div class="hygiene-finding-grid">${evidence}${recommendation}</div></article>`;
         })
@@ -2833,11 +2818,12 @@ function renderHygiene(h) {
     })
     .join("");
   const extra = `${basicFindings}${localGroupHtml ? `<div class="hygiene-groups">${localGroupHtml}</div>` : ""}`;
+  const rowHtml = rows.length ? miniFields(rows) : "";
 
   return section(
     "仓库安检",
     count,
-    `<div class="summary hygiene-summary">${miniFields(rows)}${extra}</div>`,
+    `<div class="summary hygiene-summary">${rowHtml}${extra}</div>`,
     "",
     "hygiene",
   );

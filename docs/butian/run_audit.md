@@ -62,7 +62,7 @@ run_audit.py
 │     → scan.json
 │     → stdout: scan JSON
 │     透传: --verbose, --debug, --follow-symlinks
-│     仓库安检会同时产出密钥/敏感文件/.gitignore、GitHub Actions、仓库治理/供应链、IaC/容器结构化 finding
+│     仓库安检会同时产出密钥/敏感文件/.gitignore、GitHub Actions、依赖与发布治理、IaC/容器结构化 finding
 │
 ├─ 3. analyze.py <scan_file> <analysis_path>
 │     → analysis.json
@@ -144,7 +144,7 @@ run_audit.py
 - analysis JSON：.butian/.../assets/analysis.json
 ```
 
-终端摘要只展示仓库安检的基础计数，详细的 GitHub Actions、仓库治理/供应链、IaC/容器 finding 会进入 Markdown 和 HTML 报告的"仓库安检"章节，并继续参与 `red/yellow/green` 风险分级。`hygiene_only` 模式只跳过依赖漏洞和过期依赖检查，不跳过这些本地 Python 仓库安检规则。
+终端摘要只展示仓库安检的基础计数，详细的 GitHub Actions、依赖与发布治理、IaC/容器 finding 会进入 Markdown 和 HTML 报告的"仓库安检"章节，并继续参与 `red/yellow/green` 风险分级。`hygiene_only` 模式只跳过依赖漏洞和过期依赖检查，不跳过这些本地 Python 仓库安检规则。
 
 ## 核心辅助函数
 
@@ -181,7 +181,7 @@ run_audit.py
 - **能力边界声明**：终端摘要中包含明确的能力边界说明
 - **首次标记**：`.butian/.first-scan-done` 标记控制浏览器弹出和 Markdown 生成，复扫不重复
 - **最终报告**：`--final-report` 在修复完成后强制生成最终 Markdown 审计报告
-- **仓库安检明细下沉到报告**：终端保持短摘要，结构化本地规则的证据、建议和分组展示放在 Markdown/HTML 报告里，避免终端输出过长
+- **仓库安检明细下沉到报告**：终端保持短摘要，结构化本地规则的依据、处理方式和分组展示放在 Markdown/HTML 报告里，避免终端输出过长
 
 ## 相关文档
 

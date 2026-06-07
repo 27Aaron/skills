@@ -380,7 +380,7 @@ class RenderHygieneTests(unittest.TestCase):
                         "severity": "info",
                         "confidence": "high",
                         "file": ".github/dependabot.yml",
-                        "title": "建议配置 Dependabot",
+                        "title": "配置 Dependabot",
                         "evidence": "dependabot.yml not found",
                         "recommendation": "可新增 dependabot.yml。",
                         "kind": "maintenance_advice",
@@ -391,8 +391,8 @@ class RenderHygieneTests(unittest.TestCase):
 
         result = report.render_hygiene(analysis)
 
-        self.assertIn("维护建议", result)
-        self.assertIn("建议配置 Dependabot", result)
+        self.assertIn("| 建议 | .github/dependabot.yml | 配置 Dependabot |", result)
+        self.assertNotIn("维护建议", result)
 
 
 # ---------------------------------------------------------------------------

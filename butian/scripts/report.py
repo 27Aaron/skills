@@ -106,7 +106,7 @@ def severity_label(value):
 
 def structured_finding_label(item):
     if item.get("kind") == "maintenance_advice":
-        return "维护建议"
+        return "建议"
     return severity_label(item.get("severity"))
 
 
@@ -193,7 +193,7 @@ def render_hygiene(analysis):
     missing = hygiene.get("gitignore_missing") or []
     structured_groups = [
         ("GitHub Actions 工作流安全", hygiene.get("workflow_checks") or []),
-        ("仓库治理与供应链配置", hygiene.get("repository_checks") or []),
+        ("依赖与发布治理", hygiene.get("repository_checks") or []),
         ("IaC / 容器 / 部署配置", hygiene.get("iac_checks") or []),
     ]
     structured_count = sum(len(items) for _, items in structured_groups)
@@ -231,7 +231,7 @@ def render_hygiene(analysis):
             risk_like_count = structured_count - advice_count
             lines.append(
                 f"- 本地配置检查：发现 {risk_like_count} 个需要确认的仓库安检项，"
-                f"{advice_count} 条维护建议。"
+                f"{advice_count} 条建议。"
             )
     if gitignore_state:
         preexisting = "是" if gitignore_state.get("preexisting") else "否"
@@ -264,7 +264,7 @@ def render_hygiene(analysis):
         lines.append("")
         lines.append(f"### {title}")
         lines.append("")
-        lines.append("| 等级 | 位置 | 检查项 | 证据 | 建议 |")
+        lines.append("| 等级 | 位置 | 检查项 | 依据 | 处理 |")
         lines.append("| --- | --- | --- | --- | --- |")
         for item in items:
             location = item.get("file") or "-"
