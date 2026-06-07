@@ -381,8 +381,8 @@ class RenderHygieneTests(unittest.TestCase):
                         "confidence": "high",
                         "file": ".github/dependabot.yml",
                         "title": "配置 Dependabot",
-                        "evidence": "dependabot.yml not found",
-                        "recommendation": "可新增 dependabot.yml。",
+                        "evidence": "",
+                        "recommendation": "建议新增 .github/dependabot.yml，让 GitHub 按计划检查 .github/workflows 中引用的 Action 版本；如项目还有 npm、pip 等依赖，再补充对应包管理生态，后续通过 Dependabot PR 或通知处理更新。",
                         "kind": "maintenance_advice",
                     }
                 ]
