@@ -725,31 +725,32 @@ td.summary-cell {
     line-height: 1.45;
     overflow-wrap: anywhere;
 }
-.hygiene-finding-grid {
+.hygiene-finding-body {
     display: grid;
-    gap: 7px;
+    gap: 6px;
     margin-top: 9px;
-}
-.hygiene-finding-detail {
-    display: grid;
-    grid-template-columns: 42px minmax(0, 1fr);
-    gap: 9px;
-    align-items: start;
     color: var(--text-soft);
     font-size: 13px;
-    line-height: 1.55;
+    line-height: 1.6;
 }
-.hygiene-finding-detail > span {
-    color: var(--sub);
-    font-size: 12px;
-    font-weight: 700;
-}
-.hygiene-finding-detail code {
-    justify-self: start;
-}
-.hygiene-finding-detail p {
+.hygiene-finding-note,
+.hygiene-finding-advice {
     margin: 0;
     overflow-wrap: anywhere;
+}
+.hygiene-finding-note {
+    width: fit-content;
+    max-width: 100%;
+    border: 1px solid var(--tile-border-soft);
+    border-radius: 7px;
+    background: rgba(148, 163, 184, 0.08);
+    color: var(--sub);
+    padding: 4px 8px;
+    font-size: 12px;
+    line-height: 1.55;
+}
+.hygiene-finding-advice {
+    color: var(--text-soft);
 }
 @media (max-width: 760px) {
     .hygiene-summary .mini-field {

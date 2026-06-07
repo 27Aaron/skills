@@ -463,8 +463,9 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("Dockerfile:2", html)
         self.assertIn('class="hygiene-group"', html)
         self.assertIn('class="hygiene-finding"', html)
-        self.assertIn("依据", html)
-        self.assertIn("处理", html)
+        self.assertIn('class="hygiene-finding-note hygiene-finding-context"', html)
+        self.assertNotIn("<span>依据</span>", html)
+        self.assertNotIn("<span>处理</span>", html)
 
     def test_html_renders_dependabot_as_maintenance_advice(self):
         data = {
@@ -493,8 +494,8 @@ class ButianReportAssetTests(unittest.TestCase):
                         "confidence": "high",
                         "file": ".github/dependabot.yml",
                         "title": "配置 Dependabot",
-                        "evidence": "dependabot.yml not found",
-                        "recommendation": "可新增 dependabot.yml。",
+                        "evidence": "",
+                        "recommendation": "建议新增 .github/dependabot.yml，让 GitHub 按计划检查 .github/workflows 中引用的 Action 版本；如项目还有 npm、pip 等依赖，再补充对应包管理生态，后续通过 Dependabot PR 或通知处理更新。",
                         "kind": "maintenance_advice",
                     }
                 ]
@@ -507,6 +508,8 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("依赖配置与维护", html)
         self.assertIn('class="sev-badge sev-low">建议</span>', html)
         self.assertIn("配置 Dependabot", html)
+        self.assertNotIn("检测到 .github/workflows/", html)
+        self.assertNotIn("dependabot.yml not found", html)
         self.assertNotIn("维护建议", html)
         self.assertNotIn("有 1 条", html)
 

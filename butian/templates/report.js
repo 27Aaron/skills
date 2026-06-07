@@ -2819,13 +2819,13 @@ function renderHygiene(h) {
           x.kind === "maintenance_advice"
             ? `<span class="sev-badge sev-low">建议</span>`
             : sevBadge(x.severity);
-        const evidence = x.evidence
-          ? `<div class="hygiene-finding-detail"><span>依据</span><code class="secret-preview">${esc(x.evidence)}</code></div>`
+        const evidence = x.evidence && x.kind !== "maintenance_advice"
+          ? `<div class="hygiene-finding-note hygiene-finding-context">${esc(x.evidence)}</div>`
           : "";
         const recommendation = x.recommendation
-          ? `<div class="hygiene-finding-detail hygiene-finding-advice"><span>处理</span><p>${esc(x.recommendation)}</p></div>`
+          ? `<p class="hygiene-finding-advice">${esc(x.recommendation)}</p>`
           : "";
-          return `<article class="hygiene-finding"><div class="hygiene-finding-top"><div class="hygiene-finding-title">${badge}<b>${esc(x.title || x.id || "仓库安检项")}</b></div><div class="hygiene-finding-loc">${esc(loc)}</div></div><div class="hygiene-finding-grid">${evidence}${recommendation}</div></article>`;
+          return `<article class="hygiene-finding"><div class="hygiene-finding-top"><div class="hygiene-finding-title">${badge}<b>${esc(x.title || x.id || "仓库安检项")}</b></div><div class="hygiene-finding-loc">${esc(loc)}</div></div><div class="hygiene-finding-body">${evidence}${recommendation}</div></article>`;
         })
         .join("");
       const groupMore =
