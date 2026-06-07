@@ -9,7 +9,6 @@ import re
 try:
     from .finding_utils import (
         dedupe_findings,
-        iter_files,
         line_for_text,
         make_finding,
         read_text,
@@ -18,7 +17,6 @@ try:
 except ImportError:  # pragma: no cover
     from finding_utils import (  # pyright: ignore[reportMissingImports]
         dedupe_findings,
-        iter_files,
         line_for_text,
         make_finding,
         read_text,
@@ -81,33 +79,6 @@ def _has_lockfile_for_manifest(project_path, manifest):
         "Cargo.toml": ("Cargo.lock",),
     }
     return _exists_any(project_path, checks.get(manifest, ()))
-
-
-def _release_integrity_hints(project_path):
-    hints = (
-        "sbom",
-        "cyclonedx",
-        "spdx",
-        "attestation",
-        "attest",
-        "provenance",
-        "cosign",
-        "sigstore",
-        "slsa",
-        "syft",
-    )
-    for path in iter_files(
-        project_path,
-        suffixes=(".yml", ".yaml", ".json", ".toml", ".md", ".sh"),
-        max_files=800,
-    ):
-        name = os.path.basename(path).lower()
-        if any(hint in name for hint in hints):
-            return True
-        text = read_text(path, max_bytes=128 * 1024).lower()
-        if any(hint in text for hint in hints):
-            return True
-    return False
 
 
 def _package_script_findings(project_path):
@@ -298,22 +269,5 @@ def scan_repository_checks(project_path: str, ecosystems=None):
 
     findings.extend(_package_script_findings(project_path))
     findings.extend(_registry_config_findings(project_path))
-
-    if not _release_integrity_hints(project_path):
-        findings.append(
-            make_finding(
-                "release.integrity_hints_missing",
-                category="release_integrity",
-                severity="info",
-                confidence="low",
-                file="",
-                line=None,
-                title="补充发布完整性信号",
-                detail="面向专业用户或供应链审计时，SBOM、签名、attestation/provenance 可以提高发布链路可信度。",
-                evidence="no sbom/signing/attestation hints",
-                recommendation="按项目成熟度决定是否引入 SBOM、cosign/sigstore、SLSA provenance 或发布包签名。",
-                kind="maintenance_advice",
-            )
-        )
 
     return dedupe_findings(findings)

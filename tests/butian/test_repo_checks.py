@@ -180,17 +180,6 @@ class RepositoryChecksTests(unittest.TestCase):
             self.assertEqual(item["severity"], "medium")
             self.assertIn("trusted-host", item["evidence"])
 
-    def test_reports_release_integrity_as_info_when_no_hints(self):
-        with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
-            findings = repo_checks.scan_repository_checks(root)
-
-            release = [
-                f for f in findings if f["id"] == "release.integrity_hints_missing"
-            ]
-            self.assertEqual(release[0]["severity"], "info")
-            self.assertEqual(release[0]["kind"], "maintenance_advice")
-            self.assertIn("发布完整性", release[0]["title"])
-
 
 if __name__ == "__main__":
     unittest.main()
