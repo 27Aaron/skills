@@ -653,7 +653,8 @@ class ButianReportAssetTests(unittest.TestCase):
             "outdated": [],
         }
         html = self._render_html(data)
-        self.assertIn("仍以当前风险为准", html)
+        self.assertIn("版本维护规划", html)
+        self.assertIn("发布窗口", html)
 
 
 if __name__ == "__main__":

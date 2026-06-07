@@ -415,20 +415,22 @@ class RenderOutdatedTests(unittest.TestCase):
         self.assertIn("react", result)
         self.assertIn("18.2.0", result)
         self.assertIn("19.1.0", result)
-        self.assertIn("已确认风险项", result)
-        self.assertIn("命中风险项", result)
+        self.assertIn("版本维护优化项", result)
+        self.assertIn("发布窗口", result)
 
     def test_no_outdated(self):
         result = report.render_outdated(
             {"scan_config": {"scan_mode": "full_dependency_scan"}}
         )
         self.assertIn("没有检测到", result)
-        self.assertIn("仍以命中风险项为准", result)
+        self.assertIn("版本维护规划", result)
+        self.assertIn("发布窗口", result)
 
     def test_hygiene_only(self):
         result = report.render_outdated({"scan_config": {"scan_mode": "hygiene_only"}})
         self.assertIn("暂无法执行", result)
-        self.assertIn("仍以命中风险项为准", result)
+        self.assertIn("版本维护规划", result)
+        self.assertIn("发布窗口", result)
 
 
 # ---------------------------------------------------------------------------

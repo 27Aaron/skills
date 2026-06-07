@@ -753,7 +753,7 @@ class TestBuildHygieneItems(unittest.TestCase):
                         "confidence": "high",
                         "file": ".github/dependabot.yml",
                         "title": "建议配置 Dependabot",
-                        "detail": "这属于维护建议，不代表当前存在漏洞。",
+                        "detail": "这属于维护建议，适合按项目维护节奏评估。",
                         "evidence": "dependabot.yml not found",
                         "recommendation": "可新增 dependabot.yml。",
                         "kind": "maintenance_advice",

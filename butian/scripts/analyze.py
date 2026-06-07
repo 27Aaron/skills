@@ -515,7 +515,7 @@ def build_hygiene_items(scan):
                 "type": "gitignore_missing",
                 "severity": "low",
                 "path": ".gitignore",
-                "why_manual": "缺少忽略规则不代表已经泄露，但会提高后续误提交敏感文件的概率。",
+                "why_manual": "补齐忽略规则可以降低后续误提交敏感文件的概率。",
                 "risk": "未来新增 .env、证书、数据库或日志文件时，可能被意外提交。",
                 "disposal": f"建议补充这些规则：{'、'.join(map(str, missing_rules))}。",
             }
@@ -744,7 +744,7 @@ def build_summary(scan, analysis):
             f"命中 {vuln_count} 个已确认风险项。仓库安检方面，发现疑似硬编码凭证 {secret_count} 处、"
             f"被 git 跟踪的敏感文件 {sensitive_count} 个、建议补充的 .gitignore 规则 {missing_count} 条、"
             f"本地配置/工作流检查项 {local_check_count} 个、维护建议 {maintenance_advice_count} 条。"
-            f"过期依赖 {outdated_count} 个仅作为维护信号，不等同于漏洞。"
+            f"过期依赖 {outdated_count} 个，建议按维护窗口和兼容性评估安排升级。"
         )
 
     priority = []
@@ -765,7 +765,7 @@ def build_summary(scan, analysis):
     if missing_count:
         priority.append("补充 .gitignore 敏感文件规则，降低后续误提交概率。")
     if outdated_count:
-        priority.append("过期依赖按维护计划处理，不要在没有漏洞证据时当作安全事故。")
+        priority.append("过期依赖按维护计划处理，结合版本跨度、兼容性和发布窗口分批升级。")
     if dependency_fix_count:
         priority.append(
             "依赖修复后必须重新运行补天扫描；如果仍出现同名旧版本，通常是间接依赖被父包锁定，"
