@@ -135,7 +135,7 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 | --- | --- |
 | `finding_utils.py` | 统一 finding schema、文件读取、路径、行号、证据截断和去重工具；所有新增本地规则都通过它输出同一种结构 |
 | `workflow_checks.py` | 本地解析 `.github/workflows/*.yml` / `.github/workflows/*.yaml`，检查过宽 permissions、缺少显式最小权限边界、危险 trigger、checkout 凭据持久化、不可信上下文进入 `run:`、远程脚本管道执行、PR self-hosted runner 等风险 |
-| `repo_checks.py` | 检查 `dependabot.yml` 建议、lockfile 缺失、可疑安装脚本、registry 来源/token/TLS 配置 |
+| `repo_checks.py` | 在项目已有 `.github/` 时检查 `dependabot.yml` 建议；同时检查 lockfile 缺失、可疑安装脚本、registry 来源/token/TLS 配置 |
 | `iac_checks.py` | 检查 Dockerfile、Compose、Kubernetes、Terraform 中的常见本地配置风险 |
 
 新增 `hygiene` 输出字段保持纯本地实现，不调用外部扫描器，也不创建 CI/CD workflow：
@@ -187,7 +187,7 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 | 分组                      | 字段                | 重点规则                                                                                                                                                                                                                                      | 严重度倾向                |
 | ------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
 | GitHub Actions 工作流安全 | `workflow_checks`   | `permissions: write-all`、建议声明显式最小 permissions、高风险 trigger + checkout、未关闭 `persist-credentials`、不可信上下文进入 `run:`、`curl/wget \| sh`、PR 使用 self-hosted runner | `high` / `medium` / `low` |
-| 依赖配置与维护            | `repository_checks` | Dependabot 未配置或未覆盖 `github-actions` / 当前包生态；以建议形式展示，便于团队纳入版本维护流程                                                                                                                                            | `info`                    |
+| 依赖配置与维护            | `repository_checks` | 项目已有 `.github/` 但未配置 Dependabot；检测到 `.github/workflows/` 时检查 Dependabot 是否纳入 workflow 中引用的 Action 版本维护；同时检查当前包生态是否已有版本维护提醒，后续可通过 Dependabot PR 或通知处理更新。以建议形式展示，便于团队纳入维护流程 | `info`                    |
 | 供应链配置                | `repository_checks` | manifest 缺 lockfile、安装脚本下载远程脚本或 base64 解码执行、registry 配置中出现 token/password/secret、仓库包含 registry 来源配置需确认、registry TLS 校验被降低                                                                             | `high` / `medium` / `low` |
 | IaC / 容器 / 部署配置     | `iac_checks`        | Dockerfile 使用 `latest`、缺非 root `USER`、远程脚本管道执行、`ADD` 远程 URL、明文 `ENV` secret、Compose privileged / Docker socket / 敏感端口、Kubernetes Secret/privileged/hostPath/hostNetwork/root、Terraform state/tfvars 和公网敏感端口 | `high` / `medium` / `low` |
 

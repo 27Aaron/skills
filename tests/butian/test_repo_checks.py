@@ -60,8 +60,33 @@ class RepositoryChecksTests(unittest.TestCase):
                 any("codeowners" in f["id"] for f in findings)
             )
 
+    def test_dependabot_advice_is_skipped_without_github_directory(self):
+        with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
+            write(os.path.join(root, "package.json"), "{}\n")
+            write(os.path.join(root, "package-lock.json"), "{}\n")
+
+            findings = repo_checks.scan_repository_checks(root, ecosystems=["npm"])
+
+            self.assertFalse(
+                any(f["id"] == "repo.missing_dependabot" for f in findings)
+            )
+
+    def test_dependabot_advice_is_reported_when_github_directory_exists(self):
+        with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
+            os.makedirs(os.path.join(root, ".github"), exist_ok=True)
+
+            findings = repo_checks.scan_repository_checks(root)
+
+            self.assertTrue(
+                any(f["id"] == "repo.missing_dependabot" for f in findings)
+            )
+            item = next(f for f in findings if f["id"] == "repo.missing_dependabot")
+            self.assertEqual(item["evidence"], "")
+            self.assertIn(".github/dependabot.yml", item["recommendation"])
+
     def test_dependabot_missing_github_actions_ecosystem(self):
         with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
+            write(os.path.join(root, ".github", "workflows", "ci.yml"), "name: ci\n")
             write(
                 os.path.join(root, ".github", "dependabot.yml"),
                 "version: 2\nupdates:\n  - package-ecosystem: npm\n",
@@ -82,7 +107,24 @@ class RepositoryChecksTests(unittest.TestCase):
             )
             self.assertEqual(item["severity"], "info")
             self.assertEqual(item["kind"], "maintenance_advice")
-            self.assertIn("GitHub Actions", item["title"])
+            self.assertIn("Action 版本", item["title"])
+            self.assertEqual(item["evidence"], "")
+
+    def test_dependabot_does_not_require_github_actions_without_workflows(self):
+        with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
+            write(
+                os.path.join(root, ".github", "dependabot.yml"),
+                "version: 2\nupdates:\n  - package-ecosystem: npm\n",
+            )
+
+            findings = repo_checks.scan_repository_checks(root, ecosystems=["npm"])
+
+            self.assertFalse(
+                any(
+                    f["id"] == "repo.dependabot_missing_github_actions"
+                    for f in findings
+                )
+            )
 
     def test_detects_manifest_without_lockfile(self):
         with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:

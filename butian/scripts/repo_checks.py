@@ -192,7 +192,20 @@ def scan_repository_checks(project_path: str, ecosystems=None):
     ecosystems = ecosystems or []
 
     dependabot_path, dependabot = _dependabot_text(project_path)
-    if not dependabot:
+    has_github_config = os.path.exists(os.path.join(project_path, ".github"))
+    has_github_actions = os.path.isdir(
+        os.path.join(project_path, ".github", "workflows")
+    )
+    if not dependabot and has_github_config:
+        if has_github_actions:
+            detail = "检测到项目使用 GitHub Actions；Dependabot 可定期检查 workflow 中引用的 Action 版本，减少人工维护遗漏。"
+            recommendation = (
+                "建议新增 .github/dependabot.yml，让 GitHub 按计划检查 .github/workflows 中引用的 Action 版本；"
+                "如项目还有 npm、pip 等依赖，再补充对应包管理生态，后续通过 Dependabot PR 或通知处理更新。"
+            )
+        else:
+            detail = "检测到项目已有 .github 配置；补齐 Dependabot 后，依赖版本维护会有固定提醒。"
+            recommendation = "建议新增 .github/dependabot.yml，并按项目实际依赖补充对应包管理生态。"
         findings.append(
             make_finding(
                 "repo.missing_dependabot",
@@ -202,13 +215,13 @@ def scan_repository_checks(project_path: str, ecosystems=None):
                 file=".github/dependabot.yml",
                 line=None,
                 title="配置 Dependabot",
-                detail="Dependabot 可以定期提醒依赖和 GitHub Actions 更新；补齐后续维护提醒能减少人工遗漏。",
-                evidence="dependabot.yml not found",
-                recommendation="如项目使用 GitHub，可新增本地可审阅的 .github/dependabot.yml，覆盖 github-actions 和主要包管理生态。",
+                detail=detail,
+                evidence="",
+                recommendation=recommendation,
                 kind="maintenance_advice",
             )
         )
-    elif "package-ecosystem: github-actions" not in dependabot:
+    elif has_github_actions and "package-ecosystem: github-actions" not in dependabot:
         findings.append(
             make_finding(
                 "repo.dependabot_missing_github_actions",
@@ -217,10 +230,10 @@ def scan_repository_checks(project_path: str, ecosystems=None):
                 confidence="high",
                 file=relpath(dependabot_path, project_path),
                 line=1,
-                title="覆盖 GitHub Actions 更新",
-                detail="Actions 版本同样属于供应链依赖；补齐该配置后，工作流依赖更新会有固定提醒。",
-                evidence="missing package-ecosystem: github-actions",
-                recommendation="可在 dependabot.yml 中加入 package-ecosystem: github-actions 和 /.github/workflows 目录。",
+                title="维护 workflow 中的 Action 版本",
+                detail="这里用于检查 workflow 里 uses: 引用的 Action 版本；更新节奏由 Dependabot 的 schedule 控制。",
+                evidence="",
+                recommendation="建议在 dependabot.yml 中加入 package-ecosystem: github-actions，directory 设为 /，用于维护 .github/workflows 中引用的 Action 版本。",
                 kind="maintenance_advice",
             )
         )
@@ -242,7 +255,7 @@ def scan_repository_checks(project_path: str, ecosystems=None):
                     line=1,
                     title="覆盖当前依赖生态",
                     detail=f"本项目检测到 {ecosystem}，但 dependabot.yml 未覆盖对应生态 {expected}；补齐后可以让依赖版本维护有固定提醒。",
-                    evidence=f"missing package-ecosystem: {expected}",
+                    evidence="",
                     recommendation="可补充对应 package-ecosystem，让依赖版本维护有固定提醒。",
                     kind="maintenance_advice",
                 )
