@@ -2828,11 +2828,9 @@ class ExpandedHygieneIntegrationTests(unittest.TestCase):
                 },
             )
             self.assertIn("coverage", result)
-            self.assertTrue(
-                any(
-                    item["id"] == "actions.unpinned_action"
-                    for item in result["workflow_checks"]
-                )
+            self.assertEqual(
+                {item["id"] for item in result["workflow_checks"]},
+                {"actions.missing_permissions", "actions.self_hosted_pr_runner"},
             )
             self.assertTrue(
                 any(

@@ -167,16 +167,16 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 
 ```json
 {
-  "id": "actions.unpinned_action",
+  "id": "actions.remote_script_pipe",
   "category": "github_actions",
   "severity": "medium",
   "confidence": "high",
   "file": ".github/workflows/ci.yml",
-  "line": 18,
-  "title": "第三方 Action 未固定到完整 commit SHA",
-  "detail": "tag 可能被移动，供应链安全要求更高的仓库建议固定到完整 commit SHA。",
-  "evidence": "uses: actions/checkout@v4",
-  "recommendation": "改为 owner/repo@<40位commit sha>，并在同一行注释保留原版本号方便 Dependabot 维护。",
+  "line": 24,
+  "title": "workflow 直接执行远程脚本",
+  "detail": "curl/wget 管道到 shell 缺少完整性校验，远端脚本被替换时会直接在 runner 上执行。",
+  "evidence": "run: curl https://example.com/install.sh | bash",
+  "recommendation": "下载固定版本并校验 checksum/signature，或使用可信 action/包管理器替代。",
   "source": "builtin",
   "fixable": false
 }
@@ -186,7 +186,7 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 
 | 分组                      | 字段                | 重点规则                                                                                                                                                                                                                                      | 严重度倾向                |
 | ------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| GitHub Actions 工作流安全 | `workflow_checks`   | 第三方 Action 未 pin 完整 SHA、`permissions: write-all`、缺少显式 permissions、高风险 trigger + checkout、未关闭 `persist-credentials`、不可信上下文进入 `run:`、`curl/wget \| sh`、PR 使用 self-hosted runner                                | `high` / `medium` / `low` |
+| GitHub Actions 工作流安全 | `workflow_checks`   | `permissions: write-all`、缺少显式 permissions、高风险 trigger + checkout、未关闭 `persist-credentials`、不可信上下文进入 `run:`、`curl/wget \| sh`、PR 使用 self-hosted runner | `high` / `medium` / `low` |
 | 仓库治理                  | `repository_checks` | 缺 `SECURITY.md`、缺 `CODEOWNERS`、CODEOWNERS 未覆盖 `.github/workflows/`、缺 Dependabot、Dependabot 未覆盖 `github-actions` 或当前包生态                                                                                                     | `medium` / `low`          |
 | 供应链配置                | `repository_checks` | manifest 缺 lockfile、安装脚本下载远程脚本或 base64 解码执行、registry 配置中出现 token/password/secret、仓库包含 registry 配置需确认来源                                                                                                     | `high` / `medium` / `low` |
 | 发布完整性信号            | `repository_checks` | 未发现 SBOM、签名、attestation、provenance、cosign、sigstore、SLSA 等配置迹象；这是专业用户参考信号，不当作硬漏洞                                                                                                                             | `info`                    |

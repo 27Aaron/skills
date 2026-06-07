@@ -26,8 +26,6 @@ except ImportError:  # pragma: no cover - script execution fallback
 
 
 WORKFLOW_DIR = os.path.join(".github", "workflows")
-FULL_SHA_RE = re.compile(r"^[0-9a-fA-F]{40}$")
-USES_RE = re.compile(r"^\s*(?:-\s*)?uses:\s*([^\s#]+)", re.MULTILINE)
 RISKY_TRIGGERS = ("pull_request_target", "workflow_run", "issue_comment")
 PR_TRIGGERS = ("pull_request", "pull_request_target")
 UNTRUSTED_CONTEXT_RE = re.compile(
@@ -66,39 +64,6 @@ def _line_for_regex(path: str, pattern: str) -> int | None:
     return None
 
 
-def _check_unpinned_actions(project_path, path, text):
-    findings = []
-    for match in USES_RE.finditer(text):
-        ref = match.group(1).strip().strip("'\"")
-        if ref.startswith("./") or ref.startswith("../"):
-            continue
-        if ref.startswith("docker://"):
-            continue
-        if "@" not in ref:
-            continue
-        action, version = ref.rsplit("@", 1)
-        if FULL_SHA_RE.fullmatch(version):
-            continue
-        findings.append(
-            make_finding(
-                "actions.unpinned_action",
-                category="github_actions",
-                severity="medium",
-                confidence="high",
-                file=relpath(path, project_path),
-                line=text[: match.start()].count("\n") + 1,
-                title="第三方 Action 未固定到完整 commit SHA",
-                detail=(
-                    f"{action} 当前使用 {version} 这类 tag 或分支引用；tag 可能被移动，"
-                    "供应链安全要求更高的仓库建议固定到完整 commit SHA。"
-                ),
-                evidence=match.group(0),
-                recommendation="改为 owner/repo@<40位commit sha>，并在同一行注释保留原版本号方便 Dependabot 维护。",
-            )
-        )
-    return findings
-
-
 def scan_workflows(project_path: str):
     findings = []
     for path in workflow_files(project_path):
@@ -106,7 +71,6 @@ def scan_workflows(project_path: str):
         if not text:
             continue
         rel = relpath(path, project_path)
-        findings.extend(_check_unpinned_actions(project_path, path, text))
 
         if re.search(r"^\s*permissions:\s*write-all\s*$", text, re.MULTILINE):
             evidence = re.search(

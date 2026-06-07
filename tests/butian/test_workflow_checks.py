@@ -12,30 +12,31 @@ def write(path, content):
 
 
 class WorkflowChecksTests(unittest.TestCase):
-    def test_detects_unpinned_action(self):
+    def test_ignores_major_version_action_tags(self):
         with tempfile.TemporaryDirectory(prefix="butian-workflow-") as root:
             write(
                 os.path.join(root, ".github", "workflows", "ci.yml"),
-                "on: [push]\njobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n",
+                "on: [push]\npermissions: contents: read\njobs:\n  test:\n    steps:\n"
+                "      - uses: actions/checkout@v4\n"
+                "      - uses: docker/setup-buildx-action@v3\n",
             )
 
             findings = workflow_checks.scan_workflows(root)
 
-            self.assertTrue(any(f["id"] == "actions.unpinned_action" for f in findings))
+            self.assertEqual([], findings)
 
-    def test_allows_full_commit_sha_pin(self):
+    def test_ignores_full_sha_action_refs(self):
         sha = "a" * 40
         with tempfile.TemporaryDirectory(prefix="butian-workflow-") as root:
             write(
                 os.path.join(root, ".github", "workflows", "ci.yml"),
-                f"on: [push]\njobs:\n  test:\n    steps:\n      - uses: actions/checkout@{sha}\n",
+                "on: [push]\npermissions: contents: read\njobs:\n  test:\n"
+                f"    steps:\n      - uses: actions/checkout@{sha}\n",
             )
 
             findings = workflow_checks.scan_workflows(root)
 
-            self.assertFalse(
-                any(f["id"] == "actions.unpinned_action" for f in findings)
-            )
+            self.assertEqual([], findings)
 
     def test_detects_overbroad_permissions(self):
         with tempfile.TemporaryDirectory(prefix="butian-workflow-") as root:
