@@ -40,7 +40,7 @@ python3 run_audit.py --final-report .       # 最终复扫：强制生成 Markdo
 | `project_path`        | 位置参数 | `.`    | 项目路径                         |
 | `--no-root-discovery` | flag     | false  | 不向上遍历查找项目根             |
 | `--skip-outdated`     | flag     | false  | 跳过过期依赖检查                 |
-| `--skip-hygiene`      | flag     | false  | 跳过仓库卫生检查                 |
+| `--skip-hygiene`      | flag     | false  | 跳过仓库安检                     |
 | `--max-secret-files`  | int      | None   | 限制密钥扫描的文件数量           |
 | `--include-packages`  | flag     | false  | 在扫描输出中包含完整包列表       |
 | `--no-open`           | flag     | false  | 不自动打开 HTML 报告             |
@@ -115,7 +115,7 @@ run_audit.py
 
 - 总依赖：142 个 npm 包
 - 已确认风险项：5 个
-- 仓库卫生：0 个硬编码凭证 / 0 个跟踪的敏感文件 / .gitignore 完整
+- 仓库安检：0 个硬编码凭证 / 0 个跟踪的敏感文件 / .gitignore 完整
 - 过期依赖：3 个（仅作维护信号，不算漏洞）
 - 扫描错误：无
 

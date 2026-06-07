@@ -226,7 +226,7 @@ class RenderSummaryTests(unittest.TestCase):
 
     def test_hygiene_only(self):
         analysis = {
-            "summary": {"tldr": "卫生扫描"},
+            "summary": {"tldr": "仓库安检"},
             "scan_config": {"scan_mode": "hygiene_only"},
         }
         result = report.render_summary(analysis)

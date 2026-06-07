@@ -265,7 +265,7 @@ def risk_nature(issues):
 def mode_label(scan_mode):
     labels = {
         "full_dependency_scan": "完整依赖漏洞扫描",
-        "hygiene_only": "仓库卫生扫描",
+        "hygiene_only": "仓库安检",
     }
     return labels.get(scan_mode, "安全扫描")
 
@@ -398,7 +398,7 @@ def format_human_summary(summary, scan, analysis, args):
         "",
         f"- 总依赖：{total_packages} 个{dependency_unit}",
         f"- 已确认风险项：{analysis.get('vulnerability_count', len(analysis.get('top_issues') or []))} 个",
-        f"- 仓库卫生：{secret_count} 个硬编码凭证 / {sensitive_count} 个跟踪的敏感文件 / {gitignore_label}",
+        f"- 仓库安检：{secret_count} 个硬编码凭证 / {sensitive_count} 个跟踪的敏感文件 / {gitignore_label}",
         f"- 过期依赖：{analysis.get('outdated_count', len(analysis.get('outdated') or []))} 个（仅作维护信号，不算漏洞）",
         f"- 扫描错误：{error_label}",
         "",

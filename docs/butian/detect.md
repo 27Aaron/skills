@@ -63,7 +63,7 @@ python3 detect.py --compact              # 输出紧凑 JSON
 扫描模式逻辑：
 
 - 发现支持的 lockfile → `"full_dependency_scan"`
-- 未发现 → `"hygiene_only"`（仅仓库卫生扫描）
+- 未发现 → `"hygiene_only"`（仅仓库安检）
 
 ### `default_output_path(project_path)`
 

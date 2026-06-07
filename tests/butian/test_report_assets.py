@@ -43,6 +43,7 @@ class ButianReportAssetTests(unittest.TestCase):
         markdown = report.render_markdown(analysis)
 
         self.assertIn("暂无法执行依赖漏洞扫描", markdown)
+        self.assertIn("仓库安检", markdown)
         self.assertNotIn("未命中已确认的依赖风险项。", markdown)
 
     def test_markdown_info_severity_is_pending_not_low_risk(self):
@@ -149,6 +150,7 @@ class ButianReportAssetTests(unittest.TestCase):
         html = result.stdout
 
         self.assertIn("暂无法执行依赖漏洞扫描", html)
+        self.assertIn("仓库安检", html)
         self.assertNotIn("未命中已确认的依赖风险项", html)
 
     def test_fixed_versions_render_as_wrapping_chips(self):
@@ -435,7 +437,7 @@ class ButianReportAssetTests(unittest.TestCase):
             "outdated": [],
         }
         html = self._render_html(data)
-        self.assertIn("已确认风险项 1 个", html)
+        self.assertIn("识别出 1 个已确认风险项", html)
         self.assertIn("已确认依赖风险项", html)
 
     def test_readable_tldr_and_detail_use_risk_item_term(self):

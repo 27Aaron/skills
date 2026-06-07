@@ -68,7 +68,7 @@ SEVERITY_ORDER = {
 | 函数                                     | 作用                                                                                     |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------- |
 | `build_top_issues(scan)`                 | 将漏洞列表标准化，补充 `tier`（red/yellow/green）、`rank`（排名）、`summary`（中文摘要） |
-| `build_hygiene_items(scan)`              | 将仓库卫生问题分为 red（高危敏感文件）、yellow（疑似凭证、缺规则）、green（修复建议）    |
+| `build_hygiene_items(scan)`              | 将仓库安检问题分为 red（高危敏感文件）、yellow（疑似凭证、缺规则）、green（修复建议）    |
 | `build_dependency_fix_items(top_issues)` | 按包分组漏洞，生成升级建议（包含目标版本、涉及的公告 ID）                                |
 
 ### 摘要生成

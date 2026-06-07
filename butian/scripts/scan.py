@@ -2,7 +2,7 @@
 """Project security scanner.
 
 Collects security-related data and outputs JSON for agent analysis:
-  1. Repository hygiene (gitignore, sensitive file tracking, hardcoded secrets)
+  1. Repository security checks (gitignore, sensitive file tracking, hardcoded secrets)
   2. Dependency ecosystem detection and package coordinate extraction
   3. Vulnerability checks via OSV, NVD, CISA KEV, and FIRST EPSS
   4. Outdated dependency checks
@@ -70,11 +70,11 @@ BUTIAN_CONTENT_DIR = "content"
 _GITIGNORE_STATUS_BY_PROJECT = {}
 HYGIENE_ONLY_NOTICE = (
     "当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；"
-    "本次仅做仓库卫生扫描，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。"
+    "本次仅做仓库安检，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。"
 )
 CAPABILITY_BOUNDARY = (
     "安全往往不是最显眼的需求，却是产品长期稳定运行的底线。"
-    "此 Skill 会帮助你发现依赖漏洞、过期依赖和仓库卫生风险，"
+    "此 Skill 会帮助你发现依赖漏洞、过期依赖和仓库暴露风险，"
     "帮助团队更早暴露容易被忽视的供应链问题。"
     "但它不能替代代码审计、渗透测试或部署安全评估；"
     "业务逻辑、权限控制、SQL 注入、XSS 等代码层风险仍需单独复核。"
@@ -1110,7 +1110,7 @@ def is_git_worktree(path):
 
 
 # ---------------------------------------------------------------------------
-# Step 1: Repository hygiene
+# Step 1: Repository security checks
 # ---------------------------------------------------------------------------
 
 
@@ -3591,7 +3591,7 @@ def main():
     def run_hygiene_step():
         step_started = time.time()
         if args.skip_hygiene:
-            logger.info("Step 3/5 卫生扫描: 跳过 (--skip-hygiene)")
+            logger.info("Step 3/5 仓库安检: 跳过 (--skip-hygiene)")
             return (
                 "hygiene",
                 {"skipped": True},
@@ -3601,7 +3601,7 @@ def main():
         try:
             secret_file_limit = max(0, int(args.max_secret_files or 0))
             logger.info(
-                "Step 3/5 卫生扫描开始 (max_secret_files=%d)...", secret_file_limit
+                "Step 3/5 仓库安检开始 (max_secret_files=%d)...", secret_file_limit
             )
             result = scan_hygiene(
                 project_path,
@@ -3611,14 +3611,14 @@ def main():
             n_secrets = len(result.get("tracked_secrets") or [])
             n_sensitive = len(result.get("sensitive_tracked") or [])
             logger.info(
-                "Step 3/5 卫生扫描完成: %d 密钥, %d 敏感文件, 耗时 %.3fs",
+                "Step 3/5 仓库安检完成: %d 密钥, %d 敏感文件, 耗时 %.3fs",
                 n_secrets,
                 n_sensitive,
                 round(time.time() - step_started, 3),
             )
             return "hygiene", result, [], round(time.time() - step_started, 3)
         except Exception as e:
-            logger.error("Step 3/5 卫生扫描失败: %s", e)
+            logger.error("Step 3/5 仓库安检失败: %s", e)
             return (
                 "hygiene",
                 {},

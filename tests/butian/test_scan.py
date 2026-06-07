@@ -363,7 +363,8 @@ class ButianScanTests(unittest.TestCase):
             skill_doc = handle.read()
 
         self.assertIn(
-            "check local dependency security and repository hygiene", skill_doc
+            "check local dependency security, run repository security checks",
+            skill_doc,
         )
         self.assertIn("不修改源码、依赖、数据库、日志或任意项目文件", skill_doc)
         self.assertIn("会创建/更新 `.butian/` 本地报告工作区", skill_doc)

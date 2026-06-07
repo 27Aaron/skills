@@ -13,7 +13,7 @@ $summary
 
 $vulnerabilities
 
-## 仓库卫生扫描
+## 仓库安检
 
 $hygiene
 

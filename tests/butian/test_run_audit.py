@@ -239,7 +239,7 @@ class ModeLabelTests(unittest.TestCase):
         )
 
     def test_hygiene(self):
-        self.assertEqual(run_audit.mode_label("hygiene_only"), "仓库卫生扫描")
+        self.assertEqual(run_audit.mode_label("hygiene_only"), "仓库安检")
 
     def test_unknown(self):
         self.assertEqual(run_audit.mode_label("custom"), "安全扫描")
@@ -350,7 +350,7 @@ class FormatHumanSummaryTests(unittest.TestCase):
         }
         args = SimpleNamespace(no_open=True, final_report=False)
         result = run_audit.format_human_summary(summary, scan, analysis, args)
-        self.assertIn("仓库卫生扫描", result)
+        self.assertIn("仓库安检", result)
         self.assertIn("暂无法执行依赖漏洞扫描", result)
 
     def test_full_scan_with_vulns(self):

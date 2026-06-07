@@ -10,9 +10,9 @@ const toList = (value) => {
     .filter(Boolean);
 };
 const CAPABILITY_BOUNDARY =
-  "安全往往不是最显眼的需求，却是产品长期稳定运行的底线。此 Skill 会帮助你发现依赖漏洞、过期依赖和仓库卫生风险，帮助团队更早暴露容易被忽视的供应链问题。但它不能替代代码审计、渗透测试或部署安全评估；业务逻辑、权限控制、SQL 注入、XSS 等代码层风险仍需单独复核。";
+  "安全往往不是最显眼的需求，却是产品长期稳定运行的底线。此 Skill 会帮助你发现依赖漏洞、过期依赖和仓库暴露风险，帮助团队更早暴露容易被忽视的供应链问题。但它不能替代代码审计、渗透测试或部署安全评估；业务逻辑、权限控制、SQL 注入、XSS 等代码层风险仍需单独复核。";
 const HYGIENE_ONLY_NOTICE =
-  "当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；本次仅做仓库卫生扫描，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。";
+  "当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；本次仅做仓库安检，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。";
 
 // ---- Normalize: accept common field name variations from different agents ----
 const DATA = (() => {
@@ -97,7 +97,7 @@ const DATA = (() => {
     }
     if (!d.summary.tldr || !d.project.total_packages) {
       d.summary.tldr =
-        "本次没有发现补天支持的依赖文件，因此未执行依赖漏洞扫描；报告结论仅覆盖仓库卫生风险。";
+        "本次没有发现补天支持的依赖文件，因此未执行依赖漏洞扫描；报告结论仅覆盖仓库安检范围。";
     }
     if (!d.summary.detail || !d.project.total_packages) {
       d.summary.detail = HYGIENE_ONLY_NOTICE;
@@ -157,9 +157,9 @@ const DATA = (() => {
     const nestedText = nestedLockedSummaryText(d.vulns);
     if (nestedText) detailParts.push(nestedText);
     if (hygieneIssues > 0) {
-      detailParts.push(`仓库卫生待关注项 ${hygieneIssues} 个。`);
+      detailParts.push(`仓库安检待关注项 ${hygieneIssues} 个。`);
     } else {
-      detailParts.push("仓库卫生检查通过。");
+      detailParts.push("仓库安检通过。");
     }
     d.summary.detail = detailParts.join("");
   }
@@ -437,17 +437,17 @@ function readableTldr(raw) {
 }
 
 function readableDetail(raw) {
-  // Clean up agent-generated detail: remove zero-value hygiene mentions, normalize outdated phrasing
+  // Clean up agent-generated detail: remove zero-value security-check mentions, normalize outdated phrasing
   const cleaned = String(raw || "")
     .replace(
-      /仓库卫生[，、]?\s*发现[^。]*?0\s*[处个][^。]*?0\s*[个条][^。]*?0\s*条[^。]*。?/g,
-      "仓库卫生检查通过。",
+      /仓库(?:卫生|安检)[，、]?\s*发现[^。]*?0\s*[处个][^。]*?0\s*[个条][^。]*?0\s*条[^。]*。?/g,
+      "仓库安检通过。",
     )
     .replace(
-      /仓库卫生方面，发现[^。]*?0\s*处[^。]*?0\s*个[^。]*?0\s*条[^。]*。?/g,
-      "仓库卫生检查通过。",
+      /仓库(?:卫生|安检)方面，发现[^。]*?0\s*处[^。]*?0\s*个[^。]*?0\s*条[^。]*。?/g,
+      "仓库安检通过。",
     )
-    .replace(/仓库卫生待关注项\s*0\s*个[。，]?/g, "")
+    .replace(/仓库(?:卫生|安检)待关注项\s*0\s*个[。，]?/g, "")
     .replace(/疑似硬编码凭证\s*0\s*处[、，]?\s*/g, "")
     .replace(/被\s*git\s*跟踪的敏感文件\s*0\s*个[、，]?\s*/g, "")
     .replace(/建议补充的\s*\.gitignore\s*规则\s*0\s*条[。，]?\s*/g, "")
@@ -501,9 +501,9 @@ function readableDetail(raw) {
     (DATA.hygiene ? toList(DATA.hygiene.sensitive_tracked).length : 0) +
     (DATA.hygiene ? toList(DATA.hygiene.gitignore_missing).length : 0);
   if (hygieneIssues > 0) {
-    parts.push(`仓库卫生待关注项 ${hygieneIssues} 个。`);
+    parts.push(`仓库安检待关注项 ${hygieneIssues} 个。`);
   } else {
-    parts.push("仓库卫生检查通过。");
+    parts.push("仓库安检通过。");
   }
   return normalizeSecurityLanguage(parts.join(""));
 }
@@ -2570,7 +2570,7 @@ function renderVulnTable(rows) {
           {
             label: "结论口径",
             value:
-              "这不是依赖漏洞扫描通过，而是本次未执行依赖漏洞扫描。仓库卫生结论仍可参考。",
+              "这不是依赖漏洞扫描通过，而是本次未执行依赖漏洞扫描。仓库安检结论仍可参考。",
           },
         ])}</div>`,
         "",
@@ -2673,7 +2673,7 @@ function renderReportSummary(sm) {
   );
 }
 
-// ---- Repository hygiene ----
+// ---- Repository security checks ----
 const SECRET_TYPE_LABELS = {
   aws_access_key: "AWS 访问密钥",
   aws_secret_key: "AWS Secret Key",
@@ -2714,14 +2714,14 @@ function renderHygiene(h) {
   h = h || {};
   if (h.skipped || (DATA.scan_config && DATA.scan_config.skip_hygiene)) {
     return section(
-      "仓库卫生",
+      "仓库安检",
       null,
       `<div class="summary hygiene-summary">${miniFields([
-        { label: "事实", value: "本次跳过了仓库卫生检查。" },
+        { label: "事实", value: "本次跳过了仓库安检。" },
         {
           label: "为什么要关注",
           value:
-            "仓库卫生主要看密钥、敏感文件和 .gitignore，跳过后这部分不能作为最终结论。",
+            "仓库安检主要看密钥、敏感文件和 .gitignore，跳过后这部分不能作为最终结论。",
         },
         {
           label: "建议动作",
@@ -2758,7 +2758,7 @@ function renderHygiene(h) {
   }
   if (!rows.length) {
     return section(
-      "仓库卫生",
+      "仓库安检",
       count,
       `<div class="summary hygiene-summary">${hygieneNote(
         "结论",
@@ -2797,7 +2797,7 @@ function renderHygiene(h) {
     : "";
 
   return section(
-    "仓库卫生",
+    "仓库安检",
     count,
     `<div class="summary hygiene-summary">${miniFields(rows)}${extra}</div>`,
     "",

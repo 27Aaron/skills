@@ -658,7 +658,7 @@ def build_summary(scan, analysis):
     )
 
     if hygiene_only:
-        tldr = "本次没有发现补天支持的依赖文件，因此未执行依赖漏洞扫描；报告结论仅覆盖仓库卫生风险。"
+        tldr = "本次没有发现补天支持的依赖文件，因此未执行依赖漏洞扫描；报告结论仅覆盖仓库安检范围。"
     elif critical_high and vuln_count:
         tldr = "发现需要优先安排的依赖安全风险，建议先处理紧急和高风险漏洞，再确认仓库中的敏感信息迹象。"
     elif secret_count or sensitive_count:
@@ -679,14 +679,14 @@ def build_summary(scan, analysis):
     if hygiene_only:
         detail = (
             f"本次检查覆盖项目 {project.get('name') or '-'}。{HYGIENE_ONLY_NOTICE}"
-            f"仓库卫生方面，发现疑似硬编码凭证 {secret_count} 处、"
+            f"仓库安检方面，发现疑似硬编码凭证 {secret_count} 处、"
             f"被 git 跟踪的敏感文件 {sensitive_count} 个、建议补充的 .gitignore 规则 {missing_count} 条。"
         )
     else:
         detail = (
             f"本次检查覆盖项目 {project.get('name') or '-'}，识别到 "
             f"{project.get('total_packages', scan.get('package_count', 0)) or 0} 个依赖包，"
-            f"命中 {vuln_count} 个已确认风险项。仓库卫生方面，发现疑似硬编码凭证 {secret_count} 处、"
+            f"命中 {vuln_count} 个已确认风险项。仓库安检方面，发现疑似硬编码凭证 {secret_count} 处、"
             f"被 git 跟踪的敏感文件 {sensitive_count} 个、建议补充的 .gitignore 规则 {missing_count} 条。"
             f"过期依赖 {outdated_count} 个仅作为维护信号，不等同于漏洞。"
         )
