@@ -1892,16 +1892,19 @@ footer {
     padding: 0;
 }
 .detail-signal-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px 12px;
+    --detail-field-value-line: 21.58px;
+    --detail-signal-tag-line: 24px;
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: 7px;
     min-width: 0;
-    padding: 13px 0;
+    /* Match the first .detail-field divider height while keeping tags on row two. */
+    padding: 13px 0 calc(13px + var(--detail-field-value-line) - var(--detail-signal-tag-line));
     border-bottom: 1px solid var(--detail-card-border);
 }
 .detail-signal-row .signal-tags {
-    flex: 1 1 auto;
+    min-width: 0;
 }
 .detail-story-heading {
     display: flex;

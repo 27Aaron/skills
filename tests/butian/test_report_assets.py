@@ -371,6 +371,16 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn(".detail-dossier", css)
         self.assertIn(".detail-story", css)
         self.assertIn(".detail-signal-row", css)
+        signal_row_css = css.split(".detail-signal-row {", 1)[1].split("}", 1)[0]
+        self.assertIn("--detail-field-value-line: 21.58px;", signal_row_css)
+        self.assertIn("--detail-signal-tag-line: 24px;", signal_row_css)
+        self.assertIn("display: grid;", signal_row_css)
+        self.assertIn("grid-template-columns: 1fr;", signal_row_css)
+        self.assertIn("gap: 7px;", signal_row_css)
+        self.assertIn(
+            "padding: 13px 0 calc(13px + var(--detail-field-value-line) - var(--detail-signal-tag-line));",
+            signal_row_css,
+        )
         self.assertIn(".detail-story-heading", css)
         self.assertIn(".detail-action", css)
         self.assertIn(".detail-facts", css)
