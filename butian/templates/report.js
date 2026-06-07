@@ -143,8 +143,23 @@ const DATA = (() => {
       (d.hygiene.tracked_secrets || []).length +
       (d.hygiene.sensitive_tracked || []).length +
       (d.hygiene.gitignore_missing || []).length;
-    const outdatedCount = d.outdated.length;
-    d.summary.detail = `本报告面向产品经理和项目负责人：本次检查覆盖依赖漏洞、仓库卫生和过期依赖。已确认风险项 ${confirmed} 个，仓库卫生待关注项 ${hygieneIssues} 个，过期依赖 ${outdatedCount} 个。`;
+    const projectName = d.project && d.project.name;
+    const pkgCount = d.project.total_packages || d.package_count || 0;
+    const detailParts = [];
+    const covered = projectName
+      ? `${projectName} 项目的 ${pkgCount || "多个"} 个依赖包`
+      : `${pkgCount || "多个"} 个依赖包`;
+    detailParts.push(
+      `本次扫描覆盖${covered}，识别出 ${confirmed} 个已确认风险项。`,
+    );
+    const outdatedText = outdatedDetailText(d.outdated);
+    if (outdatedText) detailParts.push(outdatedText);
+    if (hygieneIssues > 0) {
+      detailParts.push(`仓库卫生待关注项 ${hygieneIssues} 个。`);
+    } else {
+      detailParts.push("仓库卫生检查通过。");
+    }
+    d.summary.detail = detailParts.join("");
   }
   if (!d.summary.priority || !d.summary.priority.length) {
     const priority = [];
@@ -420,23 +435,46 @@ function readableTldr(raw) {
 }
 
 function readableDetail(raw) {
-  if (raw && !isNoisySecurityText(raw) && String(raw).length <= 260) {
-    return normalizeSecurityLanguage(raw);
+  // Clean up agent-generated detail: remove zero-value hygiene mentions, normalize outdated phrasing
+  const cleaned = String(raw || "")
+    .replace(
+      /仓库卫生[，、]?\s*发现[^。]*?0\s*[处个][^。]*?0\s*[个条][^。]*?0\s*条[^。]*。?/g,
+      "仓库卫生检查通过。",
+    )
+    .replace(
+      /仓库卫生方面，发现[^。]*?0\s*处[^。]*?0\s*个[^。]*?0\s*条[^。]*。?/g,
+      "仓库卫生检查通过。",
+    )
+    .replace(/仓库卫生待关注项\s*0\s*个[。，]?/g, "")
+    .replace(/疑似硬编码凭证\s*0\s*处[、，]?\s*/g, "")
+    .replace(/被\s*git\s*跟踪的敏感文件\s*0\s*个[、，]?\s*/g, "")
+    .replace(/建议补充的\s*\.gitignore\s*规则\s*0\s*条[。，]?\s*/g, "")
+    .replace(
+      /过期依赖\s*(\d+)\s*个[^。]*[。，]/g,
+      () => outdatedDetailText(DATA.outdated) || "",
+    );
+  if (cleaned && !isNoisySecurityText(cleaned) && cleaned.length <= 320) {
+    return normalizeSecurityLanguage(cleaned);
   }
   const packages = DATA.project.total_packages || DATA.package_count || 0;
   const vulns = DATA.vulns || [];
   const names = new Set(vulns.map((x) => x.package || x.name).filter(Boolean));
   const group = topVulnerabilityGroup();
+  const projectName = DATA.project && DATA.project.name;
+  const outdatedCount = DATA.outdated.length;
   const parts = [];
   if (packages || vulns.length) {
+    const covered = projectName
+      ? `${projectName} 项目的 ${packages || "多个"} 个依赖包`
+      : `${packages || "多个"} 个依赖包`;
     parts.push(
-      `本次扫描覆盖 ${packages || "多个"} 个依赖包，发现 ${vulns.length || DATA.project.total_vulnerabilities || 0} 个已确认风险项，涉及 ${names.size || "多个"} 个包。`,
+      `本次扫描覆盖${covered}，识别出 ${vulns.length || DATA.project.total_vulnerabilities || 0} 个已确认风险项。`,
     );
   }
   if (group.name) {
     const fixed = commonFixedVersion(group.items);
     parts.push(
-      `风险最集中在 ${group.name}${group.items[0] && group.items[0].version ? " " + group.items[0].version : ""}，建议优先固定升级${fixed ? "到 " + fixed : "到官方修复版本"}。`,
+      `风险最集中在 ${group.name}${group.items[0] && group.items[0].version ? " " + group.items[0].version : ""}，建议优先升级${fixed ? "到 " + fixed : "到官方修复版本"}。`,
     );
   }
   if (names.size > 1) {
@@ -449,13 +487,16 @@ function readableDetail(raw) {
       "另外需要修正 lockfile 和本地安装版本不一致的问题，避免干净环境装回旧版本。",
     );
   }
-  if (
-    (DATA.hygiene &&
-      !toList(DATA.hygiene.tracked_secrets).length &&
-      !toList(DATA.hygiene.sensitive_tracked).length) ||
-    /仓库卫生.*通过/.test(String(raw || ""))
-  ) {
-    parts.push("仓库卫生检查没有发现密钥或敏感文件误提交。");
+  const outdatedText = outdatedDetailText(DATA.outdated);
+  if (outdatedText) parts.push(outdatedText);
+  const hygieneIssues =
+    (DATA.hygiene ? toList(DATA.hygiene.tracked_secrets).length : 0) +
+    (DATA.hygiene ? toList(DATA.hygiene.sensitive_tracked).length : 0) +
+    (DATA.hygiene ? toList(DATA.hygiene.gitignore_missing).length : 0);
+  if (hygieneIssues > 0) {
+    parts.push(`仓库卫生待关注项 ${hygieneIssues} 个。`);
+  } else {
+    parts.push("仓库卫生检查通过。");
   }
   return normalizeSecurityLanguage(parts.join(""));
 }
@@ -1907,6 +1948,27 @@ function isMajorVersionJump(current, target) {
   const t = parseVersion(target);
   if (!c.length || !t.length) return false;
   return Math.abs(t[0] - c[0]) >= 1;
+}
+
+function countMajorJumps(items) {
+  return (items || []).filter((it) => {
+    const current = cleanVersion(it.current || it.version);
+    const target = cleanVersion(
+      it.latest || it.latestVersion || it.wanted || it.update || "",
+    );
+    return current && target && isMajorVersionJump(current, target);
+  }).length;
+}
+
+function outdatedDetailText(outdatedItems) {
+  const total = (outdatedItems || []).length;
+  if (!total) return "";
+  const majors = countMajorJumps(outdatedItems);
+  const base = `${total} 个依赖有可升级的新版本，建议在后续迭代中逐步安排。`;
+  if (majors > 0) {
+    return `${base}注意其中 ${majors} 个属于跨大版本升级，需额外关注兼容性。`;
+  }
+  return base;
 }
 
 function cleanVersion(value) {
