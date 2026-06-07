@@ -370,6 +370,30 @@ class RenderHygieneTests(unittest.TestCase):
         self.assertIn("IaC / 容器 / 部署配置", result)
         self.assertIn("Dockerfile:1", result)
 
+    def test_dependabot_is_rendered_as_maintenance_advice(self):
+        analysis = {
+            "hygiene": {
+                "repository_checks": [
+                    {
+                        "id": "repo.missing_dependabot",
+                        "category": "repo_governance",
+                        "severity": "info",
+                        "confidence": "high",
+                        "file": ".github/dependabot.yml",
+                        "title": "建议配置 Dependabot",
+                        "evidence": "dependabot.yml not found",
+                        "recommendation": "可新增 dependabot.yml。",
+                        "kind": "maintenance_advice",
+                    }
+                ]
+            }
+        }
+
+        result = report.render_hygiene(analysis)
+
+        self.assertIn("维护建议", result)
+        self.assertIn("建议配置 Dependabot", result)
+
 
 # ---------------------------------------------------------------------------
 # render_outdated

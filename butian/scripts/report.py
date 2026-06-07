@@ -104,6 +104,12 @@ def severity_label(value):
     return SEVERITY_LABELS.get(text(value).lower(), "待确认")
 
 
+def structured_finding_label(item):
+    if item.get("kind") == "maintenance_advice":
+        return "维护建议"
+    return severity_label(item.get("severity"))
+
+
 def is_hygiene_only(analysis):
     return (analysis.get("scan_config") or {}).get("scan_mode") == "hygiene_only"
 
@@ -216,8 +222,16 @@ def render_hygiene(analysis):
             else "- .gitignore：没有发现需要补充的敏感文件忽略规则。"
         )
         if structured_count:
+            advice_count = sum(
+                1
+                for _, items in structured_groups
+                for item in items
+                if str(item.get("severity") or "").lower() == "info"
+            )
+            risk_like_count = structured_count - advice_count
             lines.append(
-                f"- 本地配置检查：发现 {structured_count} 个需要确认或记录的仓库安检项。"
+                f"- 本地配置检查：发现 {risk_like_count} 个需要确认的仓库安检项，"
+                f"{advice_count} 条维护建议。"
             )
     if gitignore_state:
         preexisting = "是" if gitignore_state.get("preexisting") else "否"
@@ -260,7 +274,7 @@ def render_hygiene(analysis):
                 "| "
                 + " | ".join(
                     [
-                        cell(item.get("severity") or "-"),
+                        cell(structured_finding_label(item)),
                         cell(location),
                         cell(item.get("title") or item.get("id") or "-"),
                         cell(item.get("evidence") or "-"),

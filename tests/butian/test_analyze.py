@@ -747,15 +747,16 @@ class TestBuildHygieneItems(unittest.TestCase):
                 ],
                 "repository_checks": [
                     {
-                        "id": "repo.missing_security_policy",
+                        "id": "repo.missing_dependabot",
                         "category": "repo_governance",
-                        "severity": "low",
+                        "severity": "info",
                         "confidence": "high",
-                        "file": "SECURITY.md",
-                        "title": "缺少安全问题反馈说明",
-                        "detail": "用户不知道如何私下反馈漏洞。",
-                        "evidence": "SECURITY.md not found",
-                        "recommendation": "新增 SECURITY.md。",
+                        "file": ".github/dependabot.yml",
+                        "title": "建议配置 Dependabot",
+                        "detail": "这属于维护建议，不代表当前存在漏洞。",
+                        "evidence": "dependabot.yml not found",
+                        "recommendation": "可新增 dependabot.yml。",
+                        "kind": "maintenance_advice",
                     }
                 ],
                 "iac_checks": [
@@ -793,7 +794,11 @@ class TestBuildHygieneItems(unittest.TestCase):
             any(item["source_id"] == "iac.docker_latest_tag" for item in yellow)
         )
         self.assertTrue(
-            any(item["source_id"] == "repo.missing_security_policy" for item in green)
+            any(
+                item["source_id"] == "repo.missing_dependabot"
+                and item["kind"] == "maintenance_advice"
+                for item in green
+            )
         )
 
     def test_no_hygiene_key(self):
@@ -1085,6 +1090,33 @@ class TestBuildSummary(unittest.TestCase):
         result = analyze.build_summary(scan, analysis)
 
         self.assertIn("my-cool-app", result["detail"])
+
+    def test_detail_splits_repository_advice_from_check_count(self):
+        scan = _make_scan(
+            hygiene={
+                "tracked_secrets": [],
+                "sensitive_tracked": [],
+                "gitignore_missing": [],
+                "repository_checks": [
+                    {
+                        "id": "supply_chain.lockfile_missing",
+                        "severity": "medium",
+                        "title": "依赖清单缺少对应 lockfile",
+                    },
+                    {
+                        "id": "repo.missing_dependabot",
+                        "severity": "info",
+                        "title": "建议配置 Dependabot",
+                        "kind": "maintenance_advice",
+                    },
+                ],
+            }
+        )
+        analysis = self._make_analysis()
+        result = analyze.build_summary(scan, analysis)
+
+        self.assertIn("本地配置/工作流检查项 1 个", result["detail"])
+        self.assertIn("维护建议 1 条", result["detail"])
 
     def test_tier_stats(self):
         scan = _make_scan()

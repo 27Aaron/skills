@@ -545,6 +545,7 @@ def build_hygiene_items(scan):
                 "line": finding.get("line"),
                 "category": finding.get("category") or group_name,
                 "source_id": finding.get("id"),
+                "kind": finding.get("kind"),
                 "confidence": finding.get("confidence"),
                 "evidence": finding.get("evidence"),
                 "why_manual": finding.get("detail") or "本地规则发现该项需要人工确认。",
@@ -673,6 +674,10 @@ def count_risks(*groups):
     return summary
 
 
+def is_maintenance_advice(item):
+    return item.get("kind") == "maintenance_advice"
+
+
 def build_summary(scan, analysis):
     project = scan.get("project") or {}
     hygiene = scan.get("hygiene") or {}
@@ -685,9 +690,15 @@ def build_summary(scan, analysis):
     secret_count = len(hygiene.get("tracked_secrets") or [])
     sensitive_count = len(hygiene.get("sensitive_tracked") or [])
     missing_count = len(hygiene.get("gitignore_missing") or [])
-    local_check_count = sum(
-        len(hygiene.get(group_name) or []) for group_name in STRUCTURED_HYGIENE_GROUPS
+    structured_hygiene_items = [
+        item
+        for group_name in STRUCTURED_HYGIENE_GROUPS
+        for item in (hygiene.get(group_name) or [])
+    ]
+    maintenance_advice_count = sum(
+        1 for item in structured_hygiene_items if is_maintenance_advice(item)
     )
+    local_check_count = len(structured_hygiene_items) - maintenance_advice_count
     outdated_count = len(scan.get("outdated") or [])
     errors = scan.get("errors") or []
     dependency_fix_count = len(
@@ -724,7 +735,7 @@ def build_summary(scan, analysis):
             f"本次检查覆盖项目 {project.get('name') or '-'}。{HYGIENE_ONLY_NOTICE}"
             f"仓库安检方面，发现疑似硬编码凭证 {secret_count} 处、"
             f"被 git 跟踪的敏感文件 {sensitive_count} 个、建议补充的 .gitignore 规则 {missing_count} 条、"
-            f"本地配置/工作流检查项 {local_check_count} 个。"
+            f"本地配置/工作流检查项 {local_check_count} 个、维护建议 {maintenance_advice_count} 条。"
         )
     else:
         detail = (
@@ -732,7 +743,7 @@ def build_summary(scan, analysis):
             f"{project.get('total_packages', scan.get('package_count', 0)) or 0} 个依赖包，"
             f"命中 {vuln_count} 个已确认风险项。仓库安检方面，发现疑似硬编码凭证 {secret_count} 处、"
             f"被 git 跟踪的敏感文件 {sensitive_count} 个、建议补充的 .gitignore 规则 {missing_count} 条、"
-            f"本地配置/工作流检查项 {local_check_count} 个。"
+            f"本地配置/工作流检查项 {local_check_count} 个、维护建议 {maintenance_advice_count} 条。"
             f"过期依赖 {outdated_count} 个仅作为维护信号，不等同于漏洞。"
         )
 

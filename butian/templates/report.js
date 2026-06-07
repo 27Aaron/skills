@@ -2763,9 +2763,16 @@ function renderHygiene(h) {
   }
   for (const [label, items] of localGroups) {
     if (items.length) {
+      const allAdvice = items.every(
+        (item) =>
+          item.kind === "maintenance_advice" ||
+          visibleSeverity(item.severity) === "info",
+      );
       rows.push({
         label,
-        value: `发现 ${items.length} 个本地规则命中的检查项，需要结合项目场景确认。`,
+        value: allAdvice
+          ? `有 ${items.length} 条维护建议，可按项目成熟度决定是否采纳。`
+          : `发现 ${items.length} 个本地规则命中的检查项，需要结合项目场景确认。`,
       });
     }
   }
@@ -2805,13 +2812,17 @@ function renderHygiene(h) {
         .slice(0, 8)
         .map((x) => {
         const loc = `${x.file || "-"}${x.line ? ":" + x.line : ""}`;
+        const badge =
+          x.kind === "maintenance_advice"
+            ? `<span class="sev-badge sev-info">维护建议</span>`
+            : sevBadge(x.severity);
         const evidence = x.evidence
           ? `<div class="hygiene-finding-detail"><span>证据</span><code class="secret-preview">${esc(x.evidence)}</code></div>`
           : "";
         const recommendation = x.recommendation
           ? `<div class="hygiene-finding-detail hygiene-finding-advice"><span>建议</span><p>${esc(x.recommendation)}</p></div>`
           : "";
-          return `<article class="hygiene-finding"><div class="hygiene-finding-top"><div class="hygiene-finding-title">${sevBadge(x.severity)}<b>${esc(x.title || x.id || "仓库安检项")}</b></div><div class="hygiene-finding-loc">${esc(loc)}</div></div><div class="hygiene-finding-grid">${evidence}${recommendation}</div></article>`;
+          return `<article class="hygiene-finding"><div class="hygiene-finding-top"><div class="hygiene-finding-title">${badge}<b>${esc(x.title || x.id || "仓库安检项")}</b></div><div class="hygiene-finding-loc">${esc(loc)}</div></div><div class="hygiene-finding-grid">${evidence}${recommendation}</div></article>`;
         })
         .join("");
       const groupMore =

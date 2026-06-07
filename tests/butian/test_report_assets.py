@@ -466,6 +466,48 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("证据", html)
         self.assertIn("建议", html)
 
+    def test_html_renders_dependabot_as_maintenance_advice(self):
+        data = {
+            "project": {
+                "name": "demo",
+                "path": "/tmp/demo",
+                "ecosystems": ["npm"],
+                "total_packages": 1,
+            },
+            "scan_config": {"scan_mode": "full_dependency_scan"},
+            "risk_summary": {
+                "critical": 0,
+                "high": 0,
+                "medium": 0,
+                "low": 0,
+                "info": 0,
+            },
+            "summary": {"tldr": "demo", "detail": "demo", "priority": []},
+            "top_issues": [],
+            "hygiene": {
+                "repository_checks": [
+                    {
+                        "id": "repo.missing_dependabot",
+                        "category": "repo_governance",
+                        "severity": "info",
+                        "confidence": "high",
+                        "file": ".github/dependabot.yml",
+                        "title": "建议配置 Dependabot",
+                        "evidence": "dependabot.yml not found",
+                        "recommendation": "可新增 dependabot.yml。",
+                        "kind": "maintenance_advice",
+                    }
+                ]
+            },
+            "outdated": [],
+        }
+
+        html = self._render_html(data)
+
+        self.assertIn("维护建议", html)
+        self.assertIn("有 1 条维护建议", html)
+        self.assertIn("建议配置 Dependabot", html)
+
     def test_tldr_fallback_uses_risk_item_term_for_critical_high(self):
         data = {
             "generated_at": "2026-06-05 09:05:50",
