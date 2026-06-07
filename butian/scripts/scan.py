@@ -318,12 +318,65 @@ _CLOUD_PROVIDER_PATTERNS = [
 # --- SaaS / Third-Party Service Tokens ---
 _SAAS_PATTERNS = [
     # GitHub
+    (
+        "github_fine_grained_pat",
+        r"github_pat_[A-Za-z0-9_]{20,}_[A-Za-z0-9_]{40,}",
+    ),
     ("github_token", r"gh[pousr]_[A-Za-z0-9_]{36,}"),
     ("github_oauth", r"gho_[A-Za-z0-9]{36}"),
     ("github_app_token", r"(?:ghu_|ghs_)[A-Za-z0-9_]{36}"),
     ("github_refresh_token", r"ghr_[A-Za-z0-9_]{36}"),
     # GitLab
     ("gitlab_token", r"glpat-[A-Za-z0-9\-_]{20,}"),
+    ("gitlab_runner_token", r"glrt-[A-Za-z0-9\-_]{20,}"),
+    ("gitlab_deploy_token", r"gldt-[A-Za-z0-9\-_]{20,}"),
+    # Platform / secret-management tokens with stable prefixes
+    ("hashicorp_vault_token", r"hv[bs]\.[A-Za-z0-9_-]{20,}"),
+    ("pulumi_token", r"pul-[A-Za-z0-9]{30,}"),
+    # LLM / AI provider keys
+    ("groq_api_key", r"gsk_[A-Za-z0-9]{20,}"),
+    # Context-bound platform keys. These intentionally require the product name
+    # near token/key wording to keep generic random strings from becoming noisy.
+    (
+        "cloudflare_api_token",
+        r"(?i)(?:cloudflare|CF)[_\s-]?(?:api[_\s-]?)?(?:token|key)[_\s-]*[:=]\s*[\"']?[A-Za-z0-9_.-]{24,}[\"']?",
+    ),
+    (
+        "vercel_token",
+        r"(?i)vercel[_\s-]?(?:auth[_\s-]?)?(?:token|key)[_\s-]*[:=]\s*[\"']?[A-Za-z0-9_.-]{24,}[\"']?",
+    ),
+    (
+        "netlify_token",
+        r"(?i)netlify[_\s-]?(?:auth[_\s-]?)?(?:token|key)[_\s-]*[:=]\s*[\"']?[A-Za-z0-9_.-]{24,}[\"']?",
+    ),
+    (
+        "railway_token",
+        r"(?i)railway[_\s-]?(?:api[_\s-]?)?(?:token|key)[_\s-]*[:=]\s*[\"']?[A-Za-z0-9_.-]{24,}[\"']?",
+    ),
+    (
+        "render_token",
+        r"(?i)render[_\s-]?(?:api[_\s-]?)?(?:token|key)[_\s-]*[:=]\s*[\"']?[A-Za-z0-9_.-]{24,}[\"']?",
+    ),
+    (
+        "snyk_token",
+        r"(?i)snyk[_\s-]?(?:api[_\s-]?)?(?:token|key)[_\s-]*[:=]\s*[\"']?[A-Za-z0-9_.-]{24,}[\"']?",
+    ),
+    (
+        "resend_api_key",
+        r"(?i)resend[_\s-]?(?:api[_\s-]?)?(?:key|token)[_\s-]*[:=]\s*[\"']?[A-Za-z0-9_.-]{24,}[\"']?",
+    ),
+    (
+        "clerk_secret_key",
+        r"(?i)clerk[_\s-]?(?:secret[_\s-]?)?(?:key|token)[_\s-]*[:=]\s*[\"']?sk_(?:live|prod)_[A-Za-z0-9_-]{20,}[\"']?",
+    ),
+    (
+        "supabase_service_role_key",
+        r"(?i)supabase[_\s-]?service[_\s-]?role[_\s-]?(?:key|token)[_\s-]*[:=]\s*[\"']?eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}[\"']?",
+    ),
+    (
+        "algolia_admin_key",
+        r"(?i)algolia[_\s-]?(?:admin[_\s-]?)?(?:api[_\s-]?)?(?:key|token)[_\s-]*[:=]\s*[\"']?[A-Za-z0-9]{24,}[\"']?",
+    ),
     # Slack
     ("slack_token", r"xox[baprs]-[A-Za-z0-9-]+"),
     (
@@ -525,6 +578,14 @@ _GENERIC_PATTERNS = [
         "connection_string",
         r"""(?i)(?:connection[_-]?string|conn[_-]?str|database[_-]?url|db[_-]?url)\s*[:=]\s*["'][^"']{10,}["']""",
     ),
+    (
+        "basic_auth_url",
+        r"""https?://[A-Za-z0-9._~%+-]+:[^@\s"']{8,}@[A-Za-z0-9._-]+""",
+    ),
+    (
+        "netrc_password",
+        r"""(?i)\bmachine\s+\S+.*\blogin\s+\S+.*\bpassword\s+\S{8,}""",
+    ),
     # Encryption keys
     (
         "encryption_key",
@@ -600,10 +661,16 @@ HIGH_CONFIDENCE_SECRET_TYPES = {
     "private_key",
     # SaaS tokens (with unique prefixes)
     "github_token",
+    "github_fine_grained_pat",
     "github_oauth",
     "github_app_token",
     "github_refresh_token",
     "gitlab_token",
+    "gitlab_runner_token",
+    "gitlab_deploy_token",
+    "hashicorp_vault_token",
+    "pulumi_token",
+    "groq_api_key",
     "slack_token",
     "slack_webhook",
     "discord_token",
@@ -824,6 +891,9 @@ EXCLUDE_DIRS = {
 }
 
 SCAN_EXTENSIONS = {
+    ".json",
+    ".jsonc",
+    ".json5",
     ".py",
     ".js",
     ".ts",
@@ -846,9 +916,16 @@ SCAN_EXTENSIONS = {
     ".yaml",
     ".yml",
     ".toml",
+    ".hcl",
+    ".tf",
+    ".tfvars",
     ".ini",
     ".cfg",
     ".conf",
+    ".properties",
+    ".xml",
+    ".gradle",
+    ".kts",
     ".sh",
     ".bash",
     ".zsh",
@@ -857,6 +934,65 @@ SCAN_EXTENSIONS = {
     ".css",
     ".scss",
     ".less",
+}
+
+SECRET_SCAN_FILENAMES = {
+    ".env",
+    ".envrc",
+    ".npmrc",
+    ".pypirc",
+    ".netrc",
+    "dockerfile",
+    "makefile",
+    "procfile",
+    "jenkinsfile",
+    "fastfile",
+    "rakefile",
+    "gemfile",
+    "gradle.properties",
+    "settings.xml",
+    "application.properties",
+    "application.yml",
+    "application.yaml",
+}
+
+SECRET_SCAN_EXCLUDED_FILENAMES = {
+    "package-lock.json",
+    "npm-shrinkwrap.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    "poetry.lock",
+    "uv.lock",
+    "pipfile.lock",
+    "cargo.lock",
+    "go.sum",
+    "composer.lock",
+    "gemfile.lock",
+    "bun.lock",
+    "bun.lockb",
+}
+
+SECRET_SCAN_SENSITIVE_TYPES = {
+    "env_file",
+    "envrc",
+    "npmrc",
+    "pypirc",
+    "netrc",
+    "gem_credentials",
+    "private_key",
+    "ssh_key",
+    "kubeconfig",
+    "docker_cfg",
+    "credentials",
+    "aws_credentials",
+    "gcp_credentials",
+    "azure_credentials",
+    "terraform_vars",
+    "ansible_vault",
+    "ci_secrets",
+    "gradle_properties",
+    "maven_settings",
+    "app_config",
 }
 
 # ---------------------------------------------------------------------------
@@ -1115,6 +1251,27 @@ def sensitive_file_type(path):
         if pattern.search(path):
             return file_type
     return ""
+
+
+def should_scan_secret_file(path, project_path=None):
+    rel = os.path.relpath(path, project_path) if project_path else path
+    normalized = rel.replace(os.sep, "/")
+    name = os.path.basename(normalized).lower()
+    ext = os.path.splitext(name)[1].lower()
+
+    if name in SECRET_SCAN_EXCLUDED_FILENAMES:
+        return False
+    if name.endswith(".lock") or name.endswith(".lockb"):
+        return False
+    if name in SECRET_SCAN_FILENAMES:
+        return True
+    if name.startswith("dockerfile."):
+        return True
+    if is_env_secret_scan_file(name):
+        return True
+    if ext in SCAN_EXTENSIONS:
+        return True
+    return sensitive_file_type(normalized) in SECRET_SCAN_SENSITIVE_TYPES
 
 
 def is_git_worktree(path):
@@ -1378,6 +1535,8 @@ def secret_preview(secret_type, match_text):
         "generic_secret",
         "base64_secret",
         "connection_string",
+        "basic_auth_url",
+        "netrc_password",
         "encryption_key",
     }:
         masked = re.sub(
@@ -1410,10 +1569,10 @@ def scan_secrets(
         for fname in files:
             if count >= max_files:
                 break
-            ext = os.path.splitext(fname)[1].lower()
-            if ext not in SCAN_EXTENSIONS and not is_env_secret_scan_file(fname):
-                continue
             fpath = os.path.join(root, fname)
+            ext = os.path.splitext(fname)[1].lower()
+            if not should_scan_secret_file(fpath, project_path):
+                continue
             # Skip symlinks unless explicitly following
             if not follow_symlinks and os.path.islink(fpath):
                 continue
@@ -1426,7 +1585,10 @@ def scan_secrets(
                 with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
                     for line_num, line in enumerate(f, 1):
                         stripped = line.strip()
-                        if stripped.startswith("#") or stripped.startswith("//"):
+                        is_npmrc = os.path.basename(fpath).lower() == ".npmrc"
+                        if stripped.startswith("#") or (
+                            stripped.startswith("//") and not is_npmrc
+                        ):
                             continue
                         lowered = stripped.lower()
                         # Skip lines containing placeholder markers (substring match)

@@ -1819,6 +1819,117 @@ class SaasTokenTests(unittest.TestCase):
         )
         self.assertEqual(f["confidence"], "high")
 
+    def test_github_fine_grained_pat(self):
+        f = self._detect_one(
+            'GITHUB = "github_pat_'
+            + "A" * 22
+            + "_"
+            + "B" * 59
+            + '"',
+            "github_fine_grained_pat",  # fake fixture
+        )
+        self.assertEqual(f["confidence"], "high")
+
+    def test_groq_api_key(self):
+        f = self._detect_one(
+            'GROQ = "gsk_' + 'abcdefghijklmnopqrstuvwxyz1234567890ABCD' + '"',
+            "groq_api_key",  # fake fixture
+        )
+        self.assertEqual(f["confidence"], "high")
+
+    def test_hashicorp_vault_token(self):
+        f = self._detect_one(
+            'VAULT_TOKEN = "hvs.' + 'abcdefghijklmnopqrstuvwxyz1234567890' + '"',
+            "hashicorp_vault_token",  # fake fixture
+        )
+        self.assertEqual(f["confidence"], "high")
+
+    def test_pulumi_token(self):
+        f = self._detect_one(
+            'PULUMI_ACCESS_TOKEN = "pul-' + "A" * 40 + '"',
+            "pulumi_token",  # fake fixture
+        )
+        self.assertEqual(f["confidence"], "high")
+
+    def test_gitlab_runner_token(self):
+        f = self._detect_one(
+            'GITLAB_RUNNER_TOKEN = "glrt-' + 'abcdefghijklmnopqrstuvwxyz123456' + '"',
+            "gitlab_runner_token",  # fake fixture
+        )
+        self.assertEqual(f["confidence"], "high")
+
+    def test_cloudflare_api_token_with_context(self):
+        f = self._detect_one(
+            'CLOUDFLARE_API_TOKEN = "cf_' + 'abcdefghijklmnopqrstuvwxyz1234567890' + '"',
+            "cloudflare_api_token",  # fake fixture
+        )
+        self.assertEqual(f["confidence"], "medium")
+
+    def test_vercel_token_with_context(self):
+        f = self._detect_one(
+            'VERCEL_TOKEN = "vc_' + 'abcdefghijklmnopqrstuvwxyz1234567890' + '"',
+            "vercel_token",  # fake fixture
+        )
+        self.assertEqual(f["confidence"], "medium")
+
+    def test_netlify_token_with_context(self):
+        f = self._detect_one(
+            'NETLIFY_AUTH_TOKEN = "nf_' + 'abcdefghijklmnopqrstuvwxyz1234567890' + '"',
+            "netlify_token",  # fake fixture
+        )
+        self.assertEqual(f["confidence"], "medium")
+
+    def test_railway_token_with_context(self):
+        f = self._detect_one(
+            'RAILWAY_TOKEN = "rw_' + 'abcdefghijklmnopqrstuvwxyz1234567890' + '"',
+            "railway_token",  # fake fixture
+        )
+        self.assertEqual(f["confidence"], "medium")
+
+    def test_render_token_with_context(self):
+        f = self._detect_one(
+            'RENDER_API_KEY = "rnd_' + 'abcdefghijklmnopqrstuvwxyz1234567890' + '"',
+            "render_token",  # fake fixture
+        )
+        self.assertEqual(f["confidence"], "medium")
+
+    def test_snyk_token_with_context(self):
+        f = self._detect_one(
+            'SNYK_TOKEN = "snyk_' + 'abcdefghijklmnopqrstuvwxyz1234567890' + '"',
+            "snyk_token",  # fake fixture
+        )
+        self.assertEqual(f["confidence"], "medium")
+
+    def test_resend_api_key_with_context(self):
+        f = self._detect_one(
+            'RESEND_API_KEY = "re_' + 'abcdefghijklmnopqrstuvwxyz1234567890' + '"',
+            "resend_api_key",  # fake fixture
+        )
+        self.assertEqual(f["confidence"], "medium")
+
+    def test_clerk_secret_key_with_context(self):
+        f = self._detect_one(
+            'CLERK_SECRET_KEY = "sk_live_' + 'abcdefghijklmnopqrstuvwxyz1234567890' + '"',
+            "clerk_secret_key",  # fake fixture
+        )
+        self.assertEqual(f["confidence"], "medium")
+
+    def test_supabase_service_role_key_with_context(self):
+        f = self._detect_one(
+            'SUPABASE_SERVICE_ROLE_KEY = "eyJ'
+            + 'abcdefghijklmnopqrstuvwxyz123456.eyJabcdefghijklmnopqrstuvwxyz123456.'
+            + 'abcdefghijklmnopqrstuvwxyz123456"',
+            "supabase_service_role_key",  # fake fixture
+        )
+        self.assertEqual(f["confidence"], "medium")
+
+    def test_algolia_admin_key_with_context(self):
+        f = self._detect_one(
+            'ALGOLIA_ADMIN_API_KEY = "' + 'abcdef1234567890abcdef1234567890' + '"',
+            "algolia_admin_key",  # fake fixture
+        )
+        self.assertEqual(f["confidence"], "medium")
+
     # --- Slack ---
     def test_slack_bot_token(self):
         f = self._detect_one(
@@ -2258,6 +2369,92 @@ class NewSensitiveFileTests(unittest.TestCase):
 
     def test_sqlite_still_works(self):
         self.assertEqual(self._type_of("data.sqlite"), "database")
+
+
+class SecretScanFileSelectionTests(unittest.TestCase):
+    def _detect_in_file(self, relpath: str, content: str, expected_type: str) -> dict:
+        with tempfile.TemporaryDirectory(prefix="butian-secret-files-") as root:
+            path = os.path.join(root, relpath)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w") as f:
+                f.write(content)
+            findings = scan.scan_secrets(root)
+            matches = [f for f in findings if f["type"] == expected_type]
+            self.assertGreaterEqual(
+                len(matches),
+                1,
+                f"Expected {expected_type} in {relpath}, got {findings}",
+            )
+            return matches[0]
+
+    def test_scans_json_service_account_files(self):
+        f = self._detect_in_file(
+            "service-account.json",
+            '{"type": "service_account", "project_id": "demo"}',
+            "gcp_service_account",
+        )
+        self.assertEqual(f["file"], "service-account.json")
+
+    def test_scans_properties_files(self):
+        f = self._detect_in_file(
+            "application.properties",
+            "OPENAI_API_KEY=sk-proj-" + "A" * 32,
+            "openai_key",
+        )
+        self.assertEqual(f["file"], "application.properties")
+
+    def test_scans_terraform_variable_files(self):
+        f = self._detect_in_file(
+            "prod.tfvars",
+            'vault_token = "hvs.' + "a" * 36 + '"',
+            "hashicorp_vault_token",
+        )
+        self.assertEqual(f["file"], "prod.tfvars")
+
+    def test_scans_extensionless_operational_files(self):
+        f = self._detect_in_file(
+            "Dockerfile",
+            'ENV AWS_ACCESS_KEY_ID="AKIA' + '1A2B3C4D5E6F7G8H' + '"',
+            "aws_access_key",
+        )
+        self.assertEqual(f["file"], "Dockerfile")
+
+    def test_scans_sensitive_dotfiles(self):
+        f = self._detect_in_file(
+            ".npmrc",
+            "//registry.npmjs.org/:_authToken=npm_" + "a" * 36,
+            "npmrc_auth_token",
+        )
+        self.assertEqual(f["file"], ".npmrc")
+
+    def test_scans_netrc_passwords(self):
+        f = self._detect_in_file(
+            ".netrc",
+            "machine api.company.local login deploy password "
+            + "A1b2C3d4E5f6G7h8I9j0",
+            "netrc_password",
+        )
+        self.assertEqual(f["file"], ".netrc")
+
+    def test_scans_basic_auth_urls(self):
+        f = self._detect_in_file(
+            "config.json",
+            '{"endpoint": "https://deploy:'
+            + "A1b2C3d4E5f6G7h8I9j0"
+            + '@api.company.local"}',
+            "basic_auth_url",
+        )
+        self.assertEqual(f["file"], "config.json")
+
+    def test_skips_lockfile_integrity_hash_noise(self):
+        with tempfile.TemporaryDirectory(prefix="butian-secret-lock-") as root:
+            with open(os.path.join(root, "package-lock.json"), "w") as f:
+                f.write(
+                    '{"packages":{"node_modules/demo":{"integrity":"sha512-'
+                    + "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789" * 3
+                    + '"}}}'
+                )
+            self.assertEqual(scan.scan_secrets(root), [])
 
 
 class NewSecretPreviewTests(unittest.TestCase):
