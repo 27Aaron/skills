@@ -394,6 +394,12 @@ tbody tr {
 tbody tr:hover {
     background: var(--hover-soft);
 }
+.vuln-table tbody tr:hover:not(.vuln-row):not(.vuln-row-open) {
+    background: transparent;
+}
+.vuln-table .vuln-detail-row:hover {
+    background: transparent !important;
+}
 .table-scroll {
     overflow-x: auto;
 }
@@ -1888,15 +1894,15 @@ footer {
     background:
         linear-gradient(135deg, color-mix(in srgb, var(--accent-bg) 52%, transparent), transparent 42%),
         linear-gradient(180deg, var(--surface-bg), transparent 120%);
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
     vertical-align: top;
-}
-.vuln-detail-row.vuln-detail-open > td {
-    animation: vuln-detail-shell 0.5s ease-out;
 }
 .vuln-detail {
     position: relative;
     isolation: isolate;
-    overflow: visible;
+    overflow: hidden;
+    contain: paint;
     display: grid;
     gap: 0;
     padding: 0;
@@ -1925,7 +1931,7 @@ footer {
     transform: translateX(-120%);
 }
 .vuln-detail-row.vuln-detail-open .vuln-detail {
-    animation: vuln-detail-reveal 0.62s cubic-bezier(0.19, 1, 0.22, 1) both;
+    animation: vuln-detail-reveal 0.38s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 .vuln-detail-row.vuln-detail-scan-ready .vuln-detail::after {
     animation: vuln-detail-scan 0.82s ease-out both;
@@ -2055,31 +2061,20 @@ footer {
     overflow-wrap: anywhere;
 }
 
-@keyframes vuln-detail-shell {
-    from {
-        background-position: -48px 0, 0 -18px;
-    }
-    to {
-        background-position: 0 0, 0 0;
-    }
-}
-
 @keyframes vuln-detail-reveal {
     0% {
-        opacity: 0;
-        transform: translateY(-10px) scaleY(0.94);
-        filter: blur(4px);
+        opacity: 0.98;
+        transform: translateY(-5px) scaleY(0.97);
         clip-path: inset(0 0 100% 0);
     }
-    58% {
-        opacity: 0.86;
-        filter: blur(1px);
-        clip-path: inset(0 0 18% 0);
+    62% {
+        opacity: 1;
+        transform: translateY(-1px) scaleY(1);
+        clip-path: inset(0 0 8% 0);
     }
     100% {
         opacity: 1;
         transform: translateY(0) scaleY(1);
-        filter: blur(0);
         clip-path: inset(0 0 0 0);
     }
 }
@@ -2100,7 +2095,6 @@ footer {
 
 @media (prefers-reduced-motion: reduce) {
     .vuln-row,
-    .vuln-detail-row.vuln-detail-open > td,
     .vuln-detail-row.vuln-detail-open .vuln-detail,
     .vuln-detail-row.vuln-detail-scan-ready .vuln-detail::after {
         animation: none !important;

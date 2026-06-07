@@ -452,7 +452,7 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn('class="detail-dossier detail-dossier-compact"', html)
         self.assertNotIn('class="detail-facts"', html)
         self.assertIn('aria-expanded="false"', html)
-        self.assertIn('onmouseenter="scheduleOpenVulnDetail(this)"', html)
+        self.assertIn('onmouseenter="openVulnDetail(this)"', html)
         self.assertIn('onmouseleave="scheduleCloseVulnDetail(this)"', html)
         self.assertIn('onfocus="openVulnDetail(this)"', html)
         self.assertIn('onblur="scheduleCloseVulnDetail(this)"', html)
@@ -469,17 +469,18 @@ class ButianReportAssetTests(unittest.TestCase):
         with open(REPORT_JS, "r", encoding="utf-8") as handle:
             js = handle.read()
         self.assertIn("function openVulnDetail", js)
-        self.assertIn("const VULN_DETAIL_OPEN_DELAY_MS = 500", js)
-        self.assertIn("const VULN_DETAIL_SCAN_DELAY_MS = 620", js)
-        self.assertIn("function scheduleOpenVulnDetail", js)
+        self.assertNotIn("VULN_DETAIL_OPEN_DELAY_MS", js)
+        self.assertNotIn("function scheduleOpenVulnDetail", js)
+        self.assertIn("const VULN_DETAIL_SCAN_DELAY_MS = 380", js)
+        self.assertIn("function closeOtherVulnDetails", js)
         self.assertIn("function scheduleVulnDetailScan", js)
         self.assertIn("function scheduleCloseVulnDetail", js)
         self.assertIn("function handleVulnDetailKey", js)
         self.assertIn("function initVulnDetailHover", js)
         self.assertIn("window.openVulnDetail = openVulnDetail", js)
-        self.assertIn("window.scheduleOpenVulnDetail = scheduleOpenVulnDetail", js)
+        self.assertNotIn("window.scheduleOpenVulnDetail", js)
         self.assertIn("window.closeVulnDetail = closeVulnDetail", js)
-        self.assertIn('row.addEventListener("mouseenter", () => scheduleOpenVulnDetail(row))', js)
+        self.assertIn('row.addEventListener("mouseenter", () => openVulnDetail(row))', js)
         self.assertIn('detail.addEventListener("mouseleave"', js)
         self.assertIn('tr.setAttribute("aria-expanded"', js)
         self.assertIn('classList.add("vuln-detail-scan-ready")', js)
@@ -494,6 +495,16 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("padding: 0 18px;", compact_css)
         detail_cell_css = css.split(".vuln-detail-row > td {", 1)[1].split("}", 1)[0]
         self.assertIn("padding: 0;", detail_cell_css)
+        self.assertIn("background-repeat: no-repeat;", detail_cell_css)
+        self.assertIn("background-size: 100% 100%;", detail_cell_css)
+        self.assertNotIn("vuln-detail-shell", css)
+        detail_shell_css = css.split(".vuln-detail {", 1)[1].split("}", 1)[0]
+        self.assertIn("overflow: hidden;", detail_shell_css)
+        self.assertIn("contain: paint;", detail_shell_css)
+        self.assertIn(".vuln-table .vuln-detail-row:hover {", css)
+        detail_hover_css = css.split(".vuln-table .vuln-detail-row:hover {", 1)[1].split("}", 1)[0]
+        self.assertIn("background: transparent !important;", detail_hover_css)
+        self.assertIn(".vuln-table tbody tr:hover:not(.vuln-row):not(.vuln-row-open) {", css)
         self.assertIn(".detail-dossier-compact .detail-story {", css)
         self.assertIn(".detail-dossier-compact .detail-facts", css)
         compact_story_css = css.split(".detail-dossier-compact .detail-story {", 1)[1].split("}", 1)[0]
@@ -504,10 +515,12 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn(".vuln-detail-row.vuln-detail-open .vuln-detail", css)
         self.assertIn(".vuln-detail-row.vuln-detail-scan-ready .vuln-detail::after", css)
         detail_open_css = css.split(".vuln-detail-row.vuln-detail-open .vuln-detail {", 1)[1].split("}", 1)[0]
-        self.assertIn("animation: vuln-detail-reveal 0.62s", detail_open_css)
+        self.assertIn("animation: vuln-detail-reveal 0.38s", detail_open_css)
         scan_open_css = css.split(".vuln-detail-row.vuln-detail-scan-ready .vuln-detail::after {", 1)[1].split("}", 1)[0]
         self.assertIn("animation: vuln-detail-scan 0.82s ease-out both;", scan_open_css)
         self.assertIn("@keyframes vuln-detail-reveal", css)
+        reveal_css = css.split("@keyframes vuln-detail-reveal {", 1)[1].split("}", 1)[0]
+        self.assertNotIn("blur", reveal_css)
         self.assertIn("@keyframes vuln-detail-scan", css)
         self.assertIn("@media (prefers-reduced-motion: reduce)", css)
 

@@ -2675,7 +2675,7 @@ function renderVulnTable(rows) {
       const detail = vulnDetailPanel(r);
       const hasDetail = detail ? " vuln-row" : "";
       const detailAttrs = detail
-        ? ` tabindex="0" aria-expanded="false" onclick="toggleVulnDetail(this)" onmouseenter="scheduleOpenVulnDetail(this)" onmouseleave="scheduleCloseVulnDetail(this)" onfocus="openVulnDetail(this)" onblur="scheduleCloseVulnDetail(this)" onkeydown="handleVulnDetailKey(event, this)"`
+        ? ` tabindex="0" aria-expanded="false" onclick="toggleVulnDetail(this)" onmouseenter="openVulnDetail(this)" onmouseleave="scheduleCloseVulnDetail(this)" onfocus="openVulnDetail(this)" onblur="scheduleCloseVulnDetail(this)" onkeydown="handleVulnDetailKey(event, this)"`
         : "";
       const detailRow = detail
         ? `<tr class="vuln-detail-row${extraCls}" onmouseenter="openVulnDetail(this.previousElementSibling)" onmouseleave="closeVulnDetail(this.previousElementSibling)"><td colspan="6">${detail}</td></tr>`
@@ -2714,22 +2714,13 @@ function toggleVulns(btn) {
   btn.textContent = expanded ? "收起" : `显示更多（还有 ${rows.length} 项）`;
 }
 
-const VULN_DETAIL_OPEN_DELAY_MS = 500;
-const VULN_DETAIL_SCAN_DELAY_MS = 620;
+const VULN_DETAIL_SCAN_DELAY_MS = 380;
 
 function vulnDetailRowFor(tr) {
   if (!tr) return null;
   const next = tr.nextElementSibling;
   if (!next || !next.classList.contains("vuln-detail-row")) return null;
   return next;
-}
-
-function cancelVulnDetailOpen(tr) {
-  if (!tr || !tr._vulnOpenTimer) return;
-  if (typeof clearTimeout === "function") {
-    clearTimeout(tr._vulnOpenTimer);
-  }
-  tr._vulnOpenTimer = null;
 }
 
 function cancelVulnDetailScan(tr) {
@@ -2759,10 +2750,19 @@ function scheduleVulnDetailScan(tr, detailRow) {
   }, VULN_DETAIL_SCAN_DELAY_MS);
 }
 
+function closeOtherVulnDetails(tr) {
+  const table = tr && tr.closest ? tr.closest("table") : null;
+  if (!table || typeof table.querySelectorAll !== "function") return;
+  table.querySelectorAll(".vuln-row-open").forEach((row) => {
+    if (row !== tr) {
+      setVulnDetailState(row, false);
+    }
+  });
+}
+
 function setVulnDetailState(tr, open) {
   const next = vulnDetailRowFor(tr);
   if (!next) return;
-  cancelVulnDetailOpen(tr);
   cancelVulnDetailClose(tr);
   cancelVulnDetailScan(tr);
   next.classList.remove("vuln-detail-scan-ready");
@@ -2775,19 +2775,8 @@ function setVulnDetailState(tr, open) {
 }
 
 function openVulnDetail(tr) {
+  closeOtherVulnDetails(tr);
   setVulnDetailState(tr, true);
-}
-
-function scheduleOpenVulnDetail(tr) {
-  const next = vulnDetailRowFor(tr);
-  if (!next || next.classList.contains("vuln-detail-open")) return;
-  cancelVulnDetailClose(tr);
-  cancelVulnDetailOpen(tr);
-  tr._vulnOpenTimer = setTimeout(() => {
-    if (isHoveringVulnDetailPair(tr, next)) {
-      openVulnDetail(tr);
-    }
-  }, VULN_DETAIL_OPEN_DELAY_MS);
 }
 
 function closeVulnDetail(tr) {
@@ -2808,7 +2797,6 @@ function isHoveringVulnDetailPair(tr, detailRow) {
 function scheduleCloseVulnDetail(tr) {
   const next = vulnDetailRowFor(tr);
   if (!next) return;
-  cancelVulnDetailOpen(tr);
   cancelVulnDetailClose(tr);
   tr._vulnCloseTimer = setTimeout(() => {
     if (!isHoveringVulnDetailPair(tr, next)) {
@@ -2841,7 +2829,7 @@ function initVulnDetailHover(root) {
     if (row.dataset && row.dataset.vulnHoverBound === "true") return;
     if (row.dataset) row.dataset.vulnHoverBound = "true";
 
-    row.addEventListener("mouseenter", () => scheduleOpenVulnDetail(row));
+    row.addEventListener("mouseenter", () => openVulnDetail(row));
     row.addEventListener("mouseleave", () => scheduleCloseVulnDetail(row));
     row.addEventListener("focus", () => openVulnDetail(row));
     row.addEventListener("blur", () => scheduleCloseVulnDetail(row));
@@ -3231,7 +3219,6 @@ const sumList = (a) =>
 window.toggleVulns = toggleVulns;
 window.toggleVulnDetail = toggleVulnDetail;
 window.openVulnDetail = openVulnDetail;
-window.scheduleOpenVulnDetail = scheduleOpenVulnDetail;
 window.scheduleCloseVulnDetail = scheduleCloseVulnDetail;
 window.closeVulnDetail = closeVulnDetail;
 window.handleVulnDetailKey = handleVulnDetailKey;
