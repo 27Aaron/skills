@@ -42,6 +42,7 @@
     --detail-card-border: rgba(15, 23, 42, 0.08);
     --detail-label: #475569;
     --detail-text: #27272a;
+    --vuln-row-open-bg: var(--accent-bg);
     --green: #059669;
     --yellow: #d97706;
     --red: #dc2626;
@@ -1277,12 +1278,13 @@ footer {
         --item-bg: rgba(255, 255, 255, 0.05);
         --item-body-border: rgba(255, 255, 255, 0.1);
         --item-body-bg: rgba(255, 255, 255, 0.03);
-        --detail-panel-bg: rgba(8, 13, 18, 0.88);
-        --detail-panel-border: rgba(110, 231, 183, 0.2);
-        --detail-card-bg: rgba(18, 25, 32, 0.92);
-        --detail-card-border: rgba(148, 163, 184, 0.18);
+        --detail-panel-bg: rgba(17, 24, 29, 0.82);
+        --detail-panel-border: rgba(255, 255, 255, 0.12);
+        --detail-card-bg: rgba(255, 255, 255, 0.045);
+        --detail-card-border: rgba(255, 255, 255, 0.1);
         --detail-label: #cbd5e1;
         --detail-text: #f4f4f5;
+        --vuln-row-open-bg: rgba(255, 255, 255, 0.055);
         --green: #10b981;
         --yellow: #f59e0b;
         --red: #f87171;
@@ -1814,9 +1816,9 @@ footer {
         color: #fee2e2;
     }
     .cvss-tag {
-        border-color: rgba(96, 165, 250, 0.26);
-        background: rgba(96, 165, 250, 0.18);
-        color: #bfdbfe;
+        border-color: rgba(148, 163, 184, 0.24);
+        background: rgba(148, 163, 184, 0.12);
+        color: #dbe4ee;
     }
     .cia-h {
         border-color: rgba(248, 113, 113, 0.28);
@@ -1829,9 +1831,9 @@ footer {
         color: #fef3c7;
     }
     .cia-n {
-        border-color: rgba(203, 213, 225, 0.22);
-        background: rgba(148, 163, 184, 0.18);
-        color: #e2e8f0;
+        border-color: rgba(148, 163, 184, 0.22);
+        background: rgba(148, 163, 184, 0.1);
+        color: #cbd5e1;
     }
 }
 
@@ -1843,7 +1845,7 @@ footer {
     background: var(--hover-soft);
 }
 .vuln-row-open {
-    background: var(--accent-bg) !important;
+    background: var(--vuln-row-open-bg) !important;
 }
 .vuln-detail-row > td {
     padding: 16px 20px 18px;
@@ -1910,7 +1912,7 @@ footer {
     overflow-wrap: anywhere;
 }
 .detail-field-wide .detail-value {
-    max-width: 92ch;
+    max-width: none;
 }
 
 @media (max-width: 860px) {
