@@ -1869,19 +1869,28 @@ function vulnerabilityExplanation(r) {
 }
 
 function outdatedExplanation(it) {
-  const name = it.package || it.name || "该依赖";
   const current = String(it.current || it.version || "").trim();
   const target =
     String(it.latest || it.latestVersion || "").trim() ||
     String(it.wanted || it.update || "").trim() ||
     outdatedDisplayTarget(it);
+  const majorJump = current && target && isMajorVersionJump(current, target);
   if (current && target) {
-    return `${name} 当前版本为 ${current}，建议升级到最新版本 ${target}。`;
+    const base = `当前版本为 ${current}，建议升级到最新版本 ${target}。`;
+    const warning = majorJump ? " 注意：跨大版本升级可能存在不兼容变更，升级前建议查看更新日志并做好兼容性测试。" : "";
+    return base + warning;
   }
   if (target) {
-    return `${name} 建议升级到最新版本 ${target}。`;
+    return `建议升级到最新版本 ${target}。`;
   }
-  return `${name} 需要复核版本状态`;
+  return "需要复核版本状态";
+}
+
+function isMajorVersionJump(current, target) {
+  const c = parseVersion(current);
+  const t = parseVersion(target);
+  if (!c.length || !t.length) return false;
+  return Math.abs(t[0] - c[0]) >= 1;
 }
 
 function cleanVersion(value) {
