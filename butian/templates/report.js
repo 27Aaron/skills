@@ -2160,6 +2160,24 @@ function publishedAgeText(isoDate) {
   return `${dateStr}（已公开 ${years} 年+）`;
 }
 
+function publishedSignalTag(isoDate) {
+  if (!isoDate) return "";
+  const d = new Date(isoDate);
+  if (isNaN(d.getTime())) return "";
+  const diffDays = Math.floor(
+    (Date.now() - d.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  if (diffDays < 0) return "";
+  if (diffDays < 30) {
+    return '<span class="sig-tag sig-recent">近期公开</span>';
+  }
+  if (diffDays < 365) {
+    const months = Math.max(1, Math.floor(diffDays / 30));
+    return `<span class="sig-tag sig-age">已公开 ${months} 个月</span>`;
+  }
+  return '<span class="sig-tag sig-old">公开超1年</span>';
+}
+
 function parseCvssVector(vectorStr) {
   const result = {};
   if (!vectorStr) return result;
@@ -2280,17 +2298,8 @@ function riskBadgeRow(a) {
     tags.push(`<span class="sig-tag sig-cwe">${esc(cwe)}</span>`);
   }
   if (a.publishedAt) {
-    const d = new Date(a.publishedAt);
-    if (!isNaN(d.getTime())) {
-      const diffDays = Math.floor(
-        (Date.now() - d.getTime()) / (1000 * 60 * 60 * 24),
-      );
-      if (diffDays >= 0 && diffDays < 30) {
-        tags.push('<span class="sig-tag sig-recent">近期公开</span>');
-      } else if (diffDays >= 365) {
-        tags.push('<span class="sig-tag sig-old">公开超1年</span>');
-      }
-    }
+    const tag = publishedSignalTag(a.publishedAt);
+    if (tag) tags.push(tag);
   }
   if (!tags.length) return "";
   return `<div class="signal-tags">${tags.join("")}</div>`;
@@ -2331,9 +2340,22 @@ function ciaImpactTags(vectorStr) {
   return tags.join("");
 }
 
-function detailField(label, valueHtml, wide) {
-  const cls = wide ? " detail-field-wide" : "";
-  return `<section class="detail-field${cls}"><div class="detail-label">${esc(label)}</div><div class="detail-value">${valueHtml}</div></section>`;
+function detailField(label, valueHtml) {
+  return `<section class="detail-field"><div class="detail-label">${esc(label)}</div><div class="detail-value">${valueHtml}</div></section>`;
+}
+
+function detailAction(r) {
+  const target = shortFixedVersionText(r);
+  const followUp =
+    target.includes("建议升级到")
+      ? "升级后重新扫描，并完成核心流程兼容性验证。"
+      : "处理完成后重新扫描，确认风险状态已经关闭。";
+  return `<div class="detail-action"><div class="detail-action-label">建议处理</div><div class="detail-action-text">${esc(target)}${esc(followUp)}</div></div>`;
+}
+
+function detailStory(label, valueHtml, actionHtml) {
+  const action = actionHtml || "";
+  return `<section class="detail-story"><div class="detail-label">${esc(label)}</div><div class="detail-value">${valueHtml}</div>${action}</section>`;
 }
 
 function signalTags(r) {
@@ -2360,13 +2382,12 @@ function signalTags(r) {
 function vulnDetailPanel(r) {
   const a = aggregateEnrichments(r);
   const fields = [];
+  let story = "";
 
   const badges = riskBadgeRow(a);
 
   if (a.description) {
-    fields.push(
-      detailField("漏洞描述", esc(a.description), true),
-    );
+    story = detailStory("漏洞描述", esc(a.description), detailAction(r));
   }
 
   if (a.publishedAt) {
@@ -2416,15 +2437,17 @@ function vulnDetailPanel(r) {
     if (a.kevDueDate) parts.push(`修复截止 ${esc(shortDate(a.kevDueDate))}`);
     if (a.kevRequiredAction) parts.push(esc(a.kevRequiredAction));
     fields.push(
-      detailField("CISA KEV", parts.join("；"), true),
+      detailField("CISA KEV", parts.join("；")),
     );
   }
 
-  if (!fields.length && !badges) return "";
+  if (!story && !fields.length && !badges) return "";
   const header = badges
     ? `<div class="vuln-detail-header"><span>关键信号</span>${badges}</div>`
     : "";
-  const body = fields.length ? `<div class="detail-grid">${fields.join("")}</div>` : "";
+  const facts = fields.length ? `<div class="detail-facts">${fields.join("")}</div>` : "";
+  const body =
+    story || facts ? `<div class="detail-dossier">${story}${facts}</div>` : "";
   return `<div class="vuln-detail">${header}${body}</div>`;
 }
 
