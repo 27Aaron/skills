@@ -3031,7 +3031,7 @@ function renderHygiene(h) {
         items.length > 8
           ? `<div class="finding-more">…及其他 ${items.length - 8} 处</div>`
           : "";
-      return `<div class="hygiene-group"><div class="hygiene-group-head"><span>${esc(groupLabel)}</span><b>${items.length} 项</b></div><div class="hygiene-group-list">${cards}${groupMore}</div></div>`;
+      return `<div class="hygiene-group"><div class="hygiene-group-head"><span>${esc(groupLabel)}</span></div><div class="hygiene-group-list">${cards}${groupMore}</div></div>`;
     })
     .join("");
   const extra = `${basicFindings}${localGroupHtml ? `<div class="hygiene-groups">${localGroupHtml}</div>` : ""}`;

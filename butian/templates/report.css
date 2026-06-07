@@ -576,7 +576,7 @@ td.summary-cell {
     overflow-wrap: anywhere;
 }
 .hygiene-summary {
-    padding: 14px 16px;
+    padding: 16px;
 }
 .hygiene-summary .mini-fields {
     font-size: 14px;
@@ -662,47 +662,43 @@ td.summary-cell {
 }
 .hygiene-groups {
     display: grid;
-    gap: 12px;
-    margin-top: 13px;
-}
-.hygiene-summary > .hygiene-groups:first-child {
+    gap: 8px;
     margin-top: 0;
 }
+.hygiene-summary .mini-fields + .hygiene-groups {
+    margin-top: 12px;
+}
 .hygiene-group {
-    overflow: hidden;
-    border: 1px solid var(--tile-border);
-    border-radius: var(--radius-field);
-    background: var(--tile-bg);
+    border: 0;
+    border-radius: 0;
+    background: transparent;
 }
 .hygiene-group-head {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 12px;
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--tile-border-soft);
-    background: var(--tile-bg-strong);
+    padding: 0 0 8px;
+    background: transparent;
 }
 .hygiene-group-head span {
     color: var(--accent);
     font-size: 13px;
     font-weight: 720;
 }
-.hygiene-group-head b {
-    flex: 0 0 auto;
-    color: var(--sub);
-    font-size: 12px;
-    font-weight: 650;
-}
 .hygiene-group-list {
     display: grid;
+    gap: 8px;
 }
 .hygiene-finding {
-    padding: 12px;
-    border-top: 1px solid var(--tile-border-soft);
+    margin: 0;
+    border: 1px solid var(--summary-point-border);
+    border-radius: var(--radius-field);
+    background: var(--summary-point-bg);
+    padding: 9px 11px;
 }
 .hygiene-finding:first-child {
-    border-top: 0;
+    border-top: 1px solid var(--summary-point-border);
 }
 .hygiene-finding-top {
     display: grid;
@@ -730,9 +726,9 @@ td.summary-cell {
 }
 .hygiene-finding-loc {
     max-width: min(420px, 42vw);
-    border: 1px solid var(--tile-border-soft);
-    border-radius: 7px;
-    background: var(--bg-code);
+    border: 1px solid var(--pill-border);
+    border-radius: var(--radius-pill);
+    background: var(--pill-bg);
     color: var(--text-soft);
     padding: 4px 7px;
     font-family: var(--mono);
@@ -756,9 +752,9 @@ td.summary-cell {
 .hygiene-finding-note {
     width: fit-content;
     max-width: 100%;
-    border: 1px solid var(--tile-border-soft);
-    border-radius: 7px;
-    background: rgba(148, 163, 184, 0.08);
+    border: 1px solid var(--field-border);
+    border-radius: var(--radius-field);
+    background: var(--field-bg);
     color: var(--sub);
     padding: 4px 8px;
     font-size: 12px;

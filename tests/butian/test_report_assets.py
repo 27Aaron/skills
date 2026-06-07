@@ -851,12 +851,65 @@ class ButianReportAssetTests(unittest.TestCase):
         html = self._render_html(data)
 
         self.assertIn("依赖配置与维护", html)
+        self.assertIn(
+            '<div class="hygiene-group-head"><span>依赖配置与维护</span></div>',
+            html,
+        )
         self.assertIn('class="sev-badge sev-low">建议</span>', html)
         self.assertIn("配置 Dependabot", html)
+        self.assertNotIn("<b>1 项</b>", html)
         self.assertNotIn("检测到 .github/workflows/", html)
         self.assertNotIn("dependabot.yml not found", html)
         self.assertNotIn("维护建议", html)
         self.assertNotIn("有 1 条", html)
+
+    def test_hygiene_cards_share_report_surface_styles(self):
+        with open(REPORT_CSS, "r", encoding="utf-8") as handle:
+            css = handle.read()
+
+        summary_css = css.split(".hygiene-summary {", 1)[1].split("}", 1)[0]
+        self.assertIn("padding: 16px;", summary_css)
+
+        groups_css = css.split(".hygiene-groups {", 1)[1].split("}", 1)[0]
+        self.assertIn("gap: 8px;", groups_css)
+        self.assertIn("margin-top: 0;", groups_css)
+
+        group_css = css.split(".hygiene-group {", 1)[1].split("}", 1)[0]
+        self.assertIn("border: 0;", group_css)
+        self.assertIn("border-radius: 0;", group_css)
+        self.assertIn("background: transparent;", group_css)
+        self.assertNotIn("overflow: hidden;", group_css)
+        self.assertNotIn("var(--surface-border", group_css)
+        self.assertNotIn("var(--tile-bg)", group_css)
+
+        group_head_css = css.split(".hygiene-group-head {", 1)[1].split("}", 1)[0]
+        self.assertIn("justify-content: flex-start;", group_head_css)
+        self.assertIn("padding: 0 0 8px;", group_head_css)
+        self.assertIn("background: transparent;", group_head_css)
+        self.assertNotIn("border-bottom:", group_head_css)
+        self.assertNotIn("var(--tile-bg-strong)", group_head_css)
+
+        self.assertNotIn(".hygiene-group-head b", css)
+
+        group_list_css = css.split(".hygiene-group-list {", 1)[1].split("}", 1)[0]
+        self.assertIn("gap: 8px;", group_list_css)
+
+        finding_css = css.split(".hygiene-finding {", 1)[1].split("}", 1)[0]
+        self.assertIn("margin: 0;", finding_css)
+        self.assertIn("border: 1px solid var(--summary-point-border);", finding_css)
+        self.assertIn("border-radius: var(--radius-field);", finding_css)
+        self.assertIn("background: var(--summary-point-bg);", finding_css)
+        self.assertIn("padding: 9px 11px;", finding_css)
+
+        finding_loc_css = css.split(".hygiene-finding-loc {", 1)[1].split("}", 1)[0]
+        self.assertIn("border: 1px solid var(--pill-border);", finding_loc_css)
+        self.assertIn("border-radius: var(--radius-pill);", finding_loc_css)
+        self.assertIn("background: var(--pill-bg);", finding_loc_css)
+
+        finding_note_css = css.split(".hygiene-finding-note {", 1)[1].split("}", 1)[0]
+        self.assertIn("border: 1px solid var(--field-border);", finding_note_css)
+        self.assertIn("border-radius: var(--radius-field);", finding_note_css)
+        self.assertIn("background: var(--field-bg);", finding_note_css)
 
     def test_tldr_fallback_uses_risk_item_term_for_critical_high(self):
         data = {
