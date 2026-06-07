@@ -2482,8 +2482,12 @@ function vulnDetailPanel(r) {
 
   if (!story && !fields.length && !badges) return "";
   const facts = fields.length ? `<div class="detail-facts">${fields.join("")}</div>` : "";
+  const layoutClass =
+    story && facts ? "detail-dossier-split" : "detail-dossier-compact";
   const body =
-    story || facts ? `<div class="detail-dossier">${story}${facts}</div>` : "";
+    story || facts
+      ? `<div class="detail-dossier ${layoutClass}">${story}${facts}</div>`
+      : "";
   return `<div class="vuln-detail">${body}</div>`;
 }
 
@@ -2670,11 +2674,13 @@ function renderVulnTable(rows) {
       const fixedHtml = fixedVersionHtml(r);
       const detail = vulnDetailPanel(r);
       const hasDetail = detail ? " vuln-row" : "";
-      const clickAttr = detail ? ` onclick="toggleVulnDetail(this)"` : "";
-      const detailRow = detail
-        ? `<tr class="vuln-detail-row${extraCls}"><td colspan="6">${detail}</td></tr>`
+      const detailAttrs = detail
+        ? ` tabindex="0" aria-expanded="false" onclick="toggleVulnDetail(this)" onmouseenter="scheduleOpenVulnDetail(this)" onmouseleave="scheduleCloseVulnDetail(this)" onfocus="openVulnDetail(this)" onblur="scheduleCloseVulnDetail(this)" onkeydown="handleVulnDetailKey(event, this)"`
         : "";
-      return `<tr class="${hasDetail}${extraCls}"${clickAttr}>
+      const detailRow = detail
+        ? `<tr class="vuln-detail-row${extraCls}" onmouseenter="openVulnDetail(this.previousElementSibling)" onmouseleave="closeVulnDetail(this.previousElementSibling)"><td colspan="6">${detail}</td></tr>`
+        : "";
+      return `<tr class="${hasDetail}${extraCls}"${detailAttrs}>
   <td class="sev" data-label="影响程度">${sevBadge(r.severity)}</td>
   <td class="package-cell" data-label="依赖名称"><b title="${esc(packageName)}">${esc(packageName)}</b></td>
   <td class="ver" data-label="当前版本">${esc(r.version || "")}</td>
@@ -2708,11 +2714,144 @@ function toggleVulns(btn) {
   btn.textContent = expanded ? "收起" : `显示更多（还有 ${rows.length} 项）`;
 }
 
-function toggleVulnDetail(tr) {
+const VULN_DETAIL_OPEN_DELAY_MS = 500;
+const VULN_DETAIL_SCAN_DELAY_MS = 620;
+
+function vulnDetailRowFor(tr) {
+  if (!tr) return null;
   const next = tr.nextElementSibling;
-  if (!next || !next.classList.contains("vuln-detail-row")) return;
-  const open = next.classList.toggle("vuln-detail-open");
+  if (!next || !next.classList.contains("vuln-detail-row")) return null;
+  return next;
+}
+
+function cancelVulnDetailOpen(tr) {
+  if (!tr || !tr._vulnOpenTimer) return;
+  if (typeof clearTimeout === "function") {
+    clearTimeout(tr._vulnOpenTimer);
+  }
+  tr._vulnOpenTimer = null;
+}
+
+function cancelVulnDetailScan(tr) {
+  if (!tr || !tr._vulnScanTimer) return;
+  if (typeof clearTimeout === "function") {
+    clearTimeout(tr._vulnScanTimer);
+  }
+  tr._vulnScanTimer = null;
+}
+
+function cancelVulnDetailClose(tr) {
+  if (!tr || !tr._vulnCloseTimer) return;
+  if (typeof clearTimeout === "function") {
+    clearTimeout(tr._vulnCloseTimer);
+  }
+  tr._vulnCloseTimer = null;
+}
+
+function scheduleVulnDetailScan(tr, detailRow) {
+  cancelVulnDetailScan(tr);
+  if (!detailRow) return;
+  detailRow.classList.remove("vuln-detail-scan-ready");
+  tr._vulnScanTimer = setTimeout(() => {
+    if (detailRow.classList.contains("vuln-detail-open")) {
+      detailRow.classList.add("vuln-detail-scan-ready");
+    }
+  }, VULN_DETAIL_SCAN_DELAY_MS);
+}
+
+function setVulnDetailState(tr, open) {
+  const next = vulnDetailRowFor(tr);
+  if (!next) return;
+  cancelVulnDetailOpen(tr);
+  cancelVulnDetailClose(tr);
+  cancelVulnDetailScan(tr);
+  next.classList.remove("vuln-detail-scan-ready");
+  next.classList.toggle("vuln-detail-open", open);
   tr.classList.toggle("vuln-row-open", open);
+  tr.setAttribute("aria-expanded", open ? "true" : "false");
+  if (open) {
+    scheduleVulnDetailScan(tr, next);
+  }
+}
+
+function openVulnDetail(tr) {
+  setVulnDetailState(tr, true);
+}
+
+function scheduleOpenVulnDetail(tr) {
+  const next = vulnDetailRowFor(tr);
+  if (!next || next.classList.contains("vuln-detail-open")) return;
+  cancelVulnDetailClose(tr);
+  cancelVulnDetailOpen(tr);
+  tr._vulnOpenTimer = setTimeout(() => {
+    if (isHoveringVulnDetailPair(tr, next)) {
+      openVulnDetail(tr);
+    }
+  }, VULN_DETAIL_OPEN_DELAY_MS);
+}
+
+function closeVulnDetail(tr) {
+  setVulnDetailState(tr, false);
+}
+
+function isHoveringVulnDetailPair(tr, detailRow) {
+  const isHovering = (node) => {
+    try {
+      return !!(node && node.matches && node.matches(":hover"));
+    } catch (_) {
+      return false;
+    }
+  };
+  return isHovering(tr) || isHovering(detailRow);
+}
+
+function scheduleCloseVulnDetail(tr) {
+  const next = vulnDetailRowFor(tr);
+  if (!next) return;
+  cancelVulnDetailOpen(tr);
+  cancelVulnDetailClose(tr);
+  tr._vulnCloseTimer = setTimeout(() => {
+    if (!isHoveringVulnDetailPair(tr, next)) {
+      closeVulnDetail(tr);
+    }
+  }, 90);
+}
+
+function toggleVulnDetail(tr) {
+  const next = vulnDetailRowFor(tr);
+  if (!next) return;
+  if (
+    next.classList.contains("vuln-detail-open") &&
+    isHoveringVulnDetailPair(tr, next)
+  ) {
+    return;
+  }
+  setVulnDetailState(tr, !next.classList.contains("vuln-detail-open"));
+}
+
+function handleVulnDetailKey(event, tr) {
+  if (!event || (event.key !== "Enter" && event.key !== " ")) return;
+  event.preventDefault();
+  toggleVulnDetail(tr);
+}
+
+function initVulnDetailHover(root) {
+  if (!root || typeof root.querySelectorAll !== "function") return;
+  root.querySelectorAll(".vuln-row").forEach((row) => {
+    if (row.dataset && row.dataset.vulnHoverBound === "true") return;
+    if (row.dataset) row.dataset.vulnHoverBound = "true";
+
+    row.addEventListener("mouseenter", () => scheduleOpenVulnDetail(row));
+    row.addEventListener("mouseleave", () => scheduleCloseVulnDetail(row));
+    row.addEventListener("focus", () => openVulnDetail(row));
+    row.addEventListener("blur", () => scheduleCloseVulnDetail(row));
+    row.addEventListener("keydown", (event) => handleVulnDetailKey(event, row));
+
+    const detail = vulnDetailRowFor(row);
+    if (!detail) return;
+    detail.addEventListener("mouseenter", () => openVulnDetail(row));
+    detail.addEventListener("mouseleave", () => closeVulnDetail(row));
+  });
 }
 
 // ---- Report summary ----
@@ -3089,6 +3228,15 @@ const sumList = (a) =>
         .join("")}</div>`
     : "";
 
+window.toggleVulns = toggleVulns;
+window.toggleVulnDetail = toggleVulnDetail;
+window.openVulnDetail = openVulnDetail;
+window.scheduleOpenVulnDetail = scheduleOpenVulnDetail;
+window.scheduleCloseVulnDetail = scheduleCloseVulnDetail;
+window.closeVulnDetail = closeVulnDetail;
+window.handleVulnDetailKey = handleVulnDetailKey;
+window.toggleOutdated = toggleOutdated;
+
 // ---- Mount ----
 const app = document.getElementById("app");
 app.innerHTML =
@@ -3100,3 +3248,4 @@ app.innerHTML =
   renderRed(DATA.red) +
   renderYellow(DATA.yellow) +
   renderErrors();
+initVulnDetailHover(app);

@@ -320,7 +320,7 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("@media (max-width: 860px)", css)
         self.assertIn(".vuln-table thead", css)
         self.assertIn('content: attr(data-label)', css)
-        self.assertIn('class="detail-dossier"', html)
+        self.assertIn('class="detail-dossier detail-dossier-split"', html)
         self.assertIn('class="detail-story"', html)
         self.assertIn('class="detail-signal-row"', html)
         self.assertIn('class="detail-story-heading"', html)
@@ -369,7 +369,15 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertNotIn("max-width: 92ch", css)
         self.assertIn("max-width: none", css)
         self.assertIn(".detail-dossier", css)
+        detail_cell_css = css.split(".vuln-detail-row > td {", 1)[1].split("}", 1)[0]
+        self.assertIn("padding: 0;", detail_cell_css)
+        dossier_css = css.split(".detail-dossier {", 1)[1].split("}", 1)[0]
+        self.assertIn("gap: 18px;", dossier_css)
+        self.assertIn("align-items: start;", dossier_css)
+        self.assertIn("padding: 0 18px;", dossier_css)
         self.assertIn(".detail-story", css)
+        story_css = css.split(".detail-story {", 1)[1].split("}", 1)[0]
+        self.assertIn("min-height: auto;", story_css)
         self.assertIn(".detail-signal-row", css)
         signal_row_css = css.split(".detail-signal-row {", 1)[1].split("}", 1)[0]
         self.assertIn("--detail-field-value-line: 21.58px;", signal_row_css)
@@ -383,6 +391,8 @@ class ButianReportAssetTests(unittest.TestCase):
         )
         self.assertIn(".detail-story-heading", css)
         self.assertIn(".detail-action", css)
+        action_css = css.split(".detail-action {", 1)[1].split("}", 1)[0]
+        self.assertIn("margin-top: 12px;", action_css)
         self.assertIn(".detail-facts", css)
         self.assertIn("overflow-y: auto", css)
         self.assertIn(".sig-age", css)
@@ -398,6 +408,108 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertNotIn('class="copy"', js)
         self.assertNotIn("function copyBtn", js)
         self.assertNotIn("function cmdBlock", js)
+
+    def test_html_risk_detail_rows_expand_on_hover_with_motion(self):
+        data = {
+            "generated_at": "2026-06-05 09:05:50",
+            "project": {
+                "name": "demo",
+                "path": "/tmp/demo",
+                "ecosystems": ["npm"],
+                "total_packages": 1,
+            },
+            "scan_config": {"scan_mode": "full_dependency_scan"},
+            "risk_summary": {
+                "critical": 0,
+                "high": 1,
+                "medium": 0,
+                "low": 0,
+                "info": 0,
+            },
+            "summary": {"tldr": "demo", "detail": "demo", "priority": []},
+            "top_issues": [
+                {
+                    "package": "hover-lib",
+                    "version": "1.0.0",
+                    "severity": "high",
+                    "fixed_versions": ["1.0.1"],
+                    "advisory_id": "GHSA-hover",
+                    "summary": "hover detail",
+                    "cve_enrichments": [
+                        {
+                            "description": "Hover should reveal this dossier.",
+                            "cvssMetrics": [{"baseScore": "8.8"}],
+                        }
+                    ],
+                }
+            ],
+            "hygiene": {},
+            "outdated": [],
+        }
+
+        html = self._render_html(data)
+
+        self.assertIn('class="detail-dossier detail-dossier-compact"', html)
+        self.assertNotIn('class="detail-facts"', html)
+        self.assertIn('aria-expanded="false"', html)
+        self.assertIn('onmouseenter="scheduleOpenVulnDetail(this)"', html)
+        self.assertIn('onmouseleave="scheduleCloseVulnDetail(this)"', html)
+        self.assertIn('onfocus="openVulnDetail(this)"', html)
+        self.assertIn('onblur="scheduleCloseVulnDetail(this)"', html)
+        self.assertIn('onkeydown="handleVulnDetailKey(event, this)"', html)
+        self.assertIn(
+            'onmouseenter="openVulnDetail(this.previousElementSibling)"',
+            html,
+        )
+        self.assertIn(
+            'onmouseleave="closeVulnDetail(this.previousElementSibling)"',
+            html,
+        )
+
+        with open(REPORT_JS, "r", encoding="utf-8") as handle:
+            js = handle.read()
+        self.assertIn("function openVulnDetail", js)
+        self.assertIn("const VULN_DETAIL_OPEN_DELAY_MS = 500", js)
+        self.assertIn("const VULN_DETAIL_SCAN_DELAY_MS = 620", js)
+        self.assertIn("function scheduleOpenVulnDetail", js)
+        self.assertIn("function scheduleVulnDetailScan", js)
+        self.assertIn("function scheduleCloseVulnDetail", js)
+        self.assertIn("function handleVulnDetailKey", js)
+        self.assertIn("function initVulnDetailHover", js)
+        self.assertIn("window.openVulnDetail = openVulnDetail", js)
+        self.assertIn("window.scheduleOpenVulnDetail = scheduleOpenVulnDetail", js)
+        self.assertIn("window.closeVulnDetail = closeVulnDetail", js)
+        self.assertIn('row.addEventListener("mouseenter", () => scheduleOpenVulnDetail(row))', js)
+        self.assertIn('detail.addEventListener("mouseleave"', js)
+        self.assertIn('tr.setAttribute("aria-expanded"', js)
+        self.assertIn('classList.add("vuln-detail-scan-ready")', js)
+        self.assertIn("}, VULN_DETAIL_SCAN_DELAY_MS)", js)
+
+        with open(REPORT_CSS, "r", encoding="utf-8") as handle:
+            css = handle.read()
+        self.assertNotIn(".vuln-row:hover + .vuln-detail-row,\n.vuln-detail-row:hover {\n    display:", css)
+        self.assertIn(".detail-dossier-compact", css)
+        compact_css = css.split(".detail-dossier-compact {", 1)[1].split("}", 1)[0]
+        self.assertIn("grid-template-columns: 1fr;", compact_css)
+        self.assertIn("padding: 0 18px;", compact_css)
+        detail_cell_css = css.split(".vuln-detail-row > td {", 1)[1].split("}", 1)[0]
+        self.assertIn("padding: 0;", detail_cell_css)
+        self.assertIn(".detail-dossier-compact .detail-story {", css)
+        self.assertIn(".detail-dossier-compact .detail-facts", css)
+        compact_story_css = css.split(".detail-dossier-compact .detail-story {", 1)[1].split("}", 1)[0]
+        self.assertIn("min-height: auto;", compact_story_css)
+        self.assertIn(".detail-dossier-compact .detail-action {", css)
+        compact_action_css = css.split(".detail-dossier-compact .detail-action {", 1)[1].split("}", 1)[0]
+        self.assertIn("margin-top: 12px;", compact_action_css)
+        self.assertIn(".vuln-detail-row.vuln-detail-open .vuln-detail", css)
+        self.assertIn(".vuln-detail-row.vuln-detail-scan-ready .vuln-detail::after", css)
+        detail_open_css = css.split(".vuln-detail-row.vuln-detail-open .vuln-detail {", 1)[1].split("}", 1)[0]
+        self.assertIn("animation: vuln-detail-reveal 0.62s", detail_open_css)
+        scan_open_css = css.split(".vuln-detail-row.vuln-detail-scan-ready .vuln-detail::after {", 1)[1].split("}", 1)[0]
+        self.assertIn("animation: vuln-detail-scan 0.82s ease-out both;", scan_open_css)
+        self.assertIn("@keyframes vuln-detail-reveal", css)
+        self.assertIn("@keyframes vuln-detail-scan", css)
+        self.assertIn("@media (prefers-reduced-motion: reduce)", css)
 
     def test_html_risk_table_sorts_by_severity_epss_then_cvss(self):
         data = {

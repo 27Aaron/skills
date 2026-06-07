@@ -1850,20 +1850,52 @@ footer {
 
 /* ---- Expandable vuln detail row ---- */
 .vuln-row {
+    position: relative;
     cursor: pointer;
+    transition:
+        background-color 0.18s ease,
+        box-shadow 0.22s ease,
+        filter 0.22s ease;
 }
 .vuln-row:hover {
-    background: var(--hover-soft);
+    background: var(--vuln-row-open-bg) !important;
+    box-shadow:
+        inset 3px 0 0 color-mix(in srgb, var(--accent) 72%, transparent),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18),
+        0 10px 28px -24px var(--accent);
+    filter: saturate(1.05);
+}
+.vuln-row:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--accent) 72%, transparent);
+    outline-offset: -2px;
 }
 .vuln-row-open {
     background: var(--vuln-row-open-bg) !important;
+    box-shadow:
+        inset 3px 0 0 color-mix(in srgb, var(--accent) 72%, transparent),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18),
+        0 10px 28px -24px var(--accent);
+    filter: saturate(1.05);
+}
+.vuln-row-open > td {
+    border-bottom-color: transparent;
 }
 .vuln-detail-row > td {
-    padding: 16px 20px 20px;
+    position: relative;
+    overflow: hidden;
+    padding: 0;
     border-top: none;
+    background:
+        linear-gradient(135deg, color-mix(in srgb, var(--accent-bg) 52%, transparent), transparent 42%),
+        linear-gradient(180deg, var(--surface-bg), transparent 120%);
     vertical-align: top;
 }
+.vuln-detail-row.vuln-detail-open > td {
+    animation: vuln-detail-shell 0.5s ease-out;
+}
 .vuln-detail {
+    position: relative;
+    isolation: isolate;
     overflow: visible;
     display: grid;
     gap: 0;
@@ -1872,13 +1904,45 @@ footer {
     border-radius: 0;
     background: transparent;
     box-shadow: none;
+    transform-origin: top center;
+}
+.vuln-detail::after {
+    content: "";
+    position: absolute;
+    z-index: 3;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    background: linear-gradient(
+        105deg,
+        transparent 0%,
+        transparent 38%,
+        color-mix(in srgb, var(--accent) 30%, transparent) 48%,
+        color-mix(in srgb, var(--accent-ink) 18%, transparent) 52%,
+        transparent 64%,
+        transparent 100%
+    );
+    transform: translateX(-120%);
+}
+.vuln-detail-row.vuln-detail-open .vuln-detail {
+    animation: vuln-detail-reveal 0.62s cubic-bezier(0.19, 1, 0.22, 1) both;
+}
+.vuln-detail-row.vuln-detail-scan-ready .vuln-detail::after {
+    animation: vuln-detail-scan 0.82s ease-out both;
 }
 .detail-dossier {
     display: grid;
+    gap: 18px;
+    align-items: start;
+    padding: 0 18px;
+}
+.detail-dossier-split {
     grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
-    gap: 26px;
-    align-items: stretch;
-    padding: 18px 20px 20px;
+}
+.detail-dossier-compact {
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding: 0 18px;
 }
 .detail-story,
 .detail-facts {
@@ -1888,7 +1952,7 @@ footer {
     display: flex;
     flex-direction: column;
     gap: 0;
-    min-height: 100%;
+    min-height: auto;
     padding: 0;
 }
 .detail-signal-row {
@@ -1918,6 +1982,15 @@ footer {
     align-content: start;
     padding: 0 0 0 22px;
     border-left: 1px solid var(--detail-card-border);
+}
+.detail-dossier-compact .detail-story {
+    min-height: auto;
+    padding: 0;
+    border-left: 0;
+}
+.detail-dossier-compact .detail-facts {
+    padding: 0;
+    border-left: 0;
 }
 .detail-field {
     display: grid;
@@ -1960,9 +2033,12 @@ footer {
     background: rgba(148, 163, 184, 0.32);
 }
 .detail-action {
-    margin-top: auto;
+    margin-top: 12px;
     padding-top: 14px;
     border-top: 1px solid var(--detail-card-border);
+}
+.detail-dossier-compact .detail-action {
+    margin-top: 12px;
 }
 .detail-action-label {
     color: var(--detail-label);
@@ -1979,6 +2055,60 @@ footer {
     overflow-wrap: anywhere;
 }
 
+@keyframes vuln-detail-shell {
+    from {
+        background-position: -48px 0, 0 -18px;
+    }
+    to {
+        background-position: 0 0, 0 0;
+    }
+}
+
+@keyframes vuln-detail-reveal {
+    0% {
+        opacity: 0;
+        transform: translateY(-10px) scaleY(0.94);
+        filter: blur(4px);
+        clip-path: inset(0 0 100% 0);
+    }
+    58% {
+        opacity: 0.86;
+        filter: blur(1px);
+        clip-path: inset(0 0 18% 0);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scaleY(1);
+        filter: blur(0);
+        clip-path: inset(0 0 0 0);
+    }
+}
+
+@keyframes vuln-detail-scan {
+    0% {
+        opacity: 0;
+        transform: translateX(-120%);
+    }
+    16% {
+        opacity: 0.76;
+    }
+    100% {
+        opacity: 0;
+        transform: translateX(120%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vuln-row,
+    .vuln-detail-row.vuln-detail-open > td,
+    .vuln-detail-row.vuln-detail-open .vuln-detail,
+    .vuln-detail-row.vuln-detail-scan-ready .vuln-detail::after {
+        animation: none !important;
+        transition: none !important;
+        filter: none !important;
+    }
+}
+
 @media (max-width: 860px) {
     .vuln-detail-row > td {
         padding: 0;
@@ -1986,7 +2116,7 @@ footer {
     .detail-dossier {
         grid-template-columns: 1fr;
         gap: 12px;
-        padding: 14px;
+        padding: 0 14px;
     }
     .detail-story {
         padding: 0;
@@ -1999,7 +2129,7 @@ footer {
 }
 @media (max-width: 520px) {
     .detail-dossier {
-        padding: 12px;
+        padding: 0 12px;
     }
     .attack-tags,
     .impact-tags {
