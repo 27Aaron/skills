@@ -1876,12 +1876,13 @@ function outdatedExplanation(it) {
     outdatedDisplayTarget(it);
   const majorJump = current && target && isMajorVersionJump(current, target);
   if (current && target) {
-    const base = `当前版本为 ${current}，建议升级到最新版本 ${target}。`;
-    const warning = majorJump ? " 注意：跨大版本升级可能存在不兼容变更，升级前建议查看更新日志并做好兼容性测试。" : "";
-    return base + warning;
+    if (majorJump) {
+      return `有新版本 ${target} 可用，跨大版本更新建议先阅读更新日志并做兼容性测试。`;
+    }
+    return `有新版本 ${target} 可用，建议在近期迭代中安排升级。`;
   }
   if (target) {
-    return `建议升级到最新版本 ${target}。`;
+    return `有新版本 ${target} 可用，建议安排升级。`;
   }
   return "需要复核版本状态";
 }

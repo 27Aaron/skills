@@ -279,7 +279,7 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertNotIn("可更新到", html)
         self.assertNotIn("最近可用版本为", html)
         self.assertIn(
-            "当前版本为 4.12.14，建议升级到最新版本 4.12.21。",
+            "有新版本 4.12.21 可用，建议在近期迭代中安排升级。",
             html,
         )
         self.assertIn('class="fixed-list"', html)
