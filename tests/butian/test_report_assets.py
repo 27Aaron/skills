@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import textwrap
 import unittest
+from datetime import datetime, timedelta, timezone
 
 from butian.scripts import report
 
@@ -157,6 +158,9 @@ class ButianReportAssetTests(unittest.TestCase):
         if not shutil.which("node"):
             self.skipTest("node is required for report asset rendering tests")
 
+        published_at = (
+            datetime.now(timezone.utc) - timedelta(days=45)
+        ).isoformat().replace("+00:00", "Z")
         data = {
             "generated_at": "2026-06-05 09:05:50",
             "project": {"name": "demo", "path": "/tmp/demo", "ecosystems": ["npm"]},
@@ -179,7 +183,7 @@ class ButianReportAssetTests(unittest.TestCase):
                     "cve_enrichments": [
                         {
                             "description": "A crafted request may exhaust service resources.",
-                            "nvdPublishedAt": "2026-05-29T20:16:25.550Z",
+                            "nvdPublishedAt": published_at,
                             "cvssMetrics": [
                                 {
                                     "version": "3.1",
@@ -317,8 +321,13 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn(".vuln-table thead", css)
         self.assertIn('content: attr(data-label)', css)
         self.assertIn('class="vuln-detail-header"', html)
-        self.assertIn('class="detail-grid"', html)
-        self.assertIn('class="detail-field detail-field-wide"', html)
+        self.assertIn('class="detail-dossier"', html)
+        self.assertIn('class="detail-story"', html)
+        self.assertIn('class="detail-action"', html)
+        self.assertIn('class="detail-facts"', html)
+        self.assertIn(">建议处理</div>", html)
+        self.assertIn("建议升级到 13.0.1 或更高版本。升级后重新扫描", html)
+        self.assertIn('class="sig-tag sig-age">已公开 1 个月</span>', html)
         self.assertIn(">远程可达</span>", html)
         self.assertIn(">可用性 高</span>", html)
         self.assertNotIn("🌐", html)
@@ -330,9 +339,17 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("--detail-panel-bg: rgba(17, 24, 29, 0.82)", css)
         self.assertIn("--detail-card-bg: rgba(255, 255, 255, 0.045)", css)
         self.assertIn("--vuln-row-open-bg: rgba(255, 255, 255, 0.055)", css)
+        self.assertNotIn(".vuln-detail::before", css)
+        self.assertNotIn("border: 1px solid var(--detail-card-border);", css)
+        self.assertNotIn("background: var(--detail-card-bg)", css)
         self.assertNotIn("max-width: 92ch", css)
         self.assertIn("max-width: none", css)
-        self.assertIn(".detail-field-wide", css)
+        self.assertIn(".detail-dossier", css)
+        self.assertIn(".detail-story", css)
+        self.assertIn(".detail-action", css)
+        self.assertIn(".detail-facts", css)
+        self.assertIn("overflow-y: auto", css)
+        self.assertIn(".sig-age", css)
         self.assertIn(".vuln-detail-header", css)
         self.assertNotIn("border-left-width: 4px", css)
         self.assertNotIn("border-left-color: var(--warning-ink)", css)
