@@ -1504,6 +1504,7 @@ footer {
 }
 @media (max-width: 860px) {
     .table-scroll {
+        --mobile-risk-label-col: clamp(76px, 18vw, 108px);
         overflow-x: visible;
         padding: 8px;
     }
@@ -1524,16 +1525,20 @@ footer {
     .vuln-table tbody,
     .outdated-table tbody {
         display: grid;
-        gap: 10px;
+        gap: 12px;
     }
     .vuln-table tr,
     .outdated-table tr {
         display: grid;
-        gap: 9px;
-        padding: 14px;
-        border: 1px solid var(--item-border);
-        border-radius: var(--radius-sm);
-        background: var(--item-bg);
+        gap: 8px;
+        padding: 14px 16px;
+        border: 1px solid var(--surface-border);
+        border-radius: calc(var(--radius-sm) + 2px);
+        background: color-mix(in srgb, var(--surface-bg) 72%, var(--panel-soft));
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+    .vuln-table tr.vuln-row-open {
+        background: color-mix(in srgb, var(--surface-bg) 76%, var(--field-bg));
     }
     .vuln-table tr.vuln-detail-row {
         gap: 0;
@@ -1555,21 +1560,27 @@ footer {
     .vuln-table td,
     .outdated-table td {
         display: grid;
-        grid-template-columns: minmax(76px, 0.32fr) minmax(0, 1fr);
-        gap: 10px;
+        grid-template-columns: var(--mobile-risk-label-col) minmax(0, 1fr);
+        gap: 4px 12px;
         min-width: 0;
         padding: 0;
         border-bottom: 0;
-        align-items: start;
+        align-items: center;
     }
     .vuln-table td::before,
     .outdated-table td::before {
         content: attr(data-label);
-        color: var(--sub);
+        color: var(--detail-label);
         font-size: 12px;
-        font-weight: 700;
+        font-weight: 760;
         line-height: 1.5;
         white-space: nowrap;
+    }
+    .vuln-table td.sev .sev-badge,
+    .outdated-table td.sev .sev-badge {
+        justify-self: start;
+        width: max-content;
+        max-width: 100%;
     }
     .vuln-table .package-cell b,
     .outdated-table .package-cell b,
@@ -1587,6 +1598,11 @@ footer {
         display: flex;
         flex-wrap: wrap;
         gap: 3px 10px;
+    }
+    .vuln-table .summary-cell,
+    .outdated-table .summary-cell {
+        color: var(--text-soft);
+        line-height: 1.62;
     }
     .vuln-detail-row td,
     .vuln-toggle td,
@@ -1661,6 +1677,14 @@ footer {
     }
     .adv-list {
         grid-template-columns: 1fr;
+    }
+}
+@media (max-width: 440px) {
+    .vuln-table td,
+    .outdated-table td {
+        grid-template-columns: 1fr;
+        gap: 3px;
+        align-items: start;
     }
 }
 

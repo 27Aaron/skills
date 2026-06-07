@@ -320,6 +320,21 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("@media (max-width: 860px)", css)
         self.assertIn(".vuln-table thead", css)
         self.assertIn('content: attr(data-label)', css)
+        self.assertIn("--mobile-risk-label-col: clamp(76px, 18vw, 108px);", css)
+        self.assertIn(
+            "grid-template-columns: var(--mobile-risk-label-col) minmax(0, 1fr);",
+            css,
+        )
+        self.assertIn(".vuln-table td.sev .sev-badge", css)
+        self.assertIn("justify-self: start;", css)
+        self.assertNotIn(
+            "@media (max-width: 520px) {\n    .vuln-table td,\n    .outdated-table td {",
+            css,
+        )
+        self.assertIn(
+            "@media (max-width: 440px) {\n    .vuln-table td,\n    .outdated-table td {",
+            css,
+        )
         self.assertIn('class="detail-dossier detail-dossier-split"', html)
         self.assertIn('class="detail-story"', html)
         self.assertIn('class="detail-signal-row"', html)
