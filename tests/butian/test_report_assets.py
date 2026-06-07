@@ -295,6 +295,10 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("td.fixed-cell", css)
         self.assertIn(".outdated-table .col-current", css)
         self.assertIn(".outdated-table .col-latest", css)
+        self.assertIn('data-label="详情"', html)
+        self.assertIn("@media (max-width: 860px)", css)
+        self.assertIn(".vuln-table thead", css)
+        self.assertIn('content: attr(data-label)', css)
         self.assertNotIn("border-left-width: 4px", css)
         self.assertNotIn("border-left-color: var(--warning-ink)", css)
 

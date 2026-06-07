@@ -2605,12 +2605,12 @@ function renderVulnTable(rows) {
         ? `<tr class="vuln-detail-row${extraCls}"><td colspan="6">${detail}</td></tr>`
         : "";
       return `<tr class="${hasDetail}${extraCls}"${clickAttr}>
-  <td class="sev">${sevBadge(r.severity)}</td>
-  <td class="package-cell"><b title="${esc(packageName)}">${esc(packageName)}</b></td>
-  <td class="ver">${esc(r.version || "")}</td>
-  <td class="ver fixed-cell">${fixedHtml}</td>
-  <td class="advisory">${advHtml}</td>
-  <td class="summary-cell">${vulnerabilityExplanation(r)}</td>
+  <td class="sev" data-label="影响程度">${sevBadge(r.severity)}</td>
+  <td class="package-cell" data-label="依赖名称"><b title="${esc(packageName)}">${esc(packageName)}</b></td>
+  <td class="ver" data-label="当前版本">${esc(r.version || "")}</td>
+  <td class="ver fixed-cell" data-label="修复版本">${fixedHtml}</td>
+  <td class="advisory" data-label="安全编号">${advHtml}</td>
+  <td class="summary-cell" data-label="详情">${vulnerabilityExplanation(r)}</td>
 </tr>${detailRow}`;
     })
     .join("");
@@ -2799,7 +2799,8 @@ function renderHygiene(h) {
     }),
   ];
   const basicTotal = secrets.length + sensitive.length;
-  const basicShown = Math.min(secrets.length, 5) + Math.min(sensitive.length, 5);
+  const basicShown =
+    Math.min(secrets.length, 5) + Math.min(sensitive.length, 5);
   const basicExtra =
     basicTotal > basicShown
       ? `<div class="finding-more">…及其他 ${basicTotal - basicShown} 处</div>`
@@ -2814,17 +2815,18 @@ function renderHygiene(h) {
       const cards = items
         .slice(0, 8)
         .map((x) => {
-        const loc = `${x.file || "-"}${x.line ? ":" + x.line : ""}`;
-        const badge =
-          x.kind === "maintenance_advice"
-            ? `<span class="sev-badge sev-low">建议</span>`
-            : sevBadge(x.severity);
-        const evidence = x.evidence && x.kind !== "maintenance_advice"
-          ? `<div class="hygiene-finding-note hygiene-finding-context">${esc(x.evidence)}</div>`
-          : "";
-        const recommendation = x.recommendation
-          ? `<p class="hygiene-finding-advice">${esc(x.recommendation)}</p>`
-          : "";
+          const loc = `${x.file || "-"}${x.line ? ":" + x.line : ""}`;
+          const badge =
+            x.kind === "maintenance_advice"
+              ? `<span class="sev-badge sev-low">建议</span>`
+              : sevBadge(x.severity);
+          const evidence =
+            x.evidence && x.kind !== "maintenance_advice"
+              ? `<div class="hygiene-finding-note hygiene-finding-context">${esc(x.evidence)}</div>`
+              : "";
+          const recommendation = x.recommendation
+            ? `<p class="hygiene-finding-advice">${esc(x.recommendation)}</p>`
+            : "";
           return `<article class="hygiene-finding"><div class="hygiene-finding-top"><div class="hygiene-finding-title">${badge}<b>${esc(x.title || x.id || "仓库安检项")}</b></div><div class="hygiene-finding-loc">${esc(loc)}</div></div><div class="hygiene-finding-body">${evidence}${recommendation}</div></article>`;
         })
         .join("");
@@ -2912,10 +2914,10 @@ function renderOutdated(items) {
       const cls =
         needToggle && idx >= OUTDATED_SHOW ? ' class="outdated-extra"' : "";
       return `<tr${cls}>
-  <td class="package-cell"><b title="${esc(packageName)}">${esc(packageName)}</b></td>
-  <td class="ver">${esc(current || "-")}</td>
-  <td class="ver">${esc(outdatedDisplayTarget(it) || "-")}</td>
-  <td class="summary-cell">${esc(outdatedExplanation(it))}</td>
+  <td class="package-cell" data-label="依赖名称"><b title="${esc(packageName)}">${esc(packageName)}</b></td>
+  <td class="ver" data-label="当前版本">${esc(current || "-")}</td>
+  <td class="ver" data-label="最近版本">${esc(outdatedDisplayTarget(it) || "-")}</td>
+  <td class="summary-cell" data-label="建议">${esc(outdatedExplanation(it))}</td>
 </tr>`;
     })
     .join("");
