@@ -330,6 +330,47 @@ class RenderHygieneTests(unittest.TestCase):
         result = report.render_hygiene(analysis)
         self.assertIn("是", result)
 
+    def test_with_structured_local_checks(self):
+        analysis = {
+            "hygiene": {
+                "workflow_checks": [
+                    {
+                        "id": "actions.unpinned_action",
+                        "category": "github_actions",
+                        "severity": "medium",
+                        "confidence": "high",
+                        "file": ".github/workflows/ci.yml",
+                        "line": 5,
+                        "title": "第三方 Action 未固定到完整 commit SHA",
+                        "evidence": "uses: actions/checkout@v4",
+                        "recommendation": "固定到完整 SHA。",
+                    }
+                ],
+                "iac_checks": [
+                    {
+                        "id": "iac.docker_latest_tag",
+                        "category": "iac_container",
+                        "severity": "medium",
+                        "confidence": "high",
+                        "file": "Dockerfile",
+                        "line": 1,
+                        "title": "Dockerfile 使用 latest 镜像标签",
+                        "evidence": "FROM node:latest",
+                        "recommendation": "固定版本标签。",
+                    }
+                ],
+            }
+        }
+
+        result = report.render_hygiene(analysis)
+
+        self.assertIn("GitHub Actions 工作流安全", result)
+        self.assertIn("第三方 Action 未固定到完整 commit SHA", result)
+        self.assertIn("uses: actions/checkout@v4", result)
+        self.assertIn("固定到完整 SHA", result)
+        self.assertIn("IaC / 容器 / 部署配置", result)
+        self.assertIn("Dockerfile:1", result)
+
 
 # ---------------------------------------------------------------------------
 # render_outdated

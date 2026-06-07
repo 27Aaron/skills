@@ -347,6 +347,121 @@ class ButianReportAssetTests(unittest.TestCase):
         )
         return result.stdout
 
+    def test_html_hides_empty_hygiene_section(self):
+        data = {
+            "generated_at": "2026-06-05 09:05:50",
+            "project": {
+                "name": "demo",
+                "path": "/tmp/demo",
+                "ecosystems": ["npm"],
+                "total_packages": 1,
+            },
+            "scan_config": {"scan_mode": "full_dependency_scan"},
+            "risk_summary": {
+                "critical": 0,
+                "high": 0,
+                "medium": 0,
+                "low": 0,
+                "info": 0,
+            },
+            "summary": {"tldr": "demo", "detail": "demo", "priority": []},
+            "top_issues": [],
+            "hygiene": {},
+            "outdated": [],
+        }
+
+        html = self._render_html(data)
+
+        self.assertNotIn('section-title">仓库安检', html)
+        self.assertNotIn('仓库安检</span><span class="count">0 项', html)
+
+    def test_html_keeps_hygiene_section_when_attention_items_exist(self):
+        data = {
+            "generated_at": "2026-06-05 09:05:50",
+            "project": {
+                "name": "demo",
+                "path": "/tmp/demo",
+                "ecosystems": ["npm"],
+                "total_packages": 1,
+            },
+            "scan_config": {"scan_mode": "full_dependency_scan"},
+            "risk_summary": {
+                "critical": 0,
+                "high": 0,
+                "medium": 0,
+                "low": 0,
+                "info": 0,
+            },
+            "summary": {"tldr": "demo", "detail": "demo", "priority": []},
+            "top_issues": [],
+            "hygiene": {"gitignore_missing": [".env"]},
+            "outdated": [],
+        }
+
+        html = self._render_html(data)
+
+        self.assertIn('section-title">仓库安检', html)
+        self.assertIn("建议补充 .env", html)
+
+    def test_html_renders_structured_local_hygiene_checks(self):
+        data = {
+            "generated_at": "2026-06-05 09:05:50",
+            "project": {
+                "name": "demo",
+                "path": "/tmp/demo",
+                "ecosystems": ["npm"],
+                "total_packages": 1,
+            },
+            "scan_config": {"scan_mode": "full_dependency_scan"},
+            "risk_summary": {
+                "critical": 0,
+                "high": 1,
+                "medium": 1,
+                "low": 0,
+                "info": 0,
+            },
+            "summary": {"tldr": "demo", "detail": "demo", "priority": []},
+            "top_issues": [],
+            "hygiene": {
+                "workflow_checks": [
+                    {
+                        "id": "actions.unpinned_action",
+                        "category": "github_actions",
+                        "severity": "medium",
+                        "confidence": "high",
+                        "file": ".github/workflows/ci.yml",
+                        "line": 5,
+                        "title": "第三方 Action 未固定到完整 commit SHA",
+                        "evidence": "uses: actions/checkout@v4",
+                        "recommendation": "固定到完整 SHA。",
+                    }
+                ],
+                "iac_checks": [
+                    {
+                        "id": "iac.docker_secret_env",
+                        "category": "iac_container",
+                        "severity": "high",
+                        "confidence": "high",
+                        "file": "Dockerfile",
+                        "line": 2,
+                        "title": "Dockerfile ENV 中疑似写入敏感值",
+                        "evidence": "ENV <SECRET>=...",
+                        "recommendation": "改用运行时 secret 注入。",
+                    }
+                ],
+            },
+            "outdated": [],
+        }
+
+        html = self._render_html(data)
+
+        self.assertIn('section-title">仓库安检', html)
+        self.assertIn("GitHub Actions 工作流安全", html)
+        self.assertIn("第三方 Action 未固定到完整 commit SHA", html)
+        self.assertIn("uses: actions/checkout@v4", html)
+        self.assertIn("IaC / 容器 / 部署配置", html)
+        self.assertIn("Dockerfile:2", html)
+
     def test_tldr_fallback_uses_risk_item_term_for_critical_high(self):
         data = {
             "generated_at": "2026-06-05 09:05:50",

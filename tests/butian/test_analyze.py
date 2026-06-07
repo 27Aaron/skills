@@ -725,6 +725,77 @@ class TestBuildHygieneItems(unittest.TestCase):
         self.assertEqual(green[0]["type"], "gitignore_fix")
         self.assertEqual(green[0]["fix_config"]["patterns"], [".env", "*.pem"])
 
+    def test_structured_local_checks_are_classified_by_severity(self):
+        scan = _make_scan(
+            hygiene={
+                "tracked_secrets": [],
+                "sensitive_tracked": [],
+                "gitignore_missing": [],
+                "workflow_checks": [
+                    {
+                        "id": "actions.risky_trigger_checkout",
+                        "category": "github_actions",
+                        "severity": "high",
+                        "confidence": "high",
+                        "file": ".github/workflows/pr.yml",
+                        "line": 8,
+                        "title": "高风险触发器与 checkout 组合",
+                        "detail": "可能让不可信代码接触 secret。",
+                        "evidence": "actions/checkout under risky trigger",
+                        "recommendation": "限制 permissions 并避免 checkout PR head。",
+                    }
+                ],
+                "repository_checks": [
+                    {
+                        "id": "repo.missing_security_policy",
+                        "category": "repo_governance",
+                        "severity": "low",
+                        "confidence": "high",
+                        "file": "SECURITY.md",
+                        "title": "缺少安全问题反馈说明",
+                        "detail": "用户不知道如何私下反馈漏洞。",
+                        "evidence": "SECURITY.md not found",
+                        "recommendation": "新增 SECURITY.md。",
+                    }
+                ],
+                "iac_checks": [
+                    {
+                        "id": "iac.docker_latest_tag",
+                        "category": "iac_container",
+                        "severity": "medium",
+                        "confidence": "high",
+                        "file": "Dockerfile",
+                        "line": 1,
+                        "title": "Dockerfile 使用 latest 镜像标签",
+                        "detail": "构建结果会漂移。",
+                        "evidence": "FROM node:latest",
+                        "recommendation": "固定版本标签。",
+                    }
+                ],
+            }
+        )
+
+        red, yellow, green = analyze.build_hygiene_items(scan)
+
+        self.assertEqual(
+            analyze.STRUCTURED_HYGIENE_GROUPS,
+            ("workflow_checks", "repository_checks", "iac_checks"),
+        )
+        self.assertTrue(any(item["type"] == "local_repository_check" for item in red))
+        self.assertTrue(
+            any(
+                item["source_id"] == "actions.risky_trigger_checkout"
+                and item["path"] == ".github/workflows/pr.yml"
+                for item in red
+            )
+        )
+        self.assertTrue(
+            any(item["source_id"] == "iac.docker_latest_tag" for item in yellow)
+        )
+        self.assertTrue(
+            any(item["source_id"] == "repo.missing_security_policy" for item in green)
+        )
+
     def test_no_hygiene_key(self):
         scan = _make_scan()
         del scan["hygiene"]

