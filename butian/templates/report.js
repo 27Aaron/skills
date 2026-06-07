@@ -1454,7 +1454,7 @@ function renderVulnTable(rows) {
   if (!rows || !rows.length) {
     if (DATA.scan_config && DATA.scan_config.scan_mode === "hygiene_only") {
       return section(
-        "命中风险项",
+        "当前风险",
         null,
         `<div class="summary vuln-empty">${miniFields([
           { label: "扫描范围", value: HYGIENE_ONLY_NOTICE },
@@ -1469,7 +1469,7 @@ function renderVulnTable(rows) {
       );
     }
     return section(
-      "命中风险项",
+      "当前风险",
       0,
       `<div class="empty">未命中已确认的依赖风险项。</div>`,
       "",
@@ -1513,7 +1513,7 @@ function renderVulnTable(rows) {
     ? `<tr class="vuln-toggle"><td colspan="6"><button class="fix-btn open" onclick="toggleVulns(this)">显示更多（还有 ${sortedRows.length - VULN_SHOW} 项）</button></td></tr>`
     : "";
   return section(
-    "命中风险项",
+    "当前风险",
     sortedRows.length,
     `<div class="table-scroll"><table class="stable-table vuln-table" style="${packageColumnWidthStyle(sortedRows)}">
   ${renderTableColgroup(["severity", "package", "version", "fixed", "advisory", "summary"])}
@@ -1708,7 +1708,7 @@ function renderOutdated(items) {
         {
           label: "提醒",
           value:
-            "本次未执行依赖版本维护检查；过期依赖不等于漏洞，真正安全优先级仍以命中风险项为准。",
+            "本次未执行依赖版本维护检查；过期依赖不等于漏洞，真正安全优先级仍以当前风险为准。",
         },
       ])}</div>`,
       "",
@@ -1746,7 +1746,7 @@ function renderOutdated(items) {
         {
           label: "提醒",
           value:
-            "过期依赖只是维护信号，不代表一定存在漏洞；真正的安全优先级仍以命中风险项为准。",
+            "过期依赖只是维护信号，不代表一定存在漏洞；真正的安全优先级仍以当前风险为准。",
         },
       ])}</div>`,
       "",

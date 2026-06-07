@@ -248,7 +248,7 @@ class ButianReportAssetTests(unittest.TestCase):
 
         self.assertIn('<div class="k">风险等级</div>', html)
         self.assertIn("风险项分布", html)
-        self.assertIn("命中风险项", html)
+        self.assertIn("当前风险", html)
         self.assertIn("<th>影响程度</th>", html)
         self.assertNotIn("风险等级分布", html)
         self.assertNotIn("<th>严重程度</th>", html)
@@ -490,7 +490,7 @@ class ButianReportAssetTests(unittest.TestCase):
             "outdated": [],
         }
         html = self._render_html(data)
-        self.assertIn("仍以命中风险项为准", html)
+        self.assertIn("仍以当前风险为准", html)
 
 
 if __name__ == "__main__":
