@@ -154,6 +154,8 @@ const DATA = (() => {
     );
     const outdatedText = outdatedDetailText(d.outdated);
     if (outdatedText) detailParts.push(outdatedText);
+    const nestedText = nestedLockedSummaryText(d.vulns);
+    if (nestedText) detailParts.push(nestedText);
     if (hygieneIssues > 0) {
       detailParts.push(`仓库卫生待关注项 ${hygieneIssues} 个。`);
     } else {
@@ -454,7 +456,10 @@ function readableDetail(raw) {
       () => outdatedDetailText(DATA.outdated) || "",
     );
   if (cleaned && !isNoisySecurityText(cleaned) && cleaned.length <= 320) {
-    return normalizeSecurityLanguage(cleaned);
+    const nestedText = nestedLockedSummaryText(DATA.vulns);
+    return normalizeSecurityLanguage(
+      nestedText ? cleaned + nestedText : cleaned,
+    );
   }
   const packages = DATA.project.total_packages || DATA.package_count || 0;
   const vulns = DATA.vulns || [];
@@ -489,6 +494,8 @@ function readableDetail(raw) {
   }
   const outdatedText = outdatedDetailText(DATA.outdated);
   if (outdatedText) parts.push(outdatedText);
+  const nestedText = nestedLockedSummaryText(DATA.vulns);
+  if (nestedText) parts.push(nestedText);
   const hygieneIssues =
     (DATA.hygiene ? toList(DATA.hygiene.tracked_secrets).length : 0) +
     (DATA.hygiene ? toList(DATA.hygiene.sensitive_tracked).length : 0) +
@@ -1958,6 +1965,29 @@ function countMajorJumps(items) {
     );
     return current && target && isMajorVersionJump(current, target);
   }).length;
+}
+
+function nestedLockedSummaryText(vulns) {
+  const parents = new Map();
+  (vulns || []).forEach((it) => {
+    const ctx = it.dependency_context || it.dependencyContext || {};
+    if (!ctx || ctx.kind !== "nested_locked") return;
+    const locations = Array.isArray(ctx.locations) ? ctx.locations : [];
+    locations.forEach((loc) => {
+      const parent = loc.parent;
+      if (!parent) return;
+      if (!parents.has(parent)) parents.set(parent, new Set());
+      const pkg = it.package || it.name;
+      if (pkg) parents.get(parent).add(pkg);
+    });
+  });
+  if (!parents.size) return "";
+  const parentNames = [...parents.keys()];
+  const summary =
+    parentNames.length <= 3
+      ? parentNames.join("、")
+      : `${parentNames.slice(0, 3).join("、")} 等 ${parentNames.length} 个`;
+  return `其中部分风险项属于被父依赖（${summary}）锁定的嵌套副本，需先升级父依赖才能生效。`;
 }
 
 function outdatedDetailText(outdatedItems) {
