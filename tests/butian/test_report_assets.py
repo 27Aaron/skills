@@ -463,8 +463,8 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("Dockerfile:2", html)
         self.assertIn('class="hygiene-group"', html)
         self.assertIn('class="hygiene-finding"', html)
-        self.assertIn("证据", html)
-        self.assertIn("建议", html)
+        self.assertIn("依据", html)
+        self.assertIn("处理", html)
 
     def test_html_renders_dependabot_as_maintenance_advice(self):
         data = {
@@ -492,7 +492,7 @@ class ButianReportAssetTests(unittest.TestCase):
                         "severity": "info",
                         "confidence": "high",
                         "file": ".github/dependabot.yml",
-                        "title": "建议配置 Dependabot",
+                        "title": "配置 Dependabot",
                         "evidence": "dependabot.yml not found",
                         "recommendation": "可新增 dependabot.yml。",
                         "kind": "maintenance_advice",
@@ -504,9 +504,11 @@ class ButianReportAssetTests(unittest.TestCase):
 
         html = self._render_html(data)
 
-        self.assertIn("维护建议", html)
-        self.assertIn("有 1 条维护建议", html)
-        self.assertIn("建议配置 Dependabot", html)
+        self.assertIn("依赖与发布治理", html)
+        self.assertIn('class="sev-badge sev-low">建议</span>', html)
+        self.assertIn("配置 Dependabot", html)
+        self.assertNotIn("维护建议", html)
+        self.assertNotIn("有 1 条", html)
 
     def test_tldr_fallback_uses_risk_item_term_for_critical_high(self):
         data = {

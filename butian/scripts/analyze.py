@@ -735,7 +735,7 @@ def build_summary(scan, analysis):
             f"本次检查覆盖项目 {project.get('name') or '-'}。{HYGIENE_ONLY_NOTICE}"
             f"仓库安检方面，发现疑似硬编码凭证 {secret_count} 处、"
             f"被 git 跟踪的敏感文件 {sensitive_count} 个、建议补充的 .gitignore 规则 {missing_count} 条、"
-            f"本地配置/工作流检查项 {local_check_count} 个、维护建议 {maintenance_advice_count} 条。"
+            f"本地配置/工作流检查项 {local_check_count} 个、建议 {maintenance_advice_count} 条。"
         )
     else:
         detail = (
@@ -743,7 +743,7 @@ def build_summary(scan, analysis):
             f"{project.get('total_packages', scan.get('package_count', 0)) or 0} 个依赖包，"
             f"命中 {vuln_count} 个已确认风险项。仓库安检方面，发现疑似硬编码凭证 {secret_count} 处、"
             f"被 git 跟踪的敏感文件 {sensitive_count} 个、建议补充的 .gitignore 规则 {missing_count} 条、"
-            f"本地配置/工作流检查项 {local_check_count} 个、维护建议 {maintenance_advice_count} 条。"
+            f"本地配置/工作流检查项 {local_check_count} 个、建议 {maintenance_advice_count} 条。"
             f"过期依赖 {outdated_count} 个，建议按维护窗口和兼容性评估安排升级。"
         )
 

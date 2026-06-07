@@ -650,6 +650,9 @@ td.summary-cell {
     gap: 12px;
     margin-top: 13px;
 }
+.hygiene-summary > .hygiene-groups:first-child {
+    margin-top: 0;
+}
 .hygiene-group {
     overflow: hidden;
     border: 1px solid var(--tile-border);
