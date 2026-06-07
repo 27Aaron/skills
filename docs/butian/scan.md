@@ -10,7 +10,7 @@
 
 | #   | 职责         | 说明                                                                                                                                                   |
 | --- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | 仓库安检     | `.gitignore` 状态、敏感文件跟踪、硬编码密钥扫描（97 个正则 + Shannon entropy 熵值分析）、GitHub Actions 工作流安全、依赖配置与维护、IaC/容器配置 |
+| 1   | 仓库安检     | `.gitignore` 状态、敏感文件跟踪、硬编码密钥扫描（113 个正则 + Shannon entropy 熵值分析）、GitHub Actions 工作流安全、依赖配置与维护、IaC/容器配置 |
 | 2   | 依赖生态检测 | 识别 lockfile 类型，提取包名和版本号                                                                                                                   |
 | 3   | 漏洞查询     | 调用 OSV、NVD、CISA KEV、FIRST EPSS 四个官方数据源                                                                                                     |
 | 4   | 过期依赖检测 | 通过各语言包管理器获取最新版本信息                                                                                                                     |
@@ -294,10 +294,25 @@ main()
 
 | 阶段    | 机制                      | 置信度        | 说明                                                   |
 | ------- | ------------------------- | ------------- | ------------------------------------------------------ |
-| Phase 1 | 正则模式匹配（97 个模式） | high / medium | 精确匹配已知格式的密钥和 token                         |
+| Phase 1 | 正则模式匹配（113 个模式） | high / medium | 精确匹配已知格式的密钥和 token                         |
 | Phase 2 | Shannon entropy 熵值分析  | low           | 对无已知前缀的高随机性字符串进行可疑标记，用户自行判断 |
 
 两阶段结果自动交叉去重：若同一行已被正则匹配命中，entropy 不再重复报告。同一行内，高可信度匹配（如 `aws_access_key`）会抑制低可信度匹配（如 `generic_api_key`），避免重复告警。
+
+### 密钥扫描文件范围
+
+`scan_secrets()` 不只扫代码文件，也覆盖常见配置、部署和凭据文件。为降低误报，已知 lockfile 会被排除，不把 `integrity` / hash 当作硬编码密钥。
+
+| 范围 | 例子 |
+| --- | --- |
+| 代码与脚本 | `.py`、`.js`、`.ts`、`.go`、`.rs`、`.rb`、`.php`、`.java`、`.sh` |
+| 配置与数据 | `.json`、`.jsonc`、`.json5`、`.yaml`、`.toml`、`.ini`、`.conf`、`.properties`、`.xml` |
+| IaC / 部署 | `.tf`、`.tfvars`、`.hcl`、`Dockerfile`、`Dockerfile.*`、`Makefile`、`Procfile`、`Jenkinsfile` |
+| 包管理凭据 | `.npmrc`、`.pypirc`、`.netrc`、`.gem/credentials`、`gradle.properties`、`settings.xml` |
+| 云与应用凭据 | `service-account*.json`、`client_secret*.json`、`sa-key.json`、`.aws/credentials`、`.kube/config` |
+| 主动跳过 | `package-lock.json`、`pnpm-lock.yaml`、`yarn.lock`、`poetry.lock`、`Cargo.lock`、`go.sum` 等 lockfile |
+
+更多脱敏示例见 [`secret-detection-examples.md`](./secret-detection-examples.md)。
 
 ### 云厂商密钥（21 个模式）
 
@@ -325,16 +340,19 @@ main()
 | `cloudflare_origin_ca`    | Cloudflare Origin Certificate                    | high   |
 | `heroku_api_key`          | Heroku API Key（UUID 格式，需上下文）            | medium |
 
-### SaaS / 第三方服务 Token（65 个模式）
+### SaaS / 第三方服务 Token（78 个模式）
 
 | 类型                     | 说明                                       | 置信度 |
 | ------------------------ | ------------------------------------------ | ------ |
 | **代码托管**             |                                            |        |
 | `github_token`           | GitHub PAT（`ghp_...`）                    | high   |
+| `github_fine_grained_pat` | GitHub fine-grained PAT（`github_pat_...`） | high   |
 | `github_oauth`           | GitHub OAuth Token（`gho_...`）            | high   |
 | `github_app_token`       | GitHub App Token（`ghu_` / `ghs_...`）     | high   |
 | `github_refresh_token`   | GitHub Refresh Token（`ghr_...`）          | high   |
 | `gitlab_token`           | GitLab Token（`glpat-...`）                | high   |
+| `gitlab_runner_token`    | GitLab Runner Token（`glrt-...`）          | high   |
+| `gitlab_deploy_token`    | GitLab Deploy Token（`gldt-...`）          | high   |
 | **即时通讯**             |                                            |        |
 | `slack_token`            | Slack Token（`xoxb-...` / `xoxp-...`）     | high   |
 | `slack_webhook`          | Slack Webhook URL                          | high   |
@@ -354,11 +372,13 @@ main()
 | `twilio_api_key`         | Twilio API Key（`SK...`）                  | high   |
 | `twilio_account_sid`     | Twilio Account SID（`AC...`）              | high   |
 | `sendgrid_api_key`       | SendGrid API Key（`SG....`）               | high   |
+| `resend_api_key`         | Resend API Key（需上下文）                 | medium |
 | `mailgun_api_key`        | Mailgun API Key（`key-...`）               | high   |
 | `mailchimp_api_key`      | Mailchimp API Key                          | medium |
 | **LLM / AI**             |                                            |        |
 | `openai_key`             | OpenAI API Key（`sk-...` / `sk-proj-...`） | high   |
 | `anthropic_key`          | Anthropic API Key（`sk-ant-...`）          | high   |
+| `groq_api_key`           | Groq API Key（`gsk_...`）                  | high   |
 | `huggingface_token`      | Hugging Face Token（`hf_...`）             | high   |
 | `replicate_token`        | Replicate Token（`r8_...`）                | high   |
 | **包管理**               |                                            |        |
@@ -377,6 +397,8 @@ main()
 | `sonar_token`            | SonarQube Token（`squ_...`）               | high   |
 | **CI/CD**                |                                            |        |
 | `terraform_token`        | Terraform Cloud Token（`....atlasv1....`） | medium |
+| `hashicorp_vault_token`  | HashiCorp Vault Token（`hvs.` / `hvb.`）   | high   |
+| `pulumi_token`           | Pulumi Token（`pul-...`）                  | high   |
 | `circleci_token`         | CircleCI Token（`CCIRERES_...`）           | medium |
 | `travis_token`           | Travis CI Token（需上下文）                | medium |
 | `buildkite_token`        | Buildkite Token（`bkua_...`）              | medium |
@@ -392,6 +414,15 @@ main()
 | `postman_api_key`        | Postman API Key（`PMAK-...`）              | medium |
 | **云服务**               |                                            |        |
 | `firebase_key`           | Firebase API Key                           | medium |
+| `cloudflare_api_token`   | Cloudflare API Token（需上下文）           | medium |
+| `vercel_token`           | Vercel Token（需上下文）                   | medium |
+| `netlify_token`          | Netlify Token（需上下文）                  | medium |
+| `railway_token`          | Railway Token（需上下文）                  | medium |
+| `render_token`           | Render Token（需上下文）                   | medium |
+| `snyk_token`             | Snyk Token（需上下文）                     | medium |
+| `clerk_secret_key`       | Clerk Secret Key（需上下文）               | medium |
+| `supabase_service_role_key` | Supabase service-role JWT（需上下文）   | medium |
+| `algolia_admin_key`      | Algolia Admin API Key（需上下文）          | medium |
 | `databricks_token`       | Databricks Token（`dapi...`）              | high   |
 | `fastly_api_key`         | Fastly API Key（需上下文）                 | medium |
 | `ngrok_token`            | Ngrok Token（需上下文）                    | medium |
@@ -403,7 +434,7 @@ main()
 | `amqp_connection`        | AMQP / RabbitMQ 连接字符串                 | high   |
 | `kafka_connection`       | Kafka / Confluent 连接凭据                 | medium |
 
-### 通用 / 启发式模式（12 个模式）
+### 通用 / 启发式模式（14 个模式）
 
 | 类型                | 说明                                                                                      | 置信度 |
 | ------------------- | ----------------------------------------------------------------------------------------- | ------ |
@@ -417,6 +448,8 @@ main()
 | `jwt_token`         | JWT Token（`eyJ....`）                                                                    | high   |
 | `base64_secret`     | Base64 编码密钥                                                                           | medium |
 | `connection_string` | 通用连接字符串                                                                            | medium |
+| `basic_auth_url`    | URL 中包含 `user:password@host`                                                           | medium |
+| `netrc_password`    | `.netrc` 中的 `machine ... login ... password ...`                                        | medium |
 | `encryption_key`    | 加密密钥（`aes_key = "..."`）                                                             | medium |
 | `webhook_url`       | Webhook URL（含密钥路径）                                                                 | high   |
 
