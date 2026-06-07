@@ -1685,6 +1685,35 @@ footer {
     line-height: 1.4;
     white-space: nowrap;
 }
+[data-tooltip] {
+    cursor: help;
+}
+.report-tooltip {
+    position: fixed;
+    z-index: 9999;
+    max-width: min(320px, calc(100vw - 24px));
+    border: 1px solid rgba(110, 231, 183, 0.18);
+    border-radius: 10px;
+    background: rgba(8, 13, 18, 0.96);
+    box-shadow:
+        0 18px 38px -24px rgba(0, 0, 0, 0.78),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    color: #ecfdf5;
+    padding: 8px 10px;
+    font-size: 12px;
+    font-weight: 620;
+    line-height: 1.55;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(3px) scale(0.98);
+    transition:
+        opacity 0.08s ease,
+        transform 0.08s ease;
+}
+.report-tooltip.is-visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
 .sig-kev {
     border: 1px solid rgba(220, 38, 38, 0.22);
     background: rgba(254, 242, 242, 0.85);

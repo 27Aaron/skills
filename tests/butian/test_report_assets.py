@@ -187,7 +187,7 @@ class ButianReportAssetTests(unittest.TestCase):
                             "cvssMetrics": [
                                 {
                                     "version": "3.1",
-                                    "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:N/A:H",
+                                    "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
                                     "baseScore": "7.5",
                                 }
                             ],
@@ -342,12 +342,33 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn(">建议处理</div>", html)
         self.assertIn("建议升级到 13.0.1 或更高版本。升级后重新扫描", html)
         self.assertIn(
-            'class="sig-tag sig-epss" title="EPSS 百分位 12.8%，30 天内被利用概率 0.04%">EPSS 12.8%</span>',
+            'class="sig-tag sig-epss" data-tooltip="EPSS 百分位 12.8%，30 天内被利用概率 0.04%">EPSS 12.8%</span>',
             html,
         )
         self.assertIn('class="sig-tag sig-age">已公开 1 个月</span>', html)
-        self.assertIn(">远程可达</span>", html)
-        self.assertIn(">可用性 高</span>", html)
+        self.assertIn(
+            'class="cvss-tag" data-tooltip="攻击者可通过网络直接利用，不需要物理接触或内网访问">远程可达</span>',
+            html,
+        )
+        self.assertIn(
+            'class="cvss-tag" data-tooltip="利用条件简单，不需要特殊配置或时机">低复杂度</span>',
+            html,
+        )
+        self.assertIn(
+            'class="cvss-tag" data-tooltip="攻击者不需要任何认证或权限即可利用">无需权限</span>',
+            html,
+        )
+        self.assertIn(
+            'class="cvss-tag" data-tooltip="不需要受害者进行任何操作即可触发漏洞">无需交互</span>',
+            html,
+        )
+        self.assertIn(
+            'class="cia-tag cia-h" data-tooltip="可能导致服务完全不可用">可用性 高</span>',
+            html,
+        )
+        self.assertNotIn('class="sig-tag sig-epss" title=', html)
+        self.assertNotIn('class="cvss-tag" title=', html)
+        self.assertNotIn('class="cia-tag cia-h" title=', html)
         self.assertNotIn("🌐", html)
         self.assertNotIn("🔒", html)
         self.assertIn("--detail-row-bg", css)
@@ -498,6 +519,13 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("function scheduleCloseVulnDetail", js)
         self.assertIn("function handleVulnDetailKey", js)
         self.assertIn("function initVulnDetailHover", js)
+        self.assertIn("function tooltipAttr", js)
+        self.assertIn("function initCustomTooltips", js)
+        self.assertIn('const CUSTOM_TOOLTIP_CLASS = "report-tooltip"', js)
+        self.assertIn('root.querySelectorAll("[data-tooltip]")', js)
+        self.assertIn('target.removeAttribute("title")', js)
+        self.assertIn('target.addEventListener("pointerenter"', js)
+        self.assertIn('target.addEventListener("click"', js)
         self.assertIn("window.openVulnDetail = openVulnDetail", js)
         self.assertNotIn("window.scheduleOpenVulnDetail", js)
         self.assertIn("window.closeVulnDetail = closeVulnDetail", js)
@@ -509,6 +537,13 @@ class ButianReportAssetTests(unittest.TestCase):
 
         with open(REPORT_CSS, "r", encoding="utf-8") as handle:
             css = handle.read()
+        self.assertIn(".report-tooltip", css)
+        tooltip_css = css.split(".report-tooltip {", 1)[1].split("}", 1)[0]
+        self.assertIn("position: fixed;", tooltip_css)
+        self.assertIn("pointer-events: none;", tooltip_css)
+        self.assertIn("opacity: 0;", tooltip_css)
+        tooltip_visible_css = css.split(".report-tooltip.is-visible {", 1)[1].split("}", 1)[0]
+        self.assertIn("opacity: 1;", tooltip_visible_css)
         self.assertNotIn(".vuln-row:hover + .vuln-detail-row,\n.vuln-detail-row:hover {\n    display:", css)
         self.assertIn(".detail-dossier-compact", css)
         compact_css = css.split(".detail-dossier-compact {", 1)[1].split("}", 1)[0]

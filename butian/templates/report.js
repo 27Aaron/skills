@@ -213,6 +213,11 @@ const esc = (s) =>
       })[c],
   );
 
+function tooltipAttr(text) {
+  const value = String(text == null ? "" : text).trim();
+  return value ? ` data-tooltip="${esc(value)}"` : "";
+}
+
 function safeHref(value) {
   try {
     const url = new URL(String(value || ""), window.location.href);
@@ -2258,7 +2263,7 @@ function attackConditionTags(vectorStr) {
   };
   if (v.AV && avMap[v.AV])
     tags.push(
-      `<span class="cvss-tag" title="${esc(avMap[v.AV].d)}">${avMap[v.AV].t}</span>`,
+      `<span class="cvss-tag"${tooltipAttr(avMap[v.AV].d)}>${avMap[v.AV].t}</span>`,
     );
   const acMap = {
     L: { t: "低复杂度", d: "利用条件简单，不需要特殊配置或时机" },
@@ -2267,7 +2272,7 @@ function attackConditionTags(vectorStr) {
   };
   if (v.AC && acMap[v.AC])
     tags.push(
-      `<span class="cvss-tag" title="${esc(acMap[v.AC].d)}">${acMap[v.AC].t}</span>`,
+      `<span class="cvss-tag"${tooltipAttr(acMap[v.AC].d)}>${acMap[v.AC].t}</span>`,
     );
   const prMap = {
     N: { t: "无需权限", d: "攻击者不需要任何认证或权限即可利用" },
@@ -2276,7 +2281,7 @@ function attackConditionTags(vectorStr) {
   };
   if (v.PR && prMap[v.PR])
     tags.push(
-      `<span class="cvss-tag" title="${esc(prMap[v.PR].d)}">${prMap[v.PR].t}</span>`,
+      `<span class="cvss-tag"${tooltipAttr(prMap[v.PR].d)}>${prMap[v.PR].t}</span>`,
     );
   const uiMap = {
     N: { t: "无需交互", d: "不需要受害者进行任何操作即可触发漏洞" },
@@ -2284,7 +2289,7 @@ function attackConditionTags(vectorStr) {
   };
   if (v.UI && uiMap[v.UI])
     tags.push(
-      `<span class="cvss-tag" title="${esc(uiMap[v.UI].d)}">${uiMap[v.UI].t}</span>`,
+      `<span class="cvss-tag"${tooltipAttr(uiMap[v.UI].d)}>${uiMap[v.UI].t}</span>`,
     );
   if (!tags.length) return "";
   return tags.join("");
@@ -2294,19 +2299,19 @@ function riskBadgeRow(a) {
   const tags = [];
   if (a.kevListed) {
     tags.push(
-      '<span class="sig-tag sig-kev" title="已被 CISA 列入已知被利用漏洞目录">KEV 已知利用</span>',
+      `<span class="sig-tag sig-kev"${tooltipAttr("已被 CISA 列入已知被利用漏洞目录")}>KEV 已知利用</span>`,
     );
   }
   if (a.ransomware) {
     tags.push(
-      '<span class="sig-tag sig-ransom" title="已知被勒索软件利用">勒索攻击</span>',
+      `<span class="sig-tag sig-ransom"${tooltipAttr("已知被勒索软件利用")}>勒索攻击</span>`,
     );
   }
   if (a.maxEpss > 0 || a.maxEpssPercentile > 0) {
     const pct = (a.maxEpssPercentile * 100).toFixed(1);
     const prob = (a.maxEpss * 100).toFixed(2);
     tags.push(
-      `<span class="sig-tag sig-epss" title="EPSS 百分位 ${esc(pct)}%，30 天内被利用概率 ${esc(prob)}%">EPSS ${esc(pct)}%</span>`,
+      `<span class="sig-tag sig-epss"${tooltipAttr(`EPSS 百分位 ${pct}%，30 天内被利用概率 ${prob}%`)}>EPSS ${esc(pct)}%</span>`,
     );
   }
   if (a.bestCvssScore > 0) {
@@ -2354,15 +2359,15 @@ function ciaImpactTags(vectorStr) {
   };
   if (v.C && levelMap[v.C])
     tags.push(
-      `<span class="cia-tag cia-${v.C.toLowerCase()}" title="${esc(cDesc[v.C] || cDesc.N || "")}">机密性 ${levelMap[v.C]}</span>`,
+      `<span class="cia-tag cia-${v.C.toLowerCase()}"${tooltipAttr(cDesc[v.C] || cDesc.N || "")}>机密性 ${levelMap[v.C]}</span>`,
     );
   if (v.I && levelMap[v.I])
     tags.push(
-      `<span class="cia-tag cia-${v.I.toLowerCase()}" title="${esc(iDesc[v.I] || iDesc.N || "")}">完整性 ${levelMap[v.I]}</span>`,
+      `<span class="cia-tag cia-${v.I.toLowerCase()}"${tooltipAttr(iDesc[v.I] || iDesc.N || "")}>完整性 ${levelMap[v.I]}</span>`,
     );
   if (v.A && levelMap[v.A])
     tags.push(
-      `<span class="cia-tag cia-${v.A.toLowerCase()}" title="${esc(aDesc[v.A] || aDesc.N || "")}">可用性 ${levelMap[v.A]}</span>`,
+      `<span class="cia-tag cia-${v.A.toLowerCase()}"${tooltipAttr(aDesc[v.A] || aDesc.N || "")}>可用性 ${levelMap[v.A]}</span>`,
     );
   if (!tags.length) return "";
   return tags.join("");
@@ -2842,6 +2847,97 @@ function initVulnDetailHover(root) {
   });
 }
 
+const CUSTOM_TOOLTIP_CLASS = "report-tooltip";
+let customTooltipEl = null;
+let customTooltipTarget = null;
+
+function customTooltipElement() {
+  if (customTooltipEl) return customTooltipEl;
+  if (!document || !document.body || typeof document.createElement !== "function") {
+    return null;
+  }
+  const tip = document.createElement("div");
+  tip.className = CUSTOM_TOOLTIP_CLASS;
+  tip.setAttribute("role", "tooltip");
+  tip.setAttribute("aria-hidden", "true");
+  document.body.appendChild(tip);
+  customTooltipEl = tip;
+  return tip;
+}
+
+function positionCustomTooltip(target) {
+  const tip = customTooltipEl;
+  if (
+    !target ||
+    !tip ||
+    typeof target.getBoundingClientRect !== "function" ||
+    typeof tip.getBoundingClientRect !== "function"
+  ) {
+    return;
+  }
+  const targetRect = target.getBoundingClientRect();
+  const tipRect = tip.getBoundingClientRect();
+  const margin = 10;
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+  let left = targetRect.left + targetRect.width / 2 - tipRect.width / 2;
+  left = Math.max(margin, Math.min(left, viewportWidth - tipRect.width - margin));
+  let top = targetRect.bottom + 8;
+  if (top + tipRect.height + margin > viewportHeight) {
+    top = Math.max(margin, targetRect.top - tipRect.height - 8);
+  }
+  tip.style.left = `${Math.round(left)}px`;
+  tip.style.top = `${Math.round(top)}px`;
+}
+
+function showCustomTooltip(target) {
+  const text = target && target.getAttribute ? target.getAttribute("data-tooltip") : "";
+  if (!text) return;
+  const tip = customTooltipElement();
+  if (!tip) return;
+  customTooltipTarget = target;
+  tip.textContent = text;
+  tip.setAttribute("aria-hidden", "false");
+  tip.classList.add("is-visible");
+  positionCustomTooltip(target);
+}
+
+function hideCustomTooltip() {
+  if (!customTooltipEl) return;
+  customTooltipTarget = null;
+  customTooltipEl.classList.remove("is-visible");
+  customTooltipEl.setAttribute("aria-hidden", "true");
+}
+
+function initCustomTooltips(root) {
+  if (!root || typeof root.querySelectorAll !== "function") return;
+  root.querySelectorAll("[data-tooltip]").forEach((target) => {
+    target.removeAttribute("title");
+    if (target.dataset && target.dataset.tooltipBound === "true") return;
+    if (target.dataset) target.dataset.tooltipBound = "true";
+    target.addEventListener("pointerenter", () => showCustomTooltip(target));
+    target.addEventListener("pointerleave", hideCustomTooltip);
+    target.addEventListener("mouseenter", () => showCustomTooltip(target));
+    target.addEventListener("mouseleave", hideCustomTooltip);
+    target.addEventListener("click", () => showCustomTooltip(target));
+    target.addEventListener("focus", () => showCustomTooltip(target));
+    target.addEventListener("blur", hideCustomTooltip);
+  });
+}
+
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+  window.addEventListener("resize", () => {
+    if (customTooltipTarget) positionCustomTooltip(customTooltipTarget);
+  });
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (customTooltipTarget) positionCustomTooltip(customTooltipTarget);
+    },
+    true,
+  );
+}
+
 // ---- Report summary ----
 function renderReportSummary(sm) {
   if (!sm || (!sm.priority && !sm.tldr && !sm.detail)) return "";
@@ -3236,3 +3332,4 @@ app.innerHTML =
   renderYellow(DATA.yellow) +
   renderErrors();
 initVulnDetailHover(app);
+initCustomTooltips(app);
