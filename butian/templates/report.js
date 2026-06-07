@@ -2381,9 +2381,18 @@ function detailAction(r) {
   return `<div class="detail-action"><div class="detail-action-label">建议处理</div><div class="detail-action-text">${esc(target)}${esc(followUp)}</div></div>`;
 }
 
-function detailStory(label, valueHtml, actionHtml) {
+function detailStory(label, valueHtml, actionHtml, signalHtml) {
+  const signals = signalHtml
+    ? `<div class="detail-signal-row"><div class="detail-label">关键信号</div>${signalHtml}</div>`
+    : "";
+  const heading = valueHtml
+    ? `<div class="detail-story-heading"><div class="detail-label">${esc(label)}</div></div>`
+    : "";
+  const value = valueHtml
+    ? `<div class="detail-value">${valueHtml}</div>`
+    : "";
   const action = actionHtml || "";
-  return `<section class="detail-story"><div class="detail-label">${esc(label)}</div><div class="detail-value">${valueHtml}</div>${action}</section>`;
+  return `<section class="detail-story">${signals}${heading}${value}${action}</section>`;
 }
 
 function signalTags(r) {
@@ -2415,7 +2424,9 @@ function vulnDetailPanel(r) {
   const badges = riskBadgeRow(a);
 
   if (a.description) {
-    story = detailStory("漏洞描述", esc(a.description), detailAction(r));
+    story = detailStory("漏洞描述", esc(a.description), detailAction(r), badges);
+  } else if (badges) {
+    story = detailStory("关键信号", "", "", badges);
   }
 
   if (a.publishedAt) {
@@ -2470,13 +2481,10 @@ function vulnDetailPanel(r) {
   }
 
   if (!story && !fields.length && !badges) return "";
-  const header = badges
-    ? `<div class="vuln-detail-header"><span>关键信号</span>${badges}</div>`
-    : "";
   const facts = fields.length ? `<div class="detail-facts">${fields.join("")}</div>` : "";
   const body =
     story || facts ? `<div class="detail-dossier">${story}${facts}</div>` : "";
-  return `<div class="vuln-detail">${header}${body}</div>`;
+  return `<div class="vuln-detail">${body}</div>`;
 }
 
 // ---- Overview ----
