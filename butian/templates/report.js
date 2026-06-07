@@ -2201,48 +2201,48 @@ function attackConditionTags(vectorStr) {
   const tags = [];
   const avMap = {
     N: {
-      t: "🌐 远程可达",
+      t: "远程可达",
       d: "攻击者可通过网络直接利用，不需要物理接触或内网访问",
     },
     A: {
-      t: "📶 相邻网络",
+      t: "相邻网络",
       d: "攻击者需要在同一网络内（如局域网、蓝牙）才能利用",
     },
-    L: { t: "💻 本地访问", d: "攻击者需要本地访问或安装恶意软件才能利用" },
-    P: { t: "🤚 物理接触", d: "攻击者需要物理接触设备才能利用" },
+    L: { t: "本地访问", d: "攻击者需要本地访问或安装恶意软件才能利用" },
+    P: { t: "物理接触", d: "攻击者需要物理接触设备才能利用" },
   };
   if (v.AV && avMap[v.AV])
     tags.push(
       `<span class="cvss-tag" title="${esc(avMap[v.AV].d)}">${avMap[v.AV].t}</span>`,
     );
   const acMap = {
-    L: { t: "⚡ 低复杂度", d: "利用条件简单，不需要特殊配置或时机" },
-    H: { t: "🔧 高复杂度", d: "利用需要特定条件，如竞态条件或特殊配置" },
-    M: { t: "🔧 中等复杂度", d: "利用难度中等，需要一定条件" },
+    L: { t: "低复杂度", d: "利用条件简单，不需要特殊配置或时机" },
+    H: { t: "高复杂度", d: "利用需要特定条件，如竞态条件或特殊配置" },
+    M: { t: "中等复杂度", d: "利用难度中等，需要一定条件" },
   };
   if (v.AC && acMap[v.AC])
     tags.push(
       `<span class="cvss-tag" title="${esc(acMap[v.AC].d)}">${acMap[v.AC].t}</span>`,
     );
   const prMap = {
-    N: { t: "🔓 无需权限", d: "攻击者不需要任何认证或权限即可利用" },
-    L: { t: "🔑 低权限", d: "攻击者需要普通用户级别的权限" },
-    H: { t: "🔐 高权限", d: "攻击者需要管理员级别的权限才能利用" },
+    N: { t: "无需权限", d: "攻击者不需要任何认证或权限即可利用" },
+    L: { t: "低权限", d: "攻击者需要普通用户级别的权限" },
+    H: { t: "高权限", d: "攻击者需要管理员级别的权限才能利用" },
   };
   if (v.PR && prMap[v.PR])
     tags.push(
       `<span class="cvss-tag" title="${esc(prMap[v.PR].d)}">${prMap[v.PR].t}</span>`,
     );
   const uiMap = {
-    N: { t: "👤 无需交互", d: "不需要受害者进行任何操作即可触发漏洞" },
-    R: { t: "👥 需要交互", d: "需要受害者进行点击、打开链接等操作才能触发" },
+    N: { t: "无需交互", d: "不需要受害者进行任何操作即可触发漏洞" },
+    R: { t: "需要交互", d: "需要受害者进行点击、打开链接等操作才能触发" },
   };
   if (v.UI && uiMap[v.UI])
     tags.push(
       `<span class="cvss-tag" title="${esc(uiMap[v.UI].d)}">${uiMap[v.UI].t}</span>`,
     );
   if (!tags.length) return "";
-  return tags.join(" ");
+  return tags.join("");
 }
 
 function riskBadgeRow(a) {
@@ -2286,9 +2286,9 @@ function riskBadgeRow(a) {
         (Date.now() - d.getTime()) / (1000 * 60 * 60 * 24),
       );
       if (diffDays >= 0 && diffDays < 30) {
-        tags.push('<span class="sig-tag sig-recent">🆕 近期公开</span>');
+        tags.push('<span class="sig-tag sig-recent">近期公开</span>');
       } else if (diffDays >= 365) {
-        tags.push('<span class="sig-tag sig-old">📅 公开超1年</span>');
+        tags.push('<span class="sig-tag sig-old">公开超1年</span>');
       }
     }
   }
@@ -2317,18 +2317,23 @@ function ciaImpactTags(vectorStr) {
   };
   if (v.C && levelMap[v.C])
     tags.push(
-      `<span class="cia-tag cia-${v.C.toLowerCase()}" title="${esc(cDesc[v.C] || cDesc.N || "")}">🔒 机密性:${levelMap[v.C]}</span>`,
+      `<span class="cia-tag cia-${v.C.toLowerCase()}" title="${esc(cDesc[v.C] || cDesc.N || "")}">机密性 ${levelMap[v.C]}</span>`,
     );
   if (v.I && levelMap[v.I])
     tags.push(
-      `<span class="cia-tag cia-${v.I.toLowerCase()}" title="${esc(iDesc[v.I] || iDesc.N || "")}">📝 完整性:${levelMap[v.I]}</span>`,
+      `<span class="cia-tag cia-${v.I.toLowerCase()}" title="${esc(iDesc[v.I] || iDesc.N || "")}">完整性 ${levelMap[v.I]}</span>`,
     );
   if (v.A && levelMap[v.A])
     tags.push(
-      `<span class="cia-tag cia-${v.A.toLowerCase()}" title="${esc(aDesc[v.A] || aDesc.N || "")}">⚡ 可用性:${levelMap[v.A]}</span>`,
+      `<span class="cia-tag cia-${v.A.toLowerCase()}" title="${esc(aDesc[v.A] || aDesc.N || "")}">可用性 ${levelMap[v.A]}</span>`,
     );
   if (!tags.length) return "";
-  return tags.join(" ");
+  return tags.join("");
+}
+
+function detailField(label, valueHtml, wide) {
+  const cls = wide ? " detail-field-wide" : "";
+  return `<section class="detail-field${cls}"><div class="detail-label">${esc(label)}</div><div class="detail-value">${valueHtml}</div></section>`;
 }
 
 function signalTags(r) {
@@ -2360,13 +2365,13 @@ function vulnDetailPanel(r) {
 
   if (a.description) {
     fields.push(
-      `<div class="detail-field"><div class="detail-label">漏洞描述</div><div class="detail-value">${esc(a.description)}</div></div>`,
+      detailField("漏洞描述", esc(a.description), true),
     );
   }
 
   if (a.publishedAt) {
     fields.push(
-      `<div class="detail-field"><div class="detail-label">发布时间</div><div class="detail-value">${esc(publishedAgeText(a.publishedAt))}</div></div>`,
+      detailField("发布时间", esc(publishedAgeText(a.publishedAt))),
     );
   }
 
@@ -2381,13 +2386,13 @@ function vulnDetailPanel(r) {
         ? `<div class="attack-tags">${atkTags}</div>`
         : "";
       fields.push(
-        `<div class="detail-field"><div class="detail-label">攻击条件</div><div class="detail-value">${sentenceHtml}${tagsHtml}</div></div>`,
+        detailField("攻击条件", `${sentenceHtml}${tagsHtml}`),
       );
     }
     const ciaTags = ciaImpactTags(a.cvssVector);
     if (ciaTags) {
       fields.push(
-        `<div class="detail-field"><div class="detail-label">影响维度</div><div class="detail-value">${ciaTags}</div></div>`,
+        detailField("影响维度", `<div class="impact-tags">${ciaTags}</div>`),
       );
     }
   }
@@ -2397,7 +2402,10 @@ function vulnDetailPanel(r) {
     const pct = (a.maxEpssPercentile * 100).toFixed(1);
     const dateStr = shortDate(a.epssDate);
     fields.push(
-      `<div class="detail-field"><div class="detail-label">EPSS 利用预测</div><div class="detail-value">30 天内被利用概率 <b>${esc(prob)}%</b>，百分位 ${esc(pct)}%${dateStr ? "（评分日期 " + esc(dateStr) + "）" : ""}</div></div>`,
+      detailField(
+        "EPSS 利用预测",
+        `30 天内被利用概率 <b>${esc(prob)}%</b>，百分位 ${esc(pct)}%${dateStr ? "（评分日期 " + esc(dateStr) + "）" : ""}`,
+      ),
     );
   }
 
@@ -2408,13 +2416,16 @@ function vulnDetailPanel(r) {
     if (a.kevDueDate) parts.push(`修复截止 ${esc(shortDate(a.kevDueDate))}`);
     if (a.kevRequiredAction) parts.push(esc(a.kevRequiredAction));
     fields.push(
-      `<div class="detail-field"><div class="detail-label">CISA KEV</div><div class="detail-value">${parts.join("；")}</div></div>`,
+      detailField("CISA KEV", parts.join("；"), true),
     );
   }
 
   if (!fields.length && !badges) return "";
-  const body = fields.length ? fields.join("") : "";
-  return `<div class="vuln-detail">${badges}${body}</div>`;
+  const header = badges
+    ? `<div class="vuln-detail-header"><span>关键信号</span>${badges}</div>`
+    : "";
+  const body = fields.length ? `<div class="detail-grid">${fields.join("")}</div>` : "";
+  return `<div class="vuln-detail">${header}${body}</div>`;
 }
 
 // ---- Overview ----
