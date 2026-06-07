@@ -1526,15 +1526,6 @@ footer {
     background: rgba(241, 245, 249, 0.6);
     color: var(--sub);
 }
-.cia-c {
-    /* confidentiality — uses the base cia-h/l/n variants */
-}
-.cia-i {
-    /* integrity — uses the base cia-h/l/n variants */
-}
-.cia-a {
-    /* availability — uses the base cia-h/l/n variants */
-}
 
 /* ---- Expandable vuln detail row ---- */
 .vuln-row {
