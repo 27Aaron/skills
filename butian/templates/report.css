@@ -1303,6 +1303,36 @@ footer {
         background: rgba(148, 163, 184, 0.12);
         color: #cbd5e1;
     }
+    .sig-cvss-crit {
+        border-color: rgba(248, 113, 113, 0.28);
+        background: rgba(248, 113, 113, 0.16);
+        color: #fecaca;
+    }
+    .sig-cvss-high {
+        border-color: rgba(251, 146, 60, 0.26);
+        background: rgba(251, 146, 60, 0.14);
+        color: #fed7aa;
+    }
+    .sig-cvss-med {
+        border-color: rgba(251, 191, 36, 0.24);
+        background: rgba(251, 191, 36, 0.14);
+        color: #fde68a;
+    }
+    .sig-cvss-low {
+        border-color: rgba(52, 211, 153, 0.22);
+        background: rgba(16, 185, 129, 0.14);
+        color: #a7f3d0;
+    }
+    .sig-recent {
+        border-color: rgba(248, 113, 113, 0.24);
+        background: rgba(248, 113, 113, 0.14);
+        color: #fecaca;
+    }
+    .sig-old {
+        border-color: rgba(148, 163, 184, 0.2);
+        background: rgba(148, 163, 184, 0.1);
+        color: #94a3b8;
+    }
 }
 
 @media (max-width: 900px) {
@@ -1411,6 +1441,38 @@ footer {
     background: rgba(255, 237, 213, 0.7);
     color: #9a3412;
 }
+.sig-cvss-crit {
+    border: 1px solid rgba(220, 38, 38, 0.28);
+    background: rgba(254, 242, 242, 0.85);
+    color: #991b1b;
+    font-weight: 700;
+}
+.sig-cvss-high {
+    border: 1px solid rgba(234, 88, 12, 0.24);
+    background: rgba(255, 237, 213, 0.75);
+    color: #9a3412;
+    font-weight: 700;
+}
+.sig-cvss-med {
+    border: 1px solid rgba(217, 119, 6, 0.2);
+    background: rgba(255, 251, 235, 0.7);
+    color: #92400e;
+}
+.sig-cvss-low {
+    border: 1px solid rgba(5, 150, 105, 0.2);
+    background: rgba(236, 253, 245, 0.7);
+    color: #065f46;
+}
+.sig-recent {
+    border: 1px solid rgba(220, 38, 38, 0.22);
+    background: rgba(254, 242, 242, 0.75);
+    color: #991b1b;
+}
+.sig-old {
+    border: 1px solid rgba(100, 116, 139, 0.2);
+    background: rgba(241, 245, 249, 0.7);
+    color: #475569;
+}
 
 /* ---- CVSS attack condition & CIA impact tags ---- */
 .attack-sentence {
@@ -1495,6 +1557,13 @@ footer {
     border: 1px solid var(--field-border);
     border-radius: 0.7rem;
     background: var(--field-bg);
+}
+.vuln-detail > .signal-tags {
+    justify-content: center;
+    gap: 6px;
+    padding-bottom: 4px;
+    margin-bottom: 4px;
+    border-bottom: 1px dashed var(--line);
 }
 .detail-field {
     display: grid;
