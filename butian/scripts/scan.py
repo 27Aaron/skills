@@ -47,6 +47,17 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
+try:
+    from .iac_checks import scan_iac_checks
+    from .repo_checks import scan_repository_checks
+    from .workflow_checks import scan_workflows
+except ImportError:  # pragma: no cover - direct script execution
+    from iac_checks import scan_iac_checks  # pyright: ignore[reportMissingImports]
+    from repo_checks import (
+        scan_repository_checks,  # pyright: ignore[reportMissingImports]
+    )
+    from workflow_checks import scan_workflows  # pyright: ignore[reportMissingImports]
+
 OSV_QUERYBATCH_URL = "https://api.osv.dev/v1/querybatch"
 OSV_VULN_URL_PREFIX = "https://api.osv.dev/v1/vulns/"
 NVD_CVE_API_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
@@ -70,7 +81,8 @@ BUTIAN_CONTENT_DIR = "content"
 _GITIGNORE_STATUS_BY_PROJECT = {}
 HYGIENE_ONLY_NOTICE = (
     "当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；"
-    "本次仅做仓库安检，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。"
+    "本次仅做仓库安检，检查硬编码密钥、敏感文件跟踪、.gitignore、"
+    "GitHub Actions、仓库治理/供应链和 IaC/容器配置风险。"
 )
 CAPABILITY_BOUNDARY = (
     "安全往往不是最显眼的需求，却是产品长期稳定运行的底线。"
@@ -1518,7 +1530,9 @@ def scan_secrets(
     return deduped + entropy_deduped
 
 
-def scan_hygiene(project_path, max_secret_files=500, follow_symlinks=False):
+def scan_hygiene(
+    project_path, max_secret_files=500, follow_symlinks=False, ecosystems=None
+):
     # Scan sensitive files first, then use findings to drive gitignore recommendations
     sensitive_tracked = check_sensitive_tracked(project_path)
     tracked_secrets = scan_secrets(
@@ -1527,11 +1541,30 @@ def scan_hygiene(project_path, max_secret_files=500, follow_symlinks=False):
     gitignore_exists, gitignore_missing = check_gitignore(
         project_path, sensitive_tracked
     )
+    repository_checks = scan_repository_checks(
+        project_path, ecosystems=ecosystems or []
+    )
+    workflow_checks = scan_workflows(project_path)
+    iac_checks = scan_iac_checks(project_path)
     return {
         "gitignore_exists": gitignore_exists,
         "gitignore_missing": gitignore_missing,
         "tracked_secrets": tracked_secrets,
         "sensitive_tracked": sensitive_tracked,
+        "repository_checks": repository_checks,
+        "workflow_checks": workflow_checks,
+        "iac_checks": iac_checks,
+        "coverage": {
+            "builtin_rules": [
+                "secrets",
+                "sensitive_files",
+                "gitignore",
+                "github_actions",
+                "repo_governance",
+                "supply_chain",
+                "iac_container",
+            ],
+        },
     }
 
 
@@ -3003,7 +3036,9 @@ def check_vulnerability_batch(batch_no, batch, project_path=None):
     return vulns, errors
 
 
-def check_vulnerabilities(packages, batch_size=100, errors=None, concurrency=1, project_path=None):
+def check_vulnerabilities(
+    packages, batch_size=100, errors=None, concurrency=1, project_path=None
+):
     if not packages:
         return []
     if errors is None:
@@ -3041,13 +3076,17 @@ def check_vulnerabilities(packages, batch_size=100, errors=None, concurrency=1, 
     if workers == 1:
         results = []
         for batch_no, batch in batches:
-            vulns, batch_errors = check_vulnerability_batch(batch_no, batch, project_path=project_path)
+            vulns, batch_errors = check_vulnerability_batch(
+                batch_no, batch, project_path=project_path
+            )
             results.append((batch_no, vulns, batch_errors))
     else:
         results = []
         with ThreadPoolExecutor(max_workers=workers) as executor:
             future_to_batch = {
-                executor.submit(check_vulnerability_batch, batch_no, batch, project_path): batch_no
+                executor.submit(
+                    check_vulnerability_batch, batch_no, batch, project_path
+                ): batch_no
                 for batch_no, batch in batches
             }
             for future in as_completed(future_to_batch):
@@ -3607,6 +3646,7 @@ def main():
                 project_path,
                 max_secret_files=secret_file_limit,
                 follow_symlinks=args.follow_symlinks,
+                ecosystems=ecosystems,
             )
             n_secrets = len(result.get("tracked_secrets") or [])
             n_sensitive = len(result.get("sensitive_tracked") or [])

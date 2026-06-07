@@ -4,16 +4,16 @@
 
 ## 概览
 
-`scan.py` 是 Butian 安全扫描器的核心引擎，负责收集项目安全数据并输出结构化 JSON，供下游 `analyze.py` 和 `report.py` 消费。扫描过程**只读**，仅创建/更新 `.butian/` 本地工作区。
+`scan.py` 是 Butian 安全扫描器的核心引擎，负责收集项目安全数据并输出结构化 JSON，供下游 `analyze.py` 和 `report.py` 消费。扫描过程不修改业务源码、依赖或配置；仅创建/更新 `.butian/` 本地工作区，并确保该工作区进入 `.gitignore`。
 
 ## 职责
 
-| #   | 职责         | 说明                                                                                    |
-| --- | ------------ | --------------------------------------------------------------------------------------- |
-| 1   | 仓库安检 | `.gitignore` 状态、敏感文件跟踪、硬编码密钥扫描（95 个正则 + Shannon entropy 熵值分析） |
-| 2   | 依赖生态检测 | 识别 lockfile 类型，提取包名和版本号                                                    |
-| 3   | 漏洞查询     | 调用 OSV、NVD、CISA KEV、FIRST EPSS 四个官方数据源                                      |
-| 4   | 过期依赖检测 | 通过各语言包管理器获取最新版本信息                                                      |
+| #   | 职责         | 说明                                                                                                                                                   |
+| --- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | 仓库安检     | `.gitignore` 状态、敏感文件跟踪、硬编码密钥扫描（97 个正则 + Shannon entropy 熵值分析）、GitHub Actions 工作流安全、仓库治理、供应链配置、IaC/容器配置 |
+| 2   | 依赖生态检测 | 识别 lockfile 类型，提取包名和版本号                                                                                                                   |
+| 3   | 漏洞查询     | 调用 OSV、NVD、CISA KEV、FIRST EPSS 四个官方数据源                                                                                                     |
+| 4   | 过期依赖检测 | 通过各语言包管理器获取最新版本信息                                                                                                                     |
 
 ## 支持的生态
 
@@ -122,12 +122,75 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 
 ### 仓库安检
 
-| 函数                                               | 作用                                                      |
-| -------------------------------------------------- | --------------------------------------------------------- |
-| `scan_hygiene(project_path, max_secret_files)`     | 执行完整的仓库安检：gitignore、敏感文件跟踪、密钥扫描 |
-| `scan_secrets(project_path, max_files, max_bytes)` | 正则模式匹配 + Shannon entropy 熵值分析，识别硬编码密钥   |
-| `check_sensitive_tracked(project_path)`            | 检查被 git 跟踪的敏感文件（详见下方「敏感文件类型」）     |
-| `check_gitignore(project_path, sensitive_tracked)` | 检查 `.gitignore` 是否覆盖了常见敏感文件模式              |
+| 函数                                               | 作用                                                                                                 |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `scan_hygiene(project_path, max_secret_files)`     | 执行完整的仓库安检：gitignore、敏感文件跟踪、密钥扫描、GitHub Actions、仓库治理/供应链、IaC/容器配置 |
+| `scan_secrets(project_path, max_files, max_bytes)` | 正则模式匹配 + Shannon entropy 熵值分析，识别硬编码密钥                                              |
+| `check_sensitive_tracked(project_path)`            | 检查被 git 跟踪的敏感文件（详见下方「敏感文件类型」）                                                |
+| `check_gitignore(project_path, sensitive_tracked)` | 检查 `.gitignore` 是否覆盖了常见敏感文件模式                                                         |
+
+新增本地规则模块：
+
+| 模块                 | 作用                                                                                                                     |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `finding_utils.py`   | 统一 finding schema、文件读取、路径、行号、证据截断和去重工具；所有新增本地规则都通过它输出同一种结构                    |
+| `workflow_checks.py` | 本地解析 `.github/workflows/\*.yml                                                                                       | \*.yaml`，检查未 pin SHA、过宽 permissions、危险 trigger、checkout 凭据持久化、不可信上下文进入 `run:`、远程脚本管道执行、PR self-hosted runner 等风险 |
+| `repo_checks.py`     | 检查 `SECURITY.md`、`CODEOWNERS`、`dependabot.yml`、lockfile 缺失、可疑安装脚本、registry token 配置和发布完整性配置迹象 |
+| `iac_checks.py`      | 检查 Dockerfile、Compose、Kubernetes、Terraform 中的常见本地配置风险                                                     |
+
+新增 `hygiene` 输出字段保持纯本地实现，不调用外部扫描器，也不创建 CI/CD workflow：
+
+```json
+{
+  "gitignore_exists": true,
+  "gitignore_missing": [],
+  "tracked_secrets": [],
+  "sensitive_tracked": [],
+  "repository_checks": [],
+  "workflow_checks": [],
+  "iac_checks": [],
+  "coverage": {
+    "builtin_rules": [
+      "secrets",
+      "sensitive_files",
+      "gitignore",
+      "github_actions",
+      "repo_governance",
+      "supply_chain",
+      "iac_container"
+    ]
+  }
+}
+```
+
+结构化本地 finding 使用统一 schema，便于 `analyze.py`、Markdown 和 HTML 复用：
+
+```json
+{
+  "id": "actions.unpinned_action",
+  "category": "github_actions",
+  "severity": "medium",
+  "confidence": "high",
+  "file": ".github/workflows/ci.yml",
+  "line": 18,
+  "title": "第三方 Action 未固定到完整 commit SHA",
+  "detail": "tag 可能被移动，供应链安全要求更高的仓库建议固定到完整 commit SHA。",
+  "evidence": "uses: actions/checkout@v4",
+  "recommendation": "改为 owner/repo@<40位commit sha>，并在同一行注释保留原版本号方便 Dependabot 维护。",
+  "source": "builtin",
+  "fixable": false
+}
+```
+
+新增本地规则覆盖矩阵：
+
+| 分组                      | 字段                | 重点规则                                                                                                                                                                                                                                      | 严重度倾向                |
+| ------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| GitHub Actions 工作流安全 | `workflow_checks`   | 第三方 Action 未 pin 完整 SHA、`permissions: write-all`、缺少显式 permissions、高风险 trigger + checkout、未关闭 `persist-credentials`、不可信上下文进入 `run:`、`curl/wget \| sh`、PR 使用 self-hosted runner                                | `high` / `medium` / `low` |
+| 仓库治理                  | `repository_checks` | 缺 `SECURITY.md`、缺 `CODEOWNERS`、CODEOWNERS 未覆盖 `.github/workflows/`、缺 Dependabot、Dependabot 未覆盖 `github-actions` 或当前包生态                                                                                                     | `medium` / `low`          |
+| 供应链配置                | `repository_checks` | manifest 缺 lockfile、安装脚本下载远程脚本或 base64 解码执行、registry 配置中出现 token/password/secret、仓库包含 registry 配置需确认来源                                                                                                     | `high` / `medium` / `low` |
+| 发布完整性信号            | `repository_checks` | 未发现 SBOM、签名、attestation、provenance、cosign、sigstore、SLSA 等配置迹象；这是专业用户参考信号，不当作硬漏洞                                                                                                                             | `info`                    |
+| IaC / 容器 / 部署配置     | `iac_checks`        | Dockerfile 使用 `latest`、缺非 root `USER`、远程脚本管道执行、`ADD` 远程 URL、明文 `ENV` secret、Compose privileged / Docker socket / 敏感端口、Kubernetes Secret/privileged/hostPath/hostNetwork/root、Terraform state/tfvars 和公网敏感端口 | `high` / `medium` / `low` |
 
 ### 依赖解析
 
@@ -195,9 +258,24 @@ main()
   "butian_workspace": { "gitignore": { ... } },
   "step_seconds": { "ecosystem_detection": 0.1, "vulnerabilities": 8.5, ... },
   "hygiene": {
+    "gitignore_exists": true,
     "gitignore_missing": [],
     "tracked_secrets": [],
-    "sensitive_tracked": []
+    "sensitive_tracked": [],
+    "repository_checks": [ ... ],
+    "workflow_checks": [ ... ],
+    "iac_checks": [ ... ],
+    "coverage": {
+      "builtin_rules": [
+        "secrets",
+        "sensitive_files",
+        "gitignore",
+        "github_actions",
+        "repo_governance",
+        "supply_chain",
+        "iac_container"
+      ]
+    }
   },
   "package_count": 142,
   "package_sources": [ { "ecosystem": "npm", "source": "package-lock.json", "count": 142 } ],
@@ -217,7 +295,7 @@ main()
 
 | 阶段    | 机制                      | 置信度        | 说明                                                   |
 | ------- | ------------------------- | ------------- | ------------------------------------------------------ |
-| Phase 1 | 正则模式匹配（95 个模式） | high / medium | 精确匹配已知格式的密钥和 token                         |
+| Phase 1 | 正则模式匹配（97 个模式） | high / medium | 精确匹配已知格式的密钥和 token                         |
 | Phase 2 | Shannon entropy 熵值分析  | low           | 对无已知前缀的高随机性字符串进行可疑标记，用户自行判断 |
 
 两阶段结果自动交叉去重：若同一行已被正则匹配命中，entropy 不再重复报告。同一行内，高可信度匹配（如 `aws_access_key`）会抑制低可信度匹配（如 `generic_api_key`），避免重复告警。

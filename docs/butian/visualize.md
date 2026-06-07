@@ -77,6 +77,23 @@ templates/report.html
 
 注入后检查是否仍有残留占位符，如有则抛出 `SystemExit`。
 
+## HTML 报告渲染要点
+
+`templates/report.js` 会在浏览器端消费 `analysis.json`，其中仓库安检部分会读取以下字段：
+
+| 字段                        | HTML 展示                                                          |
+| --------------------------- | ------------------------------------------------------------------ |
+| `hygiene.tracked_secrets`   | 待确认项中最多展示 5 条，显示文件行号、中文密钥类型和脱敏预览      |
+| `hygiene.sensitive_tracked` | 待确认项中最多展示 5 条，显示文件路径和中文敏感文件类型            |
+| `hygiene.gitignore_missing` | 摘要卡片展示建议补充的规则数量                                     |
+| `hygiene.workflow_checks`   | 以"GitHub Actions 工作流安全"标签展示结构化 finding，最多展示 6 条 |
+| `hygiene.repository_checks` | 以"仓库治理与供应链配置"标签展示结构化 finding，最多展示 6 条      |
+| `hygiene.iac_checks`        | 以"IaC / 容器 / 部署配置"标签展示结构化 finding，最多展示 6 条     |
+
+结构化 finding 在 HTML 中保留 `file:line`、中文分组标签、`title`、`evidence` 和 `recommendation`。当展示条目超过上限时，页面追加"…及其他 N 处"，避免小屏幕报告被长列表淹没。
+
+如果仓库安检没有任何密钥、敏感文件、缺失规则或结构化本地 finding，HTML 会隐藏整个"仓库安检"段落，避免空卡片干扰阅读。若扫描使用 `--skip-hygiene`，页面会展示跳过原因和建议动作，而不是给出通过结论。
+
 ## 输出路径
 
 默认路径：`.butian/<run_id>/content/security-report.html`
@@ -99,3 +116,4 @@ Fallback → webbrowser.open_new_tab(file://...)
 - **后台打开**：使用 `Popen` 启动浏览器进程，不阻塞脚本退出
 - **首次标记**：`.butian/.first-scan-done` 标记确保浏览器只在首次扫描时弹出，复扫不重复
 - **常量导出**：`FIRST_SCAN_MARKER = ".first-scan-done"` 可供其他模块（如 `run_audit.py`）复用
+- **仓库安检可读性**：HTML 只展示脱敏预览和证据摘要；本地规则使用中文分组，给专业用户保留复核线索，也让小白用户能看到明确建议

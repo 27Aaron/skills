@@ -69,6 +69,12 @@ SENSITIVE_TYPE_LABELS = {
     "ssh_key": "SSH 私钥",
 }
 
+STRUCTURED_HYGIENE_GROUPS = (
+    "workflow_checks",
+    "repository_checks",
+    "iac_checks",
+)
+
 
 def normalize_severity(value):
     value = str(value or "info").lower()
@@ -527,6 +533,38 @@ def build_hygiene_items(scan):
             }
         )
 
+    for group_name in STRUCTURED_HYGIENE_GROUPS:
+        for finding in hygiene.get(group_name) or []:
+            severity = normalize_severity(finding.get("severity"))
+            item = {
+                "name": finding.get("title") or finding.get("id") or "仓库安检项",
+                "type": "local_repository_check",
+                "severity": severity,
+                "path": finding.get("file") or "",
+                "file": finding.get("file") or "",
+                "line": finding.get("line"),
+                "category": finding.get("category") or group_name,
+                "source_id": finding.get("id"),
+                "confidence": finding.get("confidence"),
+                "evidence": finding.get("evidence"),
+                "why_manual": finding.get("detail") or "本地规则发现该项需要人工确认。",
+                "risk": finding.get("detail") or "需要结合项目场景确认影响。",
+                "disposal": finding.get("recommendation")
+                or "请安排负责人确认并按项目策略修正。",
+                "source": finding.get("source") or "builtin",
+            }
+            if severity in {"critical", "high"}:
+                red.append(item)
+            elif severity == "medium":
+                yellow.append(item)
+            else:
+                green.append(
+                    {
+                        **item,
+                        "summary": item["disposal"],
+                    }
+                )
+
     logger.info(
         "build_hygiene_items: red=%d, yellow=%d, green=%d",
         len(red),
@@ -647,6 +685,9 @@ def build_summary(scan, analysis):
     secret_count = len(hygiene.get("tracked_secrets") or [])
     sensitive_count = len(hygiene.get("sensitive_tracked") or [])
     missing_count = len(hygiene.get("gitignore_missing") or [])
+    local_check_count = sum(
+        len(hygiene.get(group_name) or []) for group_name in STRUCTURED_HYGIENE_GROUPS
+    )
     outdated_count = len(scan.get("outdated") or [])
     errors = scan.get("errors") or []
     dependency_fix_count = len(
@@ -661,6 +702,8 @@ def build_summary(scan, analysis):
         tldr = "本次没有发现补天支持的依赖文件，因此未执行依赖漏洞扫描；报告结论仅覆盖仓库安检范围。"
     elif critical_high and vuln_count:
         tldr = "发现需要优先安排的依赖安全风险，建议先处理紧急和高风险漏洞，再确认仓库中的敏感信息迹象。"
+    elif critical_high:
+        tldr = "仓库安检发现需要优先处理的本地安全配置风险，建议先处理工作流、凭证、容器或供应链高风险项。"
     elif secret_count or sensitive_count:
         tldr = "未发现高优先级依赖漏洞，但仓库里有凭证或敏感文件迹象，需要研发确认。"
     elif vuln_count and medium_low:
@@ -680,14 +723,16 @@ def build_summary(scan, analysis):
         detail = (
             f"本次检查覆盖项目 {project.get('name') or '-'}。{HYGIENE_ONLY_NOTICE}"
             f"仓库安检方面，发现疑似硬编码凭证 {secret_count} 处、"
-            f"被 git 跟踪的敏感文件 {sensitive_count} 个、建议补充的 .gitignore 规则 {missing_count} 条。"
+            f"被 git 跟踪的敏感文件 {sensitive_count} 个、建议补充的 .gitignore 规则 {missing_count} 条、"
+            f"本地配置/工作流检查项 {local_check_count} 个。"
         )
     else:
         detail = (
             f"本次检查覆盖项目 {project.get('name') or '-'}，识别到 "
             f"{project.get('total_packages', scan.get('package_count', 0)) or 0} 个依赖包，"
             f"命中 {vuln_count} 个已确认风险项。仓库安检方面，发现疑似硬编码凭证 {secret_count} 处、"
-            f"被 git 跟踪的敏感文件 {sensitive_count} 个、建议补充的 .gitignore 规则 {missing_count} 条。"
+            f"被 git 跟踪的敏感文件 {sensitive_count} 个、建议补充的 .gitignore 规则 {missing_count} 条、"
+            f"本地配置/工作流检查项 {local_check_count} 个。"
             f"过期依赖 {outdated_count} 个仅作为维护信号，不等同于漏洞。"
         )
 
@@ -696,7 +741,7 @@ def build_summary(scan, analysis):
         priority.append(HYGIENE_ONLY_NOTICE)
     elif critical_high:
         priority.append(
-            f"优先处理 {critical_high} 个紧急/高风险项，先升级有明确修复版本的依赖，再运行测试或构建。"
+            f"优先处理 {critical_high} 个紧急/高风险项；依赖漏洞先升级有明确修复版本的包，仓库安检项先处理工作流权限、凭证、容器和供应链配置。"
         )
     elif vuln_count:
         priority.append(

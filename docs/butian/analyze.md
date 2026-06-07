@@ -1,6 +1,6 @@
 # analyze.py 技术文档
 
-> 源码路径：`butian/scripts/analyze.py`（837 行）
+> 源码路径：`butian/scripts/analyze.py`（881 行）
 
 ## 概览
 
@@ -8,12 +8,13 @@
 
 ## 职责
 
-| #   | 职责     | 说明                                 |
-| --- | -------- | ------------------------------------ |
-| 1   | 风险分级 | 按严重度排序，将问题分为红/黄/绿三档 |
-| 2   | 漏洞摘要 | 为每条漏洞生成人类可读的中文摘要     |
-| 3   | 修复建议 | 为有修复版本的依赖生成升级方案       |
-| 4   | 摘要生成 | 构建 TL;DR、详细说明和优先级建议     |
+| #   | 职责           | 说明                                                                                     |
+| --- | -------------- | ---------------------------------------------------------------------------------------- |
+| 1   | 风险分级       | 按严重度排序，将问题分为红/黄/绿三档                                                     |
+| 2   | 漏洞摘要       | 为每条漏洞生成人类可读的中文摘要                                                         |
+| 3   | 修复建议       | 为有修复版本的依赖生成升级方案                                                           |
+| 4   | 仓库安检归一化 | 将硬编码密钥、敏感文件、GitHub Actions、仓库治理/供应链、IaC/容器 finding 转成统一行动项 |
+| 5   | 摘要生成       | 构建 TL;DR、详细说明和优先级建议                                                         |
 
 ## CLI 用法
 
@@ -61,6 +62,18 @@ SEVERITY_ORDER = {
 
 `SENSITIVE_TYPE_LABELS` 将 `env_file`、`private_key`、`database` 等映射为中文标签（如"环境变量文件"、"私钥或证书文件"）。
 
+### 结构化仓库安检分组
+
+```python
+STRUCTURED_HYGIENE_GROUPS = (
+    "workflow_checks",
+    "repository_checks",
+    "iac_checks",
+)
+```
+
+这三个字段来自 `scan_hygiene()` 的纯本地 Python 规则，不依赖外部扫描器。`analyze.py` 会把它们统一转成 `type = "local_repository_check"` 的行动项，并保留 `source_id`、`category`、`confidence`、`evidence`、`line`、`source` 等证据字段。
+
 ## 核心函数
 
 ### 风险分级
@@ -68,7 +81,7 @@ SEVERITY_ORDER = {
 | 函数                                     | 作用                                                                                     |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------- |
 | `build_top_issues(scan)`                 | 将漏洞列表标准化，补充 `tier`（red/yellow/green）、`rank`（排名）、`summary`（中文摘要） |
-| `build_hygiene_items(scan)`              | 将仓库安检问题分为 red（高危敏感文件）、yellow（疑似凭证、缺规则）、green（修复建议）    |
+| `build_hygiene_items(scan)`              | 将仓库安检问题分为 red/yellow/green，覆盖密钥、敏感文件、`.gitignore` 和结构化本地规则   |
 | `build_dependency_fix_items(top_issues)` | 按包分组漏洞，生成升级建议（包含目标版本、涉及的公告 ID）                                |
 
 ### 摘要生成
@@ -95,18 +108,46 @@ SEVERITY_ORDER = {
 │ RED（优先处理）                                 │
 │   - 被跟踪的 .env、私钥、凭证、SSH 密钥文件     │
 │   - 严重/高危漏洞                               │
+│   - high/critical 的本地仓库安检项               │
 ├─────────────────────────────────────────────────┤
 │ YELLOW（需要人工确认）                          │
 │   - 疑似硬编码凭证                              │
 │   - 被跟踪的日志、数据库文件                    │
 │   - .gitignore 缺少敏感文件规则                 │
 │   - 中危漏洞                                    │
+│   - medium 的本地仓库安检项                      │
 ├─────────────────────────────────────────────────┤
 │ GREEN（可作为修复计划）                         │
 │   - 依赖升级建议（含目标版本）                  │
 │   - .gitignore 规则补充建议                     │
+│   - low/info 的仓库治理或发布完整性建议          │
 └─────────────────────────────────────────────────┘
 ```
+
+### 结构化仓库安检行动项
+
+`workflow_checks`、`repository_checks`、`iac_checks` 中的每条 finding 会被转换为如下行动项：
+
+```json
+{
+  "name": "Dockerfile 使用 latest 镜像标签",
+  "type": "local_repository_check",
+  "severity": "medium",
+  "path": "Dockerfile",
+  "file": "Dockerfile",
+  "line": 1,
+  "category": "iac_container",
+  "source_id": "iac.docker_latest_tag",
+  "confidence": "high",
+  "evidence": "FROM node:latest",
+  "why_manual": "latest 会随时间漂移，构建结果和漏洞暴露面不可复现。",
+  "risk": "latest 会随时间漂移，构建结果和漏洞暴露面不可复现。",
+  "disposal": "固定到具体版本标签；高要求发布链路可进一步固定 digest。",
+  "source": "builtin"
+}
+```
+
+分级规则很直接：`critical/high` 进入 red，`medium` 进入 yellow，`low/info` 进入 green。这样专业用户能在报告里看到完整证据，小白用户也能按"优先处理 / 需要确认 / 可作为计划"理解行动顺序。
 
 ## 输出 JSON 结构
 
@@ -176,8 +217,8 @@ SEVERITY_ORDER = {
   "butian_workspace": { ... },
   "summary": {
     "tldr": "发现需要优先安排的依赖安全风险...",
-    "detail": "本次检查覆盖项目 ...，识别到 142 个依赖包，命中 5 个已确认风险项...",
-    "priority": ["优先处理 3 个紧急/高风险项...", ...],
+    "detail": "本次检查覆盖项目 ...，识别到 142 个依赖包，命中 5 个已确认风险项；仓库安检还会汇总硬编码凭证、敏感文件、.gitignore 和本地配置/工作流检查项。",
+    "priority": ["优先处理 3 个紧急/高风险项；依赖漏洞先升级有明确修复版本的包，仓库安检项先处理工作流权限、凭证、容器和供应链配置。", ...],
     "tier_stats": {
       "red": "3 项优先处理",
       "yellow": "2 项需要人工确认",
@@ -207,3 +248,5 @@ SEVERITY_ORDER = {
 - **Agent 可介入**：文档明确说明 agent 可在脚本运行后调整措辞，但 schema 和风险计数应由脚本保证
 - **三档分级**：red/yellow/green 分别对应"必须处理"、"人工确认"、"计划修复"三个行动层级
 - **中文优先**：所有面向用户的文本均为中文
+- **证据可追溯**：结构化仓库安检保留 `source_id`、`file`、`line`、`evidence` 和 `recommendation`，报告可直接解释"为什么提示"和"下一步做什么"
+- **边界清晰**：本地仓库安检项只代表静态规则命中，不等同于远端 GitHub 设置审计、渗透测试或部署安全评估

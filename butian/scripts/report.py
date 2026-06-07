@@ -185,11 +185,17 @@ def render_hygiene(analysis):
     secrets = hygiene.get("tracked_secrets") or []
     sensitive = hygiene.get("sensitive_tracked") or []
     missing = hygiene.get("gitignore_missing") or []
+    structured_groups = [
+        ("GitHub Actions 工作流安全", hygiene.get("workflow_checks") or []),
+        ("仓库治理与供应链配置", hygiene.get("repository_checks") or []),
+        ("IaC / 容器 / 部署配置", hygiene.get("iac_checks") or []),
+    ]
+    structured_count = sum(len(items) for _, items in structured_groups)
     workspace = analysis.get("butian_workspace") or {}
     gitignore_state = workspace.get("gitignore") or {}
 
     lines = []
-    if not secrets and not sensitive and not missing:
+    if not secrets and not sensitive and not missing and not structured_count:
         lines.append(
             "没有发现硬编码密钥、被 git 跟踪的敏感文件或缺失的敏感文件忽略规则。"
         )
@@ -209,6 +215,10 @@ def render_hygiene(analysis):
             if missing
             else "- .gitignore：没有发现需要补充的敏感文件忽略规则。"
         )
+        if structured_count:
+            lines.append(
+                f"- 本地配置检查：发现 {structured_count} 个需要确认或记录的仓库安检项。"
+            )
     if gitignore_state:
         preexisting = "是" if gitignore_state.get("preexisting") else "否"
         added = "是" if gitignore_state.get("added_butian_entry") else "否"
@@ -233,6 +243,31 @@ def render_hygiene(analysis):
         for item in sensitive:
             lines.append(
                 f"| {cell(item.get('file'))} | {cell(item.get('type'))} | {cell(item.get('size'))} |"
+            )
+    for title, items in structured_groups:
+        if not items:
+            continue
+        lines.append("")
+        lines.append(f"### {title}")
+        lines.append("")
+        lines.append("| 等级 | 位置 | 检查项 | 证据 | 建议 |")
+        lines.append("| --- | --- | --- | --- | --- |")
+        for item in items:
+            location = item.get("file") or "-"
+            if item.get("line"):
+                location = f"{location}:{item['line']}"
+            lines.append(
+                "| "
+                + " | ".join(
+                    [
+                        cell(item.get("severity") or "-"),
+                        cell(location),
+                        cell(item.get("title") or item.get("id") or "-"),
+                        cell(item.get("evidence") or "-"),
+                        cell(item.get("recommendation") or "-"),
+                    ]
+                )
+                + " |"
             )
     lines.append("")
     return "\n".join(lines)

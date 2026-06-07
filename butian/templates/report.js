@@ -12,7 +12,7 @@ const toList = (value) => {
 const CAPABILITY_BOUNDARY =
   "安全往往不是最显眼的需求，却是产品长期稳定运行的底线。此 Skill 会帮助你发现依赖漏洞、过期依赖和仓库暴露风险，帮助团队更早暴露容易被忽视的供应链问题。但它不能替代代码审计、渗透测试或部署安全评估；业务逻辑、权限控制、SQL 注入、XSS 等代码层风险仍需单独复核。";
 const HYGIENE_ONLY_NOTICE =
-  "当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；本次仅做仓库安检，检查硬编码密钥、敏感文件跟踪和 .gitignore 风险。";
+  "当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；本次仅做仓库安检，检查硬编码密钥、敏感文件跟踪、.gitignore、GitHub Actions、仓库治理/供应链和 IaC/容器配置风险。";
 
 // ---- Normalize: accept common field name variations from different agents ----
 const DATA = (() => {
@@ -755,10 +755,6 @@ function miniFields(fields) {
         `<div class="mini-field"><span class="mini-label">${esc(x.label)}</span><span class="mini-value">${esc(x.value)}</span></div>`,
     )
     .join("")}</div>`;
-}
-
-function hygieneNote(label, value) {
-  return `<div class="hygiene-note"><span>${esc(label)}</span><p>${esc(value)}</p></div>`;
 }
 
 function cleanAdvisorySummary(value) {
@@ -2736,7 +2732,16 @@ function renderHygiene(h) {
   const secrets = toList(h.tracked_secrets);
   const sensitive = toList(h.sensitive_tracked);
   const missing = toList(h.gitignore_missing);
-  const count = secrets.length + sensitive.length + missing.length;
+  const localGroups = [
+    ["GitHub Actions 工作流安全", toList(h.workflow_checks)],
+    ["仓库治理与供应链配置", toList(h.repository_checks)],
+    ["IaC / 容器 / 部署配置", toList(h.iac_checks)],
+  ];
+  const localCount = localGroups.reduce(
+    (sum, [, items]) => sum + items.length,
+    0,
+  );
+  const count = secrets.length + sensitive.length + missing.length + localCount;
   const rows = [];
   if (secrets.length) {
     rows.push({
@@ -2756,17 +2761,16 @@ function renderHygiene(h) {
       value: `.gitignore 建议补充 ${missing.slice(0, 8).join("、")}${missing.length > 8 ? " 等规则" : ""}，避免后续误提交敏感文件。`,
     });
   }
+  for (const [label, items] of localGroups) {
+    if (items.length) {
+      rows.push({
+        label,
+        value: `发现 ${items.length} 个本地规则命中的检查项，需要结合项目场景确认。`,
+      });
+    }
+  }
   if (!rows.length) {
-    return section(
-      "仓库安检",
-      count,
-      `<div class="summary hygiene-summary">${hygieneNote(
-        "结论",
-        "没有发现硬编码密钥、被 git 跟踪的敏感文件或缺失的敏感文件忽略规则。",
-      )}</div>`,
-      "",
-      "hygiene",
-    );
+    return "";
   }
 
   // Build structured finding items for secrets and sensitive files
@@ -2784,10 +2788,24 @@ function renderHygiene(h) {
       const label = SENSITIVE_TYPE_LABELS[x.type] || x.type || "敏感文件";
       return `<div class="finding-item"><span class="finding-loc">${esc(loc)}</span><span class="finding-type">${esc(label)}</span></div>`;
     }),
+    ...localGroups.flatMap(([groupLabel, items]) =>
+      items.slice(0, 6).map((x) => {
+        const loc = `${x.file || "-"}${x.line ? ":" + x.line : ""}`;
+        const evidence = x.evidence
+          ? `<code class="secret-preview">${esc(x.evidence)}</code>`
+          : "";
+        const recommendation = x.recommendation
+          ? `<span class="finding-advice">${esc(x.recommendation)}</span>`
+          : "";
+        return `<div class="finding-item"><span class="finding-loc">${esc(loc)}</span><span class="finding-type">${esc(groupLabel)}</span><b>${esc(x.title || x.id || "仓库安检项")}</b>${evidence}${recommendation}</div>`;
+      }),
+    ),
   ];
-  const totalCount = secrets.length + sensitive.length;
+  const totalCount = secrets.length + sensitive.length + localCount;
   const shownCount =
-    Math.min(secrets.length, 5) + Math.min(sensitive.length, 5);
+    Math.min(secrets.length, 5) +
+    Math.min(sensitive.length, 5) +
+    localGroups.reduce((sum, [, items]) => sum + Math.min(items.length, 6), 0);
   const extraSummary =
     totalCount > shownCount
       ? `<div class="finding-more">…及其他 ${totalCount - shownCount} 处</div>`
