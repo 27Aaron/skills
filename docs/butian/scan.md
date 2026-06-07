@@ -131,12 +131,12 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 
 新增本地规则模块：
 
-| 模块                 | 作用                                                                                                                     |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `finding_utils.py`   | 统一 finding schema、文件读取、路径、行号、证据截断和去重工具；所有新增本地规则都通过它输出同一种结构                    |
-| `workflow_checks.py` | 本地解析 `.github/workflows/\*.yml                                                                                       | \*.yaml`，检查未 pin SHA、过宽 permissions、危险 trigger、checkout 凭据持久化、不可信上下文进入 `run:`、远程脚本管道执行、PR self-hosted runner 等风险 |
-| `repo_checks.py`     | 检查 `dependabot.yml` 维护建议、lockfile 缺失、可疑安装脚本、registry token 配置和发布完整性配置迹象 |
-| `iac_checks.py`      | 检查 Dockerfile、Compose、Kubernetes、Terraform 中的常见本地配置风险                                                     |
+| 模块 | 作用 |
+| --- | --- |
+| `finding_utils.py` | 统一 finding schema、文件读取、路径、行号、证据截断和去重工具；所有新增本地规则都通过它输出同一种结构 |
+| `workflow_checks.py` | 本地解析 `.github/workflows/*.yml` / `.github/workflows/*.yaml`，检查过宽 permissions、缺少显式最小权限边界、危险 trigger、checkout 凭据持久化、不可信上下文进入 `run:`、远程脚本管道执行、PR self-hosted runner 等风险 |
+| `repo_checks.py` | 检查 `dependabot.yml` 维护建议、lockfile 缺失、可疑安装脚本、registry 来源/token/TLS 配置和发布完整性配置迹象 |
+| `iac_checks.py` | 检查 Dockerfile、Compose、Kubernetes、Terraform 中的常见本地配置风险 |
 
 新增 `hygiene` 输出字段保持纯本地实现，不调用外部扫描器，也不创建 CI/CD workflow：
 
@@ -186,10 +186,10 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 
 | 分组                      | 字段                | 重点规则                                                                                                                                                                                                                                      | 严重度倾向                |
 | ------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| GitHub Actions 工作流安全 | `workflow_checks`   | `permissions: write-all`、缺少显式 permissions、高风险 trigger + checkout、未关闭 `persist-credentials`、不可信上下文进入 `run:`、`curl/wget \| sh`、PR 使用 self-hosted runner | `high` / `medium` / `low` |
+| GitHub Actions 工作流安全 | `workflow_checks`   | `permissions: write-all`、建议声明显式最小 permissions、高风险 trigger + checkout、未关闭 `persist-credentials`、不可信上下文进入 `run:`、`curl/wget \| sh`、PR 使用 self-hosted runner | `high` / `medium` / `low` |
 | 仓库治理                  | `repository_checks` | Dependabot 未配置或未覆盖 `github-actions` / 当前包生态；Dependabot 只作为维护建议展示，不作为风险项                                                                                                                                        | `info`                    |
-| 供应链配置                | `repository_checks` | manifest 缺 lockfile、安装脚本下载远程脚本或 base64 解码执行、registry 配置中出现 token/password/secret、仓库包含 registry 配置需确认来源                                                                                                     | `high` / `medium` / `low` |
-| 发布完整性信号            | `repository_checks` | 未发现 SBOM、签名、attestation、provenance、cosign、sigstore、SLSA 等配置迹象；这是专业用户参考信号，不当作硬漏洞                                                                                                                             | `info`                    |
+| 供应链配置                | `repository_checks` | manifest 缺 lockfile、安装脚本下载远程脚本或 base64 解码执行、registry 配置中出现 token/password/secret、仓库包含 registry 来源配置需确认、registry TLS 校验被降低                                                                             | `high` / `medium` / `low` |
+| 发布完整性信号            | `repository_checks` | 未发现 SBOM、签名、attestation、provenance、cosign、sigstore、SLSA 等配置迹象；作为面向专业用户和供应链审计的维护优化建议展示                                                                                                                | `info`                    |
 | IaC / 容器 / 部署配置     | `iac_checks`        | Dockerfile 使用 `latest`、缺非 root `USER`、远程脚本管道执行、`ADD` 远程 URL、明文 `ENV` secret、Compose privileged / Docker socket / 敏感端口、Kubernetes Secret/privileged/hostPath/hostNetwork/root、Terraform state/tfvars 和公网敏感端口 | `high` / `medium` / `low` |
 
 ### 依赖解析

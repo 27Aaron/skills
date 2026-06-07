@@ -47,6 +47,12 @@ REGISTRY_CONFIG_FILES = (
 TOKEN_RE = re.compile(
     r"(?i)(?:_authToken|token|password|secret|apikey|api[_-]?key)\s*[=:]\s*['\"]?[^'\"\s]{8,}"
 )
+REGISTRY_SOURCE_RE = re.compile(
+    r"(?i)^\s*(?:\[\[?tool\.poetry\.source\]?\]|\[(?:source|registries)\.|@[^:\s]+:registry|registry|registries\.[A-Za-z0-9_.-]+\.index|index|index-url|extra-index-url|repository|index-servers|replace-with)(?:\s*[=:]\s*\S+)?"
+)
+REGISTRY_INSECURE_RE = re.compile(
+    r"(?i)^\s*(?:strict-ssl\s*=\s*false|trusted-host\s*=.+|verify_ssl\s*=\s*false|sslverify\s*=\s*false)"
+)
 SUSPICIOUS_SCRIPT_RE = re.compile(
     r"(?i)(curl|wget).+\|\s*(sh|bash)|base64\s+(-d|--decode)|chmod\s+\+x|/etc/profile|\.bashrc|\.zshrc"
 )
@@ -161,7 +167,28 @@ def _registry_config_findings(project_path):
                     recommendation="把凭据移到本机或 CI secret 管理；如已提交，先轮换凭据，再清理历史记录。",
                 )
             )
-        else:
+            continue
+
+        source_match = _first_config_line(text, REGISTRY_SOURCE_RE)
+        insecure_match = _first_config_line(text, REGISTRY_INSECURE_RE)
+        if insecure_match:
+            line_no, evidence = insecure_match
+            findings.append(
+                make_finding(
+                    "supply_chain.registry_insecure_tls",
+                    category="supply_chain",
+                    severity="medium",
+                    confidence="high",
+                    file=rel,
+                    line=line_no,
+                    title="包管理器配置降低 registry TLS 校验",
+                    detail="关闭严格 TLS 校验或信任额外主机，会降低依赖下载链路的完整性保护。",
+                    evidence=evidence,
+                    recommendation="移除 strict-ssl=false、trusted-host 或类似例外；必须使用内网源时，优先配置受信任证书。",
+                )
+            )
+        if source_match:
+            line_no, evidence = source_match
             findings.append(
                 make_finding(
                     "supply_chain.registry_config_present",
@@ -169,14 +196,24 @@ def _registry_config_findings(project_path):
                     severity="low",
                     confidence="medium",
                     file=rel,
-                    line=1,
+                    line=line_no,
                     title="仓库包含包管理器 registry 配置",
                     detail="registry 配置可能改变依赖来源；需要确认是否为团队认可的源，避免依赖混淆或误用私有源。",
-                    evidence=rel,
+                    evidence=evidence,
                     recommendation="确认 registry 域名和 scope 配置符合团队预期；不要在文件中保存认证凭据。",
                 )
             )
     return findings
+
+
+def _first_config_line(text, pattern):
+    for line_no, line in enumerate(str(text or "").splitlines(), 1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith(("#", ";")):
+            continue
+        if pattern.search(stripped):
+            return line_no, stripped
+    return None
 
 
 def scan_repository_checks(project_path: str, ecosystems=None):
@@ -194,7 +231,7 @@ def scan_repository_checks(project_path: str, ecosystems=None):
                 file=".github/dependabot.yml",
                 line=None,
                 title="建议配置 Dependabot",
-                detail="Dependabot 可以定期提醒依赖和 GitHub Actions 更新；缺少它不代表当前存在漏洞，只是后续维护更依赖人工记忆。",
+                detail="Dependabot 可以定期提醒依赖和 GitHub Actions 更新；补齐后续维护提醒能减少人工遗漏。",
                 evidence="dependabot.yml not found",
                 recommendation="如项目使用 GitHub，可新增本地可审阅的 .github/dependabot.yml，覆盖 github-actions 和主要包管理生态。",
                 kind="maintenance_advice",
@@ -210,7 +247,7 @@ def scan_repository_checks(project_path: str, ecosystems=None):
                 file=relpath(dependabot_path, project_path),
                 line=1,
                 title="建议让 Dependabot 覆盖 GitHub Actions",
-                detail="Actions 版本同样属于供应链依赖；缺少该配置不代表漏洞，只是少了一条自动更新提醒。",
+                detail="Actions 版本同样属于供应链依赖；补齐该配置后，工作流依赖更新会有固定提醒。",
                 evidence="missing package-ecosystem: github-actions",
                 recommendation="可在 dependabot.yml 中加入 package-ecosystem: github-actions 和 /.github/workflows 目录。",
                 kind="maintenance_advice",
@@ -233,7 +270,7 @@ def scan_repository_checks(project_path: str, ecosystems=None):
                     file=relpath(dependabot_path, project_path),
                     line=1,
                     title="建议让 Dependabot 覆盖当前依赖生态",
-                    detail=f"本项目检测到 {ecosystem}，但 dependabot.yml 未覆盖对应生态 {expected}；这属于维护建议，不代表当前依赖已存在漏洞。",
+                    detail=f"本项目检测到 {ecosystem}，但 dependabot.yml 未覆盖对应生态 {expected}；补齐后可以让依赖版本维护有固定提醒。",
                     evidence=f"missing package-ecosystem: {expected}",
                     recommendation="可补充对应 package-ecosystem，让依赖版本维护有固定提醒。",
                     kind="maintenance_advice",
@@ -271,10 +308,11 @@ def scan_repository_checks(project_path: str, ecosystems=None):
                 confidence="low",
                 file="",
                 line=None,
-                title="未发现 SBOM、签名或构建来源证明配置迹象",
-                detail="这不是漏洞，但面向专业用户或供应链审计时，SBOM、签名、attestation/provenance 能显著提高发布链路可信度。",
+                title="建议补充发布完整性信号",
+                detail="面向专业用户或供应链审计时，SBOM、签名、attestation/provenance 可以提高发布链路可信度。",
                 evidence="no sbom/signing/attestation hints",
-                recommendation="按项目成熟度评估是否引入 SBOM、cosign/sigstore、SLSA provenance 或发布包签名。",
+                recommendation="按项目成熟度决定是否引入 SBOM、cosign/sigstore、SLSA provenance 或发布包签名。",
+                kind="maintenance_advice",
             )
         )
 

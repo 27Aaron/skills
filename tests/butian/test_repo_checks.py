@@ -126,6 +126,60 @@ class RepositoryChecksTests(unittest.TestCase):
                 any(f["id"] == "supply_chain.registry_token_config" for f in findings)
             )
 
+    def test_detects_registry_source_config(self):
+        with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
+            write(os.path.join(root, ".npmrc"), "registry=https://registry.npmjs.org/\n")
+
+            findings = repo_checks.scan_repository_checks(root)
+
+            item = next(
+                f
+                for f in findings
+                if f["id"] == "supply_chain.registry_config_present"
+            )
+            self.assertEqual(item["severity"], "low")
+            self.assertEqual(item["line"], 1)
+            self.assertIn("registry=", item["evidence"])
+
+    def test_ignores_non_source_registry_preferences(self):
+        with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
+            write(os.path.join(root, ".npmrc"), "legacy-peer-deps=true\n")
+
+            findings = repo_checks.scan_repository_checks(root)
+
+            self.assertFalse(
+                any(f["id"] == "supply_chain.registry_config_present" for f in findings)
+            )
+
+    def test_detects_cargo_registry_section(self):
+        with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
+            write(
+                os.path.join(root, ".cargo", "config.toml"),
+                '[registries.internal]\nindex = "sparse+https://cargo.example.test/index/"\n',
+            )
+
+            findings = repo_checks.scan_repository_checks(root)
+
+            item = next(
+                f
+                for f in findings
+                if f["id"] == "supply_chain.registry_config_present"
+            )
+            self.assertEqual(item["file"], ".cargo/config.toml")
+            self.assertIn("[registries.internal]", item["evidence"])
+
+    def test_detects_registry_tls_bypass(self):
+        with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
+            write(os.path.join(root, "pip.conf"), "trusted-host = pypi.example.test\n")
+
+            findings = repo_checks.scan_repository_checks(root)
+
+            item = next(
+                f for f in findings if f["id"] == "supply_chain.registry_insecure_tls"
+            )
+            self.assertEqual(item["severity"], "medium")
+            self.assertIn("trusted-host", item["evidence"])
+
     def test_reports_release_integrity_as_info_when_no_hints(self):
         with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
             findings = repo_checks.scan_repository_checks(root)
@@ -134,6 +188,8 @@ class RepositoryChecksTests(unittest.TestCase):
                 f for f in findings if f["id"] == "release.integrity_hints_missing"
             ]
             self.assertEqual(release[0]["severity"], "info")
+            self.assertEqual(release[0]["kind"], "maintenance_advice")
+            self.assertIn("建议", release[0]["title"])
 
 
 if __name__ == "__main__":
