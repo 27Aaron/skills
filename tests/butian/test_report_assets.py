@@ -176,6 +176,23 @@ class ButianReportAssetTests(unittest.TestCase):
                     "fixed_versions": ["11.1.1", "12.0.1", "13.0.1"],
                     "advisory_id": "GHSA-w5hq-g745-h8pq",
                     "summary": "Missing buffer bounds check",
+                    "cve_enrichments": [
+                        {
+                            "description": "A crafted request may exhaust service resources.",
+                            "nvdPublishedAt": "2026-05-29T20:16:25.550Z",
+                            "cvssMetrics": [
+                                {
+                                    "version": "3.1",
+                                    "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:N/A:H",
+                                    "baseScore": "7.5",
+                                }
+                            ],
+                            "cweIds": ["CWE-400"],
+                            "epss": "0.0004",
+                            "epssPercentile": "0.128",
+                            "epssScoreDate": "2026-06-06T00:00:00.000Z",
+                        }
+                    ],
                 },
                 {
                     "package": "curious-lib",
@@ -299,6 +316,18 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("@media (max-width: 860px)", css)
         self.assertIn(".vuln-table thead", css)
         self.assertIn('content: attr(data-label)', css)
+        self.assertIn('class="vuln-detail-header"', html)
+        self.assertIn('class="detail-grid"', html)
+        self.assertIn('class="detail-field detail-field-wide"', html)
+        self.assertIn(">远程可达</span>", html)
+        self.assertIn(">可用性 高</span>", html)
+        self.assertNotIn("🌐", html)
+        self.assertNotIn("🔒", html)
+        self.assertIn("--detail-panel-bg", css)
+        self.assertIn("--detail-card-bg", css)
+        self.assertIn("max-width: 92ch", css)
+        self.assertIn(".detail-field-wide", css)
+        self.assertIn(".vuln-detail-header", css)
         self.assertNotIn("border-left-width: 4px", css)
         self.assertNotIn("border-left-color: var(--warning-ink)", css)
 
