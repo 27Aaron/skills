@@ -504,7 +504,7 @@ class ButianReportAssetTests(unittest.TestCase):
 
         html = self._render_html(data)
 
-        self.assertIn("依赖与发布治理", html)
+        self.assertIn("依赖配置与维护", html)
         self.assertIn('class="sev-badge sev-low">建议</span>', html)
         self.assertIn("配置 Dependabot", html)
         self.assertNotIn("维护建议", html)

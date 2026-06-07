@@ -62,7 +62,7 @@ run_audit.py
 │     → scan.json
 │     → stdout: scan JSON
 │     透传: --verbose, --debug, --follow-symlinks
-│     仓库安检会同时产出密钥/敏感文件/.gitignore、GitHub Actions、依赖与发布治理、IaC/容器结构化 finding
+│     仓库安检会同时产出密钥/敏感文件/.gitignore、GitHub Actions、依赖配置与维护、IaC/容器结构化 finding
 │
 ├─ 3. analyze.py <scan_file> <analysis_path>
 │     → analysis.json
@@ -144,7 +144,7 @@ run_audit.py
 - analysis JSON：.butian/.../assets/analysis.json
 ```
 
-终端摘要只展示仓库安检的基础计数，详细的 GitHub Actions、依赖与发布治理、IaC/容器 finding 会进入 Markdown 和 HTML 报告的"仓库安检"章节，并继续参与 `red/yellow/green` 风险分级。`hygiene_only` 模式只跳过依赖漏洞和过期依赖检查，不跳过这些本地 Python 仓库安检规则。
+终端摘要只展示仓库安检的基础计数，详细的 GitHub Actions、依赖配置与维护、IaC/容器 finding 会进入 Markdown 和 HTML 报告的"仓库安检"章节，并继续参与 `red/yellow/green` 风险分级。`hygiene_only` 模式只跳过依赖漏洞和过期依赖检查，不跳过这些本地 Python 仓库安检规则。
 
 ## 核心辅助函数
 

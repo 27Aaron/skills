@@ -10,7 +10,7 @@
 
 | #   | 职责         | 说明                                                                                                                                                   |
 | --- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | 仓库安检     | `.gitignore` 状态、敏感文件跟踪、硬编码密钥扫描（97 个正则 + Shannon entropy 熵值分析）、GitHub Actions 工作流安全、依赖与发布治理、IaC/容器配置 |
+| 1   | 仓库安检     | `.gitignore` 状态、敏感文件跟踪、硬编码密钥扫描（97 个正则 + Shannon entropy 熵值分析）、GitHub Actions 工作流安全、依赖配置与维护、IaC/容器配置 |
 | 2   | 依赖生态检测 | 识别 lockfile 类型，提取包名和版本号                                                                                                                   |
 | 3   | 漏洞查询     | 调用 OSV、NVD、CISA KEV、FIRST EPSS 四个官方数据源                                                                                                     |
 | 4   | 过期依赖检测 | 通过各语言包管理器获取最新版本信息                                                                                                                     |
@@ -124,7 +124,7 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 
 | 函数                                               | 作用                                                                                                 |
 | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `scan_hygiene(project_path, max_secret_files)`     | 执行完整的仓库安检：gitignore、敏感文件跟踪、密钥扫描、GitHub Actions、依赖与发布治理、IaC/容器配置 |
+| `scan_hygiene(project_path, max_secret_files)`     | 执行完整的仓库安检：gitignore、敏感文件跟踪、密钥扫描、GitHub Actions、依赖配置与维护、IaC/容器配置 |
 | `scan_secrets(project_path, max_files, max_bytes)` | 正则模式匹配 + Shannon entropy 熵值分析，识别硬编码密钥                                              |
 | `check_sensitive_tracked(project_path)`            | 检查被 git 跟踪的敏感文件（详见下方「敏感文件类型」）                                                |
 | `check_gitignore(project_path, sensitive_tracked)` | 检查 `.gitignore` 是否覆盖了常见敏感文件模式                                                         |
@@ -135,7 +135,7 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 | --- | --- |
 | `finding_utils.py` | 统一 finding schema、文件读取、路径、行号、证据截断和去重工具；所有新增本地规则都通过它输出同一种结构 |
 | `workflow_checks.py` | 本地解析 `.github/workflows/*.yml` / `.github/workflows/*.yaml`，检查过宽 permissions、缺少显式最小权限边界、危险 trigger、checkout 凭据持久化、不可信上下文进入 `run:`、远程脚本管道执行、PR self-hosted runner 等风险 |
-| `repo_checks.py` | 检查 `dependabot.yml` 建议、lockfile 缺失、可疑安装脚本、registry 来源/token/TLS 配置和发布完整性配置迹象 |
+| `repo_checks.py` | 检查 `dependabot.yml` 建议、lockfile 缺失、可疑安装脚本、registry 来源/token/TLS 配置 |
 | `iac_checks.py` | 检查 Dockerfile、Compose、Kubernetes、Terraform 中的常见本地配置风险 |
 
 新增 `hygiene` 输出字段保持纯本地实现，不调用外部扫描器，也不创建 CI/CD workflow：
@@ -187,9 +187,8 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 | 分组                      | 字段                | 重点规则                                                                                                                                                                                                                                      | 严重度倾向                |
 | ------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
 | GitHub Actions 工作流安全 | `workflow_checks`   | `permissions: write-all`、建议声明显式最小 permissions、高风险 trigger + checkout、未关闭 `persist-credentials`、不可信上下文进入 `run:`、`curl/wget \| sh`、PR 使用 self-hosted runner | `high` / `medium` / `low` |
-| 依赖与发布治理            | `repository_checks` | Dependabot 未配置或未覆盖 `github-actions` / 当前包生态；以建议形式展示，便于团队纳入版本维护流程                                                                                                                                            | `info`                    |
+| 依赖配置与维护            | `repository_checks` | Dependabot 未配置或未覆盖 `github-actions` / 当前包生态；以建议形式展示，便于团队纳入版本维护流程                                                                                                                                            | `info`                    |
 | 供应链配置                | `repository_checks` | manifest 缺 lockfile、安装脚本下载远程脚本或 base64 解码执行、registry 配置中出现 token/password/secret、仓库包含 registry 来源配置需确认、registry TLS 校验被降低                                                                             | `high` / `medium` / `low` |
-| 发布完整性信号            | `repository_checks` | 未发现 SBOM、签名、attestation、provenance、cosign、sigstore、SLSA 等配置迹象；作为面向专业用户和供应链审计的维护优化建议展示                                                                                                                | `info`                    |
 | IaC / 容器 / 部署配置     | `iac_checks`        | Dockerfile 使用 `latest`、缺非 root `USER`、远程脚本管道执行、`ADD` 远程 URL、明文 `ENV` secret、Compose privileged / Docker socket / 敏感端口、Kubernetes Secret/privileged/hostPath/hostNetwork/root、Terraform state/tfvars 和公网敏感端口 | `high` / `medium` / `low` |
 
 ### 依赖解析

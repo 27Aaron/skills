@@ -193,7 +193,7 @@ def render_hygiene(analysis):
     missing = hygiene.get("gitignore_missing") or []
     structured_groups = [
         ("GitHub Actions 工作流安全", hygiene.get("workflow_checks") or []),
-        ("依赖与发布治理", hygiene.get("repository_checks") or []),
+        ("依赖配置与维护", hygiene.get("repository_checks") or []),
         ("IaC / 容器 / 部署配置", hygiene.get("iac_checks") or []),
     ]
     structured_count = sum(len(items) for _, items in structured_groups)

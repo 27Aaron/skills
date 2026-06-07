@@ -87,7 +87,7 @@ templates/report.html
 | `hygiene.sensitive_tracked` | 待确认项中最多展示 5 条，显示文件路径和中文敏感文件类型            |
 | `hygiene.gitignore_missing` | 摘要卡片展示建议补充的规则数量                                     |
 | `hygiene.workflow_checks`   | 以"GitHub Actions 工作流安全"标签展示结构化 finding，最多展示 6 条 |
-| `hygiene.repository_checks` | 以"依赖与发布治理"标签展示结构化 finding，最多展示 6 条      |
+| `hygiene.repository_checks` | 以"依赖配置与维护"标签展示结构化 finding，最多展示 6 条      |
 | `hygiene.iac_checks`        | 以"IaC / 容器 / 部署配置"标签展示结构化 finding，最多展示 6 条     |
 
 结构化 finding 在 HTML 中保留 `file:line`、中文分组标签、`title`、`evidence` 和 `recommendation`。当展示条目超过上限时，页面追加"…及其他 N 处"，避免小屏幕报告被长列表淹没。

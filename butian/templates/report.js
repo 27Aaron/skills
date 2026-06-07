@@ -12,7 +12,7 @@ const toList = (value) => {
 const CAPABILITY_BOUNDARY =
   "安全往往不是最显眼的需求，却是产品长期稳定运行的底线。此 Skill 会帮助你发现依赖漏洞、过期依赖和仓库暴露风险，帮助团队更早暴露容易被忽视的供应链问题。但它不能替代代码审计、渗透测试或部署安全评估；业务逻辑、权限控制、SQL 注入、XSS 等代码层风险仍需单独复核。";
 const HYGIENE_ONLY_NOTICE =
-  "当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；本次仅做仓库安检，检查硬编码密钥、敏感文件跟踪、.gitignore、GitHub Actions、依赖与发布治理和 IaC/容器配置风险。";
+  "当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；本次仅做仓库安检，检查硬编码密钥、敏感文件跟踪、.gitignore、GitHub Actions、依赖配置与维护和 IaC/容器配置风险。";
 
 // ---- Normalize: accept common field name variations from different agents ----
 const DATA = (() => {
@@ -2734,7 +2734,7 @@ function renderHygiene(h) {
   const missing = toList(h.gitignore_missing);
   const localGroups = [
     ["GitHub Actions 工作流安全", toList(h.workflow_checks)],
-    ["依赖与发布治理", toList(h.repository_checks)],
+    ["依赖配置与维护", toList(h.repository_checks)],
     ["IaC / 容器 / 部署配置", toList(h.iac_checks)],
   ];
   const localCount = localGroups.reduce(
