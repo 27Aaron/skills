@@ -36,7 +36,9 @@
     --item-bg: var(--panel-soft);
     --item-body-border: var(--line-strong);
     --item-body-bg: rgba(255, 255, 255, 0.2);
-    --detail-panel-bg: rgba(255, 255, 255, 0.72);
+    --detail-row-bg: transparent;
+    --detail-row-edge: rgba(15, 23, 42, 0.06);
+    --detail-panel-bg: transparent;
     --detail-panel-border: rgba(15, 23, 42, 0.1);
     --detail-card-bg: rgba(247, 247, 245, 0.82);
     --detail-card-border: rgba(15, 23, 42, 0.08);
@@ -1284,7 +1286,9 @@ footer {
         --item-bg: rgba(255, 255, 255, 0.05);
         --item-body-border: rgba(255, 255, 255, 0.1);
         --item-body-bg: rgba(255, 255, 255, 0.03);
-        --detail-panel-bg: rgba(17, 24, 29, 0.82);
+        --detail-row-bg: transparent;
+        --detail-row-edge: rgba(255, 255, 255, 0.08);
+        --detail-panel-bg: transparent;
         --detail-panel-border: rgba(255, 255, 255, 0.12);
         --detail-card-bg: rgba(255, 255, 255, 0.045);
         --detail-card-border: rgba(255, 255, 255, 0.1);
@@ -1534,6 +1538,12 @@ footer {
         border: 1px solid var(--item-border);
         border-radius: var(--radius-sm);
         background: var(--item-bg);
+    }
+    .vuln-table tr.vuln-detail-row {
+        gap: 0;
+        padding: 0;
+        border-color: transparent;
+        background: transparent;
     }
     .vuln-extra,
     .outdated-extra {
@@ -1891,11 +1901,12 @@ footer {
     overflow: hidden;
     padding: 0;
     border-top: none;
-    background:
-        linear-gradient(135deg, color-mix(in srgb, var(--accent-bg) 52%, transparent), transparent 42%),
-        linear-gradient(180deg, var(--surface-bg), transparent 120%);
+    background: var(--detail-row-bg);
     background-repeat: no-repeat;
     background-size: 100% 100%;
+    box-shadow:
+        inset 0 1px 0 var(--detail-row-edge),
+        inset 0 -1px 0 color-mix(in srgb, var(--detail-row-edge) 58%, transparent);
     vertical-align: top;
 }
 .vuln-detail {
@@ -1908,7 +1919,7 @@ footer {
     padding: 0;
     border: 0;
     border-radius: 0;
-    background: transparent;
+    background: var(--detail-panel-bg);
     box-shadow: none;
     transform-origin: top center;
 }
@@ -1937,6 +1948,8 @@ footer {
     animation: vuln-detail-scan 0.82s ease-out both;
 }
 .detail-dossier {
+    position: relative;
+    z-index: 1;
     display: grid;
     gap: 18px;
     align-items: start;
