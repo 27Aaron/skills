@@ -2575,7 +2575,7 @@ function renderReportSummary(sm) {
   return section(
     "报告总结",
     null,
-    `<div class="summary">${tldr}${detail}${boundary}${body}</div>`,
+    `<div class="summary">${tldr}${boundary}${detail}${body}</div>`,
     "",
     "advice",
   );

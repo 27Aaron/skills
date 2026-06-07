@@ -243,7 +243,11 @@ h1 {
 .lead {
     font-size: 14px;
     line-height: 1.7;
-    margin-bottom: 12px;
+    margin: 0 0 12px;
+    padding: 11px 14px;
+    border: 1px solid var(--field-border);
+    border-radius: var(--radius-field);
+    background: var(--field-bg);
     color: var(--text-soft);
 }
 .stats {
