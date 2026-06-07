@@ -2275,10 +2275,11 @@ function riskBadgeRow(a) {
       '<span class="sig-tag sig-ransom" title="已知被勒索软件利用">勒索攻击</span>',
     );
   }
-  if (a.maxEpssPercentile >= 0.5) {
+  if (a.maxEpss > 0 || a.maxEpssPercentile > 0) {
     const pct = (a.maxEpssPercentile * 100).toFixed(1);
+    const prob = (a.maxEpss * 100).toFixed(2);
     tags.push(
-      `<span class="sig-tag sig-epss" title="30 天内被利用概率 ${(a.maxEpss * 100).toFixed(2)}%">EPSS ${esc(pct)}%</span>`,
+      `<span class="sig-tag sig-epss" title="EPSS 百分位 ${esc(pct)}%，30 天内被利用概率 ${esc(prob)}%">EPSS ${esc(pct)}%</span>`,
     );
   }
   if (a.bestCvssScore > 0) {
@@ -2367,7 +2368,7 @@ function signalTags(r) {
   if (a.ransomware) {
     tags.push('<span class="sig-tag sig-ransom">勒索攻击</span>');
   }
-  if (a.maxEpssPercentile >= 0.7) {
+  if (a.maxEpss > 0 || a.maxEpssPercentile > 0) {
     const pct = (a.maxEpssPercentile * 100).toFixed(1);
     tags.push(`<span class="sig-tag sig-epss">EPSS ${esc(pct)}%</span>`);
   }
