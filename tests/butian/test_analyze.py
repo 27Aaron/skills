@@ -752,8 +752,8 @@ class TestBuildHygieneItems(unittest.TestCase):
                         "severity": "info",
                         "confidence": "high",
                         "file": ".github/dependabot.yml",
-                        "title": "建议配置 Dependabot",
-                        "detail": "这属于维护建议，适合按项目维护节奏评估。",
+                        "title": "配置 Dependabot",
+                        "detail": "适合按项目维护节奏评估。",
                         "evidence": "dependabot.yml not found",
                         "recommendation": "可新增 dependabot.yml。",
                         "kind": "maintenance_advice",
@@ -1106,7 +1106,7 @@ class TestBuildSummary(unittest.TestCase):
                     {
                         "id": "repo.missing_dependabot",
                         "severity": "info",
-                        "title": "建议配置 Dependabot",
+                        "title": "配置 Dependabot",
                         "kind": "maintenance_advice",
                     },
                 ],
@@ -1116,7 +1116,7 @@ class TestBuildSummary(unittest.TestCase):
         result = analyze.build_summary(scan, analysis)
 
         self.assertIn("本地配置/工作流检查项 1 个", result["detail"])
-        self.assertIn("维护建议 1 条", result["detail"])
+        self.assertIn("建议 1 条", result["detail"])
 
     def test_tier_stats(self):
         scan = _make_scan()

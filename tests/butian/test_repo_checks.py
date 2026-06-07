@@ -82,7 +82,7 @@ class RepositoryChecksTests(unittest.TestCase):
             )
             self.assertEqual(item["severity"], "info")
             self.assertEqual(item["kind"], "maintenance_advice")
-            self.assertIn("建议", item["title"])
+            self.assertIn("GitHub Actions", item["title"])
 
     def test_detects_manifest_without_lockfile(self):
         with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
@@ -189,7 +189,7 @@ class RepositoryChecksTests(unittest.TestCase):
             ]
             self.assertEqual(release[0]["severity"], "info")
             self.assertEqual(release[0]["kind"], "maintenance_advice")
-            self.assertIn("建议", release[0]["title"])
+            self.assertIn("发布完整性", release[0]["title"])
 
 
 if __name__ == "__main__":
