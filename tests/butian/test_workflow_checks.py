@@ -60,9 +60,11 @@ class WorkflowChecksTests(unittest.TestCase):
 
             findings = workflow_checks.scan_workflows(root)
 
-            self.assertTrue(
-                any(f["id"] == "actions.missing_permissions" for f in findings)
+            item = next(
+                f for f in findings if f["id"] == "actions.missing_permissions"
             )
+            self.assertEqual(item["severity"], "low")
+            self.assertIn("建议声明", item["title"])
 
     def test_detects_pull_request_target_checkout_risk(self):
         with tempfile.TemporaryDirectory(prefix="butian-workflow-") as root:

@@ -102,8 +102,8 @@ def scan_workflows(project_path: str):
                     confidence="medium",
                     file=rel,
                     line=1,
-                    title="workflow 未声明 GITHUB_TOKEN 权限边界",
-                    detail="未显式声明 permissions 时，读者很难判断 workflow 的最小权限边界。",
+                    title="建议声明 GITHUB_TOKEN 最小权限边界",
+                    detail="未显式声明 permissions 时，token 权限会依赖仓库或组织默认值；在有 action 或脚本的 workflow 中，明确最小权限能降低误用后的影响面。",
                     evidence="missing permissions:",
                     recommendation="在 workflow 顶层增加 permissions: contents: read，并在需要写权限的 job 中单独放开。",
                 )
