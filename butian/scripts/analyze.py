@@ -103,6 +103,15 @@ def severity_rank(item):
     return SEVERITY_ORDER.get(normalize_severity(item.get("severity")), 0)
 
 
+def number_or_zero(value):
+    if isinstance(value, bool) or value is None:
+        return 0.0
+    try:
+        return float(str(value).strip())
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def to_list(value):
     if not value:
         return []
@@ -231,10 +240,32 @@ def sort_items(items):
         items,
         key=lambda item: (
             -severity_rank(item),
+            -item_max_epss_percentile(item),
+            -item_best_cvss_score(item),
             str(item.get("package") or item.get("name") or ""),
             str(item.get("version") or ""),
         ),
     )
+
+
+def item_max_epss_percentile(item):
+    values = []
+    for enrichment in item.get("cve_enrichments") or []:
+        if isinstance(enrichment, dict):
+            values.append(number_or_zero(enrichment.get("epssPercentile")))
+    return max(values or [0.0])
+
+
+def item_best_cvss_score(item):
+    scores = [number_or_zero(item.get("cvss"))]
+    for enrichment in item.get("cve_enrichments") or []:
+        if not isinstance(enrichment, dict):
+            continue
+        scores.append(number_or_zero(enrichment.get("bestCvssScore")))
+        for metric in enrichment.get("cvssMetrics") or []:
+            if isinstance(metric, dict):
+                scores.append(number_or_zero(metric.get("baseScore")))
+    return max(scores or [0.0])
 
 
 def _parse_version(version_str):

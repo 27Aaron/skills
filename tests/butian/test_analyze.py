@@ -447,7 +447,61 @@ class TestSortItems(unittest.TestCase):
         self.assertEqual(result[1]["severity"], "medium")
         self.assertEqual(result[2]["severity"], "low")
 
-    def test_same_severity_sorts_by_name(self):
+    def test_same_severity_sorts_by_epss_then_cvss(self):
+        items = [
+            {
+                "severity": "medium",
+                "package": "medium-hot",
+                "cve_enrichments": [
+                    {
+                        "epssPercentile": "0.99",
+                        "cvssMetrics": [{"baseScore": "9.8"}],
+                    }
+                ],
+            },
+            {
+                "severity": "high",
+                "package": "high-low-epss-high-cvss",
+                "cve_enrichments": [
+                    {
+                        "epssPercentile": "0.10",
+                        "cvssMetrics": [{"baseScore": "9.8"}],
+                    }
+                ],
+            },
+            {
+                "severity": "high",
+                "package": "high-same-epss-low-cvss",
+                "cve_enrichments": [
+                    {
+                        "epssPercentile": "0.80",
+                        "cvssMetrics": [{"baseScore": "7.5"}],
+                    }
+                ],
+            },
+            {
+                "severity": "high",
+                "package": "high-same-epss-high-cvss",
+                "cve_enrichments": [
+                    {
+                        "epssPercentile": "0.80",
+                        "cvssMetrics": [{"baseScore": "8.8"}],
+                    }
+                ],
+            },
+        ]
+        result = analyze.sort_items(items)
+        self.assertEqual(
+            [item["package"] for item in result],
+            [
+                "high-same-epss-high-cvss",
+                "high-same-epss-low-cvss",
+                "high-low-epss-high-cvss",
+                "medium-hot",
+            ],
+        )
+
+    def test_same_severity_without_risk_scores_sorts_by_name(self):
         items = [
             {"severity": "high", "package": "zebra"},
             {"severity": "high", "package": "alpha"},

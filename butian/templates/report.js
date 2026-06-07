@@ -287,14 +287,41 @@ const SEVERITY_RANK = {
   info: 1,
 };
 
+function numberOrZero(value) {
+  if (typeof value === "boolean" || value === null || value === undefined)
+    return 0;
+  const n = parseFloat(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function riskSortSignals(item) {
+  const a = aggregateEnrichments(item || {});
+  return {
+    epss: numberOrZero(a.maxEpssPercentile),
+    cvss: numberOrZero(a.bestCvssScore),
+  };
+}
+
 function sortBySeverity(items) {
   return (items || [])
     .slice()
-    .sort(
-      (a, b) =>
+    .sort((a, b) => {
+      const severityDelta =
         (SEVERITY_RANK[(b.severity || "info").toLowerCase()] || 0) -
-        (SEVERITY_RANK[(a.severity || "info").toLowerCase()] || 0),
-    );
+        (SEVERITY_RANK[(a.severity || "info").toLowerCase()] || 0);
+      if (severityDelta) return severityDelta;
+
+      const aSignals = riskSortSignals(a);
+      const bSignals = riskSortSignals(b);
+      const epssDelta = bSignals.epss - aSignals.epss;
+      if (epssDelta) return epssDelta;
+      const cvssDelta = bSignals.cvss - aSignals.cvss;
+      if (cvssDelta) return cvssDelta;
+
+      const nameDelta = packageNameFor(a).localeCompare(packageNameFor(b));
+      if (nameDelta) return nameDelta;
+      return String(a.version || "").localeCompare(String(b.version || ""));
+    });
 }
 
 function fieldBlock(label, value) {

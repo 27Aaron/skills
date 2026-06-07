@@ -367,6 +367,95 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertNotIn("function copyBtn", js)
         self.assertNotIn("function cmdBlock", js)
 
+    def test_html_risk_table_sorts_by_severity_epss_then_cvss(self):
+        data = {
+            "generated_at": "2026-06-05 09:05:50",
+            "project": {
+                "name": "demo",
+                "path": "/tmp/demo",
+                "ecosystems": ["npm"],
+                "total_packages": 4,
+            },
+            "scan_config": {"scan_mode": "full_dependency_scan"},
+            "risk_summary": {
+                "critical": 0,
+                "high": 3,
+                "medium": 1,
+                "low": 0,
+                "info": 0,
+            },
+            "summary": {"tldr": "demo", "detail": "demo", "priority": []},
+            "top_issues": [
+                {
+                    "package": "medium-hot",
+                    "version": "1.0.0",
+                    "severity": "medium",
+                    "advisory_id": "GHSA-medium",
+                    "summary": "medium",
+                    "cve_enrichments": [
+                        {
+                            "epssPercentile": "0.99",
+                            "cvssMetrics": [{"baseScore": "9.8"}],
+                        }
+                    ],
+                },
+                {
+                    "package": "high-low-epss-high-cvss",
+                    "version": "1.0.0",
+                    "severity": "high",
+                    "advisory_id": "GHSA-low-epss",
+                    "summary": "high",
+                    "cve_enrichments": [
+                        {
+                            "epssPercentile": "0.10",
+                            "cvssMetrics": [{"baseScore": "9.8"}],
+                        }
+                    ],
+                },
+                {
+                    "package": "high-same-epss-low-cvss",
+                    "version": "1.0.0",
+                    "severity": "high",
+                    "advisory_id": "GHSA-low-cvss",
+                    "summary": "high",
+                    "cve_enrichments": [
+                        {
+                            "epssPercentile": "0.80",
+                            "cvssMetrics": [{"baseScore": "7.5"}],
+                        }
+                    ],
+                },
+                {
+                    "package": "high-same-epss-high-cvss",
+                    "version": "1.0.0",
+                    "severity": "high",
+                    "advisory_id": "GHSA-high-cvss",
+                    "summary": "high",
+                    "cve_enrichments": [
+                        {
+                            "epssPercentile": "0.80",
+                            "cvssMetrics": [{"baseScore": "8.8"}],
+                        }
+                    ],
+                },
+            ],
+            "hygiene": {},
+            "outdated": [],
+            "red": [],
+            "yellow": [],
+            "errors": [],
+        }
+
+        html = self._render_html(data)
+
+        first = html.index("high-same-epss-high-cvss")
+        second = html.index("high-same-epss-low-cvss")
+        third = html.index("high-low-epss-high-cvss")
+        fourth = html.index("medium-hot")
+        self.assertLess(first, second)
+        self.assertLess(second, third)
+        self.assertLess(third, fourth)
+
     def _render_html(self, data):
         if not shutil.which("node"):
             self.skipTest("node is required for report asset rendering tests")
