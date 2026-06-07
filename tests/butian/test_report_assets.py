@@ -320,9 +320,23 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("@media (max-width: 860px)", css)
         self.assertIn(".vuln-table thead", css)
         self.assertIn('content: attr(data-label)', css)
-        self.assertIn('class="vuln-detail-header"', html)
         self.assertIn('class="detail-dossier"', html)
         self.assertIn('class="detail-story"', html)
+        self.assertIn('class="detail-signal-row"', html)
+        self.assertIn('class="detail-story-heading"', html)
+        self.assertIn(
+            'class="detail-signal-row"><div class="detail-label">关键信号</div><div class="signal-tags">',
+            html,
+        )
+        self.assertIn(
+            'class="detail-story-heading"><div class="detail-label">漏洞描述</div></div>',
+            html,
+        )
+        self.assertLess(
+            html.index('class="detail-signal-row"'),
+            html.index('class="detail-story-heading"'),
+        )
+        self.assertNotIn('class="vuln-detail-header"', html)
         self.assertIn('class="detail-action"', html)
         self.assertIn('class="detail-facts"', html)
         self.assertIn(">建议处理</div>", html)
@@ -343,6 +357,12 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("--detail-panel-bg: rgba(17, 24, 29, 0.82)", css)
         self.assertIn("--detail-card-bg: rgba(255, 255, 255, 0.045)", css)
         self.assertIn("--vuln-row-open-bg: rgba(255, 255, 255, 0.055)", css)
+        detail_css = css.split(".vuln-detail {", 1)[1].split("}", 1)[0]
+        self.assertIn("border: 0;", detail_css)
+        self.assertIn("border-radius: 0;", detail_css)
+        self.assertIn("background: transparent;", detail_css)
+        self.assertIn("box-shadow: none;", detail_css)
+        self.assertNotIn("var(--detail-panel-border)", detail_css)
         self.assertNotIn(".vuln-detail::before", css)
         self.assertNotIn("border: 1px solid var(--detail-card-border);", css)
         self.assertNotIn("background: var(--detail-card-bg)", css)
@@ -350,11 +370,13 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("max-width: none", css)
         self.assertIn(".detail-dossier", css)
         self.assertIn(".detail-story", css)
+        self.assertIn(".detail-signal-row", css)
+        self.assertIn(".detail-story-heading", css)
         self.assertIn(".detail-action", css)
         self.assertIn(".detail-facts", css)
         self.assertIn("overflow-y: auto", css)
         self.assertIn(".sig-age", css)
-        self.assertIn(".vuln-detail-header", css)
+        self.assertNotIn(".vuln-detail-header", css)
         self.assertNotIn("border-left-width: 4px", css)
         self.assertNotIn("border-left-color: var(--warning-ink)", css)
 
