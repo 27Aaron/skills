@@ -378,10 +378,18 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("padding: 0;", detail_cell_css)
         dossier_css = css.split(".detail-dossier {", 1)[1].split("}", 1)[0]
         self.assertIn("gap: 18px;", dossier_css)
-        self.assertIn("align-items: start;", dossier_css)
+        self.assertIn("align-items: stretch;", dossier_css)
         self.assertIn("padding: 0 18px;", dossier_css)
+        split_css = css.split(".detail-dossier-split {", 1)[1].split("}", 1)[0]
+        self.assertIn("--detail-bottom-row-min: 92px;", split_css)
+        split_facts_line_css = css.split(
+            ".detail-dossier-split > .detail-facts::before {", 1
+        )[1].split("}", 1)[0]
+        self.assertIn("top: 13px;", split_facts_line_css)
+        self.assertIn("bottom: 13px;", split_facts_line_css)
         self.assertIn(".detail-story", css)
         story_css = css.split(".detail-story {", 1)[1].split("}", 1)[0]
+        self.assertIn("height: 100%;", story_css)
         self.assertIn("min-height: auto;", story_css)
         self.assertIn(".detail-signal-row", css)
         signal_row_css = css.split(".detail-signal-row {", 1)[1].split("}", 1)[0]
@@ -397,8 +405,15 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn(".detail-story-heading", css)
         self.assertIn(".detail-action", css)
         action_css = css.split(".detail-action {", 1)[1].split("}", 1)[0]
-        self.assertIn("margin-top: 12px;", action_css)
+        self.assertIn("margin-top: auto;", action_css)
+        split_action_css = css.split(".detail-dossier-split .detail-action {", 1)[1].split("}", 1)[0]
+        self.assertIn("min-height: var(--detail-bottom-row-min);", split_action_css)
+        self.assertIn("padding-top: 12px;", split_action_css)
         self.assertIn(".detail-facts", css)
+        facts_css = css.split(".detail-facts {\n    display: grid;", 1)[1].split("}", 1)[0]
+        self.assertIn("align-content: start;", facts_css)
+        self.assertIn("position: relative;", facts_css)
+        self.assertNotIn("border-left: 1px solid var(--detail-card-border);", facts_css)
         self.assertIn("overflow-y: auto", css)
         self.assertIn(".sig-age", css)
         self.assertNotIn(".vuln-detail-header", css)
@@ -516,6 +531,7 @@ class ButianReportAssetTests(unittest.TestCase):
         dossier_css = css.split(".detail-dossier {", 1)[1].split("}", 1)[0]
         self.assertIn("position: relative;", dossier_css)
         self.assertIn("z-index: 1;", dossier_css)
+        self.assertIn("align-items: stretch;", dossier_css)
         self.assertIn(".vuln-table .vuln-detail-row:hover {", css)
         detail_hover_css = css.split(".vuln-table .vuln-detail-row:hover {", 1)[1].split("}", 1)[0]
         self.assertIn("background: transparent !important;", detail_hover_css)
@@ -531,6 +547,10 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn(".detail-dossier-compact .detail-action {", css)
         compact_action_css = css.split(".detail-dossier-compact .detail-action {", 1)[1].split("}", 1)[0]
         self.assertIn("margin-top: 12px;", compact_action_css)
+        self.assertIn(".detail-dossier-split > .detail-facts::before", css)
+        self.assertIn(".detail-facts::before", css)
+        mobile_facts_line_css = css.split("    .detail-facts::before {", 1)[1].split("}", 1)[0]
+        self.assertIn("display: none;", mobile_facts_line_css)
         self.assertIn(".vuln-detail-row.vuln-detail-open .vuln-detail", css)
         self.assertIn(".vuln-detail-row.vuln-detail-scan-ready .vuln-detail::after", css)
         detail_open_css = css.split(".vuln-detail-row.vuln-detail-open .vuln-detail {", 1)[1].split("}", 1)[0]
