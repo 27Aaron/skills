@@ -1517,7 +1517,7 @@ function renderVulnTable(rows) {
     sortedRows.length,
     `<div class="table-scroll"><table class="stable-table vuln-table" style="${packageColumnWidthStyle(sortedRows)}">
   ${renderTableColgroup(["severity", "package", "version", "fixed", "advisory", "summary"])}
-  <thead><tr><th>影响程度</th><th>依赖名称</th><th>当前版本</th><th>修复版本</th><th>安全编号</th><th>说明</th></tr></thead>
+  <thead><tr><th>影响程度</th><th>依赖名称</th><th>当前版本</th><th>修复版本</th><th>安全编号</th><th>详情</th></tr></thead>
   <tbody>${body}${toggle}</tbody></table></div>`,
     "",
     "search",
