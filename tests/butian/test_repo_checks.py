@@ -21,7 +21,7 @@ class FindingUtilsTests(unittest.TestCase):
             category="repo_governance",
             severity="medium",
             confidence="high",
-            file="SECURITY.md",
+            file="example.yml",
             line=3,
             title="标题",
             detail="详情",
@@ -44,31 +44,24 @@ class FindingUtilsTests(unittest.TestCase):
 
 
 class RepositoryChecksTests(unittest.TestCase):
-    def test_detects_missing_security_md(self):
+    def test_security_policy_is_not_reported_as_repository_check(self):
         with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
             findings = repo_checks.scan_repository_checks(root)
 
-            self.assertTrue(
-                any(f["id"] == "repo.missing_security_policy" for f in findings)
-            )
+            self.assertFalse(any("security_policy" in f["id"] for f in findings))
 
-    def test_codeowners_must_cover_workflows(self):
+    def test_codeowners_is_not_reported_as_repository_check(self):
         with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
-            write(os.path.join(root, "SECURITY.md"), "report here\n")
             write(os.path.join(root, ".github", "CODEOWNERS"), "/src @team\n")
 
             findings = repo_checks.scan_repository_checks(root)
 
-            self.assertTrue(
-                any(f["id"] == "repo.codeowners_missing_workflows" for f in findings)
+            self.assertFalse(
+                any("codeowners" in f["id"] for f in findings)
             )
 
     def test_dependabot_missing_github_actions_ecosystem(self):
         with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
-            write(os.path.join(root, "SECURITY.md"), "report here\n")
-            write(
-                os.path.join(root, ".github", "CODEOWNERS"), ".github/workflows/ @sec\n"
-            )
             write(
                 os.path.join(root, ".github", "dependabot.yml"),
                 "version: 2\nupdates:\n  - package-ecosystem: npm\n",
@@ -82,13 +75,17 @@ class RepositoryChecksTests(unittest.TestCase):
                     for f in findings
                 )
             )
+            item = next(
+                f
+                for f in findings
+                if f["id"] == "repo.dependabot_missing_github_actions"
+            )
+            self.assertEqual(item["severity"], "info")
+            self.assertEqual(item["kind"], "maintenance_advice")
+            self.assertIn("建议", item["title"])
 
     def test_detects_manifest_without_lockfile(self):
         with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
-            write(os.path.join(root, "SECURITY.md"), "report here\n")
-            write(
-                os.path.join(root, ".github", "CODEOWNERS"), ".github/workflows/ @sec\n"
-            )
             write(os.path.join(root, "package.json"), "{}\n")
 
             findings = repo_checks.scan_repository_checks(root, ecosystems=["npm"])
@@ -99,10 +96,6 @@ class RepositoryChecksTests(unittest.TestCase):
 
     def test_detects_suspicious_postinstall(self):
         with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
-            write(os.path.join(root, "SECURITY.md"), "report here\n")
-            write(
-                os.path.join(root, ".github", "CODEOWNERS"), ".github/workflows/ @sec\n"
-            )
             write(os.path.join(root, "package-lock.json"), "{}\n")
             write(
                 os.path.join(root, "package.json"),
@@ -122,10 +115,6 @@ class RepositoryChecksTests(unittest.TestCase):
 
     def test_detects_registry_token_config(self):
         with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
-            write(os.path.join(root, "SECURITY.md"), "report here\n")
-            write(
-                os.path.join(root, ".github", "CODEOWNERS"), ".github/workflows/ @sec\n"
-            )
             write(
                 os.path.join(root, ".npmrc"),
                 "//registry.npmjs.org/:_authToken=npm_123456789012345678901234567890123456\n",
@@ -139,11 +128,6 @@ class RepositoryChecksTests(unittest.TestCase):
 
     def test_reports_release_integrity_as_info_when_no_hints(self):
         with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
-            write(os.path.join(root, "SECURITY.md"), "report here\n")
-            write(
-                os.path.join(root, ".github", "CODEOWNERS"), ".github/workflows/ @sec\n"
-            )
-
             findings = repo_checks.scan_repository_checks(root)
 
             release = [

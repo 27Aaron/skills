@@ -59,29 +59,6 @@ def _exists_any(project_path, candidates):
     )
 
 
-def _codeowners_path(project_path):
-    for candidate in ("CODEOWNERS", ".github/CODEOWNERS", "docs/CODEOWNERS"):
-        path = os.path.join(project_path, candidate)
-        if os.path.isfile(path):
-            return path
-    return ""
-
-
-def _codeowners_covers_workflows(text):
-    lowered = text.lower()
-    return (
-        ".github/workflows" in lowered
-        or ".github/" in lowered
-        or "/.github" in lowered
-        or "*"
-        in {
-            line.strip().split()[0]
-            for line in lowered.splitlines()
-            if line.strip() and not line.strip().startswith("#")
-        }
-    )
-
-
 def _dependabot_text(project_path):
     for candidate in (".github/dependabot.yml", ".github/dependabot.yaml"):
         path = os.path.join(project_path, candidate)
@@ -206,70 +183,21 @@ def scan_repository_checks(project_path: str, ecosystems=None):
     findings = []
     ecosystems = ecosystems or []
 
-    if not _exists_any(
-        project_path, ("SECURITY.md", ".github/SECURITY.md", "docs/SECURITY.md")
-    ):
-        findings.append(
-            make_finding(
-                "repo.missing_security_policy",
-                category="repo_governance",
-                severity="low",
-                confidence="high",
-                file="SECURITY.md",
-                line=None,
-                title="缺少安全问题反馈说明",
-                detail="没有 SECURITY.md 时，外部用户或团队成员不清楚安全问题该如何私下反馈。",
-                evidence="SECURITY.md not found",
-                recommendation="新增 SECURITY.md，写清漏洞反馈邮箱、响应预期和不应公开提交敏感漏洞的说明。",
-            )
-        )
-
-    codeowners = _codeowners_path(project_path)
-    if not codeowners:
-        findings.append(
-            make_finding(
-                "repo.missing_codeowners",
-                category="repo_governance",
-                severity="low",
-                confidence="high",
-                file="CODEOWNERS",
-                line=None,
-                title="缺少 CODEOWNERS",
-                detail="没有 CODEOWNERS 时，workflow、依赖和安全配置变更缺少稳定的审阅责任人。",
-                evidence="CODEOWNERS not found",
-                recommendation="新增 CODEOWNERS，并至少覆盖 .github/workflows/、依赖清单和安全配置目录。",
-            )
-        )
-    elif not _codeowners_covers_workflows(read_text(codeowners)):
-        findings.append(
-            make_finding(
-                "repo.codeowners_missing_workflows",
-                category="repo_governance",
-                severity="medium",
-                confidence="high",
-                file=relpath(codeowners, project_path),
-                line=1,
-                title="CODEOWNERS 未覆盖 GitHub Actions workflow",
-                detail="workflow 变更能影响 secret、token、发布流程和 runner，应该要求固定负责人审阅。",
-                evidence="CODEOWNERS without .github/workflows/",
-                recommendation="在 CODEOWNERS 中加入 `.github/workflows/ @安全或平台负责人`。",
-            )
-        )
-
     dependabot_path, dependabot = _dependabot_text(project_path)
     if not dependabot:
         findings.append(
             make_finding(
                 "repo.missing_dependabot",
                 category="repo_governance",
-                severity="low",
+                severity="info",
                 confidence="high",
                 file=".github/dependabot.yml",
                 line=None,
-                title="缺少 Dependabot 配置",
-                detail="没有 Dependabot 配置时，Actions 和依赖版本维护更依赖人工记忆。",
+                title="建议配置 Dependabot",
+                detail="Dependabot 可以定期提醒依赖和 GitHub Actions 更新；缺少它不代表当前存在漏洞，只是后续维护更依赖人工记忆。",
                 evidence="dependabot.yml not found",
-                recommendation="新增本地可审阅的 .github/dependabot.yml，至少覆盖 github-actions 和主要包管理生态。",
+                recommendation="如项目使用 GitHub，可新增本地可审阅的 .github/dependabot.yml，覆盖 github-actions 和主要包管理生态。",
+                kind="maintenance_advice",
             )
         )
     elif "package-ecosystem: github-actions" not in dependabot:
@@ -277,14 +205,15 @@ def scan_repository_checks(project_path: str, ecosystems=None):
             make_finding(
                 "repo.dependabot_missing_github_actions",
                 category="repo_governance",
-                severity="low",
+                severity="info",
                 confidence="high",
                 file=relpath(dependabot_path, project_path),
                 line=1,
-                title="Dependabot 未覆盖 GitHub Actions",
-                detail="Actions 版本同样属于供应链依赖；未配置时更容易长期停留在旧版本。",
+                title="建议让 Dependabot 覆盖 GitHub Actions",
+                detail="Actions 版本同样属于供应链依赖；缺少该配置不代表漏洞，只是少了一条自动更新提醒。",
                 evidence="missing package-ecosystem: github-actions",
-                recommendation="在 dependabot.yml 中加入 package-ecosystem: github-actions 和 /.github/workflows 目录。",
+                recommendation="可在 dependabot.yml 中加入 package-ecosystem: github-actions 和 /.github/workflows 目录。",
+                kind="maintenance_advice",
             )
         )
 
@@ -299,14 +228,15 @@ def scan_repository_checks(project_path: str, ecosystems=None):
                 make_finding(
                     "repo.dependabot_missing_ecosystem",
                     category="repo_governance",
-                    severity="low",
+                    severity="info",
                     confidence="medium",
                     file=relpath(dependabot_path, project_path),
                     line=1,
-                    title="Dependabot 未覆盖当前依赖生态",
-                    detail=f"本项目检测到 {ecosystem}，但 dependabot.yml 未覆盖对应生态 {expected}。",
+                    title="建议让 Dependabot 覆盖当前依赖生态",
+                    detail=f"本项目检测到 {ecosystem}，但 dependabot.yml 未覆盖对应生态 {expected}；这属于维护建议，不代表当前依赖已存在漏洞。",
                     evidence=f"missing package-ecosystem: {expected}",
-                    recommendation="补充对应 package-ecosystem，让依赖版本维护有固定提醒。",
+                    recommendation="可补充对应 package-ecosystem，让依赖版本维护有固定提醒。",
+                    kind="maintenance_advice",
                 )
             )
 
