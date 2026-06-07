@@ -335,15 +335,15 @@ class RenderHygieneTests(unittest.TestCase):
             "hygiene": {
                 "workflow_checks": [
                     {
-                        "id": "actions.unpinned_action",
+                        "id": "actions.remote_script_pipe",
                         "category": "github_actions",
                         "severity": "medium",
                         "confidence": "high",
                         "file": ".github/workflows/ci.yml",
                         "line": 5,
-                        "title": "第三方 Action 未固定到完整 commit SHA",
-                        "evidence": "uses: actions/checkout@v4",
-                        "recommendation": "固定到完整 SHA。",
+                        "title": "workflow 直接执行远程脚本",
+                        "evidence": "run: curl https://example.com/install.sh | bash",
+                        "recommendation": "下载固定版本并校验 checksum/signature，或使用可信 action/包管理器替代。",
                     }
                 ],
                 "iac_checks": [
@@ -365,9 +365,8 @@ class RenderHygieneTests(unittest.TestCase):
         result = report.render_hygiene(analysis)
 
         self.assertIn("GitHub Actions 工作流安全", result)
-        self.assertIn("第三方 Action 未固定到完整 commit SHA", result)
-        self.assertIn("uses: actions/checkout@v4", result)
-        self.assertIn("固定到完整 SHA", result)
+        self.assertIn("workflow 直接执行远程脚本", result)
+        self.assertIn("checksum/signature", result)
         self.assertIn("IaC / 容器 / 部署配置", result)
         self.assertIn("Dockerfile:1", result)
 

@@ -2773,8 +2773,7 @@ function renderHygiene(h) {
     return "";
   }
 
-  // Build structured finding items for secrets and sensitive files
-  const findingItems = [
+  const basicFindingItems = [
     ...secrets.slice(0, 5).map((x) => {
       const loc = `${x.file || "-"}${x.line ? ":" + x.line : ""}`;
       const label = SECRET_TYPE_LABELS[x.type] || x.type || "密钥";
@@ -2788,31 +2787,41 @@ function renderHygiene(h) {
       const label = SENSITIVE_TYPE_LABELS[x.type] || x.type || "敏感文件";
       return `<div class="finding-item"><span class="finding-loc">${esc(loc)}</span><span class="finding-type">${esc(label)}</span></div>`;
     }),
-    ...localGroups.flatMap(([groupLabel, items]) =>
-      items.slice(0, 6).map((x) => {
+  ];
+  const basicTotal = secrets.length + sensitive.length;
+  const basicShown = Math.min(secrets.length, 5) + Math.min(sensitive.length, 5);
+  const basicExtra =
+    basicTotal > basicShown
+      ? `<div class="finding-more">…及其他 ${basicTotal - basicShown} 处</div>`
+      : "";
+  const basicFindings = basicFindingItems.length
+    ? `<div class="field"><div class="label">凭证与敏感文件</div><div class="finding-list">${basicFindingItems.join("")}${basicExtra}</div></div>`
+    : "";
+
+  const localGroupHtml = localGroups
+    .filter(([, items]) => items.length)
+    .map(([groupLabel, items]) => {
+      const cards = items
+        .slice(0, 8)
+        .map((x) => {
         const loc = `${x.file || "-"}${x.line ? ":" + x.line : ""}`;
         const evidence = x.evidence
-          ? `<code class="secret-preview">${esc(x.evidence)}</code>`
+          ? `<div class="hygiene-finding-detail"><span>证据</span><code class="secret-preview">${esc(x.evidence)}</code></div>`
           : "";
         const recommendation = x.recommendation
-          ? `<span class="finding-advice">${esc(x.recommendation)}</span>`
+          ? `<div class="hygiene-finding-detail hygiene-finding-advice"><span>建议</span><p>${esc(x.recommendation)}</p></div>`
           : "";
-        return `<div class="finding-item"><span class="finding-loc">${esc(loc)}</span><span class="finding-type">${esc(groupLabel)}</span><b>${esc(x.title || x.id || "仓库安检项")}</b>${evidence}${recommendation}</div>`;
-      }),
-    ),
-  ];
-  const totalCount = secrets.length + sensitive.length + localCount;
-  const shownCount =
-    Math.min(secrets.length, 5) +
-    Math.min(sensitive.length, 5) +
-    localGroups.reduce((sum, [, items]) => sum + Math.min(items.length, 6), 0);
-  const extraSummary =
-    totalCount > shownCount
-      ? `<div class="finding-more">…及其他 ${totalCount - shownCount} 处</div>`
-      : "";
-  const extra = findingItems.length
-    ? `<div class="field"><div class="label">待确认项</div><div class="finding-list">${findingItems.join("")}${extraSummary}</div></div>`
-    : "";
+          return `<article class="hygiene-finding"><div class="hygiene-finding-top"><div class="hygiene-finding-title">${sevBadge(x.severity)}<b>${esc(x.title || x.id || "仓库安检项")}</b></div><div class="hygiene-finding-loc">${esc(loc)}</div></div><div class="hygiene-finding-grid">${evidence}${recommendation}</div></article>`;
+        })
+        .join("");
+      const groupMore =
+        items.length > 8
+          ? `<div class="finding-more">…及其他 ${items.length - 8} 处</div>`
+          : "";
+      return `<div class="hygiene-group"><div class="hygiene-group-head"><span>${esc(groupLabel)}</span><b>${items.length} 项</b></div><div class="hygiene-group-list">${cards}${groupMore}</div></div>`;
+    })
+    .join("");
+  const extra = `${basicFindings}${localGroupHtml ? `<div class="hygiene-groups">${localGroupHtml}</div>` : ""}`;
 
   return section(
     "仓库安检",

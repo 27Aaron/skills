@@ -425,15 +425,15 @@ class ButianReportAssetTests(unittest.TestCase):
             "hygiene": {
                 "workflow_checks": [
                     {
-                        "id": "actions.unpinned_action",
+                        "id": "actions.remote_script_pipe",
                         "category": "github_actions",
                         "severity": "medium",
                         "confidence": "high",
                         "file": ".github/workflows/ci.yml",
                         "line": 5,
-                        "title": "第三方 Action 未固定到完整 commit SHA",
-                        "evidence": "uses: actions/checkout@v4",
-                        "recommendation": "固定到完整 SHA。",
+                        "title": "workflow 直接执行远程脚本",
+                        "evidence": "run: curl https://example.com/install.sh | bash",
+                        "recommendation": "下载固定版本并校验 checksum/signature，或使用可信 action/包管理器替代。",
                     }
                 ],
                 "iac_checks": [
@@ -457,10 +457,14 @@ class ButianReportAssetTests(unittest.TestCase):
 
         self.assertIn('section-title">仓库安检', html)
         self.assertIn("GitHub Actions 工作流安全", html)
-        self.assertIn("第三方 Action 未固定到完整 commit SHA", html)
-        self.assertIn("uses: actions/checkout@v4", html)
+        self.assertIn("workflow 直接执行远程脚本", html)
+        self.assertIn("checksum/signature", html)
         self.assertIn("IaC / 容器 / 部署配置", html)
         self.assertIn("Dockerfile:2", html)
+        self.assertIn('class="hygiene-group"', html)
+        self.assertIn('class="hygiene-finding"', html)
+        self.assertIn("证据", html)
+        self.assertIn("建议", html)
 
     def test_tldr_fallback_uses_risk_item_term_for_critical_high(self):
         data = {
