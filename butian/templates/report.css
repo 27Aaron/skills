@@ -372,7 +372,7 @@ td {
     padding: 12px 14px;
     border-bottom: 1px solid rgba(15, 23, 42, 0.06);
     font-size: 13px;
-    vertical-align: top;
+    vertical-align: middle;
 }
 th {
     background: rgba(238, 242, 247, 0.62);
@@ -1544,6 +1544,7 @@ footer {
 .vuln-detail-row > td {
     padding: 8px 16px 16px;
     border-top: none;
+    vertical-align: top;
 }
 .vuln-detail {
     display: grid;
