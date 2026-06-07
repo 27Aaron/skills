@@ -361,7 +361,8 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertNotIn("--detail-panel-bg: rgba(5, 18, 22, 0.44)", css)
         self.assertIn("--detail-panel-bg: transparent", css)
         self.assertIn("--detail-card-bg: rgba(255, 255, 255, 0.045)", css)
-        self.assertIn("--vuln-row-open-bg: rgba(255, 255, 255, 0.055)", css)
+        self.assertIn("--vuln-row-open-bg: transparent;", css)
+        self.assertNotIn("--vuln-row-open-bg: rgba(255, 255, 255, 0.055)", css)
         detail_css = css.split(".vuln-detail {", 1)[1].split("}", 1)[0]
         self.assertIn("border: 0;", detail_css)
         self.assertIn("border-radius: 0;", detail_css)
