@@ -886,7 +886,7 @@ def main(argv=None):
         print()
         for line in post_fix_guidance(strategy):
             print(f"  {line}")
-        return 0
+        return 1 if failures else 0
 
     # --- Strategy: parent-upgrade ---
     if strategy == "parent-upgrade":
@@ -903,7 +903,7 @@ def main(argv=None):
         print()
         for line in post_fix_guidance(strategy):
             print(f"  {line}")
-        return 0
+        return 1 if failures else 0
 
     # --- Strategy: force-residual ---
     if strategy == "force-residual":
@@ -920,7 +920,7 @@ def main(argv=None):
         print()
         for line in post_fix_guidance(strategy):
             print(f"  {line}")
-        return 0
+        return 1 if failures else 0
 
     # --- Strategy: minimal/fixed — only upgrade vulnerable packages ---
     fix_items = extract_fixable_items(analysis)
@@ -955,7 +955,7 @@ def main(argv=None):
     for line in post_fix_guidance(strategy):
         print(f"  {line}")
 
-    return 0
+    return 1 if failures else 0
 
 
 if __name__ == "__main__":

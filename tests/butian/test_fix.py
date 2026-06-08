@@ -5,6 +5,7 @@ import os
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from butian.scripts import fix as fix_mod
@@ -397,6 +398,55 @@ class CliHelperTests(unittest.TestCase):
         text = "\n".join(fix_mod.post_fix_guidance("parent-upgrade"))
         self.assertIn("父依赖", text)
         self.assertIn("latest", text)
+
+    def test_main_returns_nonzero_when_minimal_fix_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            analysis_path = os.path.join(tmp, "analysis.json")
+            with open(analysis_path, "w", encoding="utf-8") as handle:
+                json.dump(
+                    {
+                        "project": {"path": tmp},
+                        "green": [
+                            {
+                                "type": "dependency_upgrade",
+                                "package": "left-pad",
+                                "fix_config": {
+                                    "ecosystem": "npm",
+                                    "package": "left-pad",
+                                    "current_versions": ["1.0.0"],
+                                    "target_version": "1.1.0",
+                                },
+                            }
+                        ],
+                    },
+                    handle,
+                )
+
+            with mock.patch.object(
+                fix_mod,
+                "execute_fixes",
+                return_value=([], [("left-pad", "npm install failed")]),
+            ):
+                code = fix_mod.main([analysis_path, "--strategy", "fixed"])
+
+        self.assertEqual(code, 1)
+
+    def test_main_returns_nonzero_when_latest_fix_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            analysis_path = os.path.join(tmp, "analysis.json")
+            with open(os.path.join(tmp, "package.json"), "w", encoding="utf-8") as handle:
+                json.dump({"dependencies": {"left-pad": "1.0.0"}}, handle)
+            with open(analysis_path, "w", encoding="utf-8") as handle:
+                json.dump({"project": {"path": tmp}, "green": []}, handle)
+
+            with mock.patch.object(
+                fix_mod,
+                "execute_fixes",
+                return_value=([], [("all-deps", "npm install failed")]),
+            ):
+                code = fix_mod.main([analysis_path, "--strategy", "latest"])
+
+        self.assertEqual(code, 1)
 
 
 if __name__ == "__main__":
