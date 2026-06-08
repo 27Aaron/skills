@@ -1725,13 +1725,13 @@ footer {
     position: fixed;
     z-index: 9999;
     max-width: min(320px, calc(100vw - 24px));
-    border: 1px solid rgba(110, 231, 183, 0.18);
+    border: 1px solid #cbd5e1;
     border-radius: 10px;
-    background: rgba(8, 13, 18, 0.96);
+    background: #ffffff;
     box-shadow:
-        0 18px 38px -24px rgba(0, 0, 0, 0.78),
-        inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    color: #ecfdf5;
+        0 18px 38px -24px rgba(15, 23, 42, 0.32),
+        0 1px 0 rgba(255, 255, 255, 0.9) inset;
+    color: #1f2937;
     padding: 8px 10px;
     font-size: 12px;
     font-weight: 620;
@@ -1846,6 +1846,14 @@ footer {
 }
 
 @media (prefers-color-scheme: dark) {
+    .report-tooltip {
+        border-color: rgba(110, 231, 183, 0.18);
+        background: rgba(8, 13, 18, 0.96);
+        box-shadow:
+            0 18px 38px -24px rgba(0, 0, 0, 0.78),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        color: #ecfdf5;
+    }
     .sig-kev {
         border-color: rgba(248, 113, 113, 0.28);
         background: rgba(248, 113, 113, 0.18);

@@ -602,6 +602,15 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("position: fixed;", tooltip_css)
         self.assertIn("pointer-events: none;", tooltip_css)
         self.assertIn("opacity: 0;", tooltip_css)
+        self.assertIn("border: 1px solid #cbd5e1;", tooltip_css)
+        self.assertIn("background: #ffffff;", tooltip_css)
+        self.assertIn("color: #1f2937;", tooltip_css)
+        self.assertNotIn("rgba(8, 13, 18", tooltip_css)
+        signal_css = css.split("/* ---- Signal tags", 1)[1]
+        dark_css = signal_css.split("@media (prefers-color-scheme: dark)", 1)[1]
+        dark_tooltip_css = dark_css.split(".report-tooltip {", 1)[1].split("}", 1)[0]
+        self.assertIn("background: rgba(8, 13, 18, 0.96);", dark_tooltip_css)
+        self.assertIn("color: #ecfdf5;", dark_tooltip_css)
         tooltip_visible_css = css.split(".report-tooltip.is-visible {", 1)[1].split(
             "}", 1
         )[0]
