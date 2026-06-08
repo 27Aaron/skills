@@ -338,6 +338,31 @@ class NpmParentUpgradePlanTests(unittest.TestCase):
         self.assertEqual(entry["upgrade_package"], "next")
 
 
+class CleanupStaleNestedTests(unittest.TestCase):
+    def test_ignores_lock_path_outside_project(self):
+        with tempfile.TemporaryDirectory(prefix="butian-cleanup-") as tmp:
+            project = os.path.join(tmp, "project")
+            outside = os.path.join(tmp, "project-evil", "node_modules", "bad")
+            os.makedirs(project)
+            os.makedirs(outside)
+            lock_key = "../project-evil/node_modules/bad"
+            lock_path = os.path.join(project, "package-lock.json")
+            with open(lock_path, "w", encoding="utf-8") as handle:
+                json.dump({"packages": {lock_key: {"version": "1.0.0"}}}, handle)
+
+            removed = fix_mod._cleanup_stale_nested(
+                lock_path,
+                project,
+                {"upgrades": [{"lock_path": lock_key}]},
+            )
+
+            self.assertEqual(removed, [])
+            self.assertTrue(os.path.isdir(outside))
+            with open(lock_path, "r", encoding="utf-8") as handle:
+                lock_data = json.load(handle)
+            self.assertIn(lock_key, lock_data["packages"])
+
+
 # CLI helpers
 # ---------------------------------------------------------------------------
 class CliHelperTests(unittest.TestCase):

@@ -696,12 +696,13 @@ def _cleanup_stale_nested(lock_path, project_path, plan):
         lock_key = entry.get("lock_path")
         if not lock_key or lock_key not in packages:
             continue
+        target = _nested_lock_target(project_path, lock_key)
+        if not target:
+            continue
         del packages[lock_key]
         removed.append(lock_key)
         # Also delete the physical nested directory
-        target = os.path.join(project_path, lock_key.replace("/", os.sep))
-        root = os.path.abspath(project_path)
-        if os.path.exists(target) and os.path.abspath(target).startswith(root):
+        if os.path.exists(target):
             shutil.rmtree(target, ignore_errors=True)
     if removed:
         with open(lock_path, "w", encoding="utf-8") as f:
@@ -709,6 +710,21 @@ def _cleanup_stale_nested(lock_path, project_path, plan):
         for item in removed:
             print(f"    - 已清理 {item}")
     return removed
+
+
+def _nested_lock_target(project_path, lock_key):
+    normalized = str(lock_key or "").replace("\\", "/")
+    parts = [part for part in normalized.split("/") if part]
+    if not parts or parts[0] != "node_modules" or ".." in parts:
+        return None
+    target = os.path.abspath(os.path.join(project_path, *parts))
+    root = os.path.abspath(project_path)
+    try:
+        if os.path.commonpath([root, target]) != root:
+            return None
+    except ValueError:
+        return None
+    return target
 
 
 def _run_npm_install(project_path):
