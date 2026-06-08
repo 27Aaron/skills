@@ -4,6 +4,7 @@ __pycache__/
 
 # Butian local workspace
 .butian/
+docs/butian
 
 # Local agent planning artifacts
 docs/superpowers/

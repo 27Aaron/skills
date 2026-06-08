@@ -7,8 +7,8 @@ Collects security-related data and outputs JSON for agent analysis:
   3. Vulnerability checks via OSV, NVD, CISA KEV, and FIRST EPSS
   4. Outdated dependency checks
 
-The scan is read-only: the script only creates/updates the .butian/ local
-workspace and ensures .gitignore covers that directory.
+The scan is read-only: the script only creates/updates local report workspaces
+and ensures .gitignore covers those directories.
 
 Usage:
     python3 scan.py --preflight <preflight_json>
@@ -93,12 +93,18 @@ CAPABILITY_BOUNDARY = (
 )
 
 
-def has_butian_gitignore_entry(content):
+def has_gitignore_entry(content, entry):
+    normalized = str(entry or "").strip().rstrip("/")
+    candidates = {normalized, f"{normalized}/"}
     for line in content.splitlines():
         stripped = line.strip()
-        if stripped in {".butian", BUTIAN_GITIGNORE_ENTRY}:
+        if stripped in candidates:
             return True
     return False
+
+
+def has_butian_gitignore_entry(content):
+    return has_gitignore_entry(content, BUTIAN_GITIGNORE_ENTRY)
 
 
 def inspect_butian_gitignore(project_path):
@@ -125,8 +131,11 @@ def ensure_butian_gitignore(project_path):
     except FileNotFoundError:
         content = ""
 
-    added_entry = False
-    if has_butian_gitignore_entry(content):
+    required_entries = [BUTIAN_GITIGNORE_ENTRY] + list(BUTIAN_GITIGNORE_EXTRA_ENTRIES)
+    missing_entries = [
+        entry for entry in required_entries if not has_gitignore_entry(content, entry)
+    ]
+    if not missing_entries:
         status.update(
             {
                 "added_butian_entry": False,
@@ -143,11 +152,12 @@ def ensure_butian_gitignore(project_path):
         prefix = "\n"
 
     with open(gitignore_path, "a", encoding="utf-8") as handle:
-        entries = "\n".join(
-            [BUTIAN_GITIGNORE_ENTRY] + list(BUTIAN_GITIGNORE_EXTRA_ENTRIES)
+        header = (
+            "" if "Butian local workspace" in content else "# Butian local workspace\n"
         )
-        handle.write(f"{prefix}# Butian local workspace\n{entries}\n")
-    added_entry = True
+        entries = "\n".join(missing_entries)
+        handle.write(f"{prefix}{header}{entries}\n")
+    added_entry = any(entry == BUTIAN_GITIGNORE_ENTRY for entry in missing_entries)
     status.update(
         {
             "added_butian_entry": added_entry,
@@ -200,14 +210,6 @@ def make_run_id():
 
 def ensure_butian_run(project_path, run_id=None):
     workspace = ensure_butian_workspace(project_path)
-
-    # Reuse: if no explicit run_id and a previous run exists, reuse it
-    if run_id is None:
-        latest = _latest_existing_run(workspace)
-        if latest:
-            os.makedirs(os.path.join(latest, BUTIAN_ASSETS_DIR), exist_ok=True)
-            os.makedirs(os.path.join(latest, BUTIAN_CONTENT_DIR), exist_ok=True)
-            return latest
 
     base_run_id = run_id or make_run_id()
     run_dir = os.path.join(workspace, base_run_id)

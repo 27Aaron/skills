@@ -289,16 +289,17 @@ class RenderHygieneTests(unittest.TestCase):
                     {
                         "file": "src/config.ts",
                         "line": 12,
-                        "type": "generic_api_key",
+                        "type": "generic_sk_key",
                         "confidence": "high",
-                        "preview": "api_key=***",
+                        "preview": "sk-***",
                     }
                 ],
             }
         }
         result = report.render_hygiene(analysis)
         self.assertIn("src/config.ts:12", result)
-        self.assertIn("api_key", result)
+        self.assertIn("LLM/API 密钥", result)
+        self.assertNotIn("generic_sk_key", result)
 
     def test_with_sensitive_tracked(self):
         analysis = {
@@ -310,7 +311,8 @@ class RenderHygieneTests(unittest.TestCase):
         }
         result = report.render_hygiene(analysis)
         self.assertIn(".env", result)
-        self.assertIn("env_file", result)
+        self.assertIn("环境变量文件", result)
+        self.assertNotIn("env_file", result)
 
     def test_with_gitignore_missing(self):
         analysis = {
@@ -533,11 +535,15 @@ class DefaultOutputPathTests(unittest.TestCase):
         analysis = {
             "generated_at": "2026-06-05 09:05:50",
             "project": {"path": "/tmp/test-project"},
+            "butian_workspace": {"run_dir": "/tmp/test-project/.butian/20260608-1200"},
         }
         with tempfile.TemporaryDirectory(prefix="butian-report-") as root:
             analysis["project"]["path"] = root
+            analysis["butian_workspace"]["run_dir"] = os.path.join(
+                root, ".butian", "20260608-1200"
+            )
             path = report.default_output_path(analysis)
-            self.assertTrue(path.endswith("security-report-20260605-0905.md"))
+            self.assertTrue(path.endswith("security-report-20260608-1200.md"))
             self.assertIn("docs/butian", path)
 
 

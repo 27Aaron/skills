@@ -3,7 +3,7 @@
 
 Usage:
     python3 scripts/report.py .butian/<timestamp>/assets/analysis.json
-    python3 scripts/report.py analysis.json docs/security-report-YYYY-MM-DD.md
+    python3 scripts/report.py analysis.json docs/butian/security-report-<run-id>.md
 """
 
 import argparse
@@ -34,6 +34,61 @@ SEVERITY_LABELS = {
     "medium": "中风险",
     "low": "低风险",
     "info": "待确认",
+}
+
+SECRET_TYPE_LABELS = {
+    "aws_access_key": "AWS 访问密钥",
+    "aws_secret_key": "AWS Secret Key",
+    "gcp_service_account": "GCP 服务账号",
+    "gcp_api_key": "GCP API Key",
+    "azure_client_secret": "Azure 客户端密钥",
+    "aliyun_access_key": "阿里云 AccessKey",
+    "tencent_secret_id": "腾讯云 SecretId",
+    "huawei_access_key": "华为云 Access Key",
+    "oracle_api_key": "Oracle API Key",
+    "github_token": "GitHub Token",
+    "github_fine_grained_pat": "GitHub fine-grained PAT",
+    "gitlab_token": "GitLab Token",
+    "gitlab_runner_token": "GitLab Runner Token",
+    "gitlab_deploy_token": "GitLab Deploy Token",
+    "slack_token": "Slack Token",
+    "discord_bot_token": "Discord Bot Token",
+    "stripe_secret_key": "Stripe 密钥",
+    "openai_key": "OpenAI API Key",
+    "anthropic_key": "Anthropic API Key",
+    "groq_api_key": "Groq API Key",
+    "hashicorp_vault_token": "HashiCorp Vault Token",
+    "pulumi_token": "Pulumi Token",
+    "cloudflare_api_token": "Cloudflare API Token",
+    "vercel_token": "Vercel Token",
+    "netlify_token": "Netlify Token",
+    "railway_token": "Railway Token",
+    "render_token": "Render Token",
+    "snyk_token": "Snyk Token",
+    "resend_api_key": "Resend API Key",
+    "clerk_secret_key": "Clerk Secret Key",
+    "supabase_service_role_key": "Supabase service-role key",
+    "algolia_admin_key": "Algolia Admin API Key",
+    "generic_sk_key": "LLM/API 密钥 (sk-)",
+    "generic_password": "疑似密码",
+    "generic_api_key": "疑似 API Key",
+    "generic_token": "疑似 Token",
+    "generic_secret": "疑似 Secret",
+    "bearer_token": "Bearer Token",
+    "private_key": "私钥",
+    "jwt_token": "JWT Token",
+    "webhook_url": "Webhook URL",
+    "basic_auth_url": "URL 内嵌账号密码",
+    "netrc_password": ".netrc 机器密码",
+}
+
+SENSITIVE_TYPE_LABELS = {
+    "env_file": "环境变量文件",
+    "private_key": "私钥或证书文件",
+    "database": "本地数据库或转储文件",
+    "log": "日志文件",
+    "credentials": "凭证文件",
+    "ssh_key": "SSH 私钥",
 }
 
 
@@ -93,15 +148,30 @@ def datetime_from_analysis(analysis):
 def default_output_path(analysis):
     project = analysis.get("project") or {}
     project_path = project.get("path") or os.getcwd()
+    workspace = analysis.get("butian_workspace") or {}
+    run_dir = workspace.get("run_dir")
+    report_id = (
+        os.path.basename(os.path.normpath(run_dir))
+        if run_dir
+        else datetime_from_analysis(analysis)
+    )
     docs_dir = os.path.join(project_path, "docs", "butian")
     os.makedirs(docs_dir, exist_ok=True)
-    return os.path.join(
-        docs_dir, f"security-report-{datetime_from_analysis(analysis)}.md"
-    )
+    return os.path.join(docs_dir, f"security-report-{report_id}.md")
 
 
 def severity_label(value):
     return SEVERITY_LABELS.get(text(value).lower(), "待确认")
+
+
+def secret_type_label(value):
+    key = text(value)
+    return SECRET_TYPE_LABELS.get(key, key or "密钥")
+
+
+def sensitive_type_label(value):
+    key = text(value)
+    return SENSITIVE_TYPE_LABELS.get(key, key or "敏感文件")
 
 
 def structured_finding_label(item):
@@ -248,7 +318,7 @@ def render_hygiene(analysis):
             if item.get("line"):
                 location = f"{location}:{item['line']}"
             lines.append(
-                f"| {cell(location)} | {cell(item.get('type'))} | {cell(item.get('confidence'))} | {cell(item.get('preview'))} |"
+                f"| {cell(location)} | {cell(secret_type_label(item.get('type')))} | {cell(item.get('confidence'))} | {cell(item.get('preview'))} |"
             )
     if sensitive:
         lines.append("")
@@ -256,7 +326,7 @@ def render_hygiene(analysis):
         lines.append("| --- | --- | --- |")
         for item in sensitive:
             lines.append(
-                f"| {cell(item.get('file'))} | {cell(item.get('type'))} | {cell(item.get('size'))} |"
+                f"| {cell(item.get('file'))} | {cell(sensitive_type_label(item.get('type')))} | {cell(item.get('size'))} |"
             )
     for title, items in structured_groups:
         if not items:

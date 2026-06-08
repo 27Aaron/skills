@@ -1,8 +1,10 @@
 """Unit tests for butian/scripts/run_audit.py — pipeline orchestrator."""
 
+import json
 import os
 import subprocess
 import sys
+import tempfile
 import unittest
 from types import SimpleNamespace
 
@@ -267,6 +269,7 @@ class FormatRiskRowsTests(unittest.TestCase):
             {"critical": 1, "high": 2, "medium": 3, "low": 4}
         )
         self.assertEqual(len(rows), 4)
+        self.assertIn("🟢 低风险", rows[3][0])
 
 
 # ---------------------------------------------------------------------------
@@ -280,6 +283,23 @@ class FormatFocusTests(unittest.TestCase):
     def test_no_issues(self):
         result = run_audit.format_focus({"top_issues": []})
         self.assertIn("未发现需要优先处理", result)
+
+    def test_no_issues_with_vulnerability_source_error_warns_incomplete(self):
+        result = run_audit.format_focus(
+            {
+                "top_issues": [],
+                "errors": [
+                    {
+                        "step": "vulnerability_check",
+                        "message": "OSV 批次 1 返回 HTTP 403",
+                    }
+                ],
+            }
+        )
+
+        self.assertIn("官方漏洞源检查存在失败", result)
+        self.assertIn("不能当作完整的安全结论", result)
+        self.assertNotIn("未发现需要优先处理的依赖漏洞。", result)
 
     def test_with_critical(self):
         analysis = {
@@ -390,6 +410,104 @@ class FormatHumanSummaryTests(unittest.TestCase):
         self.assertIn("已确认风险项", result)
         self.assertIn("lodash", result)
         self.assertIn("风险项修复验证", result)
+
+
+class PipelinePathTests(unittest.TestCase):
+    def test_main_writes_html_report_to_scan_run_dir(self):
+        original_argv = sys.argv
+        original_run_json = run_audit.run_json
+        original_run_text = run_audit.run_text
+        original_setup_logging = run_audit.setup_logging
+        with tempfile.TemporaryDirectory(prefix="butian-run-audit-") as root:
+            project = os.path.join(root, "project")
+            run_dir = os.path.join(project, ".butian", "20260608-1200")
+            assets_dir = os.path.join(run_dir, "assets")
+            os.makedirs(assets_dir)
+            preflight_path = os.path.join(assets_dir, "preflight.json")
+            scan_path = os.path.join(assets_dir, "scan.json")
+            captured = {"commands": []}
+
+            def fake_run_json(cmd):
+                if cmd[1].endswith("detect.py"):
+                    return {
+                        "output_file": preflight_path,
+                        "recommended_scan_mode": "full_dependency_scan",
+                        "butian_workspace": {
+                            "run_dir": run_dir,
+                            "assets_dir": assets_dir,
+                            "content_dir": os.path.join(run_dir, "content"),
+                        },
+                    }
+                return {
+                    "output_file": scan_path,
+                    "project": {
+                        "path": project,
+                        "ecosystems": ["npm"],
+                        "total_packages": 0,
+                    },
+                    "scan_config": {"scan_mode": "full_dependency_scan"},
+                    "hygiene": {},
+                    "outdated": [],
+                    "errors": [],
+                    "vulnerabilities": [],
+                    "butian_workspace": {
+                        "run_dir": run_dir,
+                        "assets_dir": assets_dir,
+                        "content_dir": os.path.join(run_dir, "content"),
+                    },
+                }
+
+            def fake_run_text(cmd, echo=True):
+                captured["commands"].append(cmd)
+                script = os.path.basename(cmd[1])
+                if script == "analyze.py":
+                    analysis_path = cmd[3]
+                    with open(analysis_path, "w", encoding="utf-8") as handle:
+                        json.dump(
+                            {
+                                "generated_at": "2026-06-05 09:05:50",
+                                "project": {
+                                    "path": project,
+                                    "ecosystems": ["npm"],
+                                    "total_packages": 0,
+                                },
+                                "risk_summary": {},
+                                "top_issues": [],
+                                "hygiene": {},
+                                "outdated": [],
+                                "errors": [],
+                                "butian_workspace": {
+                                    "run_dir": run_dir,
+                                    "assets_dir": assets_dir,
+                                    "content_dir": os.path.join(run_dir, "content"),
+                                },
+                            },
+                            handle,
+                        )
+                return ""
+
+            try:
+                sys.argv = ["run_audit.py", "--no-open", project]
+                run_audit.run_json = fake_run_json
+                run_audit.run_text = fake_run_text
+                run_audit.setup_logging = lambda *args, **kwargs: None
+
+                run_audit.main()
+            finally:
+                sys.argv = original_argv
+                run_audit.run_json = original_run_json
+                run_audit.run_text = original_run_text
+                run_audit.setup_logging = original_setup_logging
+
+            visualize_cmd = [
+                cmd
+                for cmd in captured["commands"]
+                if os.path.basename(cmd[1]) == "visualize.py"
+            ][0]
+            self.assertEqual(
+                visualize_cmd[3],
+                os.path.join(run_dir, "content", "security-report.html"),
+            )
 
 
 # ---------------------------------------------------------------------------

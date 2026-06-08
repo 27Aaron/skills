@@ -32,18 +32,18 @@ description: >
 
 ## 铁律
 
-- **扫描不改业务项目。** 扫描只读取项目文件、调漏洞 API，不修改源码、依赖、数据库、日志或任意项目文件；会创建/更新 `.butian/` 本地报告工作区，并会确保 `.gitignore` 忽略 `.butian/`
+- **扫描不改业务项目。** 扫描只读取项目文件、调漏洞 API，不修改源码、依赖、数据库、日志或任意项目文件；会创建/更新 `.butian/` 本地报告工作区和 `docs/butian/` Markdown 报告目录，并会确保 `.gitignore` 忽略 `.butian/` 和 `docs/butian`
 - **修复要你点头同意。** 报告生成并打开后，Agent 先用 AskUserQuestion 询问是否修复（确认修复 / 取消修复）；确认后再用 AskUserQuestion 询问升级策略（升级到已知修复版本 / 全部升级到最新版本）。Agent 不会自行执行任何升级命令。
 - **风险项和建议分开呈现。** 已确认依赖风险、仓库安检项、版本建议分别归类，避免混在一起影响判断。
 - **不制造恐慌。** 没有证据时说"不确定"，不说"肯定安全"或"肯定中招"
 
 ## 技术约束
 
-- 只在本地读取用户项目文件；不上传源码、lockfile、env 或密钥；不要上传完整 lockfile、`.env`、私钥、证书、数据库、日志或任意项目文件；除 `.butian/`、`docs/security-report-YYYY-MM-DD.md` 和必要的 `.gitignore` 规则外，不修改源码、依赖、数据库、日志或任意项目文件；不要为用户创建 CI/CD workflow。
+- 只在本地读取用户项目文件；不上传源码、lockfile、env 或密钥；不要上传完整 lockfile、`.env`、私钥、证书、数据库、日志或任意项目文件；除 `.butian/`、`docs/butian/security-report-<run-id>.md` 和必要的 `.gitignore` 规则外，不修改源码、依赖、数据库、日志或任意项目文件；不要为用户创建 CI/CD workflow。
 - 依赖漏洞检查会直接请求 OSV、NVD、CISA KEV 和 FIRST EPSS；只发送最小必要信息：`ecosystem`、`name`、`version`。
 - 报告里不要泄露完整密钥，只能写文件、行号、类型和脱敏预览。HTML 报告用结构化列表展示：路径（等宽加粗）+ 中文类型标签 + 脱敏 `preview`（code 背景），不裸露英文 type 标识。
 - 扫描自动排除工具配置目录（`.git`、`.butian`、`.claude`、`node_modules`、`.next`、`dist` 等），不扫自身的模板和静态资源文件。`generic_sk_key` 正则使用 `\b` 词边界，避免 CSS `mask-composite` 等误匹配。仓库安检的 GitHub Actions、供应链、IaC/容器规则全部是本地 Python 静态规则，不调用外部扫描器，也不为用户创建 CI/CD workflow。
-- 完整项目安全扫描必须先在被扫项目的 `docs/` 下生成 Markdown 审计报告；如果当前工作目录就是被扫项目，也就是当前工作目录的 `docs/`。报告文件例如 `docs/security-report-YYYY-MM-DD.md`。用户阅读报告后明确允许修复，才可以执行升级、删除缓存跟踪、修改 `.gitignore`、清理历史或轮换凭证相关操作。
+- 完整项目安全扫描必须先在被扫项目的 `docs/butian/` 下生成 Markdown 审计报告；如果当前工作目录就是被扫项目，也就是当前工作目录的 `docs/butian/`。报告文件例如 `docs/butian/security-report-<run-id>.md`。用户阅读报告后明确允许修复，才可以执行升级、删除缓存跟踪、修改 `.gitignore`、清理历史或轮换凭证相关操作。
 - 官方漏洞源：OSV 用于按包坐标命中开源依赖漏洞；NVD、CISA KEV 和 FIRST EPSS 只在 OSV 返回 CVE 后做 CVSS/CWE、已知被利用和利用概率富化；不做泛安全情报查询。
 - 脚本路径按本 skill 目录解析；如果当前 shell 不在 skill 根目录，使用这些脚本的绝对路径。扫描目标由脚本参数或 preflight JSON 中的 `project.path` 决定，报告写到被扫项目的 `.butian/` 和 `docs/`。
 
@@ -71,6 +71,7 @@ py -3 scripts/run_audit.py
 报告生成完毕后，告诉用户：
 
 - 报告已生成: `.butian/<timestamp>/content/security-report.html`
+- Markdown 报告已生成: `docs/butian/security-report-<run-id>.md`
 - `HTML 报告已保存，之后也可以从 content 目录重新查看。`
 - `已尝试在默认浏览器中打开报告。` 如果自动打开失败，告诉用户手动打开报告路径。
 
@@ -89,7 +90,7 @@ python3 scripts/detect.py
 py -3 scripts/detect.py
 ```
 
-`scripts/detect.py` 默认扫描当前目录并自动向上识别最近的项目根目录；如果当前目录属于 monorepo 子项目，必须以最近的项目 manifest/lockfile 为准。需要扫描其他目录时，把路径作为最后一个参数传入。它会创建 `.butian/<timestamp>/content/` 和 `.butian/<timestamp>/assets/`，把 JSON 打印到终端，并把同一份结果保存到 `.butian/<timestamp>/assets/preflight.json`；同时确保 `.gitignore` 忽略 `.butian/`，并在 `butian_workspace.gitignore` 记录扫描前 `.gitignore` 是否已存在、是否本次新增 `.butian/`。结果里的 `output_file` 是实际保存路径。先读 preflight JSON，再决定扫描模式。
+`scripts/detect.py` 默认扫描当前目录并自动向上识别最近的项目根目录；如果当前目录属于 monorepo 子项目，必须以最近的项目 manifest/lockfile 为准。需要扫描其他目录时，把路径作为最后一个参数传入。它会创建 `.butian/<timestamp>/content/` 和 `.butian/<timestamp>/assets/`，把 JSON 打印到终端，并把同一份结果保存到 `.butian/<timestamp>/assets/preflight.json`；同时确保 `.gitignore` 忽略 `.butian/` 和 `docs/butian`，并在 `butian_workspace.gitignore` 记录扫描前 `.gitignore` 是否已存在、是否本次新增 `.butian/`。结果里的 `output_file` 是实际保存路径。先读 preflight JSON，再决定扫描模式。
 
 如果 `language_support.supported` 为 `true`，继续执行完整流程：仓库安检 -> 依赖提取 -> 官方漏洞源检查 -> 过旧依赖检查。
 
@@ -123,7 +124,7 @@ py -3 scripts/analyze.py .butian/<timestamp>/assets/scan.json
 
 ### Step 3 Markdown 报告
 
-先把结论写到被扫项目的 `docs/security-report-YYYY-MM-DD.md`。默认用脚本从 analysis JSON 生成（仅首次扫描生成，复扫跳过）：
+先把结论写到被扫项目的 `docs/butian/security-report-<run-id>.md`。默认用脚本从 analysis JSON 生成（仅首次扫描生成，复扫跳过）：
 
 ```bash
 # macOS / Linux

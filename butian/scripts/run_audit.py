@@ -24,11 +24,19 @@ logger = logging.getLogger("butian.scripts.run_audit")
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 try:
-    from .scan import CAPABILITY_BOUNDARY, HYGIENE_ONLY_NOTICE, setup_logging
-except ImportError:
-    from scan import (  # pyright: ignore[reportMissingImports]
+    from .scan import (
+        BUTIAN_CONTENT_DIR,
         CAPABILITY_BOUNDARY,
         HYGIENE_ONLY_NOTICE,
+        run_dir_from_output_file,
+        setup_logging,
+    )
+except ImportError:
+    from scan import (  # pyright: ignore[reportMissingImports]
+        BUTIAN_CONTENT_DIR,
+        CAPABILITY_BOUNDARY,
+        HYGIENE_ONLY_NOTICE,
+        run_dir_from_output_file,
         setup_logging,
     )
 
@@ -208,6 +216,36 @@ def relative_path(path: str, project_path: str) -> str:
     return rel if not rel.startswith("..") else path
 
 
+def report_run_dir(analysis, scan=None):
+    for source in (analysis, scan or {}):
+        workspace = source.get("butian_workspace") or {}
+        run_dir = workspace.get("run_dir")
+        if run_dir:
+            return os.path.abspath(run_dir)
+    output_file = (scan or {}).get("output_file")
+    if output_file:
+        return os.path.abspath(run_dir_from_output_file(output_file))
+    raise ValueError("无法从分析结果中确定补天报告运行目录")
+
+
+def report_run_id(run_dir):
+    return os.path.basename(os.path.normpath(run_dir))
+
+
+def markdown_report_path(analysis, run_dir):
+    project_path = (analysis.get("project") or {}).get("path") or os.getcwd()
+    return os.path.join(
+        project_path,
+        "docs",
+        "butian",
+        f"security-report-{report_run_id(run_dir)}.md",
+    )
+
+
+def html_report_path(run_dir):
+    return os.path.join(run_dir, BUTIAN_CONTENT_DIR, "security-report.html")
+
+
 def version_key(value):
     parts = re.findall(r"\d+", str(value or ""))
     return tuple(int(part) for part in parts)
@@ -274,12 +312,19 @@ def quote_line(text):
     return f"> {text}"
 
 
+def has_vulnerability_source_errors(analysis):
+    for error in analysis.get("errors") or []:
+        if str(error.get("step") or "") == "vulnerability_check":
+            return True
+    return False
+
+
 def format_risk_rows(risk_summary):
     labels = [
         ("critical", "🔴 紧急 (Critical)"),
         ("high", "🟠 高风险 (High)"),
         ("medium", "🟡 中风险 (Medium)"),
-        ("low", "🔵 低风险 (Low)"),
+        ("low", "🟢 低风险 (Low)"),
     ]
     rows = [
         [label, str(int(risk_summary.get(key) or 0))]
@@ -295,6 +340,12 @@ def format_focus(analysis, scan_mode=None):
 
     issues = analysis.get("top_issues") or []
     if not issues:
+        if has_vulnerability_source_errors(analysis):
+            return (
+                "本次未命中需要优先处理的依赖漏洞，但官方漏洞源检查存在失败，"
+                "不能当作完整的安全结论；请先查看扫描错误，确认 OSV/NVD/EPSS "
+                "等数据源恢复后再复扫。"
+            )
         return "未发现需要优先处理的依赖漏洞。"
 
     priority = [
@@ -531,6 +582,8 @@ def main():
         risk_summary.get("info", 0),
     )
 
+    run_dir = report_run_dir(analysis, scan)
+
     # Step 4: Markdown report
     butian_dir = os.path.join(analysis["project"]["path"], ".butian")
     first_scan_marker = os.path.join(butian_dir, ".first-scan-done")
@@ -540,12 +593,7 @@ def main():
         markdown_path = None
         logger.info("跳过 Markdown 报告（非首次扫描）")
     else:
-        markdown_path = os.path.join(
-            analysis["project"]["path"],
-            "docs",
-            "butian",
-            f"security-report-{str(analysis.get('generated_at', 'unknown-date'))[:10].replace('-', '')}-{str(analysis.get('generated_at', ''))[11:16].replace(':', '')}.md",
-        )
+        markdown_path = markdown_report_path(analysis, run_dir)
         run_text(
             [
                 sys.executable,
@@ -558,17 +606,7 @@ def main():
         logger.info("Markdown 报告已生成: %s", markdown_path)
 
     # Step 5: HTML report
-    html_run_id = (
-        str(analysis.get("generated_at", "unknown-date"))[:10].replace("-", "")
-        + "-"
-        + str(analysis.get("generated_at", ""))[11:16].replace(":", "")
-    )
-    html_path = os.path.join(
-        butian_dir,
-        html_run_id,
-        "content",
-        "security-report.html",
-    )
+    html_path = html_report_path(run_dir)
     os.makedirs(os.path.dirname(html_path), exist_ok=True)
     build_report_cmd = [
         sys.executable,
