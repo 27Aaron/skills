@@ -2028,8 +2028,13 @@ footer {
     padding: 0 18px;
 }
 .detail-dossier-split {
-    --detail-bottom-row-min: 92px;
+    --detail-bottom-row-min: 72px;
     grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+    grid-template-areas:
+        "story facts"
+        "action bottom";
+    column-gap: 18px;
+    row-gap: 0;
 }
 .detail-dossier-compact {
     grid-template-columns: 1fr;
@@ -2037,10 +2042,12 @@ footer {
     padding: 0 18px;
 }
 .detail-story,
-.detail-facts {
+.detail-facts,
+.detail-facts-bottom {
     min-width: 0;
 }
 .detail-story {
+    grid-area: story;
     display: flex;
     flex-direction: column;
     gap: 0;
@@ -2075,12 +2082,21 @@ footer {
     padding: 13px 0 7px;
 }
 .detail-facts {
+    grid-area: facts;
     display: grid;
     align-content: start;
     position: relative;
     padding: 0 0 0 22px;
 }
-.detail-dossier-split > .detail-facts::before {
+.detail-facts-bottom {
+    grid-area: bottom;
+    display: grid;
+    align-content: start;
+    position: relative;
+    padding: 0 0 0 22px;
+}
+.detail-dossier-split > .detail-facts::before,
+.detail-dossier-split > .detail-facts-bottom::before {
     content: "";
     position: absolute;
     top: 13px;
@@ -2107,6 +2123,12 @@ footer {
     border-bottom: 1px solid var(--detail-card-border);
 }
 .detail-field:last-child {
+    border-bottom: 0;
+}
+.detail-field-bottom {
+    min-height: var(--detail-bottom-row-min);
+    padding-top: 12px;
+    border-top: 1px solid var(--detail-card-border);
     border-bottom: 0;
 }
 .detail-label {
@@ -2143,7 +2165,9 @@ footer {
     padding-top: 14px;
     border-top: 1px solid var(--detail-card-border);
 }
-.detail-dossier-split .detail-action {
+.detail-dossier-split > .detail-action {
+    grid-area: action;
+    margin-top: 0;
     min-height: var(--detail-bottom-row-min);
     padding-top: 12px;
 }
@@ -2216,16 +2240,36 @@ footer {
         gap: 12px;
         padding: 0 14px;
     }
+    .detail-dossier-split {
+        grid-template-areas:
+            "story"
+            "facts"
+            "action"
+            "bottom";
+        column-gap: 0;
+        row-gap: 12px;
+    }
     .detail-story {
         padding: 0;
     }
-    .detail-facts {
+    .detail-facts,
+    .detail-facts-bottom {
         padding: 12px 0 0;
         border-top: 1px solid var(--detail-card-border);
         border-left: 0;
     }
-    .detail-facts::before {
+    .detail-facts::before,
+    .detail-facts-bottom::before {
         display: none;
+    }
+    .detail-dossier-split > .detail-action {
+        min-height: auto;
+        margin-top: 0;
+    }
+    .detail-field-bottom {
+        min-height: auto;
+        padding: 13px 0;
+        border-top: 0;
     }
 }
 @media (max-width: 520px) {

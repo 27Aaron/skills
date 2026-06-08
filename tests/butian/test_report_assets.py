@@ -356,6 +356,7 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertNotIn('class="vuln-detail-header"', html)
         self.assertIn('class="detail-action"', html)
         self.assertIn('class="detail-facts"', html)
+        self.assertIn('class="detail-facts-bottom"', html)
         self.assertIn(">建议处理</div>", html)
         self.assertIn("建议升级到 13.0.1 或更高版本。升级后重新扫描", html)
         self.assertIn(
@@ -392,11 +393,12 @@ class ButianReportAssetTests(unittest.TestCase):
             html,
         )
         self.assertIn(
-            "EPSS 是公开数据给出的利用预测：未来 30 天被攻击利用的概率约 <b>0.04%</b>。12.8% 表示它比约 12.8% 的漏洞更容易被利用",
+            '<section class="detail-field detail-field-bottom"><div class="detail-label">EPSS 利用预测（评分日期 2026-06）</div><div class="detail-value">30 天内被利用概率 <b>0.04%</b>，百分位 12.8%</div></section>',
             html,
         )
+        self.assertLess(html.index('class="detail-action"'), html.index('class="detail-facts-bottom"'))
+        self.assertNotIn("EPSS 是公开数据给出的利用预测", html)
         self.assertNotIn("EPSS 百分位", html)
-        self.assertNotIn("30 天内被利用概率", html)
         self.assertNotIn('class="sig-tag sig-epss" title=', html)
         self.assertNotIn('class="cvss-tag" title=', html)
         self.assertNotIn('class="cia-tag cia-h" title=', html)
@@ -449,9 +451,10 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("align-items: stretch;", dossier_css)
         self.assertIn("padding: 0 18px;", dossier_css)
         split_css = css.split(".detail-dossier-split {", 1)[1].split("}", 1)[0]
-        self.assertIn("--detail-bottom-row-min: 92px;", split_css)
+        self.assertIn("--detail-bottom-row-min: 72px;", split_css)
         split_facts_line_css = css.split(
-            ".detail-dossier-split > .detail-facts::before {", 1
+            ".detail-dossier-split > .detail-facts::before,\n.detail-dossier-split > .detail-facts-bottom::before {",
+            1,
         )[1].split("}", 1)[0]
         self.assertIn("top: 13px;", split_facts_line_css)
         self.assertIn("bottom: 13px;", split_facts_line_css)
@@ -476,15 +479,18 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn(".detail-action", css)
         action_css = css.split(".detail-action {", 1)[1].split("}", 1)[0]
         self.assertIn("margin-top: auto;", action_css)
-        split_action_css = css.split(".detail-dossier-split .detail-action {", 1)[
+        split_action_css = css.split(".detail-dossier-split > .detail-action {", 1)[
             1
         ].split("}", 1)[0]
+        self.assertIn("grid-area: action;", split_action_css)
+        self.assertIn("margin-top: 0;", split_action_css)
         self.assertIn("min-height: var(--detail-bottom-row-min);", split_action_css)
         self.assertIn("padding-top: 12px;", split_action_css)
         self.assertIn(".detail-facts", css)
-        facts_css = css.split(".detail-facts {\n    display: grid;", 1)[1].split(
+        facts_css = css.split(".detail-facts {\n    grid-area: facts;", 1)[1].split(
             "}", 1
         )[0]
+        self.assertIn("display: grid;", facts_css)
         self.assertIn("align-content: start;", facts_css)
         self.assertIn("position: relative;", facts_css)
         self.assertNotIn("border-left: 1px solid var(--detail-card-border);", facts_css)
@@ -639,6 +645,11 @@ class ButianReportAssetTests(unittest.TestCase):
         compact_css = css.split(".detail-dossier-compact {", 1)[1].split("}", 1)[0]
         self.assertIn("grid-template-columns: 1fr;", compact_css)
         self.assertIn("padding: 0 18px;", compact_css)
+        split_css = css.split(".detail-dossier-split {", 1)[1].split("}", 1)[0]
+        self.assertIn('grid-template-areas:', split_css)
+        self.assertIn('"story facts"', split_css)
+        self.assertIn('"action bottom"', split_css)
+        self.assertIn("row-gap: 0;", split_css)
         detail_cell_css = css.split(".vuln-detail-row > td {", 1)[1].split("}", 1)[0]
         self.assertIn("padding: 0;", detail_cell_css)
         self.assertIn("background: var(--detail-row-bg);", detail_cell_css)
@@ -684,10 +695,12 @@ class ButianReportAssetTests(unittest.TestCase):
         ].split("}", 1)[0]
         self.assertIn("margin-top: 12px;", compact_action_css)
         self.assertIn(".detail-dossier-split > .detail-facts::before", css)
+        self.assertIn(".detail-dossier-split > .detail-facts-bottom::before", css)
         self.assertIn(".detail-facts::before", css)
-        mobile_facts_line_css = css.split("    .detail-facts::before {", 1)[1].split(
-            "}", 1
-        )[0]
+        mobile_facts_line_css = css.split(
+            "    .detail-facts::before,\n    .detail-facts-bottom::before {",
+            1,
+        )[1].split("}", 1)[0]
         self.assertIn("display: none;", mobile_facts_line_css)
         self.assertIn(".vuln-detail-row.vuln-detail-open .vuln-detail", css)
         self.assertIn(

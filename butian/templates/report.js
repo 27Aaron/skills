@@ -2372,17 +2372,15 @@ function epssTooltipText(prob, pct) {
   return `EPSS 是公开数据给出的被利用预测：${detail}。数值越高，越要优先处理`;
 }
 
-function epssDetailText(prob, pct, dateStr) {
-  const parts = ["EPSS 是公开数据给出的利用预测"];
+function epssDetailText(prob, pct) {
+  const parts = [];
   if (prob) {
-    parts.push(`未来 30 天被攻击利用的概率约 <b>${esc(prob)}%</b>`);
+    parts.push(`30 天内被利用概率 <b>${esc(prob)}%</b>`);
   }
   if (pct) {
-    parts.push(`${esc(pct)}% 表示它比约 ${esc(pct)}% 的漏洞更容易被利用`);
+    parts.push(`百分位 ${esc(pct)}%`);
   }
-  parts.push("数值越高，越要优先处理");
-  const suffix = dateStr ? `（评分日期 ${esc(dateStr)}）` : "";
-  return `${parts[0]}：${parts.slice(1).join("。")}。${suffix}`;
+  return parts.join("，");
 }
 
 function cvssScoreTooltip(score) {
@@ -2471,8 +2469,9 @@ function ciaImpactTags(vectorStr) {
   return tags.join("");
 }
 
-function detailField(label, valueHtml) {
-  return `<section class="detail-field"><div class="detail-label">${esc(label)}</div><div class="detail-value">${valueHtml}</div></section>`;
+function detailField(label, valueHtml, extraClass = "") {
+  const cls = extraClass ? `detail-field ${extraClass}` : "detail-field";
+  return `<section class="${cls}"><div class="detail-label">${esc(label)}</div><div class="detail-value">${valueHtml}</div></section>`;
 }
 
 function detailAction(r) {
@@ -2483,7 +2482,7 @@ function detailAction(r) {
   return `<div class="detail-action"><div class="detail-action-label">建议处理</div><div class="detail-action-text">${esc(target)}${esc(followUp)}</div></div>`;
 }
 
-function detailStory(label, valueHtml, actionHtml, signalHtml) {
+function detailStory(label, valueHtml, signalHtml) {
   const signals = signalHtml
     ? `<div class="detail-signal-row"><div class="detail-label">关键信号</div>${signalHtml}</div>`
     : "";
@@ -2491,8 +2490,7 @@ function detailStory(label, valueHtml, actionHtml, signalHtml) {
     ? `<div class="detail-story-heading"><div class="detail-label">${esc(label)}</div></div>`
     : "";
   const value = valueHtml ? `<div class="detail-value">${valueHtml}</div>` : "";
-  const action = actionHtml || "";
-  return `<section class="detail-story">${signals}${heading}${value}${action}</section>`;
+  return `<section class="detail-story">${signals}${heading}${value}</section>`;
 }
 
 function signalTags(r) {
@@ -2526,6 +2524,7 @@ function signalTags(r) {
 function vulnDetailPanel(r) {
   const a = aggregateEnrichments(r);
   const fields = [];
+  let bottomFact = "";
   let story = "";
 
   const badges = riskBadgeRow(a);
@@ -2534,11 +2533,10 @@ function vulnDetailPanel(r) {
     story = detailStory(
       "漏洞描述",
       esc(a.description),
-      detailAction(r),
       badges,
     );
   } else if (badges) {
-    story = detailStory("关键信号", "", "", badges);
+    story = detailStory("关键信号", "", badges);
   }
 
   if (a.publishedAt) {
@@ -2569,12 +2567,14 @@ function vulnDetailPanel(r) {
     const prob = (a.maxEpss * 100).toFixed(2);
     const pct = (a.maxEpssPercentile * 100).toFixed(1);
     const dateStr = shortDate(a.epssDate);
-    fields.push(
-      detailField(
-        "EPSS 利用预测",
-        epssDetailText(prob, pct, dateStr),
-      ),
+    const label = dateStr ? `EPSS 利用预测（评分日期 ${dateStr}）` : "EPSS 利用预测";
+    const epssField = detailField(
+      label,
+      epssDetailText(prob, pct),
+      story ? "detail-field-bottom" : "",
     );
+    if (story) bottomFact = epssField;
+    else fields.push(epssField);
   }
 
   if (a.kevListed) {
@@ -2586,15 +2586,17 @@ function vulnDetailPanel(r) {
     fields.push(detailField("CISA KEV", parts.join("；")));
   }
 
-  if (!story && !fields.length && !badges) return "";
+  if (!story && !fields.length && !badges && !bottomFact) return "";
   const facts = fields.length
     ? `<div class="detail-facts">${fields.join("")}</div>`
     : "";
+  const action = story ? detailAction(r) : "";
+  const bottom = bottomFact ? `<div class="detail-facts-bottom">${bottomFact}</div>` : "";
   const layoutClass =
-    story && facts ? "detail-dossier-split" : "detail-dossier-compact";
+    story && (facts || bottom) ? "detail-dossier-split" : "detail-dossier-compact";
   const body =
-    story || facts
-      ? `<div class="detail-dossier ${layoutClass}">${story}${facts}</div>`
+    story || facts || action || bottom
+      ? `<div class="detail-dossier ${layoutClass}">${story}${facts}${action}${bottom}</div>`
       : "";
   return `<div class="vuln-detail">${body}</div>`;
 }
