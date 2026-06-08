@@ -611,6 +611,22 @@ class ButianReportAssetTests(unittest.TestCase):
         dark_tooltip_css = dark_css.split(".report-tooltip {", 1)[1].split("}", 1)[0]
         self.assertIn("background: rgba(8, 13, 18, 0.96);", dark_tooltip_css)
         self.assertIn("color: #ecfdf5;", dark_tooltip_css)
+        self.assertIn("    .sig-tag,\n    .cvss-tag,\n    .cia-tag {", dark_css)
+        dark_base_tag_css = dark_css.split(
+            "    .sig-tag,\n    .cvss-tag,\n    .cia-tag {", 1
+        )[1].split("}", 1)[0]
+        self.assertIn("rgba(255, 255, 255, 0.12)", dark_base_tag_css)
+        dark_epss_css = dark_css.split("    .sig-epss {", 1)[1].split("}", 1)[0]
+        self.assertIn("border-color: rgba(196, 181, 253, 0.56);", dark_epss_css)
+        self.assertIn("background: rgba(124, 58, 237, 0.34);", dark_epss_css)
+        self.assertIn("color: #f5f3ff;", dark_epss_css)
+        dark_cvss_tag_css = dark_css.split("    .cvss-tag {", 1)[1].split("}", 1)[0]
+        self.assertIn("border-color: rgba(96, 165, 250, 0.58);", dark_cvss_tag_css)
+        self.assertIn("background: rgba(37, 99, 235, 0.32);", dark_cvss_tag_css)
+        self.assertIn("color: #eff6ff;", dark_cvss_tag_css)
+        dark_neutral_css = dark_css.split("    .sig-cwe,\n    .sig-age,\n    .sig-old {", 1)[1].split("}", 1)[0]
+        self.assertIn("background: rgba(71, 85, 105, 0.42);", dark_neutral_css)
+        self.assertIn("color: #f8fafc;", dark_neutral_css)
         tooltip_visible_css = css.split(".report-tooltip.is-visible {", 1)[1].split(
             "}", 1
         )[0]
