@@ -152,6 +152,41 @@ class ShouldOpenReportTests(unittest.TestCase):
             else:
                 os.environ["BUTIAN_NO_OPEN"] = original
 
+    def test_open_decision_reports_no_open_flag_reason(self):
+        args = SimpleNamespace(no_open=True)
+        should_open, reason = visualize.open_decision(args)
+        self.assertFalse(should_open)
+        self.assertEqual(reason, "no_open")
+
+    def test_open_decision_reports_environment_reason(self):
+        original = os.environ.get("BUTIAN_NO_OPEN")
+        try:
+            os.environ["BUTIAN_NO_OPEN"] = "true"
+            args = SimpleNamespace(no_open=False)
+            should_open, reason = visualize.open_decision(args)
+        finally:
+            if original is None:
+                os.environ.pop("BUTIAN_NO_OPEN", None)
+            else:
+                os.environ["BUTIAN_NO_OPEN"] = original
+        self.assertFalse(should_open)
+        self.assertEqual(reason, "environment")
+
+    def test_open_decision_reports_first_scan_marker_reason(self):
+        with tempfile.TemporaryDirectory(prefix="butian-viz-") as root:
+            output = os.path.join(
+                root, ".butian", "20260605-1200", "content", "security-report.html"
+            )
+            os.makedirs(os.path.dirname(output))
+            with open(os.path.join(root, ".butian", visualize.FIRST_SCAN_MARKER), "w"):
+                pass
+
+            args = SimpleNamespace(no_open=False)
+            should_open, reason = visualize.open_decision(args, output)
+
+        self.assertFalse(should_open)
+        self.assertEqual(reason, "first_scan_done")
+
 
 # ---------------------------------------------------------------------------
 # default_output_path
@@ -225,6 +260,57 @@ class PipelineHelpTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0)
         self.assertIn("usage:", result.stdout.lower())
+
+    def test_visualize_injects_shared_type_labels(self):
+        root = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
+        with tempfile.TemporaryDirectory(prefix="butian-viz-") as temp_dir:
+            analysis_path = os.path.join(
+                temp_dir, ".butian", "20260605-1200", "assets", "analysis.json"
+            )
+            output_path = os.path.join(
+                temp_dir, ".butian", "20260605-1200", "content", "security-report.html"
+            )
+            os.makedirs(os.path.dirname(analysis_path))
+            with open(analysis_path, "w", encoding="utf-8") as handle:
+                json.dump(
+                    {
+                        "project": {"name": "demo", "path": temp_dir},
+                        "summary": {"tldr": "demo", "detail": "demo"},
+                        "hygiene": {
+                            "tracked_secrets": [
+                                {
+                                    "file": "app.py",
+                                    "line": 1,
+                                    "type": "openai_key",
+                                    "preview": "sk-***",
+                                }
+                            ]
+                        },
+                    },
+                    handle,
+                )
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    os.path.join("butian", "scripts", "visualize.py"),
+                    "--no-open",
+                    analysis_path,
+                    output_path,
+                ],
+                cwd=root,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            with open(output_path, "r", encoding="utf-8") as handle:
+                html = handle.read()
+            self.assertIn("OpenAI API Key", html)
+            self.assertNotIn("__SECRET_TYPE_LABELS__", html)
+            self.assertNotIn("__SENSITIVE_TYPE_LABELS__", html)
 
 
 if __name__ == "__main__":

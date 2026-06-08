@@ -3104,59 +3104,12 @@ function renderReportSummary(sm) {
 }
 
 // ---- Repository security checks ----
-const SECRET_TYPE_LABELS = {
-  aws_access_key: "AWS 访问密钥",
-  aws_secret_key: "AWS Secret Key",
-  gcp_service_account: "GCP 服务账号",
-  gcp_api_key: "GCP API Key",
-  azure_client_secret: "Azure 客户端密钥",
-  aliyun_access_key: "阿里云 AccessKey",
-  tencent_secret_id: "腾讯云 SecretId",
-  huawei_access_key: "华为云 Access Key",
-  oracle_api_key: "Oracle API Key",
-  github_token: "GitHub Token",
-  github_fine_grained_pat: "GitHub fine-grained PAT",
-  gitlab_token: "GitLab Token",
-  gitlab_runner_token: "GitLab Runner Token",
-  gitlab_deploy_token: "GitLab Deploy Token",
-  slack_token: "Slack Token",
-  discord_bot_token: "Discord Bot Token",
-  stripe_secret_key: "Stripe 密钥",
-  openai_key: "OpenAI API Key",
-  anthropic_key: "Anthropic API Key",
-  groq_api_key: "Groq API Key",
-  hashicorp_vault_token: "HashiCorp Vault Token",
-  pulumi_token: "Pulumi Token",
-  cloudflare_api_token: "Cloudflare API Token",
-  vercel_token: "Vercel Token",
-  netlify_token: "Netlify Token",
-  railway_token: "Railway Token",
-  render_token: "Render Token",
-  snyk_token: "Snyk Token",
-  resend_api_key: "Resend API Key",
-  clerk_secret_key: "Clerk Secret Key",
-  supabase_service_role_key: "Supabase service-role key",
-  algolia_admin_key: "Algolia Admin API Key",
-  generic_sk_key: "LLM/API 密钥 (sk-)",
-  generic_password: "疑似密码",
-  generic_api_key: "疑似 API Key",
-  generic_token: "疑似 Token",
-  generic_secret: "疑似 Secret",
-  bearer_token: "Bearer Token",
-  private_key: "私钥",
-  jwt_token: "JWT Token",
-  webhook_url: "Webhook URL",
-  basic_auth_url: "URL 内嵌账号密码",
-  netrc_password: ".netrc 机器密码",
-};
-const SENSITIVE_TYPE_LABELS = {
-  env_file: "环境变量文件",
-  private_key: "私钥或证书文件",
-  database: "本地数据库或转储文件",
-  log: "日志文件",
-  credentials: "凭证文件",
-  ssh_key: "SSH 私钥",
-};
+const SECRET_TYPE_LABELS =
+  typeof __SECRET_TYPE_LABELS__ === "undefined" ? {} : __SECRET_TYPE_LABELS__;
+const SENSITIVE_TYPE_LABELS =
+  typeof __SENSITIVE_TYPE_LABELS__ === "undefined"
+    ? {}
+    : __SENSITIVE_TYPE_LABELS__;
 
 function renderHygiene(h) {
   h = h || {};

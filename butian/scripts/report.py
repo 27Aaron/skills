@@ -20,8 +20,13 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_PATH = os.path.join(HERE, "..", "templates", "report.md")
 
 try:
+    from .labels import SECRET_TYPE_LABELS, SENSITIVE_TYPE_LABELS
     from .scan import CAPABILITY_BOUNDARY, HYGIENE_ONLY_NOTICE, setup_logging
 except ImportError:
+    from labels import (  # pyright: ignore[reportMissingImports]
+        SECRET_TYPE_LABELS,
+        SENSITIVE_TYPE_LABELS,
+    )
     from scan import (  # pyright: ignore[reportMissingImports]
         CAPABILITY_BOUNDARY,
         HYGIENE_ONLY_NOTICE,
@@ -35,62 +40,6 @@ SEVERITY_LABELS = {
     "low": "低风险",
     "info": "待确认",
 }
-
-SECRET_TYPE_LABELS = {
-    "aws_access_key": "AWS 访问密钥",
-    "aws_secret_key": "AWS Secret Key",
-    "gcp_service_account": "GCP 服务账号",
-    "gcp_api_key": "GCP API Key",
-    "azure_client_secret": "Azure 客户端密钥",
-    "aliyun_access_key": "阿里云 AccessKey",
-    "tencent_secret_id": "腾讯云 SecretId",
-    "huawei_access_key": "华为云 Access Key",
-    "oracle_api_key": "Oracle API Key",
-    "github_token": "GitHub Token",
-    "github_fine_grained_pat": "GitHub fine-grained PAT",
-    "gitlab_token": "GitLab Token",
-    "gitlab_runner_token": "GitLab Runner Token",
-    "gitlab_deploy_token": "GitLab Deploy Token",
-    "slack_token": "Slack Token",
-    "discord_bot_token": "Discord Bot Token",
-    "stripe_secret_key": "Stripe 密钥",
-    "openai_key": "OpenAI API Key",
-    "anthropic_key": "Anthropic API Key",
-    "groq_api_key": "Groq API Key",
-    "hashicorp_vault_token": "HashiCorp Vault Token",
-    "pulumi_token": "Pulumi Token",
-    "cloudflare_api_token": "Cloudflare API Token",
-    "vercel_token": "Vercel Token",
-    "netlify_token": "Netlify Token",
-    "railway_token": "Railway Token",
-    "render_token": "Render Token",
-    "snyk_token": "Snyk Token",
-    "resend_api_key": "Resend API Key",
-    "clerk_secret_key": "Clerk Secret Key",
-    "supabase_service_role_key": "Supabase service-role key",
-    "algolia_admin_key": "Algolia Admin API Key",
-    "generic_sk_key": "LLM/API 密钥 (sk-)",
-    "generic_password": "疑似密码",
-    "generic_api_key": "疑似 API Key",
-    "generic_token": "疑似 Token",
-    "generic_secret": "疑似 Secret",
-    "bearer_token": "Bearer Token",
-    "private_key": "私钥",
-    "jwt_token": "JWT Token",
-    "webhook_url": "Webhook URL",
-    "basic_auth_url": "URL 内嵌账号密码",
-    "netrc_password": ".netrc 机器密码",
-}
-
-SENSITIVE_TYPE_LABELS = {
-    "env_file": "环境变量文件",
-    "private_key": "私钥或证书文件",
-    "database": "本地数据库或转储文件",
-    "log": "日志文件",
-    "credentials": "凭证文件",
-    "ssh_key": "SSH 私钥",
-}
-
 
 def to_list(value):
     if not value:
@@ -267,9 +216,6 @@ def render_hygiene(analysis):
         ("IaC / 容器 / 部署配置", hygiene.get("iac_checks") or []),
     ]
     structured_count = sum(len(items) for _, items in structured_groups)
-    workspace = analysis.get("butian_workspace") or {}
-    gitignore_state = workspace.get("gitignore") or {}
-
     lines = []
     if not secrets and not sensitive and not missing and not structured_count:
         lines.append(
@@ -303,12 +249,6 @@ def render_hygiene(analysis):
                 f"- 本地配置检查：发现 {risk_like_count} 个需要确认的仓库安检项，"
                 f"{advice_count} 条建议。"
             )
-    if gitignore_state:
-        preexisting = "是" if gitignore_state.get("preexisting") else "否"
-        added = "是" if gitignore_state.get("added_butian_entry") else "否"
-        lines.append(
-            f"- 工作区忽略规则：扫描前是否已有 .gitignore：{preexisting}；本次是否新增 `.butian/`：{added}。"
-        )
     if secrets:
         lines.append("")
         lines.append("| 位置 | 类型 | 可信度 | 脱敏预览 |")

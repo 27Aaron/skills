@@ -20,8 +20,13 @@ import webbrowser
 from pathlib import Path
 
 try:
+    from .labels import SECRET_TYPE_LABELS, SENSITIVE_TYPE_LABELS
     from .scan import BUTIAN_CONTENT_DIR, run_dir_from_output_file
 except ImportError:
+    from labels import (  # pyright: ignore[reportMissingImports]
+        SECRET_TYPE_LABELS,
+        SENSITIVE_TYPE_LABELS,
+    )
     from scan import (  # pyright: ignore[reportMissingImports]
         BUTIAN_CONTENT_DIR,
         run_dir_from_output_file,
@@ -112,15 +117,30 @@ def _mark_first_scan_done(output_path):
 
 
 def should_open_report(args, output_path=None):
+    should_open, _reason = open_decision(args, output_path)
+    return should_open
+
+
+def open_decision(args, output_path=None):
     if args.no_open:
-        return False
+        return False, "no_open"
     value = os.environ.get("BUTIAN_NO_OPEN", "")
     if value.strip().lower() in {"1", "true", "yes", "on"}:
-        return False
+        return False, "environment"
     # Only open the browser on the very first scan for this project.
     if output_path and _first_scan_done(output_path):
-        return False
-    return True
+        return False, "first_scan_done"
+    return True, "open"
+
+
+def skipped_open_message(reason):
+    if reason == "no_open":
+        return "已按 --no-open 跳过自动打开报告。"
+    if reason == "environment":
+        return "已根据 BUTIAN_NO_OPEN 跳过自动打开报告。"
+    if reason == "first_scan_done":
+        return "已跳过自动打开报告（首次扫描已完成）。"
+    return "已跳过自动打开报告。"
 
 
 def spawn_open_command(cmd):
@@ -179,7 +199,14 @@ def main():
         data = json.load(f)
     tpl = read_text(TEMPLATE)
     report_css = style_asset_for_html(read_text(REPORT_CSS).rstrip())
-    report_js = script_asset_for_html(read_text(REPORT_JS).rstrip())
+    report_js = read_text(REPORT_JS).rstrip()
+    report_js = (
+        report_js.replace("__SECRET_TYPE_LABELS__", json_for_script(SECRET_TYPE_LABELS))
+        .replace(
+            "__SENSITIVE_TYPE_LABELS__", json_for_script(SENSITIVE_TYPE_LABELS)
+        )
+    )
+    report_js = script_asset_for_html(report_js)
 
     blob = json_for_script(data)
     html = (
@@ -189,7 +216,13 @@ def main():
     )
     placeholders = [
         marker
-        for marker in ("__REPORT_CSS__", "__REPORT_DATA__", "__REPORT_JS__")
+        for marker in (
+            "__REPORT_CSS__",
+            "__REPORT_DATA__",
+            "__REPORT_JS__",
+            "__SECRET_TYPE_LABELS__",
+            "__SENSITIVE_TYPE_LABELS__",
+        )
         if marker in html
     ]
     if placeholders:
@@ -201,14 +234,15 @@ def main():
         f.write(html)
     print(f"报告已生成: {out}")
     print("HTML 报告已保存，之后也可以从 content 目录重新查看。")
-    if should_open_report(args, out):
+    should_open, reason = open_decision(args, out)
+    if should_open:
         if open_report(out):
             _mark_first_scan_done(out)
             print("已尝试在默认浏览器中打开报告。")
         else:
             print("未能自动打开报告，请手动打开上面的路径。")
     else:
-        print("已跳过自动打开报告（首次扫描已完成）。")
+        print(skipped_open_message(reason))
 
 
 if __name__ == "__main__":

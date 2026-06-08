@@ -20,8 +20,13 @@ import sys
 logger = logging.getLogger("butian.scripts.analyze")
 
 try:
+    from .labels import SECRET_TYPE_LABELS, SENSITIVE_TYPE_LABELS
     from .scan import HYGIENE_ONLY_NOTICE, run_dir_from_output_file, setup_logging
 except ImportError:
+    from labels import (  # pyright: ignore[reportMissingImports]
+        SECRET_TYPE_LABELS,
+        SENSITIVE_TYPE_LABELS,
+    )
     from scan import (  # pyright: ignore[reportMissingImports]
         HYGIENE_ONLY_NOTICE,
         run_dir_from_output_file,
@@ -49,43 +54,6 @@ TRANSITIVE_RESIDUAL_GUIDANCE = (
     "如果复扫仍出现同名旧版本，通常是间接依赖被父包锁定；需要升级父依赖、等待上游修复，"
     "或在用户确认后把锁住旧子依赖的父依赖升级到 latest。"
 )
-
-SECRET_TYPE_LABELS = {
-    "aws_access_key": "AWS 访问密钥",
-    "private_key": "私钥",
-    "slack_token": "Slack Token",
-    "github_token": "GitHub Token",
-    "github_fine_grained_pat": "GitHub fine-grained PAT",
-    "gitlab_runner_token": "GitLab Runner Token",
-    "gitlab_deploy_token": "GitLab Deploy Token",
-    "openai_key": "OpenAI API Key",
-    "groq_api_key": "Groq API Key",
-    "hashicorp_vault_token": "HashiCorp Vault Token",
-    "pulumi_token": "Pulumi Token",
-    "cloudflare_api_token": "Cloudflare API Token",
-    "vercel_token": "Vercel Token",
-    "netlify_token": "Netlify Token",
-    "railway_token": "Railway Token",
-    "render_token": "Render Token",
-    "snyk_token": "Snyk Token",
-    "resend_api_key": "Resend API Key",
-    "clerk_secret_key": "Clerk Secret Key",
-    "supabase_service_role_key": "Supabase service-role key",
-    "algolia_admin_key": "Algolia Admin API Key",
-    "basic_auth_url": "URL 内嵌账号密码",
-    "netrc_password": ".netrc 机器密码",
-    "generic_password": "疑似密码",
-    "generic_api_key": "疑似 API Key",
-}
-
-SENSITIVE_TYPE_LABELS = {
-    "env_file": "环境变量文件",
-    "private_key": "私钥或证书文件",
-    "database": "本地数据库或转储文件",
-    "log": "日志文件",
-    "credentials": "凭证文件",
-    "ssh_key": "SSH 私钥",
-}
 
 STRUCTURED_HYGIENE_GROUPS = (
     "workflow_checks",
@@ -346,7 +314,7 @@ def _semver_satisfies(version, range_str):
     return ver == _parse_version(range_str)
 
 
-def _parent_dep_range(lock_data, parent_lock_path, child_name):
+def _parent_dep_range(lock_data, parent_lock_path, child_name, project_path=None):
     """Read the semver range a parent declares for *child_name*.
 
     Checks the lockfile ``packages`` entry first (``requires`` then
@@ -368,6 +336,8 @@ def _parent_dep_range(lock_data, parent_lock_path, child_name):
     if parent_lock_path:
         pkg_json_path = parent_lock_path.replace("/", os.sep)
         pkg_json_path = os.path.join(pkg_json_path, "package.json")
+        if project_path:
+            pkg_json_path = os.path.join(project_path, pkg_json_path)
         try:
             with open(pkg_json_path, "r", encoding="utf-8") as f:
                 pkg_json = json.load(f)
@@ -452,7 +422,9 @@ def dependency_context_for_issue(scan, issue):
             continue
         # Read the parent's declared semver range for this child
         parent_lock_path = _npm_lock_path_for_names(names[:-1])
-        parent_range = _parent_dep_range(lock_data, parent_lock_path, package)
+        parent_range = _parent_dep_range(
+            lock_data, parent_lock_path, package, project_path=project_path
+        )
         locations.append(
             {
                 "path": key,

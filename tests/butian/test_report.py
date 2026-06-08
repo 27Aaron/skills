@@ -6,7 +6,7 @@ import sys
 import tempfile
 import unittest
 
-from butian.scripts import report
+from butian.scripts import report, scan as scan_mod
 
 
 # ---------------------------------------------------------------------------
@@ -314,6 +314,16 @@ class RenderHygieneTests(unittest.TestCase):
         self.assertIn("环境变量文件", result)
         self.assertNotIn("env_file", result)
 
+    def test_secret_type_labels_cover_scan_secret_types(self):
+        scan_secret_types = {secret_type for secret_type, _ in scan_mod.SECRET_REGEXES}
+        self.assertEqual(scan_secret_types - set(report.SECRET_TYPE_LABELS), set())
+
+    def test_sensitive_type_labels_cover_scan_sensitive_types(self):
+        scan_sensitive_types = {
+            file_type for file_type, _ in scan_mod.SENSITIVE_FILE_PATTERNS
+        }
+        self.assertEqual(scan_sensitive_types - set(report.SENSITIVE_TYPE_LABELS), set())
+
     def test_with_gitignore_missing(self):
         analysis = {
             "hygiene": {"gitignore_missing": [".env", "*.pem"]},
@@ -330,7 +340,8 @@ class RenderHygieneTests(unittest.TestCase):
             },
         }
         result = report.render_hygiene(analysis)
-        self.assertIn("是", result)
+        self.assertNotIn("本次是否新增 `.butian/`", result)
+        self.assertNotIn("工作区忽略规则", result)
 
     def test_with_structured_local_checks(self):
         analysis = {

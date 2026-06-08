@@ -5,7 +5,7 @@ import os
 import tempfile
 import unittest
 
-from butian.scripts import analyze
+from butian.scripts import analyze, scan as scan_mod
 
 # ---------------------------------------------------------------------------
 # Minimal scan output factory
@@ -668,6 +668,59 @@ class TestBuildTopIssues(unittest.TestCase):
         )
         self.assertIn("被父依赖锁定的嵌套副本", issues[0]["summary"])
         self.assertIn("顶层 postcss 当前版本为 8.5.10", issues[0]["summary"])
+
+    def test_nested_npm_parent_range_reads_project_path_not_cwd(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            package_lock = {
+                "packages": {
+                    "": {"dependencies": {"next": "^16.2.6"}},
+                    "node_modules/next": {"version": "16.2.6"},
+                    "node_modules/next/node_modules/postcss": {"version": "8.4.31"},
+                }
+            }
+            with open(
+                os.path.join(tmp, "package-lock.json"), "w", encoding="utf-8"
+            ) as f:
+                json.dump(package_lock, f)
+            parent_dir = os.path.join(tmp, "node_modules", "next")
+            os.makedirs(parent_dir)
+            with open(
+                os.path.join(parent_dir, "package.json"), "w", encoding="utf-8"
+            ) as f:
+                json.dump({"dependencies": {"postcss": "^8.4.0"}}, f)
+
+            old_cwd = os.getcwd()
+            try:
+                os.chdir(os.path.dirname(tmp))
+                scan = _make_scan(
+                    project={"name": "demo-app", "path": tmp, "ecosystems": ["npm"]},
+                    vulnerabilities=[
+                        {
+                            "package": "postcss",
+                            "version": "8.4.31",
+                            "ecosystem": "npm",
+                            "severity": "medium",
+                            "fixed_versions": ["8.5.10"],
+                            "summary": "PostCSS has XSS",
+                        }
+                    ],
+                )
+                issues = analyze.build_top_issues(scan)
+            finally:
+                os.chdir(old_cwd)
+
+        location = issues[0]["dependency_context"]["locations"][0]
+        self.assertEqual(location["parent_range"], "^8.4.0")
+
+    def test_secret_type_labels_cover_scan_secret_types(self):
+        scan_secret_types = {secret_type for secret_type, _ in scan_mod.SECRET_REGEXES}
+        self.assertEqual(scan_secret_types - set(analyze.SECRET_TYPE_LABELS), set())
+
+    def test_sensitive_type_labels_cover_scan_sensitive_types(self):
+        scan_sensitive_types = {
+            file_type for file_type, _ in scan_mod.SENSITIVE_FILE_PATTERNS
+        }
+        self.assertEqual(scan_sensitive_types - set(analyze.SENSITIVE_TYPE_LABELS), set())
 
 
 # ===========================================================================
