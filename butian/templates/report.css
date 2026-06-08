@@ -1100,31 +1100,6 @@ td.summary-cell {
     border-color: rgba(4, 120, 87, 0.18);
     background: #ffffff;
 }
-.fix-btn.table-toggle-scanning {
-    border-color: color-mix(in srgb, var(--accent) 42%, var(--pill-border));
-    background: color-mix(in srgb, var(--accent-bg) 64%, var(--pill-bg));
-    color: var(--accent-ink);
-}
-.fix-btn.table-toggle-scanning::after {
-    content: "";
-    position: absolute;
-    z-index: 1;
-    inset: -1px;
-    pointer-events: none;
-    opacity: 0;
-    background: linear-gradient(
-        105deg,
-        transparent 0%,
-        transparent 34%,
-        color-mix(in srgb, var(--accent) 14%, transparent) 42%,
-        color-mix(in srgb, var(--accent) 38%, transparent) 50%,
-        color-mix(in srgb, var(--accent-ink) 18%, transparent) 57%,
-        transparent 68%,
-        transparent 100%
-    );
-    transform: translateX(-115%);
-    animation: table-toggle-scan 0.68s ease-out both;
-}
 
 /* summary */
 .summary {
@@ -2202,29 +2177,10 @@ footer {
     }
 }
 
-@keyframes table-toggle-scan {
-    0% {
-        opacity: 0;
-        transform: translateX(-115%);
-    }
-    18% {
-        opacity: 0.88;
-    }
-    72% {
-        opacity: 0.7;
-    }
-    100% {
-        opacity: 0;
-        transform: translateX(115%);
-    }
-}
-
 @media (prefers-reduced-motion: reduce) {
     .vuln-row,
     .vuln-detail-row.vuln-detail-open .vuln-detail,
-    .vuln-detail-row.vuln-detail-scan-ready .vuln-detail::after,
-    .fix-btn.table-toggle-scanning,
-    .fix-btn.table-toggle-scanning::after {
+    .vuln-detail-row.vuln-detail-scan-ready .vuln-detail::after {
         animation: none !important;
         transition: none !important;
         filter: none !important;

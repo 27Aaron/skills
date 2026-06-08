@@ -474,7 +474,7 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertNotIn("function copyBtn", js)
         self.assertNotIn("function cmdBlock", js)
 
-    def test_html_risk_detail_rows_expand_on_hover_with_motion(self):
+    def test_html_risk_detail_rows_expand_on_click_with_motion(self):
         data = {
             "generated_at": "2026-06-05 09:05:50",
             "project": {
@@ -516,32 +516,35 @@ class ButianReportAssetTests(unittest.TestCase):
 
         self.assertIn('class="detail-dossier detail-dossier-compact"', html)
         self.assertNotIn('class="detail-facts"', html)
+        self.assertIn('role="button"', html)
         self.assertIn('aria-expanded="false"', html)
-        self.assertIn('onmouseenter="openVulnDetail(this)"', html)
-        self.assertIn('onmouseleave="scheduleCloseVulnDetail(this)"', html)
-        self.assertIn('onfocus="openVulnDetail(this)"', html)
-        self.assertIn('onblur="scheduleCloseVulnDetail(this)"', html)
+        self.assertIn('onclick="toggleVulnDetail(this)"', html)
         self.assertIn('onkeydown="handleVulnDetailKey(event, this)"', html)
-        self.assertIn(
+        self.assertNotIn('onmouseenter="openVulnDetail(this)"', html)
+        self.assertNotIn('onmouseleave="scheduleCloseVulnDetail(this)"', html)
+        self.assertNotIn('onfocus="openVulnDetail(this)"', html)
+        self.assertNotIn('onblur="scheduleCloseVulnDetail(this)"', html)
+        self.assertNotIn(
             'onmouseenter="openVulnDetail(this.previousElementSibling)"',
             html,
         )
-        self.assertIn(
+        self.assertNotIn(
             'onmouseleave="closeVulnDetail(this.previousElementSibling)"',
             html,
         )
 
         with open(REPORT_JS, "r", encoding="utf-8") as handle:
             js = handle.read()
-        self.assertIn("function openVulnDetail", js)
         self.assertNotIn("VULN_DETAIL_OPEN_DELAY_MS", js)
         self.assertNotIn("function scheduleOpenVulnDetail", js)
         self.assertIn("const VULN_DETAIL_SCAN_DELAY_MS = 380", js)
         self.assertIn("function closeOtherVulnDetails", js)
         self.assertIn("function scheduleVulnDetailScan", js)
-        self.assertIn("function scheduleCloseVulnDetail", js)
+        self.assertNotIn("function scheduleCloseVulnDetail", js)
+        self.assertNotIn("function isHoveringVulnDetailPair", js)
         self.assertIn("function handleVulnDetailKey", js)
-        self.assertIn("function initVulnDetailHover", js)
+        self.assertNotIn("function initVulnDetailHover", js)
+        self.assertNotIn("initVulnDetailHover(app)", js)
         self.assertIn("function tooltipAttr", js)
         self.assertIn("function initCustomTooltips", js)
         self.assertIn('const CUSTOM_TOOLTIP_CLASS = "report-tooltip"', js)
@@ -549,13 +552,16 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn('target.removeAttribute("title")', js)
         self.assertIn('target.addEventListener("pointerenter"', js)
         self.assertIn('target.addEventListener("click"', js)
-        self.assertIn("window.openVulnDetail = openVulnDetail", js)
         self.assertNotIn("window.scheduleOpenVulnDetail", js)
-        self.assertIn("window.closeVulnDetail = closeVulnDetail", js)
-        self.assertIn(
-            'row.addEventListener("mouseenter", () => openVulnDetail(row))', js
-        )
-        self.assertIn('detail.addEventListener("mouseleave"', js)
+        self.assertNotIn("window.openVulnDetail", js)
+        self.assertNotIn("window.scheduleCloseVulnDetail", js)
+        self.assertNotIn("window.closeVulnDetail", js)
+        self.assertNotIn('row.addEventListener("mouseenter"', js)
+        self.assertNotIn('row.addEventListener("mouseleave"', js)
+        self.assertNotIn('row.addEventListener("focus"', js)
+        self.assertNotIn('row.addEventListener("blur"', js)
+        self.assertNotIn('detail.addEventListener("mouseenter"', js)
+        self.assertNotIn('detail.addEventListener("mouseleave"', js)
         self.assertIn('tr.setAttribute("aria-expanded"', js)
         self.assertIn('classList.add("vuln-detail-scan-ready")', js)
         self.assertIn("}, VULN_DETAIL_SCAN_DELAY_MS)", js)
@@ -647,7 +653,7 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("@keyframes vuln-detail-scan", css)
         self.assertIn("@media (prefers-reduced-motion: reduce)", css)
 
-    def test_html_more_buttons_auto_toggle_after_hover_scan(self):
+    def test_html_more_buttons_expand_only_on_click_not_hover(self):
         data = {
             "generated_at": "2026-06-05 09:05:50",
             "project": {
@@ -691,53 +697,36 @@ class ButianReportAssetTests(unittest.TestCase):
         html = self._render_html(data)
 
         self.assertIn(
-            '<button type="button" class="fix-btn open table-toggle-btn" aria-expanded="false" onclick="toggleVulns(this)" onmouseenter="scheduleVulnTableToggleScan(this)" onmouseleave="cancelTableToggleScan(this)">余下 1 项</button>',
+            '<button type="button" class="fix-btn open table-toggle-btn" aria-expanded="false" onclick="toggleVulns(this)">余下 1 项</button>',
             html,
         )
         self.assertIn(
-            '<button type="button" class="fix-btn open table-toggle-btn" aria-expanded="false" onclick="toggleOutdated(this)" onmouseenter="scheduleOutdatedTableToggleScan(this)" onmouseleave="cancelTableToggleScan(this)">余下 1 项</button>',
+            '<button type="button" class="fix-btn open table-toggle-btn" aria-expanded="false" onclick="toggleOutdated(this)">余下 1 项</button>',
             html,
         )
+        self.assertNotIn("onmouseenter=\"scheduleVulnTableToggleScan", html)
+        self.assertNotIn("onmouseenter=\"scheduleOutdatedTableToggleScan", html)
+        self.assertNotIn("onmouseleave=\"cancelTableToggleScan", html)
 
         with open(REPORT_JS, "r", encoding="utf-8") as handle:
             js = handle.read()
-        self.assertIn("const TABLE_TOGGLE_SCAN_DELAY_MS = 680", js)
-        self.assertIn("function scheduleTableToggleScan", js)
-        self.assertIn("function cancelTableToggleScan", js)
-        self.assertIn("function scheduleVulnTableToggleScan", js)
-        self.assertIn("function scheduleOutdatedTableToggleScan", js)
-        self.assertIn("if (btn._tableToggleSuppressHover) return;", js)
-        self.assertIn("btn._tableToggleSuppressHover = true;", js)
-        self.assertIn("cancelTableToggleScan(btn, true);", js)
-        self.assertIn('btn.classList.add("table-toggle-scanning")', js)
-        self.assertIn('btn.classList.remove("table-toggle-scanning")', js)
-        self.assertIn("toggleFn(btn);", js)
-        self.assertIn(
-            "window.scheduleVulnTableToggleScan = scheduleVulnTableToggleScan",
-            js,
-        )
-        self.assertIn(
-            "window.scheduleOutdatedTableToggleScan = scheduleOutdatedTableToggleScan",
-            js,
-        )
-        self.assertIn(
-            "window.cancelTableToggleScan = cancelTableToggleScan",
-            js,
-        )
+        self.assertNotIn("TABLE_TOGGLE_SCAN_DELAY_MS", js)
+        self.assertNotIn("function scheduleTableToggleScan", js)
+        self.assertNotIn("function cancelTableToggleScan", js)
+        self.assertNotIn("function scheduleVulnTableToggleScan", js)
+        self.assertNotIn("function scheduleOutdatedTableToggleScan", js)
+        self.assertNotIn("table-toggle-scanning", js)
+        self.assertNotIn("window.scheduleVulnTableToggleScan", js)
+        self.assertNotIn("window.scheduleOutdatedTableToggleScan", js)
+        self.assertNotIn("window.cancelTableToggleScan", js)
 
         with open(REPORT_CSS, "r", encoding="utf-8") as handle:
             css = handle.read()
         fix_btn_css = css.split(".fix-btn {", 1)[1].split("}", 1)[0]
         self.assertIn("position: relative;", fix_btn_css)
         self.assertIn("overflow: hidden;", fix_btn_css)
-        self.assertIn(".fix-btn.table-toggle-scanning::after", css)
-        scan_css = css.split(".fix-btn.table-toggle-scanning::after {", 1)[1].split(
-            "}", 1
-        )[0]
-        self.assertIn("animation: table-toggle-scan 0.68s ease-out both;", scan_css)
-        self.assertIn("@keyframes table-toggle-scan", css)
-        reduced_motion_css = css.split("@media (prefers-reduced-motion: reduce)", 1)[1]
-        self.assertIn(".fix-btn.table-toggle-scanning::after", reduced_motion_css)
+        self.assertNotIn(".fix-btn.table-toggle-scanning", css)
+        self.assertNotIn("@keyframes table-toggle-scan", css)
 
     def test_report_summary_orders_action_before_light_boundary_note(self):
         data = {

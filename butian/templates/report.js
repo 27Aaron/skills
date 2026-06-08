@@ -2728,10 +2728,10 @@ function renderVulnTable(rows) {
       const detail = vulnDetailPanel(r);
       const hasDetail = detail ? " vuln-row" : "";
       const detailAttrs = detail
-        ? ` tabindex="0" aria-expanded="false" onclick="toggleVulnDetail(this)" onmouseenter="openVulnDetail(this)" onmouseleave="scheduleCloseVulnDetail(this)" onfocus="openVulnDetail(this)" onblur="scheduleCloseVulnDetail(this)" onkeydown="handleVulnDetailKey(event, this)"`
+        ? ` tabindex="0" role="button" aria-expanded="false" onclick="toggleVulnDetail(this)" onkeydown="handleVulnDetailKey(event, this)"`
         : "";
       const detailRow = detail
-        ? `<tr class="vuln-detail-row${extraCls}" onmouseenter="openVulnDetail(this.previousElementSibling)" onmouseleave="closeVulnDetail(this.previousElementSibling)"><td colspan="6">${detail}</td></tr>`
+        ? `<tr class="vuln-detail-row${extraCls}"><td colspan="6">${detail}</td></tr>`
         : "";
       return `<tr class="${hasDetail}${extraCls}"${detailAttrs}>
   <td class="sev" data-label="影响程度">${sevBadge(r.severity)}</td>
@@ -2744,7 +2744,7 @@ function renderVulnTable(rows) {
     })
     .join("");
   const toggle = needToggle
-    ? `<tr class="vuln-toggle"><td colspan="6"><button type="button" class="fix-btn open table-toggle-btn" aria-expanded="false" onclick="toggleVulns(this)" onmouseenter="scheduleVulnTableToggleScan(this)" onmouseleave="cancelTableToggleScan(this)">余下 ${sortedRows.length - VULN_SHOW} 项</button></td></tr>`
+    ? `<tr class="vuln-toggle"><td colspan="6"><button type="button" class="fix-btn open table-toggle-btn" aria-expanded="false" onclick="toggleVulns(this)">余下 ${sortedRows.length - VULN_SHOW} 项</button></td></tr>`
     : "";
   return section(
     "当前风险",
@@ -2759,92 +2759,12 @@ function renderVulnTable(rows) {
 }
 
 function toggleVulns(btn) {
-  cancelTableToggleScan(btn, true);
   const table = btn.closest("table");
   table.classList.toggle("vuln-expanded");
   const expanded = table.classList.contains("vuln-expanded");
   const rows = table.querySelectorAll(".vuln-extra:not(.vuln-detail-row)");
   btn.setAttribute("aria-expanded", expanded ? "true" : "false");
   btn.textContent = expanded ? "收起" : `余下 ${rows.length} 项`;
-}
-
-const TABLE_TOGGLE_SCAN_DELAY_MS = 680;
-
-function tableTogglePrefersReducedMotion() {
-  try {
-    return !!(
-      window &&
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    );
-  } catch (_) {
-    return false;
-  }
-}
-
-function cancelTableToggleScan(btn, keepSuppress) {
-  if (!btn) return;
-  if (btn._tableToggleScanTimer && typeof clearTimeout === "function") {
-    clearTimeout(btn._tableToggleScanTimer);
-  }
-  btn._tableToggleScanTimer = null;
-  if (btn.classList && typeof btn.classList.remove === "function") {
-    btn.classList.remove("table-toggle-scanning");
-  }
-  if (btn.dataset) {
-    delete btn.dataset.tableToggleScan;
-  }
-  if (!keepSuppress) {
-    btn._tableToggleSuppressHover = false;
-  }
-}
-
-function tableToggleIsExpanded(btn) {
-  return !!(
-    btn &&
-    btn.getAttribute &&
-    btn.getAttribute("aria-expanded") === "true"
-  );
-}
-
-function scheduleTableToggleScan(btn, toggleFn) {
-  if (!btn || typeof toggleFn !== "function") return;
-  if (btn._tableToggleSuppressHover) return;
-  cancelTableToggleScan(btn);
-  if (tableTogglePrefersReducedMotion()) {
-    btn._tableToggleSuppressHover = true;
-    toggleFn(btn);
-    return;
-  }
-  const target = tableToggleIsExpanded(btn) ? "collapse" : "expand";
-  if (btn.dataset) {
-    btn.dataset.tableToggleScan = target;
-  }
-  if (btn.classList && typeof btn.classList.add === "function") {
-    btn.classList.add("table-toggle-scanning");
-  }
-  btn._tableToggleScanTimer = setTimeout(() => {
-    btn._tableToggleScanTimer = null;
-    const expected = btn.dataset ? btn.dataset.tableToggleScan : target;
-    if (btn.classList && typeof btn.classList.remove === "function") {
-      btn.classList.remove("table-toggle-scanning");
-    }
-    if (btn.dataset) {
-      delete btn.dataset.tableToggleScan;
-    }
-    const expanded = tableToggleIsExpanded(btn);
-    const shouldToggle =
-      (expected === "expand" && !expanded) ||
-      (expected === "collapse" && expanded);
-    if (shouldToggle) {
-      btn._tableToggleSuppressHover = true;
-      toggleFn(btn);
-    }
-  }, TABLE_TOGGLE_SCAN_DELAY_MS);
-}
-
-function scheduleVulnTableToggleScan(btn) {
-  scheduleTableToggleScan(btn, toggleVulns);
 }
 
 const VULN_DETAIL_SCAN_DELAY_MS = 380;
@@ -2862,14 +2782,6 @@ function cancelVulnDetailScan(tr) {
     clearTimeout(tr._vulnScanTimer);
   }
   tr._vulnScanTimer = null;
-}
-
-function cancelVulnDetailClose(tr) {
-  if (!tr || !tr._vulnCloseTimer) return;
-  if (typeof clearTimeout === "function") {
-    clearTimeout(tr._vulnCloseTimer);
-  }
-  tr._vulnCloseTimer = null;
 }
 
 function scheduleVulnDetailScan(tr, detailRow) {
@@ -2896,7 +2808,6 @@ function closeOtherVulnDetails(tr) {
 function setVulnDetailState(tr, open) {
   const next = vulnDetailRowFor(tr);
   if (!next) return;
-  cancelVulnDetailClose(tr);
   cancelVulnDetailScan(tr);
   next.classList.remove("vuln-detail-scan-ready");
   next.classList.toggle("vuln-detail-open", open);
@@ -2907,72 +2818,20 @@ function setVulnDetailState(tr, open) {
   }
 }
 
-function openVulnDetail(tr) {
-  closeOtherVulnDetails(tr);
-  setVulnDetailState(tr, true);
-}
-
-function closeVulnDetail(tr) {
-  setVulnDetailState(tr, false);
-}
-
-function isHoveringVulnDetailPair(tr, detailRow) {
-  const isHovering = (node) => {
-    try {
-      return !!(node && node.matches && node.matches(":hover"));
-    } catch (_) {
-      return false;
-    }
-  };
-  return isHovering(tr) || isHovering(detailRow);
-}
-
-function scheduleCloseVulnDetail(tr) {
-  const next = vulnDetailRowFor(tr);
-  if (!next) return;
-  cancelVulnDetailClose(tr);
-  tr._vulnCloseTimer = setTimeout(() => {
-    if (!isHoveringVulnDetailPair(tr, next)) {
-      closeVulnDetail(tr);
-    }
-  }, 90);
-}
-
 function toggleVulnDetail(tr) {
   const next = vulnDetailRowFor(tr);
   if (!next) return;
-  if (
-    next.classList.contains("vuln-detail-open") &&
-    isHoveringVulnDetailPair(tr, next)
-  ) {
-    return;
+  const shouldOpen = !next.classList.contains("vuln-detail-open");
+  if (shouldOpen) {
+    closeOtherVulnDetails(tr);
   }
-  setVulnDetailState(tr, !next.classList.contains("vuln-detail-open"));
+  setVulnDetailState(tr, shouldOpen);
 }
 
 function handleVulnDetailKey(event, tr) {
   if (!event || (event.key !== "Enter" && event.key !== " ")) return;
   event.preventDefault();
   toggleVulnDetail(tr);
-}
-
-function initVulnDetailHover(root) {
-  if (!root || typeof root.querySelectorAll !== "function") return;
-  root.querySelectorAll(".vuln-row").forEach((row) => {
-    if (row.dataset && row.dataset.vulnHoverBound === "true") return;
-    if (row.dataset) row.dataset.vulnHoverBound = "true";
-
-    row.addEventListener("mouseenter", () => openVulnDetail(row));
-    row.addEventListener("mouseleave", () => scheduleCloseVulnDetail(row));
-    row.addEventListener("focus", () => openVulnDetail(row));
-    row.addEventListener("blur", () => scheduleCloseVulnDetail(row));
-    row.addEventListener("keydown", (event) => handleVulnDetailKey(event, row));
-
-    const detail = vulnDetailRowFor(row);
-    if (!detail) return;
-    detail.addEventListener("mouseenter", () => openVulnDetail(row));
-    detail.addEventListener("mouseleave", () => closeVulnDetail(row));
-  });
 }
 
 const CUSTOM_TOOLTIP_CLASS = "report-tooltip";
@@ -3309,7 +3168,7 @@ function renderOutdated(items) {
     })
     .join("");
   const toggle = needToggle
-    ? `<tr class="outdated-toggle"><td colspan="4"><button type="button" class="fix-btn open table-toggle-btn" aria-expanded="false" onclick="toggleOutdated(this)" onmouseenter="scheduleOutdatedTableToggleScan(this)" onmouseleave="cancelTableToggleScan(this)">余下 ${items.length - OUTDATED_SHOW} 项</button></td></tr>`
+    ? `<tr class="outdated-toggle"><td colspan="4"><button type="button" class="fix-btn open table-toggle-btn" aria-expanded="false" onclick="toggleOutdated(this)">余下 ${items.length - OUTDATED_SHOW} 项</button></td></tr>`
     : "";
   return section(
     "过期依赖",
@@ -3324,17 +3183,12 @@ function renderOutdated(items) {
 }
 
 function toggleOutdated(btn) {
-  cancelTableToggleScan(btn, true);
   const table = btn.closest("table");
   table.classList.toggle("outdated-expanded");
   const expanded = table.classList.contains("outdated-expanded");
   const extras = table.querySelectorAll(".outdated-extra");
   btn.setAttribute("aria-expanded", expanded ? "true" : "false");
   btn.textContent = expanded ? "收起" : `余下 ${extras.length} 项`;
-}
-
-function scheduleOutdatedTableToggleScan(btn) {
-  scheduleTableToggleScan(btn, toggleOutdated);
 }
 
 // ---- Yellow: manual review ----
@@ -3412,15 +3266,9 @@ const sumList = (a) =>
     : "";
 
 window.toggleVulns = toggleVulns;
-window.scheduleVulnTableToggleScan = scheduleVulnTableToggleScan;
 window.toggleVulnDetail = toggleVulnDetail;
-window.openVulnDetail = openVulnDetail;
-window.scheduleCloseVulnDetail = scheduleCloseVulnDetail;
-window.closeVulnDetail = closeVulnDetail;
 window.handleVulnDetailKey = handleVulnDetailKey;
 window.toggleOutdated = toggleOutdated;
-window.scheduleOutdatedTableToggleScan = scheduleOutdatedTableToggleScan;
-window.cancelTableToggleScan = cancelTableToggleScan;
 
 // ---- Mount ----
 const app = document.getElementById("app");
@@ -3433,5 +3281,4 @@ app.innerHTML =
   renderRed(DATA.red) +
   renderYellow(DATA.yellow) +
   renderErrors();
-initVulnDetailHover(app);
 initCustomTooltips(app);
