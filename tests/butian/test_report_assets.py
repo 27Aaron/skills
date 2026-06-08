@@ -689,11 +689,11 @@ class ButianReportAssetTests(unittest.TestCase):
         html = self._render_html(data)
 
         self.assertIn(
-            '<button type="button" class="fix-btn open table-toggle-btn" aria-expanded="false" onclick="toggleVulns(this)" onmouseenter="scheduleVulnTableToggleScan(this)" onmouseleave="cancelTableToggleScan(this)">显示更多（还有 1 项）</button>',
+            '<button type="button" class="fix-btn open table-toggle-btn" aria-expanded="false" onclick="toggleVulns(this)" onmouseenter="scheduleVulnTableToggleScan(this)" onmouseleave="cancelTableToggleScan(this)">余下 1 项</button>',
             html,
         )
         self.assertIn(
-            '<button type="button" class="fix-btn open table-toggle-btn" aria-expanded="false" onclick="toggleOutdated(this)" onmouseenter="scheduleOutdatedTableToggleScan(this)" onmouseleave="cancelTableToggleScan(this)">显示更多（还有 1 项）</button>',
+            '<button type="button" class="fix-btn open table-toggle-btn" aria-expanded="false" onclick="toggleOutdated(this)" onmouseenter="scheduleOutdatedTableToggleScan(this)" onmouseleave="cancelTableToggleScan(this)">余下 1 项</button>',
             html,
         )
 

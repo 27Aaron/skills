@@ -2744,7 +2744,7 @@ function renderVulnTable(rows) {
     })
     .join("");
   const toggle = needToggle
-    ? `<tr class="vuln-toggle"><td colspan="6"><button type="button" class="fix-btn open table-toggle-btn" aria-expanded="false" onclick="toggleVulns(this)" onmouseenter="scheduleVulnTableToggleScan(this)" onmouseleave="cancelTableToggleScan(this)">显示更多（还有 ${sortedRows.length - VULN_SHOW} 项）</button></td></tr>`
+    ? `<tr class="vuln-toggle"><td colspan="6"><button type="button" class="fix-btn open table-toggle-btn" aria-expanded="false" onclick="toggleVulns(this)" onmouseenter="scheduleVulnTableToggleScan(this)" onmouseleave="cancelTableToggleScan(this)">余下 ${sortedRows.length - VULN_SHOW} 项</button></td></tr>`
     : "";
   return section(
     "当前风险",
@@ -2765,7 +2765,7 @@ function toggleVulns(btn) {
   const expanded = table.classList.contains("vuln-expanded");
   const rows = table.querySelectorAll(".vuln-extra:not(.vuln-detail-row)");
   btn.setAttribute("aria-expanded", expanded ? "true" : "false");
-  btn.textContent = expanded ? "收起" : `显示更多（还有 ${rows.length} 项）`;
+  btn.textContent = expanded ? "收起" : `余下 ${rows.length} 项`;
 }
 
 const TABLE_TOGGLE_SCAN_DELAY_MS = 680;
@@ -3356,7 +3356,7 @@ function renderOutdated(items) {
     })
     .join("");
   const toggle = needToggle
-    ? `<tr class="outdated-toggle"><td colspan="4"><button type="button" class="fix-btn open table-toggle-btn" aria-expanded="false" onclick="toggleOutdated(this)" onmouseenter="scheduleOutdatedTableToggleScan(this)" onmouseleave="cancelTableToggleScan(this)">显示更多（还有 ${items.length - OUTDATED_SHOW} 项）</button></td></tr>`
+    ? `<tr class="outdated-toggle"><td colspan="4"><button type="button" class="fix-btn open table-toggle-btn" aria-expanded="false" onclick="toggleOutdated(this)" onmouseenter="scheduleOutdatedTableToggleScan(this)" onmouseleave="cancelTableToggleScan(this)">余下 ${items.length - OUTDATED_SHOW} 项</button></td></tr>`
     : "";
   return section(
     "过期依赖",
@@ -3377,7 +3377,7 @@ function toggleOutdated(btn) {
   const expanded = table.classList.contains("outdated-expanded");
   const extras = table.querySelectorAll(".outdated-extra");
   btn.setAttribute("aria-expanded", expanded ? "true" : "false");
-  btn.textContent = expanded ? "收起" : `显示更多（还有 ${extras.length} 项）`;
+  btn.textContent = expanded ? "收起" : `余下 ${extras.length} 项`;
 }
 
 function scheduleOutdatedTableToggleScan(btn) {
