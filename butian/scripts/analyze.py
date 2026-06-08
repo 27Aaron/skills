@@ -727,6 +727,45 @@ def is_maintenance_advice(item):
     return item.get("kind") == "maintenance_advice"
 
 
+def summary_severity_phrase(risk_summary):
+    critical = int(risk_summary.get("critical") or 0)
+    high = int(risk_summary.get("high") or 0)
+    if critical and high:
+        return f"{critical} 个为紧急项、{high} 个为高风险项"
+    if critical:
+        return f"{critical} 个为紧急项"
+    if high:
+        return f"{high} 个为高风险项"
+
+    medium = int(risk_summary.get("medium") or 0)
+    low = int(risk_summary.get("low") or 0)
+    if medium and low:
+        return f"{medium} 个为中风险项、{low} 个为低风险项"
+    if medium:
+        return f"{medium} 个为中风险项"
+    if low:
+        return f"{low} 个为低风险项"
+    return ""
+
+
+def summary_hygiene_status_phrase(
+    secret_count, sensitive_count, missing_count, local_check_count
+):
+    if not (secret_count or sensitive_count or missing_count or local_check_count):
+        return "仓库安检未发现凭证或敏感文件问题"
+
+    parts = []
+    if secret_count:
+        parts.append(f"疑似硬编码凭证 {secret_count} 处")
+    if sensitive_count:
+        parts.append(f"被跟踪敏感文件 {sensitive_count} 个")
+    if missing_count:
+        parts.append(f".gitignore 待补充 {missing_count} 条")
+    if local_check_count:
+        parts.append(f"本地配置/工作流待确认 {local_check_count} 个")
+    return "仓库安检仍有" + "、".join(parts)
+
+
 def build_summary(scan, analysis):
     project = scan.get("project") or {}
     hygiene = scan.get("hygiene") or {}
@@ -761,7 +800,10 @@ def build_summary(scan, analysis):
     if hygiene_only:
         tldr = "本次没有发现补天支持的依赖文件，因此未执行依赖漏洞扫描；报告结论仅覆盖仓库安检范围。"
     elif critical_high and vuln_count:
-        tldr = "发现需要优先安排的依赖安全风险，建议先处理紧急和高风险漏洞，再确认仓库中的敏感信息迹象。"
+        tldr = (
+            f"发现 {vuln_count} 个已确认依赖风险项，其中 {summary_severity_phrase(risk_summary)}，"
+            f"{summary_hygiene_status_phrase(secret_count, sensitive_count, missing_count, local_check_count)}。"
+        )
     elif critical_high:
         tldr = "仓库安检发现需要优先处理的本地安全配置风险，建议先处理工作流、凭证、容器或供应链高风险项。"
     elif secret_count or sensitive_count:

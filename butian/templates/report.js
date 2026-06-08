@@ -449,20 +449,71 @@ function commonFixedVersion(items) {
   return bestFixedVersion(versions, currentVersion);
 }
 
-function readableTldr(raw) {
-  if (raw && !isNoisySecurityText(raw) && String(raw).length <= 140) {
-    return normalizeSecurityLanguage(raw);
+function riskPhraseForTldr() {
+  const rs = DATA.risk_summary || {};
+  const critical = Number(rs.critical || 0);
+  const high = Number(rs.high || 0);
+  if (critical && high) {
+    return `${critical} 个为紧急项、${high} 个为高风险项`;
   }
+  if (critical) return `${critical} 个为紧急项`;
+  if (high) return `${high} 个为高风险项`;
+  const medium = Number(rs.medium || 0);
+  const low = Number(rs.low || 0);
+  if (medium && low) return `${medium} 个为中风险项、${low} 个为低风险项`;
+  if (medium) return `${medium} 个为中风险项`;
+  if (low) return `${low} 个为低风险项`;
+  return "";
+}
+
+function hygieneStatusForTldr() {
+  const h = DATA.hygiene || {};
+  const secretCount = toList(h.tracked_secrets).length;
+  const sensitiveCount = toList(h.sensitive_tracked).length;
+  const missingCount = toList(h.gitignore_missing).length;
+  const localCheckCount = ["workflow_checks", "repository_checks", "iac_checks"]
+    .flatMap((key) => toList(h[key]))
+    .filter((item) => item && item.kind !== "maintenance_advice").length;
+  if (!(secretCount || sensitiveCount || missingCount || localCheckCount)) {
+    return "仓库安检未发现凭证或敏感文件问题";
+  }
+  const parts = [];
+  if (secretCount) parts.push(`疑似硬编码凭证 ${secretCount} 处`);
+  if (sensitiveCount) parts.push(`被跟踪敏感文件 ${sensitiveCount} 个`);
+  if (missingCount) parts.push(`.gitignore 待补充 ${missingCount} 条`);
+  if (localCheckCount) parts.push(`本地配置/工作流待确认 ${localCheckCount} 个`);
+  return `仓库安检仍有${parts.join("、")}`;
+}
+
+function genericTldr(raw) {
+  return /发现需要优先安排的依赖安全风险|发现多项已确认依赖风险项|发现一些中风险或低风险项|命中已确认风险项，但严重度数据不足|主要集中在.+建议先升级有明确修复版本/.test(
+    String(raw || ""),
+  );
+}
+
+function dataDrivenTldr() {
   const count =
     (DATA.vulns || []).length || DATA.project.total_vulnerabilities || 0;
-  const group = topVulnerabilityGroup();
-  if (count) {
-    const target = group.name
-      ? `${group.name}${group.items[0] && group.items[0].version ? " " + group.items[0].version : ""}`
-      : "少数 npm 依赖";
-    const fixed = commonFixedVersion(group.items);
-    return `本次扫描发现 ${count} 个已确认依赖风险项，风险主要集中在 ${target}；建议先升级${fixed ? "到 " + fixed : "主要受影响包"}，再处理传递依赖。`;
+  if (!count) return "";
+  const riskPhrase = riskPhraseForTldr();
+  const riskText = riskPhrase ? `，其中 ${riskPhrase}` : "";
+  if (!riskPhrase) {
+    return `命中已确认风险项 ${count} 个，但严重度数据不足；${hygieneStatusForTldr()}。建议结合公告复核影响范围，确认修复版本后再安排升级。`;
   }
+  return `发现 ${count} 个已确认依赖风险项${riskText}，${hygieneStatusForTldr()}。`;
+}
+
+function readableTldr(raw) {
+  if (
+    raw &&
+    !genericTldr(raw) &&
+    !isNoisySecurityText(raw) &&
+    String(raw).length <= 140
+  ) {
+    return normalizeSecurityLanguage(raw);
+  }
+  const generated = dataDrivenTldr();
+  if (generated) return normalizeSecurityLanguage(generated);
   return normalizeSecurityLanguage(
     raw || "本次扫描没有发现明确风险，可以把这份报告作为当前项目安全状态记录。",
   );
@@ -2947,7 +2998,7 @@ function renderReportSummary(sm) {
   const detail = sm.detail
     ? `<p class="lead">${esc(readableDetail(sm.detail))}</p>`
     : "";
-  const boundary = `<div class="summary-boundary warning"><p>${esc(CAPABILITY_BOUNDARY)}</p></div>`;
+  const boundary = `<div class="summary-boundary"><p>${esc(CAPABILITY_BOUNDARY)}</p></div>`;
   const body = sm.priority
     ? Array.isArray(sm.priority)
       ? sumList(sm.priority)
@@ -2956,7 +3007,7 @@ function renderReportSummary(sm) {
   return section(
     "报告总结",
     null,
-    `<div class="summary">${tldr}${boundary}${detail}${body}</div>`,
+    `<div class="summary">${tldr}${detail}${body}${boundary}</div>`,
     "",
     "advice",
   );

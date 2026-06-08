@@ -1081,9 +1081,49 @@ class TestBuildSummary(unittest.TestCase):
         )
         result = analyze.build_summary(scan, analysis)
 
-        self.assertIn("紧急和高风险", result["tldr"])
+        self.assertIn("1 个为紧急项、2 个为高风险项", result["tldr"])
         self.assertTrue(any("3 个紧急/高风险项" in p for p in result["priority"]))
         self.assertIn("已确认风险项", result["detail"])
+
+    def test_tldr_uses_counts_focus_package_and_clean_hygiene_status(self):
+        scan = _make_scan(
+            project={"name": "mimotion", "path": "/tmp/mimotion", "total_packages": 834},
+            hygiene={
+                "tracked_secrets": [],
+                "sensitive_tracked": [],
+                "gitignore_missing": [],
+                "repository_checks": [
+                    {
+                        "id": "repo.missing_dependabot",
+                        "kind": "maintenance_advice",
+                    }
+                ],
+            },
+        )
+        analysis = self._make_analysis(
+            risk_summary={
+                "critical": 0,
+                "high": 11,
+                "medium": 18,
+                "low": 3,
+                "info": 0,
+            },
+            top_issues=[
+                {"package": "next", "severity": "high", "fixed_versions": ["16.2.5"]},
+                {"package": "next", "severity": "high", "fixed_versions": ["16.2.5"]},
+                {"package": "fast-uri", "severity": "high", "fixed_versions": ["3.1.1"]},
+            ]
+            + [{"package": "brace-expansion", "severity": "medium"}] * 29,
+        )
+
+        result = analyze.build_summary(scan, analysis)
+
+        self.assertEqual(
+            result["tldr"],
+            "发现 32 个已确认依赖风险项，其中 11 个为高风险项，仓库安检未发现凭证或敏感文件问题。",
+        )
+        self.assertNotIn("主要集中", result["tldr"])
+        self.assertNotIn("建议先升级", result["tldr"])
 
     def test_secrets_found(self):
         scan = _make_scan(

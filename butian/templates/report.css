@@ -1127,20 +1127,17 @@ td.summary-cell {
     line-height: 1.55;
 }
 .summary-boundary {
-    margin: 12px 0;
-    border: 1px solid var(--field-border);
-    border-radius: var(--radius-field);
-    background: var(--field-bg);
-    padding: 11px 14px;
-}
-.summary-boundary.warning {
-    border-color: var(--warning-border);
-    background: var(--warning-bg);
+    margin: 10px 0 0;
+    border: 0;
+    border-top: 1px solid var(--line);
+    border-radius: 0;
+    background: transparent;
+    padding: 10px 2px 0;
 }
 .summary-boundary p {
     margin: 0;
-    color: var(--text-soft);
-    font-size: 13px;
+    color: var(--sub);
+    font-size: 12.5px;
     line-height: 1.65;
 }
 .outdated-empty {

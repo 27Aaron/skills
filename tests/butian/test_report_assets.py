@@ -614,6 +614,69 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("@keyframes vuln-detail-scan", css)
         self.assertIn("@media (prefers-reduced-motion: reduce)", css)
 
+    def test_report_summary_orders_action_before_light_boundary_note(self):
+        data = {
+            "generated_at": "2026-06-05 09:05:50",
+            "project": {
+                "name": "demo",
+                "path": "/tmp/demo",
+                "ecosystems": ["npm"],
+                "total_packages": 3,
+            },
+            "scan_config": {"scan_mode": "full_dependency_scan"},
+            "risk_summary": {
+                "critical": 0,
+                "high": 1,
+                "medium": 0,
+                "low": 0,
+                "info": 0,
+            },
+            "summary": {
+                "tldr": "发现 1 个已确认依赖风险项，其中 1 个高风险，主要集中在 focus-pkg；仓库安检未发现凭证或敏感文件问题。建议先升级有明确修复版本的高风险依赖，完成后复扫确认。",
+                "detail": "本次检查覆盖项目 demo，仓库安检通过。",
+                "priority": ["先升级 focus-pkg，再重新运行补天扫描。"],
+            },
+            "top_issues": [
+                {
+                    "package": "focus-pkg",
+                    "version": "1.0.0",
+                    "severity": "high",
+                    "fixed_versions": ["1.0.1"],
+                    "advisory_id": "GHSA-high",
+                    "summary": "high risk",
+                }
+            ],
+            "hygiene": {},
+            "outdated": [],
+        }
+
+        html = self._render_html(data)
+
+        self.assertIn(
+            "发现 1 个已确认依赖风险项，其中 1 个为高风险项，仓库安检未发现凭证或敏感文件问题。",
+            html,
+        )
+        self.assertNotIn("主要集中在 focus-pkg", html)
+        self.assertNotIn("建议先升级有明确修复版本", html)
+        self.assertNotIn("其中 1 个高风险，主要集中在 focus-pkg", html)
+        tldr_index = html.index("TL;DR")
+        detail_index = html.index("本次检查覆盖项目 demo")
+        priority_index = html.index("重新运行补天扫描")
+        boundary_index = html.index("不能替代代码审计")
+        self.assertLess(tldr_index, detail_index)
+        self.assertLess(detail_index, priority_index)
+        self.assertLess(priority_index, boundary_index)
+        self.assertIn('class="summary-boundary"', html)
+        self.assertNotIn('class="summary-boundary warning"', html)
+
+        with open(REPORT_CSS, "r", encoding="utf-8") as handle:
+            css = handle.read()
+        boundary_css = css.split(".summary-boundary {", 1)[1].split("}", 1)[0]
+        self.assertIn("margin: 10px 0 0;", boundary_css)
+        self.assertIn("background: transparent;", boundary_css)
+        self.assertIn("border-top: 1px solid var(--line);", boundary_css)
+        self.assertNotIn(".summary-boundary.warning", css)
+
     def test_html_risk_table_sorts_by_severity_epss_then_cvss(self):
         data = {
             "generated_at": "2026-06-05 09:05:50",
