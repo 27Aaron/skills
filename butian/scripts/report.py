@@ -198,21 +198,6 @@ def security_ids_markdown(item):
     return "、".join(value for value in values if value) or "-"
 
 
-def version_parts(value):
-    match = re.search(r"\d+(?:\.\d+){0,3}", text(value))
-    if not match:
-        return []
-    return [int(part) for part in match.group(0).split(".")]
-
-
-def is_major_version_jump(current, target):
-    current_parts = version_parts(current)
-    target_parts = version_parts(target)
-    if not current_parts or not target_parts:
-        return False
-    return current_parts[0] != target_parts[0]
-
-
 def number_or_none(value):
     try:
         number = float(value)
@@ -318,126 +303,33 @@ def aggregate_enrichments(item):
     return result
 
 
-def enrichment_context_lines(item):
+def enrichment_summary(item):
     signals = aggregate_enrichments(item)
     if not signals:
-        return []
+        return ""
 
-    lines = []
+    parts = []
     epss = signals.get("max_epss")
     percentile = signals.get("max_epss_percentile")
     if epss is not None or percentile is not None:
-        parts = []
-        if epss is not None:
-            parts.append(f"30 天内被利用概率 {percent_text(epss)}")
-        if percentile is not None:
-            parts.append(f"百分位 {percent_text(percentile, digits=1)}")
-        if signals.get("epss_date"):
-            parts.append(f"评分日期 {signals['epss_date']}")
-        if parts:
-            lines.append(f"- EPSS：{'；'.join(parts)}。")
+        value = percentile if percentile is not None else epss
+        digits = 1 if percentile is not None else 2
+        parts.append(f"EPSS {percent_text(value, digits=digits)}")
 
     if signals.get("best_cvss_score") is not None:
         score = compact_number(signals["best_cvss_score"], digits=1)
-        vector = signals.get("cvss_vector")
-        suffix = f"；向量 {inline_code(vector)}" if vector else ""
-        lines.append(f"- CVSS：最高分 {score}{suffix}。")
+        parts.append(f"CVSS {score}")
 
     if signals.get("cwe_ids"):
-        lines.append(f"- CWE：{'、'.join(signals['cwe_ids'])}。")
+        parts.append("、".join(signals["cwe_ids"]))
 
     if signals.get("kev_listed"):
-        parts = ["已收录"]
-        if signals.get("kev_date_added"):
-            parts.append(f"收录日期 {signals['kev_date_added']}")
-        if signals.get("kev_due_date"):
-            parts.append(f"修复截止 {signals['kev_due_date']}")
-        if signals.get("ransomware"):
-            parts.append("已知勒索软件利用")
-        if signals.get("kev_required_action"):
-            parts.append(f"处置要求 {signals['kev_required_action']}")
-        lines.append(f"- CISA KEV：{'；'.join(parts)}。")
+        parts.append("CISA KEV")
 
     if signals.get("published_at"):
-        lines.append(f"- NVD 发布时间：{signals['published_at']}。")
+        parts.append(f"NVD {signals['published_at']}")
 
-    return lines
-
-
-def location_text(item):
-    location = item.get("path") or item.get("file") or "-"
-    if item.get("line"):
-        location = f"{location}:{item['line']}"
-    return location
-
-
-def dependency_fix_lookup(analysis):
-    lookup = {}
-    for item in (analysis.get("green") or analysis.get("green_items") or []):
-        if item.get("type") != "dependency_upgrade":
-            continue
-        fix_config = item.get("fix_config") or {}
-        package = (
-            item.get("package")
-            or item.get("name")
-            or fix_config.get("package")
-            or fix_config.get("name")
-        )
-        if package:
-            lookup[text(package).lower()] = item
-    return lookup
-
-
-def fix_config_summary(fix_config):
-    if not fix_config:
-        return ""
-    package = fix_config.get("package") or fix_config.get("name")
-    target = fix_config.get("target_version") or fix_config.get("target")
-    pieces = []
-    if fix_config.get("ecosystem"):
-        pieces.append(f"生态 {text(fix_config.get('ecosystem'))}")
-    if package:
-        pieces.append(f"包 {text(package)}")
-    if target:
-        pieces.append(f"目标版本 {text(target)}")
-    if fix_config.get("upgrade_scope"):
-        pieces.append(f"范围 {text(fix_config.get('upgrade_scope'))}")
-    return "；".join(pieces) + "。" if pieces else ""
-
-
-def dependency_context_summary(item):
-    context = item.get("dependency_context") or item.get("dependencyContext") or {}
-    if not context or context.get("kind") != "nested_locked":
-        return ""
-    locations = context.get("locations") if isinstance(context.get("locations"), list) else []
-    parents = []
-    ranges = []
-    paths = []
-    for location in locations:
-        if not isinstance(location, dict):
-            continue
-        parent = location.get("parent")
-        parent_range = location.get("parent_range") or location.get("parentRange")
-        path = location.get("path")
-        if parent and parent not in parents:
-            parents.append(parent)
-        if parent_range and parent_range not in ranges:
-            ranges.append(parent_range)
-        if path and path not in paths:
-            paths.append(path)
-    top_versions = to_list(
-        context.get("top_level_versions") or context.get("topLevelVersions")
-    )
-    pieces = []
-    if parents:
-        pieces.append(f"父依赖 {'、'.join(map(text, parents))}")
-    if ranges:
-        pieces.append(f"父依赖版本范围 {'、'.join(map(text, ranges))}")
-    if top_versions:
-        pieces.append(f"顶层版本 {'、'.join(map(text, top_versions))}")
-    if paths:
-        pieces.append(f"位置 {'、'.join(map(text, paths))}")
-    return "；".join(pieces) + "。" if pieces else ""
+    return "；".join(parts)
 
 
 def render_summary(analysis):
@@ -472,6 +364,14 @@ def render_vulnerabilities(analysis):
     for item in issues:
         ids = security_ids_markdown(item)
         fixed = "、".join(map(str, to_list(item.get("fixed_versions")))) or "待确认"
+        summary_parts = []
+        summary = text(item.get("summary") or item.get("match_summary"))
+        if summary:
+            summary_parts.append(summary)
+        signals = enrichment_summary(item)
+        if signals:
+            summary_parts.append(signals)
+        summary_text = "；".join(summary_parts) or "-"
         lines.append(
             "| "
             + " | ".join(
@@ -481,147 +381,13 @@ def render_vulnerabilities(analysis):
                     cell(item.get("version") or "-"),
                     cell(ids),
                     cell(fixed),
-                    cell(item.get("summary") or item.get("match_summary") or "-"),
+                    cell(summary_text),
                 ]
             )
             + " |"
         )
     lines.append("")
     return "\n".join(lines)
-
-
-def render_llm_fix_context(analysis):
-    """Render a complete, stable repair context for humans and LLM agents."""
-    fix_lookup = dependency_fix_lookup(analysis)
-    lines = [
-        "本节用于后续人工或大模型修复。每条都保留位置、证据、版本和建议动作；修复后仍需重新运行补天扫描确认结果。",
-        "",
-    ]
-    count = 0
-
-    def add_item(title, body_lines):
-        nonlocal count
-        count += 1
-        lines.append(f"### FIX-{count:03d} {title}")
-        lines.extend(body_lines)
-        lines.append("")
-
-    for item in analysis.get("top_issues") or []:
-        package = item.get("package") or item.get("name") or "未知依赖"
-        fix_item = fix_lookup.get(text(package).lower()) or {}
-        fix_config = item.get("fix_config") or fix_item.get("fix_config") or {}
-        fixed_versions = to_list(item.get("fixed_versions"))
-        target = (
-            fix_config.get("target_version")
-            or fix_config.get("target")
-            or "、".join(map(str, fixed_versions))
-            or "待确认"
-        )
-        body = [
-            "- 类型：dependency_vulnerability",
-            f"- 影响程度：{severity_label(item.get('severity'))}",
-            f"- 包名：{text(package)}",
-            f"- 当前版本：{text(item.get('version')) or '-'}",
-            f"- 修复版本：{text(target) or '待确认'}",
-            f"- 安全编号：{security_ids_markdown(item)}",
-        ]
-        summary = item.get("summary") or item.get("match_summary") or item.get("description")
-        if summary:
-            body.append(f"- 事实：{text(summary)}")
-        body.extend(enrichment_context_lines(item))
-        fix_summary = fix_config_summary(fix_config)
-        if fix_summary:
-            body.append(f"- 修复配置：{fix_summary}")
-        dependency_summary = dependency_context_summary(item)
-        if dependency_summary:
-            body.append(f"- 嵌套依赖：{dependency_summary}")
-        residual_guidance = fix_config.get("residual_guidance")
-        if residual_guidance:
-            body.append(f"- 残留提示：{text(residual_guidance)}")
-        body.append("- 建议动作：升级到修复版本，运行项目测试/构建，然后重新执行补天扫描。")
-        add_item(f"依赖漏洞：{text(package)}", body)
-
-    hygiene = analysis.get("hygiene") or {}
-    for item in hygiene.get("tracked_secrets") or []:
-        location = location_text(item)
-        body = [
-            "- 类型：hardcoded_secret",
-            f"- 位置：{inline_code(location)}",
-            f"- 密钥类型：{secret_type_label(item.get('type'))}",
-            f"- 可信度：{text(item.get('confidence')) or '-'}",
-            f"- 脱敏预览：{inline_code(item.get('preview'))}",
-            "- 建议动作：先确认是否真实有效；如有效，先轮换或撤销，再移除代码中的明文。",
-            "- 可自动修复：否，需要人工确认密钥真实性。",
-        ]
-        add_item(f"硬编码密钥：{location}", body)
-
-    for item in hygiene.get("sensitive_tracked") or []:
-        location = location_text(item)
-        body = [
-            "- 类型：tracked_sensitive_file",
-            f"- 位置：{inline_code(location)}",
-            f"- 文件类型：{sensitive_type_label(item.get('type'))}",
-            f"- 大小：{text(item.get('size')) or '-'}",
-            "- 建议动作：确认文件是否应该留在仓库；如不应提交，先迁移安全存储，再从 git 跟踪中移除。",
-            "- 可自动修复：否，需要人工确认文件内容和业务用途。",
-        ]
-        add_item(f"敏感文件：{location}", body)
-
-    missing_rules = hygiene.get("gitignore_missing") or []
-    if missing_rules:
-        body = [
-            "- 类型：gitignore_missing",
-            f"- 需要补充：{'、'.join(inline_code(rule) for rule in missing_rules)}",
-            "- 建议动作：把这些规则加入 `.gitignore`，避免后续误提交同类敏感文件。",
-            "- 可自动修复：是，通常只需追加忽略规则；追加后仍要确认是否已有文件被 git 跟踪。",
-        ]
-        add_item(".gitignore 规则补充", body)
-
-    structured_groups = [
-        ("workflow_check", hygiene.get("workflow_checks") or []),
-        ("repository_check", hygiene.get("repository_checks") or []),
-        ("iac_check", hygiene.get("iac_checks") or []),
-    ]
-    for group_type, items in structured_groups:
-        for item in items:
-            title = item.get("title") or item.get("id") or "仓库安检项"
-            body = [
-                f"- 类型：{group_type}",
-                f"- 来源 ID：{text(item.get('id')) or '-'}",
-                f"- 分类：{text(item.get('category')) or '-'}",
-                f"- 影响程度：{structured_finding_label(item)}",
-                f"- 可信度：{text(item.get('confidence')) or '-'}",
-                f"- 位置：{inline_code(location_text(item))}",
-                f"- 证据：{text(item.get('evidence')) or '-'}",
-                f"- 建议动作：{text(item.get('recommendation')) or '-'}",
-                f"- 可自动修复：{'是' if item.get('fixable') else '否'}",
-            ]
-            add_item(f"仓库安检：{text(title)}", body)
-
-    for item in analysis.get("outdated") or []:
-        if not is_outdated_item(item):
-            continue
-        package = item.get("package") or item.get("name") or "未知依赖"
-        current = item.get("current") or item.get("version")
-        wanted = item.get("wanted") or item.get("update")
-        latest = item.get("latest") or item.get("latestVersion")
-        target = latest or wanted or outdated_update_target(item)
-        major_jump = "是" if is_major_version_jump(current, target) else "否"
-        body = [
-            "- 类型：outdated_dependency",
-            f"- 生态：{text(item.get('ecosystem')) or '-'}",
-            f"- 包名：{text(package)}",
-            f"- 当前版本：{text(current) or '-'}",
-            f"- Wanted 版本：{text(wanted) or '-'}",
-            f"- Latest 版本：{text(latest) or '-'}",
-            f"- 跨大版本：{major_jump}",
-            "- 建议动作：作为版本维护任务排期；跨大版本时先阅读 changelog，并运行测试/构建验证兼容性。",
-        ]
-        add_item(f"过期依赖：{text(package)}", body)
-
-    if count == 0:
-        return "没有可供大模型修复的结构化事项。\n"
-    return "\n".join(lines).rstrip() + "\n"
 
 
 def render_hygiene(analysis):
@@ -868,7 +634,6 @@ def render_markdown(analysis):
             manual_items=render_manual_items(analysis),
             errors=render_errors(analysis),
             next_steps=render_next_steps(analysis),
-            llm_fix_context=render_llm_fix_context(analysis),
         ).rstrip()
         + "\n"
     )
