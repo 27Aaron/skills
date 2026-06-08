@@ -64,7 +64,7 @@ def iter_files(
 ):
     suffix_set = {s.lower() for s in suffixes or []}
     name_set = {n.lower() for n in names or []}
-    excluded = set(exclude_dirs or DEFAULT_EXCLUDE_DIRS)
+    excluded = set(DEFAULT_EXCLUDE_DIRS if exclude_dirs is None else exclude_dirs)
     count = 0
     for root, dirs, files in os.walk(project_path):
         dirs[:] = [d for d in dirs if d not in excluded]
@@ -99,7 +99,9 @@ def evidence_snippet(value: str, max_len: int = 180) -> str:
     value = " ".join(str(value or "").strip().split())
     if len(value) <= max_len:
         return value
-    return value[: max_len - 1] + "..."
+    if max_len <= 3:
+        return "." * max(0, max_len)
+    return value[: max_len - 3] + "..."
 
 
 def make_finding(
