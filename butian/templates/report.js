@@ -2302,40 +2302,55 @@ function attackConditionTags(vectorStr) {
   const avMap = {
     N: {
       t: "远程可达",
-      d: "攻击者可通过网络直接利用，不需要物理接触或内网访问",
+      d: "攻击者可以从网络上尝试利用，不需要接触你的电脑或服务器",
     },
     A: {
       t: "相邻网络",
-      d: "攻击者需要在同一网络内（如局域网、蓝牙）才能利用",
+      d: "攻击者通常需要和目标处在同一网络里，例如同一个局域网或蓝牙范围",
     },
-    L: { t: "本地访问", d: "攻击者需要本地访问或安装恶意软件才能利用" },
-    P: { t: "物理接触", d: "攻击者需要物理接触设备才能利用" },
+    L: {
+      t: "本地访问",
+      d: "攻击者需要先能在这台机器上运行程序或拿到本地访问条件",
+    },
+    P: { t: "物理接触", d: "攻击者需要直接接触设备，远程利用难度更高" },
   };
   if (v.AV && avMap[v.AV])
     tags.push(
       `<span class="cvss-tag"${tooltipAttr(avMap[v.AV].d)}>${avMap[v.AV].t}</span>`,
     );
   const acMap = {
-    L: { t: "低复杂度", d: "利用条件简单，不需要特殊配置或时机" },
-    H: { t: "高复杂度", d: "利用需要特定条件，如竞态条件或特殊配置" },
-    M: { t: "中等复杂度", d: "利用难度中等，需要一定条件" },
+    L: {
+      t: "低复杂度",
+      d: "利用门槛低，通常不需要特殊条件；越容易利用，越应该靠前处理",
+    },
+    H: {
+      t: "高复杂度",
+      d: "利用需要满足比较特殊的条件，真实攻击门槛相对更高",
+    },
+    M: { t: "中等复杂度", d: "利用需要一些前置条件，难度介于高低之间" },
   };
   if (v.AC && acMap[v.AC])
     tags.push(
       `<span class="cvss-tag"${tooltipAttr(acMap[v.AC].d)}>${acMap[v.AC].t}</span>`,
     );
   const prMap = {
-    N: { t: "无需权限", d: "攻击者不需要任何认证或权限即可利用" },
-    L: { t: "低权限", d: "攻击者需要普通用户级别的权限" },
-    H: { t: "高权限", d: "攻击者需要管理员级别的权限才能利用" },
+    N: { t: "无需权限", d: "攻击者不需要账号或登录权限，就可能尝试利用" },
+    L: { t: "低权限", d: "攻击者需要先有普通账号，风险比无需登录略低" },
+    H: { t: "高权限", d: "攻击者需要管理员级别权限，利用门槛较高" },
   };
   if (v.PR && prMap[v.PR])
     tags.push(
       `<span class="cvss-tag"${tooltipAttr(prMap[v.PR].d)}>${prMap[v.PR].t}</span>`,
     );
   const uiMap = {
-    N: { t: "无需交互", d: "不需要受害者进行任何操作即可触发漏洞" },
-    R: { t: "需要交互", d: "需要受害者进行点击、打开链接等操作才能触发" },
+    N: {
+      t: "无需交互",
+      d: "不需要用户点击链接或打开文件，服务收到特定请求就可能触发",
+    },
+    R: {
+      t: "需要交互",
+      d: "通常需要用户点击链接、打开文件或进行类似操作才会触发",
+    },
   };
   if (v.UI && uiMap[v.UI])
     tags.push(
@@ -2345,23 +2360,54 @@ function attackConditionTags(vectorStr) {
   return tags.join("");
 }
 
+function epssTooltipText(prob, pct) {
+  const parts = [];
+  if (prob) {
+    parts.push(`未来 30 天被攻击利用的概率约 ${prob}%`);
+  }
+  if (pct) {
+    parts.push(`${pct}% 表示它比约 ${pct}% 的漏洞更容易被利用`);
+  }
+  const detail = parts.length ? parts.join("；") : "数值越高，越可能被攻击者关注";
+  return `EPSS 是公开数据给出的被利用预测：${detail}。数值越高，越要优先处理`;
+}
+
+function epssDetailText(prob, pct, dateStr) {
+  const parts = ["EPSS 是公开数据给出的利用预测"];
+  if (prob) {
+    parts.push(`未来 30 天被攻击利用的概率约 <b>${esc(prob)}%</b>`);
+  }
+  if (pct) {
+    parts.push(`${esc(pct)}% 表示它比约 ${esc(pct)}% 的漏洞更容易被利用`);
+  }
+  parts.push("数值越高，越要优先处理");
+  const suffix = dateStr ? `（评分日期 ${esc(dateStr)}）` : "";
+  return `${parts[0]}：${parts.slice(1).join("。")}。${suffix}`;
+}
+
+function cvssScoreTooltip(score) {
+  const level =
+    score >= 9 ? "紧急" : score >= 7 ? "高风险" : score >= 4 ? "中风险" : "低风险";
+  return `CVSS 是漏洞严重度评分，${score.toFixed(1)} 属于${level}；分数越高，影响通常越大`;
+}
+
 function riskBadgeRow(a) {
   const tags = [];
   if (a.kevListed) {
     tags.push(
-      `<span class="sig-tag sig-kev"${tooltipAttr("已被 CISA 列入已知被利用漏洞目录")}>KEV 已知利用</span>`,
+      `<span class="sig-tag sig-kev"${tooltipAttr("美国 CISA 已确认这个漏洞被真实攻击利用过，建议优先处理")}>KEV 已知利用</span>`,
     );
   }
   if (a.ransomware) {
     tags.push(
-      `<span class="sig-tag sig-ransom"${tooltipAttr("已知被勒索软件利用")}>勒索攻击</span>`,
+      `<span class="sig-tag sig-ransom"${tooltipAttr("已有勒索攻击利用记录，拖延修复的风险更高")}>勒索攻击</span>`,
     );
   }
   if (a.maxEpss > 0 || a.maxEpssPercentile > 0) {
     const pct = (a.maxEpssPercentile * 100).toFixed(1);
     const prob = (a.maxEpss * 100).toFixed(2);
     tags.push(
-      `<span class="sig-tag sig-epss"${tooltipAttr(`EPSS 百分位 ${pct}%，30 天内被利用概率 ${prob}%`)}>EPSS ${esc(pct)}%</span>`,
+      `<span class="sig-tag sig-epss"${tooltipAttr(epssTooltipText(prob, pct))}>EPSS ${esc(pct)}%</span>`,
     );
   }
   if (a.bestCvssScore > 0) {
@@ -2374,11 +2420,13 @@ function riskBadgeRow(a) {
             ? "sig-cvss-med"
             : "sig-cvss-low";
     tags.push(
-      `<span class="sig-tag ${cls}">CVSS ${a.bestCvssScore.toFixed(1)}</span>`,
+      `<span class="sig-tag ${cls}"${tooltipAttr(cvssScoreTooltip(a.bestCvssScore))}>CVSS ${a.bestCvssScore.toFixed(1)}</span>`,
     );
   }
   for (const cwe of a.allCweIds.slice(0, 3)) {
-    tags.push(`<span class="sig-tag sig-cwe">${esc(cwe)}</span>`);
+    tags.push(
+      `<span class="sig-tag sig-cwe"${tooltipAttr("CWE 是漏洞类型编号，用来说明问题属于哪类安全缺陷")}>${esc(cwe)}</span>`,
+    );
   }
   if (a.publishedAt) {
     const tag = publishedSignalTag(a.publishedAt);
@@ -2393,19 +2441,19 @@ function ciaImpactTags(vectorStr) {
   const tags = [];
   const levelMap = { H: "高", L: "低", N: "无", C: "高", P: "低" };
   const cDesc = {
-    H: "可能导致敏感数据泄露给未授权方",
-    L: "可能泄露部分非关键信息",
-    N: "不影响数据机密性",
+    H: "可能让敏感数据被未授权的人看到",
+    L: "可能泄露少量或不太关键的信息",
+    N: "通常不会直接造成数据泄露",
   };
   const iDesc = {
-    H: "攻击者可篡改或破坏重要数据",
-    L: "可能造成轻微数据篡改",
-    N: "不影响数据完整性",
+    H: "可能让攻击者修改或破坏重要数据",
+    L: "可能造成少量数据被修改",
+    N: "通常不会直接造成数据被篡改",
   };
   const aDesc = {
-    H: "可能导致服务完全不可用",
-    L: "可能导致服务短暂中断",
-    N: "不影响服务可用性",
+    H: "可能让服务明显卡住、崩溃或不可用",
+    L: "可能让服务短暂变慢或中断",
+    N: "通常不会直接影响服务可用性",
   };
   if (v.C && levelMap[v.C])
     tags.push(
@@ -2451,14 +2499,21 @@ function signalTags(r) {
   const a = aggregateEnrichments(r);
   const tags = [];
   if (a.kevListed) {
-    tags.push('<span class="sig-tag sig-kev">KEV 已知利用</span>');
+    tags.push(
+      `<span class="sig-tag sig-kev"${tooltipAttr("美国 CISA 已确认这个漏洞被真实攻击利用过，建议优先处理")}>KEV 已知利用</span>`,
+    );
   }
   if (a.ransomware) {
-    tags.push('<span class="sig-tag sig-ransom">勒索攻击</span>');
+    tags.push(
+      `<span class="sig-tag sig-ransom"${tooltipAttr("已有勒索攻击利用记录，拖延修复的风险更高")}>勒索攻击</span>`,
+    );
   }
   if (a.maxEpss > 0 || a.maxEpssPercentile > 0) {
     const pct = (a.maxEpssPercentile * 100).toFixed(1);
-    tags.push(`<span class="sig-tag sig-epss">EPSS ${esc(pct)}%</span>`);
+    const prob = (a.maxEpss * 100).toFixed(2);
+    tags.push(
+      `<span class="sig-tag sig-epss"${tooltipAttr(epssTooltipText(prob, pct))}>EPSS ${esc(pct)}%</span>`,
+    );
   }
   if (a.kevDueDate) {
     const d = shortDate(a.kevDueDate);
@@ -2517,13 +2572,13 @@ function vulnDetailPanel(r) {
     fields.push(
       detailField(
         "EPSS 利用预测",
-        `30 天内被利用概率 <b>${esc(prob)}%</b>，百分位 ${esc(pct)}%${dateStr ? "（评分日期 " + esc(dateStr) + "）" : ""}`,
+        epssDetailText(prob, pct, dateStr),
       ),
     );
   }
 
   if (a.kevListed) {
-    const parts = ["已被 CISA 列入已知被利用漏洞目录"];
+    const parts = ["美国 CISA 已确认这个漏洞被真实攻击利用过"];
     if (a.kevDateAdded)
       parts.push(`收录日期 ${esc(shortDate(a.kevDateAdded))}`);
     if (a.kevDueDate) parts.push(`修复截止 ${esc(shortDate(a.kevDueDate))}`);

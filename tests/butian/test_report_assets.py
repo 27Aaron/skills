@@ -359,30 +359,44 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn(">建议处理</div>", html)
         self.assertIn("建议升级到 13.0.1 或更高版本。升级后重新扫描", html)
         self.assertIn(
-            'class="sig-tag sig-epss" data-tooltip="EPSS 百分位 12.8%，30 天内被利用概率 0.04%">EPSS 12.8%</span>',
+            'class="sig-tag sig-epss" data-tooltip="EPSS 是公开数据给出的被利用预测：未来 30 天被攻击利用的概率约 0.04%；12.8% 表示它比约 12.8% 的漏洞更容易被利用。数值越高，越要优先处理">EPSS 12.8%</span>',
             html,
         )
         self.assertIn('class="sig-tag sig-age">已公开 1 个月</span>', html)
         self.assertIn(
-            'class="cvss-tag" data-tooltip="攻击者可通过网络直接利用，不需要物理接触或内网访问">远程可达</span>',
+            'class="cvss-tag" data-tooltip="攻击者可以从网络上尝试利用，不需要接触你的电脑或服务器">远程可达</span>',
             html,
         )
         self.assertIn(
-            'class="cvss-tag" data-tooltip="利用条件简单，不需要特殊配置或时机">低复杂度</span>',
+            'class="cvss-tag" data-tooltip="利用门槛低，通常不需要特殊条件；越容易利用，越应该靠前处理">低复杂度</span>',
             html,
         )
         self.assertIn(
-            'class="cvss-tag" data-tooltip="攻击者不需要任何认证或权限即可利用">无需权限</span>',
+            'class="cvss-tag" data-tooltip="攻击者不需要账号或登录权限，就可能尝试利用">无需权限</span>',
             html,
         )
         self.assertIn(
-            'class="cvss-tag" data-tooltip="不需要受害者进行任何操作即可触发漏洞">无需交互</span>',
+            'class="cvss-tag" data-tooltip="不需要用户点击链接或打开文件，服务收到特定请求就可能触发">无需交互</span>',
             html,
         )
         self.assertIn(
-            'class="cia-tag cia-h" data-tooltip="可能导致服务完全不可用">可用性 高</span>',
+            'class="sig-tag sig-cvss-high" data-tooltip="CVSS 是漏洞严重度评分，7.5 属于高风险；分数越高，影响通常越大">CVSS 7.5</span>',
             html,
         )
+        self.assertIn(
+            'class="sig-tag sig-cwe" data-tooltip="CWE 是漏洞类型编号，用来说明问题属于哪类安全缺陷">CWE-400</span>',
+            html,
+        )
+        self.assertIn(
+            'class="cia-tag cia-h" data-tooltip="可能让服务明显卡住、崩溃或不可用">可用性 高</span>',
+            html,
+        )
+        self.assertIn(
+            "EPSS 是公开数据给出的利用预测：未来 30 天被攻击利用的概率约 <b>0.04%</b>。12.8% 表示它比约 12.8% 的漏洞更容易被利用",
+            html,
+        )
+        self.assertNotIn("EPSS 百分位", html)
+        self.assertNotIn("30 天内被利用概率", html)
         self.assertNotIn('class="sig-tag sig-epss" title=', html)
         self.assertNotIn('class="cvss-tag" title=', html)
         self.assertNotIn('class="cia-tag cia-h" title=', html)
@@ -401,6 +415,21 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("--detail-card-bg: rgba(255, 255, 255, 0.045)", css)
         self.assertIn("--vuln-row-open-bg: transparent;", css)
         self.assertNotIn("--vuln-row-open-bg: rgba(255, 255, 255, 0.055)", css)
+        tag_base_css = css.split(".sig-tag,\n.cvss-tag,\n.cia-tag {", 1)[1].split(
+            "}", 1
+        )[0]
+        self.assertIn("border: 1px solid transparent;", tag_base_css)
+        self.assertIn("box-shadow:", tag_base_css)
+        epss_css = css.split(".sig-epss {", 1)[1].split("}", 1)[0]
+        self.assertIn("border-color: #c4b5fd;", epss_css)
+        self.assertIn("background: #f5f3ff;", epss_css)
+        self.assertIn("color: #4c1d95;", epss_css)
+        cvss_tag_css = css.split("/* ---- CVSS attack condition", 1)[1].split(
+            ".cvss-tag {", 1
+        )[1].split("}", 1)[0]
+        self.assertIn("border-color: #bfdbfe;", cvss_tag_css)
+        self.assertIn("background: #eff6ff;", cvss_tag_css)
+        self.assertIn("color: #1d4ed8;", cvss_tag_css)
         detail_css = css.split(".vuln-detail {", 1)[1].split("}", 1)[0]
         self.assertIn("border: 0;", detail_css)
         self.assertIn("border-radius: 0;", detail_css)

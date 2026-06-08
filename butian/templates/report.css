@@ -1712,6 +1712,11 @@ footer {
     font-weight: 650;
     line-height: 1.4;
     white-space: nowrap;
+    border: 1px solid transparent;
+    background-clip: padding-box;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.72),
+        0 1px 2px rgba(15, 23, 42, 0.04);
 }
 [data-tooltip] {
     cursor: help;
@@ -1743,66 +1748,66 @@ footer {
     transform: translateY(0) scale(1);
 }
 .sig-kev {
-    border: 1px solid rgba(220, 38, 38, 0.22);
-    background: rgba(254, 242, 242, 0.85);
+    border-color: #fecaca;
+    background: #fef2f2;
     color: #991b1b;
 }
 .sig-ransom {
-    border: 1px solid rgba(153, 27, 27, 0.28);
-    background: rgba(254, 226, 226, 0.9);
+    border-color: #fca5a5;
+    background: #fee2e2;
     color: #7f1d1d;
     font-weight: 700;
 }
 .sig-epss {
-    border: 1px solid rgba(124, 58, 237, 0.18);
-    background: rgba(237, 233, 254, 0.7);
-    color: #5b21b6;
+    border-color: #c4b5fd;
+    background: #f5f3ff;
+    color: #4c1d95;
 }
 .sig-cwe {
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    background: rgba(241, 245, 249, 0.7);
-    color: var(--sub);
+    border-color: #e2e8f0;
+    background: #f8fafc;
+    color: #475569;
 }
 .sig-due {
-    border: 1px solid rgba(234, 88, 12, 0.2);
-    background: rgba(255, 237, 213, 0.7);
+    border-color: #fed7aa;
+    background: #ffedd5;
     color: #9a3412;
 }
 .sig-cvss-crit {
-    border: 1px solid rgba(220, 38, 38, 0.28);
-    background: rgba(254, 242, 242, 0.85);
+    border-color: #fecaca;
+    background: #fef2f2;
     color: #991b1b;
     font-weight: 700;
 }
 .sig-cvss-high {
-    border: 1px solid rgba(234, 88, 12, 0.24);
-    background: rgba(255, 237, 213, 0.75);
+    border-color: #fed7aa;
+    background: #ffedd5;
     color: #9a3412;
     font-weight: 700;
 }
 .sig-cvss-med {
-    border: 1px solid rgba(217, 119, 6, 0.2);
-    background: rgba(255, 251, 235, 0.7);
+    border-color: #fde68a;
+    background: #fef3c7;
     color: #92400e;
 }
 .sig-cvss-low {
-    border: 1px solid rgba(5, 150, 105, 0.2);
-    background: rgba(236, 253, 245, 0.7);
+    border-color: #bbf7d0;
+    background: #ecfdf5;
     color: #065f46;
 }
 .sig-recent {
-    border: 1px solid rgba(220, 38, 38, 0.22);
-    background: rgba(254, 242, 242, 0.75);
+    border-color: #fecaca;
+    background: #fef2f2;
     color: #991b1b;
 }
 .sig-age {
-    border: 1px solid rgba(37, 99, 235, 0.16);
-    background: rgba(239, 246, 255, 0.7);
+    border-color: #bfdbfe;
+    background: #eff6ff;
     color: #1d4ed8;
 }
 .sig-old {
-    border: 1px solid rgba(100, 116, 139, 0.2);
-    background: rgba(241, 245, 249, 0.7);
+    border-color: #e2e8f0;
+    background: #f8fafc;
     color: #475569;
 }
 
@@ -1820,24 +1825,24 @@ footer {
     gap: 6px;
 }
 .cvss-tag {
-    border: 1px solid rgba(30, 64, 175, 0.14);
-    background: rgba(219, 234, 254, 0.6);
-    color: #1e40af;
+    border-color: #bfdbfe;
+    background: #eff6ff;
+    color: #1d4ed8;
 }
 .cia-h {
-    border: 1px solid rgba(185, 28, 28, 0.18);
-    background: rgba(254, 242, 242, 0.7);
+    border-color: #fecaca;
+    background: #fef2f2;
     color: #991b1b;
 }
 .cia-l {
-    border: 1px solid rgba(217, 119, 6, 0.18);
-    background: rgba(255, 251, 235, 0.7);
+    border-color: #fde68a;
+    background: #fef3c7;
     color: #92400e;
 }
 .cia-n {
-    border: 1px solid rgba(0, 0, 0, 0.07);
-    background: rgba(241, 245, 249, 0.6);
-    color: var(--sub);
+    border-color: #e2e8f0;
+    background: #f8fafc;
+    color: #475569;
 }
 
 @media (prefers-color-scheme: dark) {
