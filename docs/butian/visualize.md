@@ -41,11 +41,11 @@ python3 visualize.py --no-open analysis.json                      # 不自动打
 
 ### 序列化与转义
 
-| 函数                           | 作用                                                                                    |
-| ------------------------------ | --------------------------------------------------------------------------------------- |
-| `json_for_script(value)`       | 将 JSON 序列化为紧凑格式，并转义 `<script>` 标签中的特殊字符（`&`、`<`、`>`、` `、` `） |
-| `script_asset_for_html(value)` | 转义 `</script` 防止内联 JS 被提前关闭                                                  |
-| `style_asset_for_html(value)`  | 转义 `</style` 防止内联 CSS 被提前关闭                                                  |
+| 函数                           | 作用                                                                                |
+| ------------------------------ | ----------------------------------------------------------------------------------- |
+| `json_for_script(value)`       | 将 JSON 序列化为紧凑格式，并转义 `<script>` 标签中的特殊字符（`&`、`<`、`>`、`、`） |
+| `script_asset_for_html(value)` | 转义 `</script` 防止内联 JS 被提前关闭                                              |
+| `style_asset_for_html(value)`  | 转义 `</style` 防止内联 CSS 被提前关闭                                              |
 
 ### 路径与配置
 
@@ -57,14 +57,16 @@ python3 visualize.py --no-open analysis.json                      # 不自动打
 
 | 函数                                    | 作用                                                                                                                    |
 | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `should_open_report(args, output_path)` | 综合 `--no-open`、`BUTIAN_NO_OPEN` 环境变量和 `.first-scan-done` 标记判断是否打开                                       |
+| `should_open_report(args, output_path)` | 兼容旧调用，返回是否打开报告                                                                                            |
+| `open_decision(args, output_path)`      | 综合 `--no-open`、`BUTIAN_NO_OPEN` 环境变量和 `.first-scan-done` 标记，返回 `(是否打开, 原因)`                          |
+| `skipped_open_message(reason)`          | 根据跳过原因输出更具体的中文提示                                                                                        |
 | `_first_scan_done(output_path)`         | 检查 `.butian/.first-scan-done` 标记文件是否存在                                                                        |
 | `_mark_first_scan_done(output_path)`    | 创建 `.butian/.first-scan-done` 标记文件                                                                                |
 | `_butian_dir_for(output_path)`          | 从输出路径向上查找 `.butian/` 目录                                                                                      |
 | `open_report(path)`                     | 跨平台打开 HTML 报告（macOS `open`、Windows `startfile`、Linux `xdg-open`/`gio`/`wslview`，最终 fallback `webbrowser`） |
 | `spawn_open_command(cmd)`               | 以 `Popen` 后台启动打开命令，不阻塞脚本执行                                                                             |
 
-首次扫描时浏览器打开成功后，会创建 `.butian/.first-scan-done` 标记文件。后续复扫检测到该标记后跳过浏览器打开，打印 `"已跳过自动打开报告（首次扫描已完成）。"`。
+首次扫描时浏览器打开成功后，会创建 `.butian/.first-scan-done` 标记文件。后续复扫检测到该标记后跳过浏览器打开，打印 `"已跳过自动打开报告（首次扫描已完成）。"`。如果是 `--no-open` 或 `BUTIAN_NO_OPEN` 导致跳过，会输出对应原因，便于 CI 和人工运行区分。
 
 ## 模板注入流程
 
@@ -72,10 +74,10 @@ python3 visualize.py --no-open analysis.json                      # 不自动打
 templates/report.html
   ├─ __REPORT_CSS__  ← static/report.css  (内联样式)
   ├─ __REPORT_DATA__ ← analysis.json      (转义后的 JSON)
-  └─ __REPORT_JS__   ← static/report.js   (内联脚本)
+  └─ __REPORT_JS__   ← static/report.js   (内联脚本，已注入共享标签)
 ```
 
-注入后检查是否仍有残留占位符，如有则抛出 `SystemExit`。
+`visualize.py` 会先把 `labels.py` 中的 `SECRET_TYPE_LABELS` 和 `SENSITIVE_TYPE_LABELS` 注入 `report.js` 的 `__SECRET_TYPE_LABELS__`、`__SENSITIVE_TYPE_LABELS__` 占位符，再把 JS 内联进 HTML。注入后检查是否仍有残留占位符，如有则抛出 `SystemExit`。
 
 ## HTML 报告渲染要点
 
@@ -87,7 +89,7 @@ templates/report.html
 | `hygiene.sensitive_tracked` | 待确认项中最多展示 5 条，显示文件路径和中文敏感文件类型            |
 | `hygiene.gitignore_missing` | 摘要卡片展示建议补充的规则数量                                     |
 | `hygiene.workflow_checks`   | 以"GitHub Actions 工作流安全"标签展示结构化 finding，最多展示 6 条 |
-| `hygiene.repository_checks` | 以"依赖配置与维护"标签展示结构化 finding，最多展示 6 条      |
+| `hygiene.repository_checks` | 以"依赖配置与维护"标签展示结构化 finding，最多展示 6 条            |
 | `hygiene.iac_checks`        | 以"IaC / 容器 / 部署配置"标签展示结构化 finding，最多展示 6 条     |
 
 结构化 finding 在 HTML 中保留 `file:line`、中文分组标签、`title`、`evidence` 和 `recommendation`。当展示条目超过上限时，页面追加"…及其他 N 处"，避免小屏幕报告被长列表淹没。
@@ -116,4 +118,5 @@ Fallback → webbrowser.open_new_tab(file://...)
 - **后台打开**：使用 `Popen` 启动浏览器进程，不阻塞脚本退出
 - **首次标记**：`.butian/.first-scan-done` 标记确保浏览器只在首次扫描时弹出，复扫不重复
 - **常量导出**：`FIRST_SCAN_MARKER = ".first-scan-done"` 可供其他模块（如 `run_audit.py`）复用
+- **共享标签注入**：HTML 使用与 Markdown 相同的密钥/敏感文件中文标签，避免前后端展示不一致
 - **仓库安检可读性**：HTML 只展示脱敏预览和证据摘要；本地规则使用中文分组，给专业用户保留复核线索，也让小白用户能看到明确建议

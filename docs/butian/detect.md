@@ -13,7 +13,7 @@
 | 1   | 依赖文件检测   | 扫描项目根目录，匹配已知的 lockfile 名称                          |
 | 2   | 工作区准备     | 创建 `.butian/<timestamp>/` 运行目录结构                          |
 | 3   | 扫描模式推荐   | 根据是否找到依赖文件推荐 `full_dependency_scan` 或 `hygiene_only` |
-| 4   | Gitignore 检查 | 检查 `.butian/` 是否已加入 `.gitignore`                           |
+| 4   | Gitignore 准备 | 确保 `.gitignore` 覆盖 Butian 本地工作区和报告目录                |
 
 ## CLI 用法
 
@@ -58,7 +58,7 @@ python3 detect.py --compact              # 输出紧凑 JSON
 - 语言支持检测结果
 - 推荐的扫描模式
 - 工作区路径信息（运行目录、资产目录、内容目录）
-- Gitignore 状态
+- Gitignore 状态（包含缺失项、已新增项和最终存在状态）
 
 扫描模式逻辑：
 
@@ -92,7 +92,9 @@ python3 detect.py --compact              # 输出紧凑 JSON
       "path": ".gitignore",
       "preexisting": true,
       "had_butian_entry": false,
+      "missing_entries": [],
       "added_butian_entry": true,
+      "added_entries": [".butian/", "docs/butian"],
       "exists_after": true
     }
   },
@@ -104,17 +106,18 @@ python3 detect.py --compact              # 输出紧凑 JSON
 
 从 `scan.py` 导入以下工具函数：
 
-| 导入项                     | 用途                                     |
-| -------------------------- | ---------------------------------------- |
-| `LOCKFILE_MAP`             | 生态 → lockfile 文件名的映射             |
-| `butian_gitignore_status`  | 获取 `.butian/` 在 `.gitignore` 中的状态 |
-| `default_asset_path`       | 构建默认资产文件路径                     |
-| `ensure_butian_run`        | 创建运行目录                             |
-| `find_project_root`        | 向上遍历查找项目根                       |
-| `run_dir_from_output_file` | 从输出文件路径反推运行目录               |
+| 导入项                     | 用途                                   |
+| -------------------------- | -------------------------------------- |
+| `LOCKFILE_MAP`             | 生态 → lockfile 文件名的映射           |
+| `butian_gitignore_status`  | 获取 Butian 本地工作区相关忽略规则状态 |
+| `default_asset_path`       | 构建默认资产文件路径                   |
+| `ensure_butian_run`        | 创建运行目录                           |
+| `find_project_root`        | 向上遍历查找项目根                     |
+| `run_dir_from_output_file` | 从输出文件路径反推运行目录             |
 
 ## 设计要点
 
 - **仅使用标准库**：无任何第三方依赖
 - **输出双重写入**：JSON 同时写入文件和 stdout（文件供后续步骤使用，stdout供调用方检查）
 - **项目根发现**：`find_project_root()` 支持从子目录启动时自动向上定位
+- **预检即准备工作区**：默认输出路径会创建 `.butian/<run>/assets` 和 `.butian/<run>/content`，并记录本次忽略规则准备结果，供 `scan.py` 复用

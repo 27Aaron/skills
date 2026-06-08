@@ -4,16 +4,16 @@
 
 ## 概览
 
-`scan.py` 是 Butian 安全扫描器的核心引擎，负责收集项目安全数据并输出结构化 JSON，供下游 `analyze.py` 和 `report.py` 消费。扫描过程不修改业务源码、依赖或配置；仅创建/更新 `.butian/` 本地工作区，并确保该工作区进入 `.gitignore`。
+`scan.py` 是 Butian 安全扫描器的核心引擎，负责收集项目安全数据并输出结构化 JSON，供下游 `analyze.py` 和 `report.py` 消费。扫描过程不修改业务源码或依赖；只准备 Butian 本地工作区、缓存和报告产物，并确保这些本地产物路径被项目忽略规则覆盖。
 
 ## 职责
 
-| #   | 职责         | 说明                                                                                                                                                   |
-| --- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| #   | 职责         | 说明                                                                                                                                              |
+| --- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | 仓库安检     | `.gitignore` 状态、敏感文件跟踪、硬编码密钥扫描（113 个正则 + Shannon entropy 熵值分析）、GitHub Actions 工作流安全、依赖配置与维护、IaC/容器配置 |
-| 2   | 依赖生态检测 | 识别 lockfile 类型，提取包名和版本号                                                                                                                   |
-| 3   | 漏洞查询     | 调用 OSV、NVD、CISA KEV、FIRST EPSS 四个官方数据源                                                                                                     |
-| 4   | 过期依赖检测 | 通过各语言包管理器获取最新版本信息                                                                                                                     |
+| 2   | 依赖生态检测 | 识别 lockfile 类型，提取包名和版本号                                                                                                              |
+| 3   | 漏洞查询     | 调用 OSV、NVD、CISA KEV、FIRST EPSS 四个官方数据源                                                                                                |
+| 4   | 过期依赖检测 | 通过各语言包管理器获取最新版本信息                                                                                                                |
 
 ## 支持的生态
 
@@ -84,7 +84,7 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 | `find_project_root(start_path)`                         | 向上遍历目录树，找到包含项目标记文件（`.git`、`package.json` 等）的根目录 |
 | `ensure_butian_run(project_path, run_id)`               | 创建 `.butian/<timestamp>-<run_id>/` 运行目录                             |
 | `default_asset_path(project_path, filename, preflight)` | 返回默认的资产文件路径                                                    |
-| `butian_gitignore_status(project_path)`                 | 返回 `.gitignore` 中 `.butian/` 条目的状态                                |
+| `butian_gitignore_status(project_path)`                 | 返回 Butian 本地产物忽略规则的状态，包含缺失项和已新增项                  |
 
 ### 日志系统
 
@@ -122,21 +122,21 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 
 ### 仓库安检
 
-| 函数                                               | 作用                                                                                                 |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| 函数                                               | 作用                                                                                                |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | `scan_hygiene(project_path, max_secret_files)`     | 执行完整的仓库安检：gitignore、敏感文件跟踪、密钥扫描、GitHub Actions、依赖配置与维护、IaC/容器配置 |
-| `scan_secrets(project_path, max_files, max_bytes)` | 正则模式匹配 + Shannon entropy 熵值分析，识别硬编码密钥                                              |
-| `check_sensitive_tracked(project_path)`            | 检查被 git 跟踪的敏感文件（详见下方「敏感文件类型」）                                                |
-| `check_gitignore(project_path, sensitive_tracked)` | 检查 `.gitignore` 是否覆盖了常见敏感文件模式                                                         |
+| `scan_secrets(project_path, max_files, max_bytes)` | 正则模式匹配 + Shannon entropy 熵值分析，识别硬编码密钥                                             |
+| `check_sensitive_tracked(project_path)`            | 检查被 git 跟踪的敏感文件（详见下方「敏感文件类型」）                                               |
+| `check_gitignore(project_path, sensitive_tracked)` | 检查 `.gitignore` 是否覆盖了常见敏感文件模式                                                        |
 
 新增本地规则模块：
 
-| 模块 | 作用 |
-| --- | --- |
-| `finding_utils.py` | 统一 finding schema、文件读取、路径、行号、证据截断和去重工具；所有新增本地规则都通过它输出同一种结构 |
+| 模块                 | 作用                                                                                                                                                                                                                    |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `finding_utils.py`   | 统一 finding schema、文件读取、路径、行号、证据截断和去重工具；所有新增本地规则都通过它输出同一种结构                                                                                                                   |
 | `workflow_checks.py` | 本地解析 `.github/workflows/*.yml` / `.github/workflows/*.yaml`，检查过宽 permissions、缺少显式最小权限边界、危险 trigger、checkout 凭据持久化、不可信上下文进入 `run:`、远程脚本管道执行、PR self-hosted runner 等风险 |
-| `repo_checks.py` | 在项目已有 `.github/` 时检查 `dependabot.yml` 建议；同时检查 lockfile 缺失、可疑安装脚本、registry 来源/token/TLS 配置 |
-| `iac_checks.py` | 检查 Dockerfile、Compose、Kubernetes、Terraform 中的常见本地配置风险 |
+| `repo_checks.py`     | 在项目已有 `.github/` 时检查 `dependabot.yml` 建议；同时检查 lockfile 缺失、可疑安装脚本、registry 来源/token/TLS 配置                                                                                                  |
+| `iac_checks.py`      | 检查 Dockerfile、Compose、Kubernetes、Terraform 中的常见本地配置风险                                                                                                                                                    |
 
 新增 `hygiene` 输出字段保持纯本地实现，不调用外部扫描器，也不创建 CI/CD workflow：
 
@@ -184,12 +184,12 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 
 新增本地规则覆盖矩阵：
 
-| 分组                      | 字段                | 重点规则                                                                                                                                                                                                                                      | 严重度倾向                |
-| ------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| GitHub Actions 工作流安全 | `workflow_checks`   | `permissions: write-all`、建议声明显式最小 permissions、高风险 trigger + checkout、未关闭 `persist-credentials`、不可信上下文进入 `run:`、`curl/wget \| sh`、PR 使用 self-hosted runner | `high` / `medium` / `low` |
+| 分组                      | 字段                | 重点规则                                                                                                                                                                                                                                                 | 严重度倾向                |
+| ------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| GitHub Actions 工作流安全 | `workflow_checks`   | `permissions: write-all`、建议声明显式最小 permissions、高风险 trigger + checkout、未关闭 `persist-credentials`、不可信上下文进入 `run:`、`curl/wget \| sh`、PR 使用 self-hosted runner                                                                  | `high` / `medium` / `low` |
 | 依赖配置与维护            | `repository_checks` | 项目已有 `.github/` 但未配置 Dependabot；检测到 `.github/workflows/` 时检查 Dependabot 是否纳入 workflow 中引用的 Action 版本维护；同时检查当前包生态是否已有版本维护提醒，后续可通过 Dependabot PR 或通知处理更新。以建议形式展示，便于团队纳入维护流程 | `info`                    |
-| 供应链配置                | `repository_checks` | manifest 缺 lockfile、安装脚本下载远程脚本或 base64 解码执行、registry 配置中出现 token/password/secret、仓库包含 registry 来源配置需确认、registry TLS 校验被降低                                                                             | `high` / `medium` / `low` |
-| IaC / 容器 / 部署配置     | `iac_checks`        | Dockerfile 使用 `latest`、缺非 root `USER`、远程脚本管道执行、`ADD` 远程 URL、明文 `ENV` secret、Compose privileged / Docker socket / 敏感端口、Kubernetes Secret/privileged/hostPath/hostNetwork/root、Terraform state/tfvars 和公网敏感端口 | `high` / `medium` / `low` |
+| 供应链配置                | `repository_checks` | manifest 缺 lockfile、安装脚本下载远程脚本或 base64 解码执行、registry 配置中出现 token/password/secret、仓库包含 registry 来源配置需确认、registry TLS 校验被降低                                                                                       | `high` / `medium` / `low` |
+| IaC / 容器 / 部署配置     | `iac_checks`        | Dockerfile 使用 `latest`、缺非 root `USER`、远程脚本管道执行、`ADD` 远程 URL、明文 `ENV` secret、Compose privileged / Docker socket / 敏感端口、Kubernetes Secret/privileged/hostPath/hostNetwork/root、Terraform state/tfvars 和公网敏感端口            | `high` / `medium` / `low` |
 
 ### 依赖解析
 
@@ -292,10 +292,10 @@ main()
 
 `scan_secrets()` 采用**双阶段检测**：
 
-| 阶段    | 机制                      | 置信度        | 说明                                                   |
-| ------- | ------------------------- | ------------- | ------------------------------------------------------ |
+| 阶段    | 机制                       | 置信度        | 说明                                                   |
+| ------- | -------------------------- | ------------- | ------------------------------------------------------ |
 | Phase 1 | 正则模式匹配（113 个模式） | high / medium | 精确匹配已知格式的密钥和 token                         |
-| Phase 2 | Shannon entropy 熵值分析  | low           | 对无已知前缀的高随机性字符串进行可疑标记，用户自行判断 |
+| Phase 2 | Shannon entropy 熵值分析   | low           | 对无已知前缀的高随机性字符串进行可疑标记，用户自行判断 |
 
 两阶段结果自动交叉去重：若同一行已被正则匹配命中，entropy 不再重复报告。同一行内，高可信度匹配（如 `aws_access_key`）会抑制低可信度匹配（如 `generic_api_key`），避免重复告警。
 
@@ -303,14 +303,14 @@ main()
 
 `scan_secrets()` 不只扫代码文件，也覆盖常见配置、部署和凭据文件。为降低误报，已知 lockfile 会被排除，不把 `integrity` / hash 当作硬编码密钥。
 
-| 范围 | 例子 |
-| --- | --- |
-| 代码与脚本 | `.py`、`.js`、`.ts`、`.go`、`.rs`、`.rb`、`.php`、`.java`、`.sh` |
-| 配置与数据 | `.json`、`.jsonc`、`.json5`、`.yaml`、`.toml`、`.ini`、`.conf`、`.properties`、`.xml` |
-| IaC / 部署 | `.tf`、`.tfvars`、`.hcl`、`Dockerfile`、`Dockerfile.*`、`Makefile`、`Procfile`、`Jenkinsfile` |
-| 包管理凭据 | `.npmrc`、`.pypirc`、`.netrc`、`.gem/credentials`、`gradle.properties`、`settings.xml` |
-| 云与应用凭据 | `service-account*.json`、`client_secret*.json`、`sa-key.json`、`.aws/credentials`、`.kube/config` |
-| 主动跳过 | `package-lock.json`、`pnpm-lock.yaml`、`yarn.lock`、`poetry.lock`、`Cargo.lock`、`go.sum` 等 lockfile |
+| 范围         | 例子                                                                                                  |
+| ------------ | ----------------------------------------------------------------------------------------------------- |
+| 代码与脚本   | `.py`、`.js`、`.ts`、`.go`、`.rs`、`.rb`、`.php`、`.java`、`.sh`                                      |
+| 配置与数据   | `.json`、`.jsonc`、`.json5`、`.yaml`、`.toml`、`.ini`、`.conf`、`.properties`、`.xml`                 |
+| IaC / 部署   | `.tf`、`.tfvars`、`.hcl`、`Dockerfile`、`Dockerfile.*`、`Makefile`、`Procfile`、`Jenkinsfile`         |
+| 包管理凭据   | `.npmrc`、`.pypirc`、`.netrc`、`.gem/credentials`、`gradle.properties`、`settings.xml`                |
+| 云与应用凭据 | `service-account*.json`、`client_secret*.json`、`sa-key.json`、`.aws/credentials`、`.kube/config`     |
+| 主动跳过     | `package-lock.json`、`pnpm-lock.yaml`、`yarn.lock`、`poetry.lock`、`Cargo.lock`、`go.sum` 等 lockfile |
 
 更多脱敏示例见 [`secret-detection-examples.md`](./secret-detection-examples.md)。
 
@@ -342,97 +342,97 @@ main()
 
 ### SaaS / 第三方服务 Token（78 个模式）
 
-| 类型                     | 说明                                       | 置信度 |
-| ------------------------ | ------------------------------------------ | ------ |
-| **代码托管**             |                                            |        |
-| `github_token`           | GitHub PAT（`ghp_...`）                    | high   |
-| `github_fine_grained_pat` | GitHub fine-grained PAT（`github_pat_...`） | high   |
-| `github_oauth`           | GitHub OAuth Token（`gho_...`）            | high   |
-| `github_app_token`       | GitHub App Token（`ghu_` / `ghs_...`）     | high   |
-| `github_refresh_token`   | GitHub Refresh Token（`ghr_...`）          | high   |
-| `gitlab_token`           | GitLab Token（`glpat-...`）                | high   |
-| `gitlab_runner_token`    | GitLab Runner Token（`glrt-...`）          | high   |
-| `gitlab_deploy_token`    | GitLab Deploy Token（`gldt-...`）          | high   |
-| **即时通讯**             |                                            |        |
-| `slack_token`            | Slack Token（`xoxb-...` / `xoxp-...`）     | high   |
-| `slack_webhook`          | Slack Webhook URL                          | high   |
-| `discord_token`          | Discord Bot Token                          | high   |
-| `discord_bot_token`      | Discord Bot Token（BOT 前缀）              | high   |
-| `discord_webhook`        | Discord Webhook URL                        | high   |
-| **支付**                 |                                            |        |
-| `stripe_secret_key`      | Stripe Secret Key（`sk_live_...`）         | high   |
-| `stripe_publishable_key` | Stripe Publishable Key（`pk_live_...`）    | medium |
-| `stripe_restricted_key`  | Stripe Restricted Key（`rk_live_...`）     | high   |
-| `square_access_token`    | Square Access Token（`sq0atp-...`）        | high   |
-| `square_oauth_secret`    | Square OAuth Secret（`sq0csp-...`）        | high   |
-| `shopify_token`          | Shopify Token（`shpat_...`）               | high   |
-| `paypal_bearer_token`    | PayPal Bearer Token                        | medium |
-| `braintree_token`        | Braintree Token                            | medium |
-| **通信**                 |                                            |        |
-| `twilio_api_key`         | Twilio API Key（`SK...`）                  | high   |
-| `twilio_account_sid`     | Twilio Account SID（`AC...`）              | high   |
-| `sendgrid_api_key`       | SendGrid API Key（`SG....`）               | high   |
-| `resend_api_key`         | Resend API Key（需上下文）                 | medium |
-| `mailgun_api_key`        | Mailgun API Key（`key-...`）               | high   |
-| `mailchimp_api_key`      | Mailchimp API Key                          | medium |
-| **LLM / AI**             |                                            |        |
-| `openai_key`             | OpenAI API Key（`sk-...` / `sk-proj-...`） | high   |
-| `anthropic_key`          | Anthropic API Key（`sk-ant-...`）          | high   |
-| `groq_api_key`           | Groq API Key（`gsk_...`）                  | high   |
-| `huggingface_token`      | Hugging Face Token（`hf_...`）             | high   |
-| `replicate_token`        | Replicate Token（`r8_...`）                | high   |
-| **包管理**               |                                            |        |
-| `npm_token`              | NPM Token（`//registry.npmjs.org/...`）    | high   |
-| `npmrc_auth_token`       | NPM Auth Token（`npm_...`）                | high   |
-| `pypi_token`             | PyPI Token（`pypi-AgEIcH...`）             | high   |
-| `rubygems_token`         | RubyGems Token（`rubygems_...`）           | medium |
-| `nuget_api_key`          | NuGet API Key（`oy2...`）                  | medium |
-| `docker_hub_token`       | Docker Hub Token（`dckr_pat_...`）         | high   |
-| **监控 / 可观测性**      |                                            |        |
-| `datadog_api_key`        | Datadog API Key（需上下文）                | medium |
-| `datadog_app_key`        | Datadog App Key（需上下文）                | medium |
-| `newrelic_key`           | New Relic Key（`NRAK...`）                 | high   |
-| `sentry_token`           | Sentry Token（`sntrys_...`）               | high   |
-| `grafana_api_key`        | Grafana API Key（JWT 格式，需上下文）      | medium |
-| `sonar_token`            | SonarQube Token（`squ_...`）               | high   |
-| **CI/CD**                |                                            |        |
-| `terraform_token`        | Terraform Cloud Token（`....atlasv1....`） | medium |
-| `hashicorp_vault_token`  | HashiCorp Vault Token（`hvs.` / `hvb.`）   | high   |
-| `pulumi_token`           | Pulumi Token（`pul-...`）                  | high   |
-| `circleci_token`         | CircleCI Token（`CCIRERES_...`）           | medium |
-| `travis_token`           | Travis CI Token（需上下文）                | medium |
-| `buildkite_token`        | Buildkite Token（`bkua_...`）              | medium |
-| `jenkins_token`          | Jenkins Token（需上下文）                  | medium |
-| `jfrog_token`            | JFrog Token（`cmVmd...`）                  | medium |
-| **项目管理**             |                                            |        |
-| `atlassian_token`        | JIRA / Confluence Token（需上下文）        | medium |
-| `notion_token`           | Notion Token（`secret_...` / `ntn_...`）   | medium |
-| `linear_api_key`         | Linear API Key（`lin_api_...`）            | medium |
-| `airtable_api_key`       | Airtable API Key（`key...`）               | medium |
-| `asana_token`            | Asana Token（需 `asana` 上下文）           | medium |
-| `pagerduty_token`        | PagerDuty Token（需上下文）                | medium |
-| `postman_api_key`        | Postman API Key（`PMAK-...`）              | medium |
-| **云服务**               |                                            |        |
-| `firebase_key`           | Firebase API Key                           | medium |
-| `cloudflare_api_token`   | Cloudflare API Token（需上下文）           | medium |
-| `vercel_token`           | Vercel Token（需上下文）                   | medium |
-| `netlify_token`          | Netlify Token（需上下文）                  | medium |
-| `railway_token`          | Railway Token（需上下文）                  | medium |
-| `render_token`           | Render Token（需上下文）                   | medium |
-| `snyk_token`             | Snyk Token（需上下文）                     | medium |
-| `clerk_secret_key`       | Clerk Secret Key（需上下文）               | medium |
-| `supabase_service_role_key` | Supabase service-role JWT（需上下文）   | medium |
-| `algolia_admin_key`      | Algolia Admin API Key（需上下文）          | medium |
-| `databricks_token`       | Databricks Token（`dapi...`）              | high   |
-| `fastly_api_key`         | Fastly API Key（需上下文）                 | medium |
-| `ngrok_token`            | Ngrok Token（需上下文）                    | medium |
-| **数据库连接字符串**     |                                            |        |
-| `mongodb_connection`     | MongoDB 连接字符串                         | high   |
-| `postgres_connection`    | PostgreSQL 连接字符串                      | high   |
-| `mysql_connection`       | MySQL 连接字符串                           | high   |
-| `redis_connection`       | Redis 连接字符串                           | high   |
-| `amqp_connection`        | AMQP / RabbitMQ 连接字符串                 | high   |
-| `kafka_connection`       | Kafka / Confluent 连接凭据                 | medium |
+| 类型                        | 说明                                        | 置信度 |
+| --------------------------- | ------------------------------------------- | ------ |
+| **代码托管**                |                                             |        |
+| `github_token`              | GitHub PAT（`ghp_...`）                     | high   |
+| `github_fine_grained_pat`   | GitHub fine-grained PAT（`github_pat_...`） | high   |
+| `github_oauth`              | GitHub OAuth Token（`gho_...`）             | high   |
+| `github_app_token`          | GitHub App Token（`ghu_` / `ghs_...`）      | high   |
+| `github_refresh_token`      | GitHub Refresh Token（`ghr_...`）           | high   |
+| `gitlab_token`              | GitLab Token（`glpat-...`）                 | high   |
+| `gitlab_runner_token`       | GitLab Runner Token（`glrt-...`）           | high   |
+| `gitlab_deploy_token`       | GitLab Deploy Token（`gldt-...`）           | high   |
+| **即时通讯**                |                                             |        |
+| `slack_token`               | Slack Token（`xoxb-...` / `xoxp-...`）      | high   |
+| `slack_webhook`             | Slack Webhook URL                           | high   |
+| `discord_token`             | Discord Bot Token                           | high   |
+| `discord_bot_token`         | Discord Bot Token（BOT 前缀）               | high   |
+| `discord_webhook`           | Discord Webhook URL                         | high   |
+| **支付**                    |                                             |        |
+| `stripe_secret_key`         | Stripe Secret Key（`sk_live_...`）          | high   |
+| `stripe_publishable_key`    | Stripe Publishable Key（`pk_live_...`）     | medium |
+| `stripe_restricted_key`     | Stripe Restricted Key（`rk_live_...`）      | high   |
+| `square_access_token`       | Square Access Token（`sq0atp-...`）         | high   |
+| `square_oauth_secret`       | Square OAuth Secret（`sq0csp-...`）         | high   |
+| `shopify_token`             | Shopify Token（`shpat_...`）                | high   |
+| `paypal_bearer_token`       | PayPal Bearer Token                         | medium |
+| `braintree_token`           | Braintree Token                             | medium |
+| **通信**                    |                                             |        |
+| `twilio_api_key`            | Twilio API Key（`SK...`）                   | high   |
+| `twilio_account_sid`        | Twilio Account SID（`AC...`）               | high   |
+| `sendgrid_api_key`          | SendGrid API Key（`SG....`）                | high   |
+| `resend_api_key`            | Resend API Key（需上下文）                  | medium |
+| `mailgun_api_key`           | Mailgun API Key（`key-...`）                | high   |
+| `mailchimp_api_key`         | Mailchimp API Key                           | medium |
+| **LLM / AI**                |                                             |        |
+| `openai_key`                | OpenAI API Key（`sk-...` / `sk-proj-...`）  | high   |
+| `anthropic_key`             | Anthropic API Key（`sk-ant-...`）           | high   |
+| `groq_api_key`              | Groq API Key（`gsk_...`）                   | high   |
+| `huggingface_token`         | Hugging Face Token（`hf_...`）              | high   |
+| `replicate_token`           | Replicate Token（`r8_...`）                 | high   |
+| **包管理**                  |                                             |        |
+| `npm_token`                 | NPM Token（`//registry.npmjs.org/...`）     | high   |
+| `npmrc_auth_token`          | NPM Auth Token（`npm_...`）                 | high   |
+| `pypi_token`                | PyPI Token（`pypi-AgEIcH...`）              | high   |
+| `rubygems_token`            | RubyGems Token（`rubygems_...`）            | medium |
+| `nuget_api_key`             | NuGet API Key（`oy2...`）                   | medium |
+| `docker_hub_token`          | Docker Hub Token（`dckr_pat_...`）          | high   |
+| **监控 / 可观测性**         |                                             |        |
+| `datadog_api_key`           | Datadog API Key（需上下文）                 | medium |
+| `datadog_app_key`           | Datadog App Key（需上下文）                 | medium |
+| `newrelic_key`              | New Relic Key（`NRAK...`）                  | high   |
+| `sentry_token`              | Sentry Token（`sntrys_...`）                | high   |
+| `grafana_api_key`           | Grafana API Key（JWT 格式，需上下文）       | medium |
+| `sonar_token`               | SonarQube Token（`squ_...`）                | high   |
+| **CI/CD**                   |                                             |        |
+| `terraform_token`           | Terraform Cloud Token（`....atlasv1....`）  | medium |
+| `hashicorp_vault_token`     | HashiCorp Vault Token（`hvs.` / `hvb.`）    | high   |
+| `pulumi_token`              | Pulumi Token（`pul-...`）                   | high   |
+| `circleci_token`            | CircleCI Token（`CCIRERES_...`）            | medium |
+| `travis_token`              | Travis CI Token（需上下文）                 | medium |
+| `buildkite_token`           | Buildkite Token（`bkua_...`）               | medium |
+| `jenkins_token`             | Jenkins Token（需上下文）                   | medium |
+| `jfrog_token`               | JFrog Token（`cmVmd...`）                   | medium |
+| **项目管理**                |                                             |        |
+| `atlassian_token`           | JIRA / Confluence Token（需上下文）         | medium |
+| `notion_token`              | Notion Token（`secret_...` / `ntn_...`）    | medium |
+| `linear_api_key`            | Linear API Key（`lin_api_...`）             | medium |
+| `airtable_api_key`          | Airtable API Key（`key...`）                | medium |
+| `asana_token`               | Asana Token（需 `asana` 上下文）            | medium |
+| `pagerduty_token`           | PagerDuty Token（需上下文）                 | medium |
+| `postman_api_key`           | Postman API Key（`PMAK-...`）               | medium |
+| **云服务**                  |                                             |        |
+| `firebase_key`              | Firebase API Key                            | medium |
+| `cloudflare_api_token`      | Cloudflare API Token（需上下文）            | medium |
+| `vercel_token`              | Vercel Token（需上下文）                    | medium |
+| `netlify_token`             | Netlify Token（需上下文）                   | medium |
+| `railway_token`             | Railway Token（需上下文）                   | medium |
+| `render_token`              | Render Token（需上下文）                    | medium |
+| `snyk_token`                | Snyk Token（需上下文）                      | medium |
+| `clerk_secret_key`          | Clerk Secret Key（需上下文）                | medium |
+| `supabase_service_role_key` | Supabase service-role JWT（需上下文）       | medium |
+| `algolia_admin_key`         | Algolia Admin API Key（需上下文）           | medium |
+| `databricks_token`          | Databricks Token（`dapi...`）               | high   |
+| `fastly_api_key`            | Fastly API Key（需上下文）                  | medium |
+| `ngrok_token`               | Ngrok Token（需上下文）                     | medium |
+| **数据库连接字符串**        |                                             |        |
+| `mongodb_connection`        | MongoDB 连接字符串                          | high   |
+| `postgres_connection`       | PostgreSQL 连接字符串                       | high   |
+| `mysql_connection`          | MySQL 连接字符串                            | high   |
+| `redis_connection`          | Redis 连接字符串                            | high   |
+| `amqp_connection`           | AMQP / RabbitMQ 连接字符串                  | high   |
+| `kafka_connection`          | Kafka / Confluent 连接凭据                  | medium |
 
 ### 通用 / 启发式模式（14 个模式）
 
@@ -527,7 +527,7 @@ main()
 
 ## 安全设计
 
-- **只读操作**：不会修改项目文件（仅创建 `.butian/` 工作区和更新其 `.gitignore` 条目）
+- **业务只读**：不会修改业务源码或依赖；只创建 `.butian/` 工作区、缓存、报告产物，并维护对应忽略规则
 - **密钥预览脱敏**：`secret_preview()` 对硬编码密钥只显示前缀字符，不暴露完整值
 - **模板文件识别**：`is_env_template()` 跳过 `.example`、`.sample`、`.template` 后缀的文件
 - **文件大小限制**：默认最大扫描 1MB 的文件内容
