@@ -32,3 +32,7 @@ $errors
 ## 下一步建议
 
 $next_steps
+
+## 大模型修复上下文
+
+$llm_fix_context

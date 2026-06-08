@@ -10,11 +10,12 @@
 
 | #   | 职责           | 说明                                                                                                        |
 | --- | -------------- | ----------------------------------------------------------------------------------------------------------- |
-| 1   | 风险项表格渲染 | 将风险项列表渲染为 Markdown 表格（含严重度、包名、版本、GHSA、修复版本）                                    |
+| 1   | 风险项表格渲染 | 将风险项列表渲染为 Markdown 表格（含严重度、包名、版本、CVE/GHSA、修复版本）                                |
 | 2   | 仓库安检报告   | 渲染硬编码密钥、敏感文件、`.gitignore` 敏感文件规则建议、GitHub Actions、依赖配置与维护、IaC/容器结构化分组 |
 | 3   | 过期依赖报告   | 渲染版本维护信号表格                                                                                        |
 | 4   | 人工确认事项   | 渲染 red + yellow 事项的详细描述                                                                            |
 | 5   | 摘要与建议     | 渲染 TL;DR、优先级建议和下一步操作                                                                          |
+| 6   | 修复上下文     | 输出完整、稳定、适合人工或大模型继续修复的结构化上下文                                                      |
 
 ## CLI 用法
 
@@ -49,24 +50,28 @@ CAPABILITY_BOUNDARY = (
 | 函数                               | 输出内容                                                                                        |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------- |
 | `render_summary(analysis)`         | TL;DR + 详细说明 + 扫描范围 + 能力边界 + 优先级建议                                             |
-| `render_vulnerabilities(analysis)` | 风险项表格（严重度、包名、版本、GHSA、修复版本、说明）                                          |
+| `render_vulnerabilities(analysis)` | 风险项表格（严重度、包名、版本、CVE/GHSA、修复版本、说明）                                      |
 | `render_hygiene(analysis)`         | 硬编码密钥统计 + 表格、敏感文件统计 + 表格、`.gitignore` 敏感文件规则建议、本地仓库安检分组表格 |
 | `render_outdated(analysis)`        | 过期依赖表格（包名、当前版本、最近版本、建议）                                                  |
 | `render_manual_items(analysis)`    | red + yellow 事项的详细说明（关注原因、可能影响、建议动作）                                     |
 | `render_errors(analysis)`          | 扫描错误列表                                                                                    |
 | `render_next_steps(analysis)`      | 下一步建议                                                                                      |
+| `render_llm_fix_context(analysis)` | 大模型修复上下文（完整列出依赖漏洞、增强信号、仓库安检和过期依赖的修复字段）                    |
 
 ### 工具函数
 
-| 函数                               | 作用                                                              |
-| ---------------------------------- | ----------------------------------------------------------------- |
-| `security_ids(item)`               | 从风险项记录中提取所有 GHSA ID（支持嵌套列表、逗号分隔等格式）    |
-| `severity_label(value)`            | 将严重度字符串映射为中文标签（紧急/高风险/中风险/低风险/待确认）  |
-| `is_hygiene_only(analysis)`        | 判断是否为仅仓库安检模式                                          |
-| `date_from_analysis(analysis)`     | 从 `generated_at` 提取日期部分                                    |
-| `datetime_from_analysis(analysis)` | 从 `generated_at` 提取文件系统安全的时间戳（`YYYY-MM-DD_HHMMSS`） |
-| `is_outdated_item(item)`           | 判断过期依赖条目是否有实际可升级的版本                            |
-| `cell(value)`                      | Markdown 表格单元格转义（处理 `` `\|` `` 和换行）                 |
+| 函数                                     | 作用                                                                       |
+| ---------------------------------------- | -------------------------------------------------------------------------- |
+| `security_ids(item)`                     | 从风险项记录中提取 CVE、GHSA 和其他公告 ID（支持嵌套列表、逗号分隔等格式） |
+| `security_ids_markdown(item)`            | 将安全编号渲染成 Markdown 链接，CVE 指向 cve.org，其他编号指向 OSV         |
+| `aggregate_enrichments(item)`            | 聚合 `cve_enrichments` 中的 EPSS、CVSS、CWE、CISA KEV 和 NVD 发布时间      |
+| `severity_label(value)`                  | 将严重度字符串映射为中文标签（紧急/高风险/中风险/低风险/待确认）           |
+| `is_hygiene_only(analysis)`              | 判断是否为仅仓库安检模式                                                   |
+| `date_from_analysis(analysis)`           | 从 `generated_at` 提取日期部分                                             |
+| `datetime_from_analysis(analysis)`       | 从 `generated_at` 提取文件系统安全的时间戳（`YYYY-MM-DD_HHMMSS`）          |
+| `is_outdated_item(item)`                 | 判断过期依赖条目是否有实际可升级的版本                                     |
+| `is_major_version_jump(current, target)` | 判断过期依赖升级是否跨大版本，供修复上下文提醒兼容性风险                   |
+| `cell(value)`                            | Markdown 表格单元格转义（处理 `` `\|` `` 和换行）                          |
 
 ### 模板渲染
 
@@ -85,6 +90,7 @@ def render_markdown(analysis):
         manual_items=render_manual_items(analysis),
         errors=render_errors(analysis),
         next_steps=render_next_steps(analysis),
+        llm_fix_context=render_llm_fix_context(analysis),
     )
 ```
 
@@ -105,6 +111,7 @@ def render_markdown(analysis):
 5. **需要人工确认的事项** — red + yellow 分级事项详情
 6. **扫描错误** — 失败的检查步骤
 7. **下一步** — 优先级建议和操作指引
+8. **大模型修复上下文** — 完整列出可修复/需确认事项，供后续人工或大模型按条处理
 
 ## 仓库安检渲染
 
@@ -131,11 +138,45 @@ HTML 报告会把同一份结构化数据渲染成建议卡片：标题、位置
 
 空状态遵循保守表达：没有任何 hygiene 数据时只写"没有发现硬编码密钥、被 git 跟踪的敏感文件或缺失的敏感文件忽略规则"，不表达"绝对安全"。结构化本地规则的低风险和 info 项也会保留，方便专业用户看到依赖配置与维护建议。
 
+## 大模型修复上下文
+
+Markdown 报告不仅是给人看的摘要，也会作为后续自动修复或大模型修复的输入。因此 `render_llm_fix_context()` 会在报告末尾生成稳定的 `FIX-001`、`FIX-002` 编号清单。
+
+该章节遵循两条原则：
+
+- **完整列出**：不做 Top N 截断；依赖漏洞、硬编码密钥、敏感文件、`.gitignore` 缺失规则、结构化仓库安检、过期依赖都会按条输出。
+- **保留修复字段**：每条尽量包含类型、严重度、文件路径、行号、证据、建议动作、可自动修复状态、版本信息、`fix_config`、嵌套父依赖、EPSS/CVSS/CWE/CISA KEV/NVD 信号和复扫提醒。
+
+示例：
+
+```markdown
+### FIX-001 依赖漏洞：postcss
+
+- 类型：dependency_vulnerability
+- 影响程度：高风险
+- 包名：postcss
+- 当前版本：8.4.31
+- 修复版本：8.4.38
+- 安全编号：[CVE-2024-0001](https://www.cve.org/CVERecord?id=CVE-2024-0001)、[GHSA-aaaa-bbbb-cccc](https://osv.dev/vulnerability/GHSA-aaaa-bbbb-cccc)
+- EPSS：30 天内被利用概率 0.04%；百分位 12.8%；评分日期 2026-06-06。
+- CVSS：最高分 8.8；向量 `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H`。
+- CWE：CWE-400、CWE-770。
+- CISA KEV：已收录；收录日期 2024-05-10；修复截止 2024-06-01；已知勒索软件利用；处置要求 Apply mitigations per vendor instructions.。
+- NVD 发布时间：2024-05-01。
+- 修复配置：生态 npm；包 postcss；目标版本 8.4.38；范围 nested_parent。
+- 嵌套依赖：父依赖 next；父依赖版本范围 ^8.4.0；顶层版本 8.4.40；位置 node_modules/next/node_modules/postcss。
+- 建议动作：升级到修复版本，运行项目测试/构建，然后重新执行补天扫描。
+```
+
+这里不会复制 HTML 中的交互说明和 tooltip，但会保留修复优先级判断需要的关键数值和标签。HTML 继续作为详细证据和可视化复核页。
+
 ## 设计要点
 
 - **模板驱动**：报告结构由 `templates/report.md` 控制，修改模板即可调整输出格式
 - **中文标签**：所有面向用户的文本使用中文严重度标签
+- **安全编号链接化**：Markdown 中的 CVE/GHSA 会生成可点击链接，方便用户和大模型追溯来源
 - **能力边界声明**：每份报告都包含明确的能力边界说明，避免用户误认为报告覆盖了所有安全问题
-- **GHSA ID 提取**：`security_ids()` 递归处理多种 ID 格式（列表、逗号分隔、嵌套字段）
+- **安全编号提取**：`security_ids()` 递归处理多种 ID 格式（列表、逗号分隔、嵌套字段）
+- **修复上下文稳定编号**：`FIX-001` 等编号只用于当前报告内引用，不代表漏洞数据库 ID
 - **空状态处理**：每个渲染函数都处理了数据为空的情况，输出友好的提示文字
 - **本地规则分组**：新增的 GitHub Actions、依赖配置与维护、IaC/容器 finding 以中文分组展示；Markdown 保留结构化列，HTML 使用更自然的说明文本，便于专业用户复核，也方便新手阅读

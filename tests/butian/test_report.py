@@ -181,7 +181,19 @@ class SecurityIdsTests(unittest.TestCase):
     def test_aliases_list(self):
         self.assertEqual(
             report.security_ids({"aliases": ["GHSA-xxxx-xxxx-xxxx", "CVE-2024-0001"]}),
-            ["GHSA-xxxx-xxxx-xxxx"],
+            ["CVE-2024-0001", "GHSA-xxxx-xxxx-xxxx"],
+        )
+
+    def test_cve_fields_are_included_before_ghsa(self):
+        self.assertEqual(
+            report.security_ids(
+                {
+                    "cve_id": "CVE-2024-0002",
+                    "cve_ids": ["CVE-2024-0001", "CVE-2024-0002"],
+                    "advisory_id": "GHSA-aaaa-bbbb-cccc",
+                }
+            ),
+            ["CVE-2024-0001", "CVE-2024-0002", "GHSA-aaaa-bbbb-cccc"],
         )
 
     def test_comma_separated(self):
@@ -251,6 +263,7 @@ class RenderVulnerabilitiesTests(unittest.TestCase):
                     "fixed_versions": ["4.17.21"],
                     "summary": "Prototype pollution",
                     "advisory_id": "GHSA-aaaa-bbbb-cccc",
+                    "aliases": ["CVE-2024-0001"],
                 }
             ],
             "scan_config": {"scan_mode": "full_dependency_scan"},
@@ -259,7 +272,9 @@ class RenderVulnerabilitiesTests(unittest.TestCase):
         self.assertIn("lodash", result)
         self.assertIn("4.17.21", result)
         self.assertIn("高风险", result)
-        self.assertIn("GHSA-aaaa-bbbb-cccc", result)
+        self.assertIn("[GHSA-aaaa-bbbb-cccc](https://osv.dev/vulnerability/GHSA-aaaa-bbbb-cccc)", result)
+        self.assertIn("[CVE-2024-0001](https://www.cve.org/CVERecord?id=CVE-2024-0001)", result)
+        self.assertIn("| 影响程度 | 依赖名称 | 当前版本 | 安全编号 | 修复版本 | 说明 |", result)
 
     def test_no_issues_full_scan(self):
         result = report.render_vulnerabilities(
@@ -444,6 +459,151 @@ class RenderOutdatedTests(unittest.TestCase):
         self.assertIn("暂无法执行", result)
         self.assertIn("版本维护规划", result)
         self.assertIn("发布窗口", result)
+
+
+# ---------------------------------------------------------------------------
+# render_llm_fix_context
+# ---------------------------------------------------------------------------
+class RenderLlmFixContextTests(unittest.TestCase):
+    def test_full_context_keeps_dependency_hygiene_and_outdated_fix_fields(self):
+        analysis = {
+            "top_issues": [
+                {
+                    "severity": "high",
+                    "package": "postcss",
+                    "version": "8.4.31",
+                    "fixed_versions": ["8.4.38"],
+                    "advisory_id": "GHSA-aaaa-bbbb-cccc",
+                    "aliases": ["CVE-2024-0001"],
+                    "summary": "存在公开漏洞。",
+                    "cve_enrichments": [
+                        {
+                            "cveId": "CVE-2024-0001",
+                            "description": "NVD supplied vulnerability description.",
+                            "nvdPublishedAt": "2024-05-01T00:00:00.000Z",
+                            "cvssMetrics": [
+                                {
+                                    "version": "3.1",
+                                    "baseScore": "8.8",
+                                    "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+                                }
+                            ],
+                            "cweIds": ["CWE-400", "CWE-770"],
+                            "epss": "0.0004",
+                            "epssPercentile": "0.128",
+                            "epssScoreDate": "2026-06-06T00:00:00.000Z",
+                            "kevListed": True,
+                            "kevDateAdded": "2024-05-10",
+                            "kevDueDate": "2024-06-01",
+                            "kevKnownRansomwareCampaignUse": "Known",
+                            "kevRequiredAction": "Apply mitigations per vendor instructions.",
+                        }
+                    ],
+                    "dependency_context": {
+                        "kind": "nested_locked",
+                        "locations": [
+                            {
+                                "parent": "next",
+                                "parent_range": "^8.4.0",
+                                "path": "node_modules/next/node_modules/postcss",
+                            }
+                        ],
+                        "top_level_versions": ["8.4.40"],
+                    },
+                }
+            ],
+            "green": [
+                {
+                    "type": "dependency_upgrade",
+                    "package": "postcss",
+                    "fix_config": {
+                        "ecosystem": "npm",
+                        "package": "postcss",
+                        "current_versions": ["8.4.31"],
+                        "target_version": "8.4.38",
+                        "upgrade_scope": "nested_parent",
+                        "residual_guidance": "先升级父依赖 next。",
+                    },
+                }
+            ],
+            "hygiene": {
+                "tracked_secrets": [
+                    {
+                        "file": "src/config.ts",
+                        "line": 7,
+                        "type": "openai_key",
+                        "confidence": "high",
+                        "preview": "sk-***",
+                    }
+                ],
+                "gitignore_missing": [".env"],
+                "workflow_checks": [
+                    {
+                        "id": "actions.remote_script_pipe",
+                        "category": "github_actions",
+                        "severity": "medium",
+                        "confidence": "high",
+                        "file": ".github/workflows/ci.yml",
+                        "line": 12,
+                        "title": "workflow 直接执行远程脚本",
+                        "evidence": "run: curl https://example.com/install.sh | bash",
+                        "recommendation": "固定版本并校验 checksum。",
+                    }
+                ],
+            },
+            "outdated": [
+                {
+                    "package": "react",
+                    "ecosystem": "npm",
+                    "current": "18.2.0",
+                    "wanted": "18.3.1",
+                    "latest": "19.1.0",
+                }
+            ],
+        }
+
+        result = report.render_llm_fix_context(analysis)
+
+        self.assertIn("### FIX-001 依赖漏洞：postcss", result)
+        self.assertIn("- 安全编号：[CVE-2024-0001](https://www.cve.org/CVERecord?id=CVE-2024-0001)、[GHSA-aaaa-bbbb-cccc](https://osv.dev/vulnerability/GHSA-aaaa-bbbb-cccc)", result)
+        self.assertIn("- EPSS：30 天内被利用概率 0.04%；百分位 12.8%；评分日期 2026-06-06。", result)
+        self.assertIn("- CVSS：最高分 8.8；向量 `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H`。", result)
+        self.assertIn("- CWE：CWE-400、CWE-770。", result)
+        self.assertIn("- CISA KEV：已收录；收录日期 2024-05-10；修复截止 2024-06-01；已知勒索软件利用；处置要求 Apply mitigations per vendor instructions.。", result)
+        self.assertIn("- NVD 发布时间：2024-05-01。", result)
+        self.assertIn("- 修复配置：生态 npm；包 postcss；目标版本 8.4.38；范围 nested_parent。", result)
+        self.assertIn("- 嵌套依赖：父依赖 next；父依赖版本范围 ^8.4.0；顶层版本 8.4.40；位置 node_modules/next/node_modules/postcss。", result)
+        self.assertIn("### FIX-002 硬编码密钥：src/config.ts:7", result)
+        self.assertIn("- 密钥类型：OpenAI API Key", result)
+        self.assertIn("### FIX-003 .gitignore 规则补充", result)
+        self.assertIn("- 需要补充：`.env`", result)
+        self.assertIn("### FIX-004 仓库安检：workflow 直接执行远程脚本", result)
+        self.assertIn("- 来源 ID：actions.remote_script_pipe", result)
+        self.assertIn("### FIX-005 过期依赖：react", result)
+        self.assertIn("- 跨大版本：是", result)
+
+    def test_empty_context_has_clear_message(self):
+        result = report.render_llm_fix_context({})
+        self.assertIn("没有可供大模型修复的结构化事项", result)
+
+    def test_render_markdown_includes_llm_fix_context_section(self):
+        markdown = report.render_markdown(
+            {
+                "project": {"name": "demo", "path": "/tmp/demo"},
+                "generated_at": "2026-06-08 12:00:00",
+                "scan_seconds": 1,
+                "top_issues": [
+                    {
+                        "severity": "high",
+                        "package": "lodash",
+                        "version": "4.17.20",
+                        "fixed_versions": ["4.17.21"],
+                    }
+                ],
+            }
+        )
+        self.assertIn("## 大模型修复上下文", markdown)
+        self.assertIn("### FIX-001 依赖漏洞：lodash", markdown)
 
 
 # ---------------------------------------------------------------------------
