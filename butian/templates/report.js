@@ -2363,24 +2363,26 @@ function attackConditionTags(vectorStr) {
 function epssTooltipText(prob, pct) {
   const parts = [];
   if (prob) {
-    parts.push(`未来 30 天被攻击利用的概率约 ${prob}%`);
+    parts.push(`未来 30 天利用概率约 ${prob}%`);
   }
   if (pct) {
-    parts.push(`${pct}% 表示它比约 ${pct}% 的漏洞更容易被利用`);
+    parts.push(`比约 ${pct}% 的漏洞更容易被利用`);
   }
-  const detail = parts.length ? parts.join("；") : "数值越高，越可能被攻击者关注";
-  return `EPSS 是公开数据给出的被利用预测：${detail}。数值越高，越要优先处理`;
+  const detail = parts.length ? `${parts.join("，")}。` : "";
+  return `EPSS 用公开数据预测漏洞被真实利用的可能性：${detail}数值越高，越要优先处理。`;
 }
 
 function epssDetailText(prob, pct) {
-  const parts = [];
+  if (prob && pct) {
+    return `近 30 天被利用概率约 <b>${esc(prob)}%</b>，利用可能性高于 ${esc(pct)}% 的漏洞。`;
+  }
   if (prob) {
-    parts.push(`30 天内被利用概率 <b>${esc(prob)}%</b>`);
+    return `近 30 天被利用概率约 <b>${esc(prob)}%</b>。`;
   }
   if (pct) {
-    parts.push(`百分位 ${esc(pct)}%`);
+    return `利用可能性高于 ${esc(pct)}% 的漏洞。`;
   }
-  return parts.join("，");
+  return "";
 }
 
 function cvssScoreTooltip(score) {
