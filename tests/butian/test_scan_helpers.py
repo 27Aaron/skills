@@ -9,6 +9,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from butian.scripts import scan
 
 
+def close_logger_handlers(logger):
+    for handler in list(logger.handlers):
+        logger.removeHandler(handler)
+        handler.close()
+
+
 class IsBinaryFileTests(unittest.TestCase):
     def test_text_file_is_not_binary(self):
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
@@ -34,20 +40,20 @@ class SetupLoggingTests(unittest.TestCase):
 
         # Reset handlers to avoid duplicate
         logger = logging.getLogger("butian")
-        logger.handlers.clear()
+        close_logger_handlers(logger)
 
         result = scan.setup_logging(verbose=False, debug=False)
         self.assertIsInstance(result, logging.Logger)
         self.assertEqual(result.name, "butian")
 
         # Cleanup
-        logger.handlers.clear()
+        close_logger_handlers(logger)
 
     def test_setup_with_log_dir(self):
         import logging
 
         logger = logging.getLogger("butian")
-        logger.handlers.clear()
+        close_logger_handlers(logger)
 
         with tempfile.TemporaryDirectory(prefix="butian-log-") as tmp:
             scan.setup_logging(verbose=False, debug=False, log_dir=tmp)
@@ -55,7 +61,7 @@ class SetupLoggingTests(unittest.TestCase):
             self.assertTrue(os.path.isfile(log_path))
 
         # Cleanup
-        logger.handlers.clear()
+        close_logger_handlers(logger)
 
 
 if __name__ == "__main__":

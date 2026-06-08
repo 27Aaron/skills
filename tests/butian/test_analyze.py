@@ -1,3 +1,5 @@
+import contextlib
+import io
 import json
 import os
 import tempfile
@@ -1396,8 +1398,9 @@ class TestDefaultOutputPath(unittest.TestCase):
 
 class TestParseArgs(unittest.TestCase):
     def test_scan_json_required(self):
-        with self.assertRaises(SystemExit):
-            analyze.parse_args([])
+        with contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                analyze.parse_args([])
 
     def test_scan_json_only(self):
         args = analyze.parse_args(["scan.json"])
