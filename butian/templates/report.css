@@ -1079,6 +1079,8 @@ td.summary-cell {
 
 /* expand / collapse toggle */
 .fix-btn {
+    position: relative;
+    overflow: hidden;
     border: 1px solid var(--pill-border);
     border-radius: var(--radius-pill);
     background: var(--pill-bg);
@@ -1088,6 +1090,7 @@ td.summary-cell {
     font-size: 13px;
     font-weight: 650;
     line-height: 1.35;
+    isolation: isolate;
     transition:
         background-color 0.16s,
         border-color 0.16s,
@@ -1096,6 +1099,31 @@ td.summary-cell {
 .fix-btn:hover {
     border-color: rgba(4, 120, 87, 0.18);
     background: #ffffff;
+}
+.fix-btn.table-toggle-scanning {
+    border-color: color-mix(in srgb, var(--accent) 42%, var(--pill-border));
+    background: color-mix(in srgb, var(--accent-bg) 64%, var(--pill-bg));
+    color: var(--accent-ink);
+}
+.fix-btn.table-toggle-scanning::after {
+    content: "";
+    position: absolute;
+    z-index: 1;
+    inset: -1px;
+    pointer-events: none;
+    opacity: 0;
+    background: linear-gradient(
+        105deg,
+        transparent 0%,
+        transparent 34%,
+        color-mix(in srgb, var(--accent) 14%, transparent) 42%,
+        color-mix(in srgb, var(--accent) 38%, transparent) 50%,
+        color-mix(in srgb, var(--accent-ink) 18%, transparent) 57%,
+        transparent 68%,
+        transparent 100%
+    );
+    transform: translateX(-115%);
+    animation: table-toggle-scan 0.68s ease-out both;
 }
 
 /* summary */
@@ -1531,7 +1559,11 @@ footer {
         padding: 14px 16px;
         border: 1px solid var(--surface-border);
         border-radius: calc(var(--radius-sm) + 2px);
-        background: color-mix(in srgb, var(--surface-bg) 72%, var(--panel-soft));
+        background: color-mix(
+            in srgb,
+            var(--surface-bg) 72%,
+            var(--panel-soft)
+        );
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
     }
     .vuln-table tr.vuln-row-open {
@@ -1952,7 +1984,8 @@ footer {
     background-size: 100% 100%;
     box-shadow:
         inset 0 1px 0 var(--detail-row-edge),
-        inset 0 -1px 0 color-mix(in srgb, var(--detail-row-edge) 58%, transparent);
+        inset 0 -1px 0
+            color-mix(in srgb, var(--detail-row-edge) 58%, transparent);
     vertical-align: top;
 }
 .vuln-detail {
@@ -2031,7 +2064,11 @@ footer {
     gap: 7px;
     min-width: 0;
     /* Match the first .detail-field divider height while keeping tags on row two. */
-    padding: 13px 0 calc(13px + var(--detail-field-value-line) - var(--detail-signal-tag-line));
+    padding: 13px 0
+        calc(
+            13px + var(--detail-field-value-line) -
+                var(--detail-signal-tag-line)
+        );
     border-bottom: 1px solid var(--detail-card-border);
 }
 .detail-signal-row .signal-tags {
@@ -2167,10 +2204,29 @@ footer {
     }
 }
 
+@keyframes table-toggle-scan {
+    0% {
+        opacity: 0;
+        transform: translateX(-115%);
+    }
+    18% {
+        opacity: 0.88;
+    }
+    72% {
+        opacity: 0.7;
+    }
+    100% {
+        opacity: 0;
+        transform: translateX(115%);
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .vuln-row,
     .vuln-detail-row.vuln-detail-open .vuln-detail,
-    .vuln-detail-row.vuln-detail-scan-ready .vuln-detail::after {
+    .vuln-detail-row.vuln-detail-scan-ready .vuln-detail::after,
+    .fix-btn.table-toggle-scanning,
+    .fix-btn.table-toggle-scanning::after {
         animation: none !important;
         transition: none !important;
         filter: none !important;

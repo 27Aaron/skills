@@ -614,6 +614,96 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("@keyframes vuln-detail-scan", css)
         self.assertIn("@media (prefers-reduced-motion: reduce)", css)
 
+    def test_html_more_buttons_auto_toggle_after_hover_scan(self):
+        data = {
+            "generated_at": "2026-06-05 09:05:50",
+            "project": {
+                "name": "demo",
+                "path": "/tmp/demo",
+                "ecosystems": ["npm"],
+                "total_packages": 16,
+            },
+            "scan_config": {"scan_mode": "full_dependency_scan"},
+            "risk_summary": {
+                "critical": 0,
+                "high": 8,
+                "medium": 0,
+                "low": 0,
+                "info": 0,
+            },
+            "summary": {"tldr": "demo", "detail": "demo", "priority": []},
+            "top_issues": [
+                {
+                    "package": f"risk-lib-{idx}",
+                    "version": "1.0.0",
+                    "severity": "high",
+                    "fixed_versions": ["1.0.1"],
+                    "advisory_id": f"GHSA-risk-{idx}",
+                    "summary": "risk",
+                }
+                for idx in range(8)
+            ],
+            "hygiene": {},
+            "outdated": [
+                {
+                    "package": f"old-lib-{idx}",
+                    "current": "1.0.0",
+                    "wanted": "1.1.0",
+                    "latest": "2.0.0",
+                }
+                for idx in range(8)
+            ],
+        }
+
+        html = self._render_html(data)
+
+        self.assertIn(
+            '<button type="button" class="fix-btn open table-toggle-btn" aria-expanded="false" onclick="toggleVulns(this)" onmouseenter="scheduleVulnTableToggleScan(this)" onmouseleave="cancelTableToggleScan(this)">显示更多（还有 1 项）</button>',
+            html,
+        )
+        self.assertIn(
+            '<button type="button" class="fix-btn open table-toggle-btn" aria-expanded="false" onclick="toggleOutdated(this)" onmouseenter="scheduleOutdatedTableToggleScan(this)" onmouseleave="cancelTableToggleScan(this)">显示更多（还有 1 项）</button>',
+            html,
+        )
+
+        with open(REPORT_JS, "r", encoding="utf-8") as handle:
+            js = handle.read()
+        self.assertIn("const TABLE_TOGGLE_SCAN_DELAY_MS = 680", js)
+        self.assertIn("function scheduleTableToggleScan", js)
+        self.assertIn("function cancelTableToggleScan", js)
+        self.assertIn("function scheduleVulnTableToggleScan", js)
+        self.assertIn("function scheduleOutdatedTableToggleScan", js)
+        self.assertIn("if (btn._tableToggleSuppressHover) return;", js)
+        self.assertIn("btn._tableToggleSuppressHover = true;", js)
+        self.assertIn("cancelTableToggleScan(btn, true);", js)
+        self.assertIn('btn.classList.add("table-toggle-scanning")', js)
+        self.assertIn('btn.classList.remove("table-toggle-scanning")', js)
+        self.assertIn("toggleFn(btn);", js)
+        self.assertIn(
+            "window.scheduleVulnTableToggleScan = scheduleVulnTableToggleScan",
+            js,
+        )
+        self.assertIn(
+            "window.scheduleOutdatedTableToggleScan = scheduleOutdatedTableToggleScan",
+            js,
+        )
+        self.assertIn(
+            "window.cancelTableToggleScan = cancelTableToggleScan",
+            js,
+        )
+
+        with open(REPORT_CSS, "r", encoding="utf-8") as handle:
+            css = handle.read()
+        fix_btn_css = css.split(".fix-btn {", 1)[1].split("}", 1)[0]
+        self.assertIn("position: relative;", fix_btn_css)
+        self.assertIn("overflow: hidden;", fix_btn_css)
+        self.assertIn(".fix-btn.table-toggle-scanning::after", css)
+        scan_css = css.split(".fix-btn.table-toggle-scanning::after {", 1)[1].split("}", 1)[0]
+        self.assertIn("animation: table-toggle-scan 0.68s ease-out both;", scan_css)
+        self.assertIn("@keyframes table-toggle-scan", css)
+        reduced_motion_css = css.split("@media (prefers-reduced-motion: reduce)", 1)[1]
+        self.assertIn(".fix-btn.table-toggle-scanning::after", reduced_motion_css)
+
     def test_report_summary_orders_action_before_light_boundary_note(self):
         data = {
             "generated_at": "2026-06-05 09:05:50",

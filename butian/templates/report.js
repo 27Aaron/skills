@@ -308,25 +308,23 @@ function riskSortSignals(item) {
 }
 
 function sortBySeverity(items) {
-  return (items || [])
-    .slice()
-    .sort((a, b) => {
-      const severityDelta =
-        (SEVERITY_RANK[(b.severity || "info").toLowerCase()] || 0) -
-        (SEVERITY_RANK[(a.severity || "info").toLowerCase()] || 0);
-      if (severityDelta) return severityDelta;
+  return (items || []).slice().sort((a, b) => {
+    const severityDelta =
+      (SEVERITY_RANK[(b.severity || "info").toLowerCase()] || 0) -
+      (SEVERITY_RANK[(a.severity || "info").toLowerCase()] || 0);
+    if (severityDelta) return severityDelta;
 
-      const aSignals = riskSortSignals(a);
-      const bSignals = riskSortSignals(b);
-      const epssDelta = bSignals.epss - aSignals.epss;
-      if (epssDelta) return epssDelta;
-      const cvssDelta = bSignals.cvss - aSignals.cvss;
-      if (cvssDelta) return cvssDelta;
+    const aSignals = riskSortSignals(a);
+    const bSignals = riskSortSignals(b);
+    const epssDelta = bSignals.epss - aSignals.epss;
+    if (epssDelta) return epssDelta;
+    const cvssDelta = bSignals.cvss - aSignals.cvss;
+    if (cvssDelta) return cvssDelta;
 
-      const nameDelta = packageNameFor(a).localeCompare(packageNameFor(b));
-      if (nameDelta) return nameDelta;
-      return String(a.version || "").localeCompare(String(b.version || ""));
-    });
+    const nameDelta = packageNameFor(a).localeCompare(packageNameFor(b));
+    if (nameDelta) return nameDelta;
+    return String(a.version || "").localeCompare(String(b.version || ""));
+  });
 }
 
 function fieldBlock(label, value) {
@@ -481,7 +479,8 @@ function hygieneStatusForTldr() {
   if (secretCount) parts.push(`疑似硬编码凭证 ${secretCount} 处`);
   if (sensitiveCount) parts.push(`被跟踪敏感文件 ${sensitiveCount} 个`);
   if (missingCount) parts.push(`.gitignore 待补充 ${missingCount} 条`);
-  if (localCheckCount) parts.push(`本地配置/工作流待确认 ${localCheckCount} 个`);
+  if (localCheckCount)
+    parts.push(`本地配置/工作流待确认 ${localCheckCount} 个`);
   return `仓库安检仍有${parts.join("、")}`;
 }
 
@@ -2430,10 +2429,9 @@ function detailField(label, valueHtml) {
 
 function detailAction(r) {
   const target = shortFixedVersionText(r);
-  const followUp =
-    target.includes("建议升级到")
-      ? "升级后重新扫描，并完成核心流程兼容性验证。"
-      : "处理完成后重新扫描，确认风险状态已经关闭。";
+  const followUp = target.includes("建议升级到")
+    ? "升级后重新扫描，并完成核心流程兼容性验证。"
+    : "处理完成后重新扫描，确认风险状态已经关闭。";
   return `<div class="detail-action"><div class="detail-action-label">建议处理</div><div class="detail-action-text">${esc(target)}${esc(followUp)}</div></div>`;
 }
 
@@ -2444,9 +2442,7 @@ function detailStory(label, valueHtml, actionHtml, signalHtml) {
   const heading = valueHtml
     ? `<div class="detail-story-heading"><div class="detail-label">${esc(label)}</div></div>`
     : "";
-  const value = valueHtml
-    ? `<div class="detail-value">${valueHtml}</div>`
-    : "";
+  const value = valueHtml ? `<div class="detail-value">${valueHtml}</div>` : "";
   const action = actionHtml || "";
   return `<section class="detail-story">${signals}${heading}${value}${action}</section>`;
 }
@@ -2480,15 +2476,18 @@ function vulnDetailPanel(r) {
   const badges = riskBadgeRow(a);
 
   if (a.description) {
-    story = detailStory("漏洞描述", esc(a.description), detailAction(r), badges);
+    story = detailStory(
+      "漏洞描述",
+      esc(a.description),
+      detailAction(r),
+      badges,
+    );
   } else if (badges) {
     story = detailStory("关键信号", "", "", badges);
   }
 
   if (a.publishedAt) {
-    fields.push(
-      detailField("发布时间", esc(publishedAgeText(a.publishedAt))),
-    );
+    fields.push(detailField("发布时间", esc(publishedAgeText(a.publishedAt))));
   }
 
   if (a.cvssVector) {
@@ -2501,9 +2500,7 @@ function vulnDetailPanel(r) {
       const tagsHtml = atkTags
         ? `<div class="attack-tags">${atkTags}</div>`
         : "";
-      fields.push(
-        detailField("攻击条件", `${sentenceHtml}${tagsHtml}`),
-      );
+      fields.push(detailField("攻击条件", `${sentenceHtml}${tagsHtml}`));
     }
     const ciaTags = ciaImpactTags(a.cvssVector);
     if (ciaTags) {
@@ -2531,13 +2528,13 @@ function vulnDetailPanel(r) {
       parts.push(`收录日期 ${esc(shortDate(a.kevDateAdded))}`);
     if (a.kevDueDate) parts.push(`修复截止 ${esc(shortDate(a.kevDueDate))}`);
     if (a.kevRequiredAction) parts.push(esc(a.kevRequiredAction));
-    fields.push(
-      detailField("CISA KEV", parts.join("；")),
-    );
+    fields.push(detailField("CISA KEV", parts.join("；")));
   }
 
   if (!story && !fields.length && !badges) return "";
-  const facts = fields.length ? `<div class="detail-facts">${fields.join("")}</div>` : "";
+  const facts = fields.length
+    ? `<div class="detail-facts">${fields.join("")}</div>`
+    : "";
   const layoutClass =
     story && facts ? "detail-dossier-split" : "detail-dossier-compact";
   const body =
@@ -2747,7 +2744,7 @@ function renderVulnTable(rows) {
     })
     .join("");
   const toggle = needToggle
-    ? `<tr class="vuln-toggle"><td colspan="6"><button class="fix-btn open" onclick="toggleVulns(this)">显示更多（还有 ${sortedRows.length - VULN_SHOW} 项）</button></td></tr>`
+    ? `<tr class="vuln-toggle"><td colspan="6"><button type="button" class="fix-btn open table-toggle-btn" aria-expanded="false" onclick="toggleVulns(this)" onmouseenter="scheduleVulnTableToggleScan(this)" onmouseleave="cancelTableToggleScan(this)">显示更多（还有 ${sortedRows.length - VULN_SHOW} 项）</button></td></tr>`
     : "";
   return section(
     "当前风险",
@@ -2762,12 +2759,92 @@ function renderVulnTable(rows) {
 }
 
 function toggleVulns(btn) {
+  cancelTableToggleScan(btn, true);
   const table = btn.closest("table");
   table.classList.toggle("vuln-expanded");
   const expanded = table.classList.contains("vuln-expanded");
   const rows = table.querySelectorAll(".vuln-extra:not(.vuln-detail-row)");
   btn.setAttribute("aria-expanded", expanded ? "true" : "false");
   btn.textContent = expanded ? "收起" : `显示更多（还有 ${rows.length} 项）`;
+}
+
+const TABLE_TOGGLE_SCAN_DELAY_MS = 680;
+
+function tableTogglePrefersReducedMotion() {
+  try {
+    return !!(
+      window &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    );
+  } catch (_) {
+    return false;
+  }
+}
+
+function cancelTableToggleScan(btn, keepSuppress) {
+  if (!btn) return;
+  if (btn._tableToggleScanTimer && typeof clearTimeout === "function") {
+    clearTimeout(btn._tableToggleScanTimer);
+  }
+  btn._tableToggleScanTimer = null;
+  if (btn.classList && typeof btn.classList.remove === "function") {
+    btn.classList.remove("table-toggle-scanning");
+  }
+  if (btn.dataset) {
+    delete btn.dataset.tableToggleScan;
+  }
+  if (!keepSuppress) {
+    btn._tableToggleSuppressHover = false;
+  }
+}
+
+function tableToggleIsExpanded(btn) {
+  return !!(
+    btn &&
+    btn.getAttribute &&
+    btn.getAttribute("aria-expanded") === "true"
+  );
+}
+
+function scheduleTableToggleScan(btn, toggleFn) {
+  if (!btn || typeof toggleFn !== "function") return;
+  if (btn._tableToggleSuppressHover) return;
+  cancelTableToggleScan(btn);
+  if (tableTogglePrefersReducedMotion()) {
+    btn._tableToggleSuppressHover = true;
+    toggleFn(btn);
+    return;
+  }
+  const target = tableToggleIsExpanded(btn) ? "collapse" : "expand";
+  if (btn.dataset) {
+    btn.dataset.tableToggleScan = target;
+  }
+  if (btn.classList && typeof btn.classList.add === "function") {
+    btn.classList.add("table-toggle-scanning");
+  }
+  btn._tableToggleScanTimer = setTimeout(() => {
+    btn._tableToggleScanTimer = null;
+    const expected = btn.dataset ? btn.dataset.tableToggleScan : target;
+    if (btn.classList && typeof btn.classList.remove === "function") {
+      btn.classList.remove("table-toggle-scanning");
+    }
+    if (btn.dataset) {
+      delete btn.dataset.tableToggleScan;
+    }
+    const expanded = tableToggleIsExpanded(btn);
+    const shouldToggle =
+      (expected === "expand" && !expanded) ||
+      (expected === "collapse" && expanded);
+    if (shouldToggle) {
+      btn._tableToggleSuppressHover = true;
+      toggleFn(btn);
+    }
+  }, TABLE_TOGGLE_SCAN_DELAY_MS);
+}
+
+function scheduleVulnTableToggleScan(btn) {
+  scheduleTableToggleScan(btn, toggleVulns);
 }
 
 const VULN_DETAIL_SCAN_DELAY_MS = 380;
@@ -2904,7 +2981,11 @@ let customTooltipTarget = null;
 
 function customTooltipElement() {
   if (customTooltipEl) return customTooltipEl;
-  if (!document || !document.body || typeof document.createElement !== "function") {
+  if (
+    !document ||
+    !document.body ||
+    typeof document.createElement !== "function"
+  ) {
     return null;
   }
   const tip = document.createElement("div");
@@ -2929,10 +3010,15 @@ function positionCustomTooltip(target) {
   const targetRect = target.getBoundingClientRect();
   const tipRect = tip.getBoundingClientRect();
   const margin = 10;
-  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
-  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+  const viewportWidth =
+    window.innerWidth || document.documentElement.clientWidth || 0;
+  const viewportHeight =
+    window.innerHeight || document.documentElement.clientHeight || 0;
   let left = targetRect.left + targetRect.width / 2 - tipRect.width / 2;
-  left = Math.max(margin, Math.min(left, viewportWidth - tipRect.width - margin));
+  left = Math.max(
+    margin,
+    Math.min(left, viewportWidth - tipRect.width - margin),
+  );
   let top = targetRect.bottom + 8;
   if (top + tipRect.height + margin > viewportHeight) {
     top = Math.max(margin, targetRect.top - tipRect.height - 8);
@@ -2942,7 +3028,8 @@ function positionCustomTooltip(target) {
 }
 
 function showCustomTooltip(target) {
-  const text = target && target.getAttribute ? target.getAttribute("data-tooltip") : "";
+  const text =
+    target && target.getAttribute ? target.getAttribute("data-tooltip") : "";
   if (!text) return;
   const tip = customTooltipElement();
   if (!tip) return;
@@ -2976,7 +3063,10 @@ function initCustomTooltips(root) {
   });
 }
 
-if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+if (
+  typeof window !== "undefined" &&
+  typeof window.addEventListener === "function"
+) {
   window.addEventListener("resize", () => {
     if (customTooltipTarget) positionCustomTooltip(customTooltipTarget);
   });
@@ -3266,7 +3356,7 @@ function renderOutdated(items) {
     })
     .join("");
   const toggle = needToggle
-    ? `<tr class="outdated-toggle"><td colspan="4"><button class="fix-btn open" onclick="toggleOutdated(this)">显示更多（还有 ${items.length - OUTDATED_SHOW} 项）</button></td></tr>`
+    ? `<tr class="outdated-toggle"><td colspan="4"><button type="button" class="fix-btn open table-toggle-btn" aria-expanded="false" onclick="toggleOutdated(this)" onmouseenter="scheduleOutdatedTableToggleScan(this)" onmouseleave="cancelTableToggleScan(this)">显示更多（还有 ${items.length - OUTDATED_SHOW} 项）</button></td></tr>`
     : "";
   return section(
     "过期依赖",
@@ -3281,12 +3371,17 @@ function renderOutdated(items) {
 }
 
 function toggleOutdated(btn) {
+  cancelTableToggleScan(btn, true);
   const table = btn.closest("table");
   table.classList.toggle("outdated-expanded");
   const expanded = table.classList.contains("outdated-expanded");
   const extras = table.querySelectorAll(".outdated-extra");
   btn.setAttribute("aria-expanded", expanded ? "true" : "false");
   btn.textContent = expanded ? "收起" : `显示更多（还有 ${extras.length} 项）`;
+}
+
+function scheduleOutdatedTableToggleScan(btn) {
+  scheduleTableToggleScan(btn, toggleOutdated);
 }
 
 // ---- Yellow: manual review ----
@@ -3364,12 +3459,15 @@ const sumList = (a) =>
     : "";
 
 window.toggleVulns = toggleVulns;
+window.scheduleVulnTableToggleScan = scheduleVulnTableToggleScan;
 window.toggleVulnDetail = toggleVulnDetail;
 window.openVulnDetail = openVulnDetail;
 window.scheduleCloseVulnDetail = scheduleCloseVulnDetail;
 window.closeVulnDetail = closeVulnDetail;
 window.handleVulnDetailKey = handleVulnDetailKey;
 window.toggleOutdated = toggleOutdated;
+window.scheduleOutdatedTableToggleScan = scheduleOutdatedTableToggleScan;
+window.cancelTableToggleScan = cancelTableToggleScan;
 
 // ---- Mount ----
 const app = document.getElementById("app");
