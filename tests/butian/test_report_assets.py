@@ -316,6 +316,31 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn(".fixed-list", css)
         self.assertIn("grid-template-columns: repeat(2, max-content)", css)
         self.assertIn("td.fixed-cell", css)
+        bar_css = css.split(".bar {", 1)[1].split("}", 1)[0]
+        self.assertIn("position: relative;", bar_css)
+        self.assertIn("isolation: isolate;", bar_css)
+        self.assertIn(".bar::before", css)
+        bar_gloss_css = css.split(".bar::before {", 1)[1].split("}", 1)[0]
+        self.assertIn("linear-gradient(", bar_gloss_css)
+        self.assertIn("rgba(255, 255, 255, 0.18) 0%", bar_gloss_css)
+        self.assertIn("z-index: 1;", bar_gloss_css)
+        self.assertIn(".bar::after", css)
+        bar_pulse_css = css.split(".bar::after {", 1)[1].split("}", 1)[0]
+        self.assertIn("radial-gradient(", bar_pulse_css)
+        self.assertIn("rgba(255, 255, 255, 0.58) 0%", bar_pulse_css)
+        self.assertIn("rgba(255, 255, 255, 0.3) 52%", bar_pulse_css)
+        self.assertIn(
+            "drop-shadow(0 0 5px rgba(255, 255, 255, 0.28))",
+            bar_pulse_css,
+        )
+        self.assertIn("mix-blend-mode: screen;", bar_pulse_css)
+        self.assertIn("animation: risk-bar-pulse 6.6s", bar_pulse_css)
+        self.assertIn("@keyframes risk-bar-pulse", css)
+        risk_pulse_css = css.split("@keyframes risk-bar-pulse {", 1)[1].split(
+            ".lead {", 1
+        )[0]
+        self.assertIn("opacity: 0.62;", risk_pulse_css)
+        self.assertIn("opacity: 0.48;", risk_pulse_css)
         self.assertIn(".outdated-table .col-current", css)
         self.assertIn(".outdated-table .col-latest", css)
         self.assertIn('data-label="详情"', html)
@@ -719,6 +744,11 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertNotIn("blur", reveal_css)
         self.assertIn("@keyframes vuln-detail-scan", css)
         self.assertIn("@media (prefers-reduced-motion: reduce)", css)
+        reduced_motion_css = css.split("@media (prefers-reduced-motion: reduce)", 1)[
+            1
+        ].split("}", 1)[0]
+        self.assertIn(".bar::after", reduced_motion_css)
+        self.assertIn("animation: none !important;", reduced_motion_css)
 
     def test_html_more_buttons_expand_only_on_click_not_hover(self):
         data = {
