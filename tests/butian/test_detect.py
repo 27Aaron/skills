@@ -255,6 +255,36 @@ class BuildPreflightTests(unittest.TestCase):
             self.assertIn("preexisting", gitignore)
             self.assertIn("added_butian_entry", gitignore)
 
+    def test_preflight_creates_gitignore_for_workspace_dirs(self):
+        with tempfile.TemporaryDirectory(prefix="butian-detect-") as root:
+            args = self._make_args()
+            result = detect.build_preflight(root, args)
+            gitignore_path = os.path.join(root, ".gitignore")
+
+            self.assertTrue(os.path.exists(gitignore_path))
+            with open(gitignore_path, "r", encoding="utf-8") as handle:
+                content = handle.read()
+            self.assertIn(".butian/", content)
+            self.assertIn("docs/butian", content)
+            self.assertTrue(result["butian_workspace"]["gitignore"]["exists_after"])
+            self.assertTrue(result["butian_workspace"]["gitignore"]["added_butian_entry"])
+
+    def test_preflight_appends_workspace_gitignore_rules(self):
+        with tempfile.TemporaryDirectory(prefix="butian-detect-") as root:
+            gitignore_path = os.path.join(root, ".gitignore")
+            with open(gitignore_path, "w", encoding="utf-8") as handle:
+                handle.write("node_modules/\n")
+            args = self._make_args()
+            result = detect.build_preflight(root, args)
+
+            with open(gitignore_path, "r", encoding="utf-8") as handle:
+                content = handle.read()
+            self.assertIn("node_modules/", content)
+            self.assertIn(".butian/", content)
+            self.assertIn("docs/butian", content)
+            self.assertFalse(result["butian_workspace"]["gitignore"]["had_butian_entry"])
+            self.assertEqual(result["butian_workspace"]["gitignore"]["missing_entries"], [])
+
 
 # ---------------------------------------------------------------------------
 # main() — subprocess integration tests

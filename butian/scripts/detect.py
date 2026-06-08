@@ -3,7 +3,7 @@
 
 Checks before the full scanner:
   1. Detect supported project dependency files.
-  2. Prepare the local .butian workspace and .gitignore entry.
+  2. Prepare the local .butian workspace and inspect .gitignore coverage.
 
 The script prints JSON to stdout and writes the same JSON to
 .butian/<timestamp>/assets/preflight.json by default. It uses only Python

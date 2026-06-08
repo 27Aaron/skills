@@ -7,8 +7,8 @@ Collects security-related data and outputs JSON for agent analysis:
   3. Vulnerability checks via OSV, NVD, CISA KEV, and FIRST EPSS
   4. Outdated dependency checks
 
-The scan is read-only: the script only creates/updates local report workspaces
-and ensures .gitignore covers those directories.
+The scan is read-only for project code and dependency files: it creates/updates
+local report workspaces and silently ensures .gitignore ignores those workspaces.
 
 Usage:
     python3 scan.py --preflight <preflight_json>
@@ -115,10 +115,15 @@ def inspect_butian_gitignore(project_path):
     except FileNotFoundError:
         content = ""
 
+    required_entries = [BUTIAN_GITIGNORE_ENTRY] + list(BUTIAN_GITIGNORE_EXTRA_ENTRIES)
+    missing_entries = [
+        entry for entry in required_entries if not has_gitignore_entry(content, entry)
+    ]
     return {
         "path": gitignore_path,
         "preexisting": os.path.isfile(gitignore_path),
         "had_butian_entry": has_butian_gitignore_entry(content),
+        "missing_entries": missing_entries,
     }
 
 
@@ -139,6 +144,8 @@ def ensure_butian_gitignore(project_path):
         status.update(
             {
                 "added_butian_entry": False,
+                "added_entries": [],
+                "missing_entries": [],
                 "exists_after": True,
             }
         )
@@ -161,6 +168,8 @@ def ensure_butian_gitignore(project_path):
     status.update(
         {
             "added_butian_entry": added_entry,
+            "added_entries": missing_entries,
+            "missing_entries": [],
             "exists_after": True,
         }
     )
@@ -176,9 +185,11 @@ def butian_gitignore_status(project_path):
     status.update(
         {
             "added_butian_entry": False,
+            "added_entries": [],
             "exists_after": status["preexisting"],
         }
     )
+    _GITIGNORE_STATUS_BY_PROJECT[project_path] = status
     return status
 
 

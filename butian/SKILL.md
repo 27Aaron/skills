@@ -2,7 +2,7 @@
 name: butian
 description: >
   Use when the user asks to check local dependency security, run repository security checks,
-  scan for dependency vulnerabilities, find hardcoded secrets, check sensitive files
+  scan for dependency vulnerabilities with lockfile/exact versions, find hardcoded secrets, check sensitive files
   tracked by git, audit .gitignore coverage, inspect GitHub Actions workflow security,
   review local supply-chain/IaC/container configuration, detect outdated dependencies,
   or generate a security report. Triggers include:
@@ -14,7 +14,7 @@ description: >
 
 # 补天
 
-本地项目安全扫描。产出 Markdown 审计报告 + 只读 HTML 报告，面向产品经理、项目负责人等非安全背景读者。扫描不改源码和依赖；报告工作区写入本地 `.butian/` 和 `docs/`，修复需用户确认。
+本地项目安全扫描。产出 Markdown 审计报告 + 只读 HTML 报告，面向产品经理、项目负责人等非安全背景读者。扫描不改源码和依赖；报告工作区写入本地 `.butian/` 和 `docs/butian/`，并会直接确保 `.gitignore` 忽略这两个工作区目录；修复需用户确认。
 
 ## 它会查什么
 
@@ -32,18 +32,18 @@ description: >
 
 ## 铁律
 
-- **扫描不改业务项目。** 扫描只读取项目文件、调漏洞 API，不修改源码、依赖、数据库、日志或任意项目文件；会创建/更新 `.butian/` 本地报告工作区和 `docs/butian/` Markdown 报告目录，并会确保 `.gitignore` 忽略 `.butian/` 和 `docs/butian`
+- **扫描不改业务项目。** 扫描只读取项目文件、调漏洞 API，不修改源码、依赖、数据库、日志或任意项目文件；会创建/更新 `.butian/` 本地报告工作区和 `docs/butian/` Markdown 报告目录，并会确保 `.gitignore` 忽略 `.butian/` 和 `docs/butian`，这个内部动作不用写进用户报告。
 - **修复要你点头同意。** 报告生成并打开后，Agent 先用 AskUserQuestion 询问是否修复（确认修复 / 取消修复）；确认后再用 AskUserQuestion 询问升级策略（升级到已知修复版本 / 全部升级到最新版本）。Agent 不会自行执行任何升级命令。
 - **风险项和建议分开呈现。** 已确认依赖风险、仓库安检项、版本建议分别归类，避免混在一起影响判断。
 - **不制造恐慌。** 没有证据时说"不确定"，不说"肯定安全"或"肯定中招"
 
 ## 技术约束
 
-- 只在本地读取用户项目文件；不上传源码、lockfile、env 或密钥；不要上传完整 lockfile、`.env`、私钥、证书、数据库、日志或任意项目文件；除 `.butian/`、`docs/butian/security-report-<run-id>.md` 和必要的 `.gitignore` 规则外，不修改源码、依赖、数据库、日志或任意项目文件；不要为用户创建 CI/CD workflow。
+- 只在本地读取用户项目文件；不上传源码、lockfile、env 或密钥；不要上传完整 lockfile、`.env`、私钥、证书、数据库、日志或任意项目文件；扫描阶段除 `.butian/`、`docs/butian/security-report-<run-id>.md` 和 `.gitignore` 中的 `.butian/`、`docs/butian` 工作区忽略规则外，不修改源码、依赖、数据库、日志或任意项目文件；敏感文件相关 `.gitignore` 规则只能在用户确认修复后写入；不要为用户创建 CI/CD workflow。
 - 依赖漏洞检查会直接请求 OSV、NVD、CISA KEV 和 FIRST EPSS；只发送最小必要信息：`ecosystem`、`name`、`version`。
 - 报告里不要泄露完整密钥，只能写文件、行号、类型和脱敏预览。HTML 报告用结构化列表展示：路径（等宽加粗）+ 中文类型标签 + 脱敏 `preview`（code 背景），不裸露英文 type 标识。
 - 扫描自动排除工具配置目录（`.git`、`.butian`、`.claude`、`node_modules`、`.next`、`dist` 等），不扫自身的模板和静态资源文件。`generic_sk_key` 正则使用 `\b` 词边界，避免 CSS `mask-composite` 等误匹配。仓库安检的 GitHub Actions、供应链、IaC/容器规则全部是本地 Python 静态规则，不调用外部扫描器，也不为用户创建 CI/CD workflow。
-- 完整项目安全扫描必须先在被扫项目的 `docs/butian/` 下生成 Markdown 审计报告；如果当前工作目录就是被扫项目，也就是当前工作目录的 `docs/butian/`。报告文件例如 `docs/butian/security-report-<run-id>.md`。用户阅读报告后明确允许修复，才可以执行升级、删除缓存跟踪、修改 `.gitignore`、清理历史或轮换凭证相关操作。
+- 完整项目安全扫描必须先在被扫项目的 `docs/butian/` 下生成 Markdown 审计报告；如果当前工作目录就是被扫项目，也就是当前工作目录的 `docs/butian/`。报告文件例如 `docs/butian/security-report-<run-id>.md`。用户阅读报告后明确允许修复，才可以执行升级、删除缓存跟踪、补写敏感文件忽略规则、清理历史或轮换凭证相关操作。
 - 官方漏洞源：OSV 用于按包坐标命中开源依赖漏洞；NVD、CISA KEV 和 FIRST EPSS 只在 OSV 返回 CVE 后做 CVSS/CWE、已知被利用和利用概率富化；不做泛安全情报查询。
 - 脚本路径按本 skill 目录解析；如果当前 shell 不在 skill 根目录，使用这些脚本的绝对路径。扫描目标由脚本参数或 preflight JSON 中的 `project.path` 决定，报告写到被扫项目的 `.butian/` 和 `docs/`。
 
@@ -58,7 +58,7 @@ python3 scripts/run_audit.py
 py -3 scripts/run_audit.py
 ```
 
-`scripts/run_audit.py` 默认扫描当前目录并自动向上识别最近的项目根目录；在 monorepo 子项目中运行时，优先使用当前子项目的 manifest/lockfile，不要跳到上层 git repo。需要扫描其他目录时，把路径作为最后一个参数传入。脚本会按顺序运行预检、扫描、analysis 生成、Markdown 生成和 HTML 生成，生成后会尝试用系统默认浏览器自动打开静态 HTML 报告（仅首次扫描自动打开，复扫不会重复弹出），并在终端输出固定的人类可读摘要：`📊 风险总览`、`⚠️ 能力边界`、`🚨 重点关注`、`📁 报告路径`；其中能力边界必须使用 Markdown 引用格式 `>` 输出完整文案。人工交互扫描默认不要加 `--no-open`；只有 CI、自动化或测试需要避免弹浏览器时才使用 `--no-open`。如果输出中的模式是 `hygiene_only`，必须告诉用户：`当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；本次仅做仓库安检，检查硬编码密钥、敏感文件跟踪、.gitignore、GitHub Actions、依赖配置与维护和 IaC/容器配置风险。`
+`scripts/run_audit.py` 默认扫描当前目录并自动向上识别最近的项目根目录；在 monorepo 子项目中运行时，优先使用当前子项目的 manifest/lockfile，不要跳到上层 git repo。需要扫描其他目录时，把路径作为最后一个参数传入。如果当前 shell 不在本 skill 目录，使用脚本的绝对路径，例如 `python3 /path/to/butian/scripts/run_audit.py /path/to/project`。脚本会按顺序运行预检、扫描、analysis 生成、Markdown 生成和 HTML 生成，生成后会尝试用系统默认浏览器自动打开静态 HTML 报告（仅首次扫描自动打开，复扫不会重复弹出），并在终端输出固定的人类可读摘要：`📊 风险总览`、`⚠️ 能力边界`、`🚨 重点关注`、`📁 报告路径`；其中能力边界必须使用 Markdown 引用格式 `>` 输出完整文案。人工交互扫描默认不要加 `--no-open`；只有 CI、自动化或测试需要避免弹浏览器时才使用 `--no-open`。如果输出中的模式是 `hygiene_only`，必须告诉用户：`当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；本次仅做仓库安检，检查硬编码密钥、敏感文件跟踪、.gitignore、GitHub Actions、依赖配置与维护和 IaC/容器配置风险。`
 
 对话最终回复如果需要转述扫描结果，必须使用 Markdown 引用格式 `>` 展示完整能力边界，不要自行压缩成短句，也不要另起"提示"类标题。固定写法如下：
 
@@ -90,7 +90,7 @@ python3 scripts/detect.py
 py -3 scripts/detect.py
 ```
 
-`scripts/detect.py` 默认扫描当前目录并自动向上识别最近的项目根目录；如果当前目录属于 monorepo 子项目，必须以最近的项目 manifest/lockfile 为准。需要扫描其他目录时，把路径作为最后一个参数传入。它会创建 `.butian/<timestamp>/content/` 和 `.butian/<timestamp>/assets/`，把 JSON 打印到终端，并把同一份结果保存到 `.butian/<timestamp>/assets/preflight.json`；同时确保 `.gitignore` 忽略 `.butian/` 和 `docs/butian`，并在 `butian_workspace.gitignore` 记录扫描前 `.gitignore` 是否已存在、是否本次新增 `.butian/`。结果里的 `output_file` 是实际保存路径。先读 preflight JSON，再决定扫描模式。
+`scripts/detect.py` 默认扫描当前目录并自动向上识别最近的项目根目录；如果当前目录属于 monorepo 子项目，必须以最近的项目 manifest/lockfile 为准。需要扫描其他目录时，把路径作为最后一个参数传入。它会创建 `.butian/<timestamp>/content/` 和 `.butian/<timestamp>/assets/`，把 JSON 打印到终端，并把同一份结果保存到 `.butian/<timestamp>/assets/preflight.json`；同时确保 `.gitignore` 忽略 `.butian/` 和 `docs/butian`，并在 `butian_workspace.gitignore` 记录扫描前 `.gitignore` 是否已存在、是否本次新增工作区忽略规则。结果里的 `output_file` 是实际保存路径。先读 preflight JSON，再决定扫描模式。
 
 如果 `language_support.supported` 为 `true`，继续执行完整流程：仓库安检 -> 依赖提取 -> 官方漏洞源检查 -> 过旧依赖检查。
 
@@ -168,7 +168,7 @@ python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy fixed
 python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy latest
 ```
 
-4. **复扫验证**：升级完成后，重新运行 `python3 scripts/run_audit.py` 复扫并生成新报告。复扫不会重复弹出浏览器（仅首次扫描自动打开）。如果此轮修复后无残留，进入最终报告步骤；如果有残留，继续下一轮。
+4. **复扫验证**：升级完成后，重新运行 `python3 scripts/run_audit.py` 复扫并生成新的 HTML/analysis。复扫不会重复弹出浏览器（仅首次扫描自动打开）；Markdown 仍按首次报告或最终报告规则生成。如果此轮修复后无残留，进入最终报告步骤；如果有残留，继续下一轮。
 
 #### 第二轮：处理残留（复扫后仍有残留时）
 
@@ -184,7 +184,7 @@ python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy paren
 
 脚本会自动：升级父依赖到最新 → 升级有漏洞的子依赖到修复版本。无法追溯到 `package.json` 根依赖的残留会标注出来，需要等待上游修复或人工评估。
 
-8. **重新扫描并展示结果**：升级完成后，重新运行 `python3 scripts/run_audit.py` 重新扫描。如果此轮修复后无残留，进入最终报告步骤；如果有残留，继续下一轮。
+8. **重新扫描并展示结果**：升级完成后，重新运行 `python3 scripts/run_audit.py` 重新扫描并刷新 HTML/analysis。如果此轮修复后无残留，进入最终报告步骤；如果有残留，继续下一轮。
 
 #### 第三轮：强制覆盖残留依赖（第二轮后仍有残留时）
 
@@ -200,7 +200,7 @@ python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy force
 
 脚本会自动：读取 analysis.json 中残留的可修复项 → 在 `package.json` 的 `overrides` 字段中添加版本强制约束 → 运行 `npm install` 使 overrides 生效。
 
-12. **重新扫描并展示结果**：覆盖完成后，重新运行 `python3 scripts/run_audit.py` 重新扫描。进入最终报告步骤。
+12. **重新扫描并展示结果**：覆盖完成后，重新运行 `python3 scripts/run_audit.py` 重新扫描并刷新 HTML/analysis。进入最终报告步骤。
 
 #### 最终报告
 
@@ -252,6 +252,7 @@ python3 scripts/run_audit.py --final-report
 | 参数                     | 说明                             |
 | ------------------------ | -------------------------------- |
 | `--no-open`              | 不自动打开 HTML 报告             |
+| `--no-root-discovery`    | 使用传入路径本身，不向上寻找项目根 |
 | `--final-report`         | 最终复扫时强制生成 Markdown 报告 |
 | `--verbose`              | 输出详细日志到 stderr            |
 | `--debug`                | 输出调试级别日志                 |

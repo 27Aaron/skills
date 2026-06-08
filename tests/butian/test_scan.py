@@ -204,10 +204,10 @@ class ButianScanTests(unittest.TestCase):
 
             self.assertEqual(preflight["output_file"], output)
             self.assertTrue(os.path.isdir(os.path.join(root, ".butian")))
-            with open(
-                os.path.join(root, ".gitignore"), "r", encoding="utf-8"
-            ) as handle:
-                self.assertIn(".butian/", handle.read())
+            with open(os.path.join(root, ".gitignore"), "r", encoding="utf-8") as handle:
+                content = handle.read()
+            self.assertIn(".butian/", content)
+            self.assertIn("docs/butian", content)
             self.assertTrue(
                 os.path.abspath(preflight["butian_workspace"]["run_dir"]).startswith(
                     os.path.join(os.path.abspath(root), ".butian")
@@ -1541,7 +1541,10 @@ class EnsureButianRunTests(unittest.TestCase):
             self.assertTrue(os.path.isdir(run_dir))
             self.assertTrue(os.path.isdir(os.path.join(run_dir, "assets")))
             self.assertTrue(os.path.isdir(os.path.join(run_dir, "content")))
-            self.assertTrue(os.path.isfile(os.path.join(root, ".gitignore")))
+            with open(os.path.join(root, ".gitignore"), "r", encoding="utf-8") as f:
+                content = f.read()
+            self.assertIn(".butian/", content)
+            self.assertIn("docs/butian", content)
 
     def test_collision_avoidance(self):
         with tempfile.TemporaryDirectory(prefix="butian-run-") as root:
