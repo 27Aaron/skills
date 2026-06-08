@@ -1087,7 +1087,11 @@ class TestBuildSummary(unittest.TestCase):
 
     def test_tldr_uses_counts_focus_package_and_clean_hygiene_status(self):
         scan = _make_scan(
-            project={"name": "mimotion", "path": "/tmp/mimotion", "total_packages": 834},
+            project={
+                "name": "mimotion",
+                "path": "/tmp/mimotion",
+                "total_packages": 834,
+            },
             hygiene={
                 "tracked_secrets": [],
                 "sensitive_tracked": [],
@@ -1111,7 +1115,11 @@ class TestBuildSummary(unittest.TestCase):
             top_issues=[
                 {"package": "next", "severity": "high", "fixed_versions": ["16.2.5"]},
                 {"package": "next", "severity": "high", "fixed_versions": ["16.2.5"]},
-                {"package": "fast-uri", "severity": "high", "fixed_versions": ["3.1.1"]},
+                {
+                    "package": "fast-uri",
+                    "severity": "high",
+                    "fixed_versions": ["3.1.1"],
+                },
             ]
             + [{"package": "brace-expansion", "severity": "medium"}] * 29,
         )

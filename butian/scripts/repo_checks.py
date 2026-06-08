@@ -205,7 +205,9 @@ def scan_repository_checks(project_path: str, ecosystems=None):
             )
         else:
             detail = "检测到项目已有 .github 配置；补齐 Dependabot 后，依赖版本维护会有固定提醒。"
-            recommendation = "建议新增 .github/dependabot.yml，并按项目实际依赖补充对应包管理生态。"
+            recommendation = (
+                "建议新增 .github/dependabot.yml，并按项目实际依赖补充对应包管理生态。"
+            )
         findings.append(
             make_finding(
                 "repo.missing_dependabot",

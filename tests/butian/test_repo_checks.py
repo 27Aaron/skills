@@ -56,9 +56,7 @@ class RepositoryChecksTests(unittest.TestCase):
 
             findings = repo_checks.scan_repository_checks(root)
 
-            self.assertFalse(
-                any("codeowners" in f["id"] for f in findings)
-            )
+            self.assertFalse(any("codeowners" in f["id"] for f in findings))
 
     def test_dependabot_advice_is_skipped_without_github_directory(self):
         with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
@@ -77,9 +75,7 @@ class RepositoryChecksTests(unittest.TestCase):
 
             findings = repo_checks.scan_repository_checks(root)
 
-            self.assertTrue(
-                any(f["id"] == "repo.missing_dependabot" for f in findings)
-            )
+            self.assertTrue(any(f["id"] == "repo.missing_dependabot" for f in findings))
             item = next(f for f in findings if f["id"] == "repo.missing_dependabot")
             self.assertEqual(item["evidence"], "")
             self.assertIn(".github/dependabot.yml", item["recommendation"])
@@ -170,14 +166,14 @@ class RepositoryChecksTests(unittest.TestCase):
 
     def test_detects_registry_source_config(self):
         with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
-            write(os.path.join(root, ".npmrc"), "registry=https://registry.npmjs.org/\n")
+            write(
+                os.path.join(root, ".npmrc"), "registry=https://registry.npmjs.org/\n"
+            )
 
             findings = repo_checks.scan_repository_checks(root)
 
             item = next(
-                f
-                for f in findings
-                if f["id"] == "supply_chain.registry_config_present"
+                f for f in findings if f["id"] == "supply_chain.registry_config_present"
             )
             self.assertEqual(item["severity"], "low")
             self.assertEqual(item["line"], 1)
@@ -203,9 +199,7 @@ class RepositoryChecksTests(unittest.TestCase):
             findings = repo_checks.scan_repository_checks(root)
 
             item = next(
-                f
-                for f in findings
-                if f["id"] == "supply_chain.registry_config_present"
+                f for f in findings if f["id"] == "supply_chain.registry_config_present"
             )
             self.assertEqual(item["file"], ".cargo/config.toml")
             self.assertIn("[registries.internal]", item["evidence"])

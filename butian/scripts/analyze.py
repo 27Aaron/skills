@@ -856,7 +856,9 @@ def build_summary(scan, analysis):
     if missing_count:
         priority.append("补充 .gitignore 敏感文件规则，降低后续误提交概率。")
     if outdated_count:
-        priority.append("过期依赖按维护计划处理，结合版本跨度、兼容性和发布窗口分批升级。")
+        priority.append(
+            "过期依赖按维护计划处理，结合版本跨度、兼容性和发布窗口分批升级。"
+        )
     if dependency_fix_count:
         priority.append(
             "依赖修复后必须重新运行补天扫描；如果仍出现同名旧版本，通常是间接依赖被父包锁定，"

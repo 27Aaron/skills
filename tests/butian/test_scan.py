@@ -1821,25 +1821,21 @@ class SaasTokenTests(unittest.TestCase):
 
     def test_github_fine_grained_pat(self):
         f = self._detect_one(
-            'GITHUB = "github_pat_'
-            + "A" * 22
-            + "_"
-            + "B" * 59
-            + '"',
+            'GITHUB = "github_pat_' + "A" * 22 + "_" + "B" * 59 + '"',
             "github_fine_grained_pat",  # fake fixture
         )
         self.assertEqual(f["confidence"], "high")
 
     def test_groq_api_key(self):
         f = self._detect_one(
-            'GROQ = "gsk_' + 'abcdefghijklmnopqrstuvwxyz1234567890ABCD' + '"',
+            'GROQ = "gsk_' + "abcdefghijklmnopqrstuvwxyz1234567890ABCD" + '"',
             "groq_api_key",  # fake fixture
         )
         self.assertEqual(f["confidence"], "high")
 
     def test_hashicorp_vault_token(self):
         f = self._detect_one(
-            'VAULT_TOKEN = "hvs.' + 'abcdefghijklmnopqrstuvwxyz1234567890' + '"',
+            'VAULT_TOKEN = "hvs.' + "abcdefghijklmnopqrstuvwxyz1234567890" + '"',
             "hashicorp_vault_token",  # fake fixture
         )
         self.assertEqual(f["confidence"], "high")
@@ -1853,63 +1849,67 @@ class SaasTokenTests(unittest.TestCase):
 
     def test_gitlab_runner_token(self):
         f = self._detect_one(
-            'GITLAB_RUNNER_TOKEN = "glrt-' + 'abcdefghijklmnopqrstuvwxyz123456' + '"',
+            'GITLAB_RUNNER_TOKEN = "glrt-' + "abcdefghijklmnopqrstuvwxyz123456" + '"',
             "gitlab_runner_token",  # fake fixture
         )
         self.assertEqual(f["confidence"], "high")
 
     def test_cloudflare_api_token_with_context(self):
         f = self._detect_one(
-            'CLOUDFLARE_API_TOKEN = "cf_' + 'abcdefghijklmnopqrstuvwxyz1234567890' + '"',
+            'CLOUDFLARE_API_TOKEN = "cf_'
+            + "abcdefghijklmnopqrstuvwxyz1234567890"
+            + '"',
             "cloudflare_api_token",  # fake fixture
         )
         self.assertEqual(f["confidence"], "medium")
 
     def test_vercel_token_with_context(self):
         f = self._detect_one(
-            'VERCEL_TOKEN = "vc_' + 'abcdefghijklmnopqrstuvwxyz1234567890' + '"',
+            'VERCEL_TOKEN = "vc_' + "abcdefghijklmnopqrstuvwxyz1234567890" + '"',
             "vercel_token",  # fake fixture
         )
         self.assertEqual(f["confidence"], "medium")
 
     def test_netlify_token_with_context(self):
         f = self._detect_one(
-            'NETLIFY_AUTH_TOKEN = "nf_' + 'abcdefghijklmnopqrstuvwxyz1234567890' + '"',
+            'NETLIFY_AUTH_TOKEN = "nf_' + "abcdefghijklmnopqrstuvwxyz1234567890" + '"',
             "netlify_token",  # fake fixture
         )
         self.assertEqual(f["confidence"], "medium")
 
     def test_railway_token_with_context(self):
         f = self._detect_one(
-            'RAILWAY_TOKEN = "rw_' + 'abcdefghijklmnopqrstuvwxyz1234567890' + '"',
+            'RAILWAY_TOKEN = "rw_' + "abcdefghijklmnopqrstuvwxyz1234567890" + '"',
             "railway_token",  # fake fixture
         )
         self.assertEqual(f["confidence"], "medium")
 
     def test_render_token_with_context(self):
         f = self._detect_one(
-            'RENDER_API_KEY = "rnd_' + 'abcdefghijklmnopqrstuvwxyz1234567890' + '"',
+            'RENDER_API_KEY = "rnd_' + "abcdefghijklmnopqrstuvwxyz1234567890" + '"',
             "render_token",  # fake fixture
         )
         self.assertEqual(f["confidence"], "medium")
 
     def test_snyk_token_with_context(self):
         f = self._detect_one(
-            'SNYK_TOKEN = "snyk_' + 'abcdefghijklmnopqrstuvwxyz1234567890' + '"',
+            'SNYK_TOKEN = "snyk_' + "abcdefghijklmnopqrstuvwxyz1234567890" + '"',
             "snyk_token",  # fake fixture
         )
         self.assertEqual(f["confidence"], "medium")
 
     def test_resend_api_key_with_context(self):
         f = self._detect_one(
-            'RESEND_API_KEY = "re_' + 'abcdefghijklmnopqrstuvwxyz1234567890' + '"',
+            'RESEND_API_KEY = "re_' + "abcdefghijklmnopqrstuvwxyz1234567890" + '"',
             "resend_api_key",  # fake fixture
         )
         self.assertEqual(f["confidence"], "medium")
 
     def test_clerk_secret_key_with_context(self):
         f = self._detect_one(
-            'CLERK_SECRET_KEY = "sk_live_' + 'abcdefghijklmnopqrstuvwxyz1234567890' + '"',
+            'CLERK_SECRET_KEY = "sk_live_'
+            + "abcdefghijklmnopqrstuvwxyz1234567890"
+            + '"',
             "clerk_secret_key",  # fake fixture
         )
         self.assertEqual(f["confidence"], "medium")
@@ -1917,7 +1917,7 @@ class SaasTokenTests(unittest.TestCase):
     def test_supabase_service_role_key_with_context(self):
         f = self._detect_one(
             'SUPABASE_SERVICE_ROLE_KEY = "eyJ'
-            + 'abcdefghijklmnopqrstuvwxyz123456.eyJabcdefghijklmnopqrstuvwxyz123456.'
+            + "abcdefghijklmnopqrstuvwxyz123456.eyJabcdefghijklmnopqrstuvwxyz123456."
             + 'abcdefghijklmnopqrstuvwxyz123456"',
             "supabase_service_role_key",  # fake fixture
         )
@@ -1925,7 +1925,7 @@ class SaasTokenTests(unittest.TestCase):
 
     def test_algolia_admin_key_with_context(self):
         f = self._detect_one(
-            'ALGOLIA_ADMIN_API_KEY = "' + 'abcdef1234567890abcdef1234567890' + '"',
+            'ALGOLIA_ADMIN_API_KEY = "' + "abcdef1234567890abcdef1234567890" + '"',
             "algolia_admin_key",  # fake fixture
         )
         self.assertEqual(f["confidence"], "medium")
@@ -2414,7 +2414,7 @@ class SecretScanFileSelectionTests(unittest.TestCase):
     def test_scans_extensionless_operational_files(self):
         f = self._detect_in_file(
             "Dockerfile",
-            'ENV AWS_ACCESS_KEY_ID="AKIA' + '1A2B3C4D5E6F7G8H' + '"',
+            'ENV AWS_ACCESS_KEY_ID="AKIA' + "1A2B3C4D5E6F7G8H" + '"',
             "aws_access_key",
         )
         self.assertEqual(f["file"], "Dockerfile")
@@ -2430,8 +2430,7 @@ class SecretScanFileSelectionTests(unittest.TestCase):
     def test_scans_netrc_passwords(self):
         f = self._detect_in_file(
             ".netrc",
-            "machine api.company.local login deploy password "
-            + "A1b2C3d4E5f6G7h8I9j0",
+            "machine api.company.local login deploy password " + "A1b2C3d4E5f6G7h8I9j0",
             "netrc_password",
         )
         self.assertEqual(f["file"], ".netrc")

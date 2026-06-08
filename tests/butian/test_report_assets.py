@@ -159,8 +159,10 @@ class ButianReportAssetTests(unittest.TestCase):
             self.skipTest("node is required for report asset rendering tests")
 
         published_at = (
-            datetime.now(timezone.utc) - timedelta(days=45)
-        ).isoformat().replace("+00:00", "Z")
+            (datetime.now(timezone.utc) - timedelta(days=45))
+            .isoformat()
+            .replace("+00:00", "Z")
+        )
         data = {
             "generated_at": "2026-06-05 09:05:50",
             "project": {"name": "demo", "path": "/tmp/demo", "ecosystems": ["npm"]},
@@ -319,7 +321,7 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn('data-label="详情"', html)
         self.assertIn("@media (max-width: 860px)", css)
         self.assertIn(".vuln-table thead", css)
-        self.assertIn('content: attr(data-label)', css)
+        self.assertIn("content: attr(data-label)", css)
         self.assertIn("--mobile-risk-label-col: clamp(76px, 18vw, 108px);", css)
         self.assertIn(
             "grid-template-columns: var(--mobile-risk-label-col) minmax(0, 1fr);",
@@ -443,11 +445,15 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn(".detail-action", css)
         action_css = css.split(".detail-action {", 1)[1].split("}", 1)[0]
         self.assertIn("margin-top: auto;", action_css)
-        split_action_css = css.split(".detail-dossier-split .detail-action {", 1)[1].split("}", 1)[0]
+        split_action_css = css.split(".detail-dossier-split .detail-action {", 1)[
+            1
+        ].split("}", 1)[0]
         self.assertIn("min-height: var(--detail-bottom-row-min);", split_action_css)
         self.assertIn("padding-top: 12px;", split_action_css)
         self.assertIn(".detail-facts", css)
-        facts_css = css.split(".detail-facts {\n    display: grid;", 1)[1].split("}", 1)[0]
+        facts_css = css.split(".detail-facts {\n    display: grid;", 1)[1].split(
+            "}", 1
+        )[0]
         self.assertIn("align-content: start;", facts_css)
         self.assertIn("position: relative;", facts_css)
         self.assertNotIn("border-left: 1px solid var(--detail-card-border);", facts_css)
@@ -544,7 +550,9 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("window.openVulnDetail = openVulnDetail", js)
         self.assertNotIn("window.scheduleOpenVulnDetail", js)
         self.assertIn("window.closeVulnDetail = closeVulnDetail", js)
-        self.assertIn('row.addEventListener("mouseenter", () => openVulnDetail(row))', js)
+        self.assertIn(
+            'row.addEventListener("mouseenter", () => openVulnDetail(row))', js
+        )
         self.assertIn('detail.addEventListener("mouseleave"', js)
         self.assertIn('tr.setAttribute("aria-expanded"', js)
         self.assertIn('classList.add("vuln-detail-scan-ready")', js)
@@ -557,9 +565,14 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("position: fixed;", tooltip_css)
         self.assertIn("pointer-events: none;", tooltip_css)
         self.assertIn("opacity: 0;", tooltip_css)
-        tooltip_visible_css = css.split(".report-tooltip.is-visible {", 1)[1].split("}", 1)[0]
+        tooltip_visible_css = css.split(".report-tooltip.is-visible {", 1)[1].split(
+            "}", 1
+        )[0]
         self.assertIn("opacity: 1;", tooltip_visible_css)
-        self.assertNotIn(".vuln-row:hover + .vuln-detail-row,\n.vuln-detail-row:hover {\n    display:", css)
+        self.assertNotIn(
+            ".vuln-row:hover + .vuln-detail-row,\n.vuln-detail-row:hover {\n    display:",
+            css,
+        )
         self.assertIn(".detail-dossier-compact", css)
         compact_css = css.split(".detail-dossier-compact {", 1)[1].split("}", 1)[0]
         self.assertIn("grid-template-columns: 1fr;", compact_css)
@@ -584,29 +597,47 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("z-index: 1;", dossier_css)
         self.assertIn("align-items: stretch;", dossier_css)
         self.assertIn(".vuln-table .vuln-detail-row:hover {", css)
-        detail_hover_css = css.split(".vuln-table .vuln-detail-row:hover {", 1)[1].split("}", 1)[0]
+        detail_hover_css = css.split(".vuln-table .vuln-detail-row:hover {", 1)[
+            1
+        ].split("}", 1)[0]
         self.assertIn("background: transparent !important;", detail_hover_css)
-        self.assertIn(".vuln-table tbody tr:hover:not(.vuln-row):not(.vuln-row-open) {", css)
+        self.assertIn(
+            ".vuln-table tbody tr:hover:not(.vuln-row):not(.vuln-row-open) {", css
+        )
         self.assertIn(".vuln-table tr.vuln-detail-row {", css)
-        mobile_detail_row_css = css.split(".vuln-table tr.vuln-detail-row {", 1)[1].split("}", 1)[0]
+        mobile_detail_row_css = css.split(".vuln-table tr.vuln-detail-row {", 1)[
+            1
+        ].split("}", 1)[0]
         self.assertIn("background: transparent;", mobile_detail_row_css)
         self.assertIn("padding: 0;", mobile_detail_row_css)
         self.assertIn(".detail-dossier-compact .detail-story {", css)
         self.assertIn(".detail-dossier-compact .detail-facts", css)
-        compact_story_css = css.split(".detail-dossier-compact .detail-story {", 1)[1].split("}", 1)[0]
+        compact_story_css = css.split(".detail-dossier-compact .detail-story {", 1)[
+            1
+        ].split("}", 1)[0]
         self.assertIn("min-height: auto;", compact_story_css)
         self.assertIn(".detail-dossier-compact .detail-action {", css)
-        compact_action_css = css.split(".detail-dossier-compact .detail-action {", 1)[1].split("}", 1)[0]
+        compact_action_css = css.split(".detail-dossier-compact .detail-action {", 1)[
+            1
+        ].split("}", 1)[0]
         self.assertIn("margin-top: 12px;", compact_action_css)
         self.assertIn(".detail-dossier-split > .detail-facts::before", css)
         self.assertIn(".detail-facts::before", css)
-        mobile_facts_line_css = css.split("    .detail-facts::before {", 1)[1].split("}", 1)[0]
+        mobile_facts_line_css = css.split("    .detail-facts::before {", 1)[1].split(
+            "}", 1
+        )[0]
         self.assertIn("display: none;", mobile_facts_line_css)
         self.assertIn(".vuln-detail-row.vuln-detail-open .vuln-detail", css)
-        self.assertIn(".vuln-detail-row.vuln-detail-scan-ready .vuln-detail::after", css)
-        detail_open_css = css.split(".vuln-detail-row.vuln-detail-open .vuln-detail {", 1)[1].split("}", 1)[0]
+        self.assertIn(
+            ".vuln-detail-row.vuln-detail-scan-ready .vuln-detail::after", css
+        )
+        detail_open_css = css.split(
+            ".vuln-detail-row.vuln-detail-open .vuln-detail {", 1
+        )[1].split("}", 1)[0]
         self.assertIn("animation: vuln-detail-reveal 0.38s", detail_open_css)
-        scan_open_css = css.split(".vuln-detail-row.vuln-detail-scan-ready .vuln-detail::after {", 1)[1].split("}", 1)[0]
+        scan_open_css = css.split(
+            ".vuln-detail-row.vuln-detail-scan-ready .vuln-detail::after {", 1
+        )[1].split("}", 1)[0]
         self.assertIn("animation: vuln-detail-scan 0.82s ease-out both;", scan_open_css)
         self.assertIn("@keyframes vuln-detail-reveal", css)
         reveal_css = css.split("@keyframes vuln-detail-reveal {", 1)[1].split("}", 1)[0]
@@ -698,7 +729,9 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("position: relative;", fix_btn_css)
         self.assertIn("overflow: hidden;", fix_btn_css)
         self.assertIn(".fix-btn.table-toggle-scanning::after", css)
-        scan_css = css.split(".fix-btn.table-toggle-scanning::after {", 1)[1].split("}", 1)[0]
+        scan_css = css.split(".fix-btn.table-toggle-scanning::after {", 1)[1].split(
+            "}", 1
+        )[0]
         self.assertIn("animation: table-toggle-scan 0.68s ease-out both;", scan_css)
         self.assertIn("@keyframes table-toggle-scan", css)
         reduced_motion_css = css.split("@media (prefers-reduced-motion: reduce)", 1)[1]

@@ -60,9 +60,7 @@ class WorkflowChecksTests(unittest.TestCase):
 
             findings = workflow_checks.scan_workflows(root)
 
-            item = next(
-                f for f in findings if f["id"] == "actions.missing_permissions"
-            )
+            item = next(f for f in findings if f["id"] == "actions.missing_permissions")
             self.assertEqual(item["severity"], "low")
             self.assertIn("建议声明", item["title"])
 
