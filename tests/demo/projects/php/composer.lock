@@ -1,0 +1,13 @@
+{
+  "packages": [
+    {
+      "name": "symfony/http-foundation",
+      "version": "v5.4.0"
+    },
+    {
+      "name": "monolog/monolog",
+      "version": "2.0.0"
+    }
+  ],
+  "packages-dev": []
+}

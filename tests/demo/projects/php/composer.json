@@ -1,0 +1,7 @@
+{
+  "name": "demo/php-audit",
+  "require": {
+    "symfony/http-foundation": "5.4.0",
+    "monolog/monolog": "2.0.0"
+  }
+}

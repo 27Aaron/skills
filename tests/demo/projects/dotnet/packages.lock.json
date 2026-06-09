@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net8.0": {
+      "Newtonsoft.Json": {
+        "type": "Direct",
+        "resolved": "12.0.1"
+      },
+      "System.Text.Json": {
+        "type": "Direct",
+        "resolved": "6.0.0"
+      }
+    }
+  }
+}

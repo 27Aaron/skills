@@ -1,0 +1,2 @@
+%{"plug": {:hex, :plug, "1.11.0", "abcd", [:mix], [], "hexpm", "hash"},
+  "jason": {:hex, :jason, "1.4.1", "abcd", [:mix], [], "hexpm", "hash"}}
