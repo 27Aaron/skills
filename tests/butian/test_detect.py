@@ -165,6 +165,27 @@ class DetectLanguageSupportTests(unittest.TestCase):
                             {"ecosystem": ecosystem, "file": file_name},
                         )
 
+    def test_detects_all_expanded_ecosystems_together(self):
+        files = [
+            "composer.lock",
+            "Gemfile.lock",
+            "pubspec.lock",
+            "mix.lock",
+            "packages.lock.json",
+            "pom.xml",
+        ]
+        with tempfile.TemporaryDirectory(prefix="butian-detect-") as root:
+            for file_name in files:
+                with open(os.path.join(root, file_name), "w") as f:
+                    f.write("")
+            result = detect.detect_language_support(root)
+            self.assertTrue(result["supported"])
+            self.assertEqual(
+                sorted(result["ecosystems"]),
+                ["hex", "maven", "nuget", "packagist", "pub", "rubygems"],
+            )
+            self.assertEqual(len(result["matched_files"]), 6)
+
     def test_detects_multiple_ecosystems(self):
         with tempfile.TemporaryDirectory(prefix="butian-detect-") as root:
             for name in ["package-lock.json", "go.sum", "Cargo.lock"]:

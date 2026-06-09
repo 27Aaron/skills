@@ -1352,6 +1352,51 @@ class ExtractPackagesTests(unittest.TestCase):
                 [("maven", "org.apache.commons:commons-lang3", "3.14.0")],
             )
 
+    def test_extracts_all_expanded_language_ecosystems_together(self):
+        with tempfile.TemporaryDirectory(prefix="butian-extract-") as root:
+            with open(os.path.join(root, "composer.lock"), "w", encoding="utf-8") as f:
+                json.dump(
+                    {"packages": [{"name": "symfony/console", "version": "v6.4.8"}]},
+                    f,
+                )
+            with open(os.path.join(root, "Gemfile.lock"), "w", encoding="utf-8") as f:
+                f.write("GEM\n  specs:\n    rack (2.2.8)\n")
+            with open(os.path.join(root, "pubspec.lock"), "w", encoding="utf-8") as f:
+                f.write("packages:\n  collection:\n    version: \"1.18.0\"\n")
+            with open(os.path.join(root, "mix.lock"), "w", encoding="utf-8") as f:
+                f.write(
+                    '%{"plug": {:hex, :plug, "1.11.0", "abcd", [:mix], [], "hexpm", "hash"}}\n'
+                )
+            with open(
+                os.path.join(root, "packages.config"), "w", encoding="utf-8"
+            ) as f:
+                f.write('<packages><package id="NUnit" version="3.14.0" /></packages>\n')
+            with open(os.path.join(root, "pom.xml"), "w", encoding="utf-8") as f:
+                f.write(
+                    "<project><dependencies><dependency>"
+                    "<groupId>org.apache.commons</groupId>"
+                    "<artifactId>commons-lang3</artifactId>"
+                    "<version>3.14.0</version>"
+                    "</dependency></dependencies></project>"
+                )
+
+            pkgs = scan.extract_packages(
+                root, ["packagist", "rubygems", "pub", "hex", "nuget", "maven"]
+            )
+
+            keys = {(pkg["ecosystem"], pkg["name"], pkg["version"]) for pkg in pkgs}
+            self.assertEqual(
+                keys,
+                {
+                    ("packagist", "symfony/console", "6.4.8"),
+                    ("rubygems", "rack", "2.2.8"),
+                    ("pub", "collection", "1.18.0"),
+                    ("hex", "plug", "1.11.0"),
+                    ("nuget", "NUnit", "3.14.0"),
+                    ("maven", "org.apache.commons:commons-lang3", "3.14.0"),
+                },
+            )
+
 
 class PackageSourceSummaryTests(unittest.TestCase):
     def test_counts_by_ecosystem_and_source(self):
