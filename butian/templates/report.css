@@ -561,7 +561,7 @@ tbody tr:hover {
 }
 .outdated-row {
     display: grid;
-    grid-template-columns: minmax(128px, 1fr) minmax(190px, auto);
+    grid-template-columns: minmax(0, 1fr) minmax(0, min(190px, 48%));
     align-items: center;
     gap: 12px;
     min-width: 0;
@@ -589,9 +589,11 @@ tbody tr:hover {
     justify-content: flex-end;
     gap: 7px;
     min-width: 0;
+    overflow: hidden;
     text-align: right;
 }
 .outdated-version-flow code {
+    min-width: 0;
     max-width: 100%;
     overflow: visible;
     overflow-wrap: anywhere;
@@ -945,13 +947,14 @@ td.summary-cell {
 }
 .secret-code-line {
     display: grid;
-    grid-template-columns: 4ch minmax(0, max-content);
+    grid-template-columns: 4ch minmax(0, 1fr);
     gap: 12px;
+    width: 100%;
     min-height: 22px;
     padding: 1px 12px;
 }
 .secret-code-line.is-hit {
-    background: linear-gradient(90deg, var(--code-block-hit), transparent 72%);
+    background: var(--code-block-hit);
     box-shadow: inset 3px 0 0 var(--accent);
 }
 .secret-code-no {

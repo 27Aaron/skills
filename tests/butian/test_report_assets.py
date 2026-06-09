@@ -2062,6 +2062,35 @@ class ReportAssetTests(unittest.TestCase):
         self.assertNotIn("rgba(255, 255, 255, 0.54)", dark_css)
         self.assertNotIn("rgba(255, 255, 255, 0.72)", dark_css)
 
+    def test_outdated_versions_shrink_and_secret_hit_highlight_spans_full_row(self):
+        with open(REPORT_CSS, "r", encoding="utf-8") as handle:
+            css = handle.read()
+
+        outdated_css = css.split(".outdated-row {", 1)[1].split("}", 1)[0]
+        self.assertIn("minmax(0, min(190px, 48%))", outdated_css)
+        self.assertNotIn("minmax(190px, auto)", outdated_css)
+
+        flow_css = css.split(".outdated-version-flow {", 1)[1].split("}", 1)[0]
+        self.assertIn("overflow: hidden;", flow_css)
+
+        outdated_code_css = css.split(".outdated-version-flow code {", 1)[1].split(
+            "}",
+            1,
+        )[0]
+        self.assertIn("min-width: 0;", outdated_code_css)
+        self.assertIn("overflow-wrap: anywhere;", outdated_code_css)
+
+        secret_line_css = css.split(".secret-code-line {", 1)[1].split("}", 1)[0]
+        self.assertIn("grid-template-columns: 4ch minmax(0, 1fr);", secret_line_css)
+        self.assertIn("width: 100%;", secret_line_css)
+
+        secret_hit_css = css.split(".secret-code-line.is-hit {", 1)[1].split(
+            "}",
+            1,
+        )[0]
+        self.assertIn("background: var(--code-block-hit);", secret_hit_css)
+        self.assertNotIn("transparent", secret_hit_css)
+
     def test_tldr_fallback_uses_risk_item_term_for_critical_high(self):
         data = {
             "generated_at": "2026-06-05 09:05:50",
