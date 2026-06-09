@@ -2403,14 +2403,16 @@ def main():
             if args.no_root_discovery
             else find_project_root(start)
         )
+    preflight_scan_mode = (preflight or {}).get("recommended_scan_mode")
+    preflight_hygiene_only = preflight_scan_mode == "hygiene_only"
     try:
         ensure_safe_project_path(project_path)
+        output_file = args.output or default_output_path(
+            project_path, preflight=preflight
+        )
     except ValueError as e:
         print(str(e), file=sys.stderr)
         return 2
-    preflight_scan_mode = (preflight or {}).get("recommended_scan_mode")
-    preflight_hygiene_only = preflight_scan_mode == "hygiene_only"
-    output_file = args.output or default_output_path(project_path, preflight=preflight)
     errors = []
     # 输出路径确定运行目录后再初始化日志。
     log_dir = os.path.join(os.path.dirname(os.path.dirname(output_file)), "logs")

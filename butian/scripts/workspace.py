@@ -239,6 +239,19 @@ def run_dir_from_output_file(output_file):
     return os.path.dirname(output_file)
 
 
+def ensure_project_run_dir(project_path, run_dir):
+    project_workspace = os.path.realpath(os.path.join(project_path, BUTIAN_DIR))
+    run_real = os.path.realpath(run_dir)
+    try:
+        if os.path.commonpath([project_workspace, run_real]) != project_workspace:
+            raise ValueError
+    except ValueError as exc:
+        raise ValueError(
+            "preflight 中的运行目录必须位于项目 .butian 工作区内。"
+        ) from exc
+    return run_dir
+
+
 def default_asset_path(project_path, filename, preflight=None):
     if preflight:
         workspace = preflight.get("butian_workspace") or {}
@@ -247,6 +260,7 @@ def default_asset_path(project_path, filename, preflight=None):
             if preflight.get("output_file")
             else ensure_butian_run(project_path)
         )
+        run_dir = ensure_project_run_dir(project_path, run_dir)
         os.makedirs(os.path.join(run_dir, BUTIAN_ASSETS_DIR), exist_ok=True)
         os.makedirs(os.path.join(run_dir, BUTIAN_CONTENT_DIR), exist_ok=True)
         ensure_butian_gitignore(project_path)

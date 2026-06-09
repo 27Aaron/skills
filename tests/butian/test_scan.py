@@ -277,6 +277,41 @@ class DependencyParsersModuleCompatibilityTests(unittest.TestCase):
                 )
             )
 
+    def test_scan_rejects_preflight_run_dir_outside_project_workspace(self):
+        with (
+            tempfile.TemporaryDirectory(prefix="butian-preflight-project-") as root,
+            tempfile.TemporaryDirectory(prefix="butian-preflight-outside-") as outside,
+            tempfile.TemporaryDirectory(prefix="butian-preflight-file-") as meta_dir,
+        ):
+            preflight_path = os.path.join(meta_dir, "preflight.json")
+            with open(preflight_path, "w", encoding="utf-8") as handle:
+                json.dump(
+                    {
+                        "project": {"path": root},
+                        "output_file": os.path.join(outside, "assets", "scan.json"),
+                        "butian_workspace": {"run_dir": outside},
+                    },
+                    handle,
+                )
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    os.path.join("butian", "scripts", "scan.py"),
+                    "--preflight",
+                    preflight_path,
+                ],
+                cwd=os.path.dirname(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                ),
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("运行目录", result.stderr)
+            self.assertFalse(os.path.isdir(os.path.join(outside, "assets")))
+
     def test_human_summary_warns_when_hygiene_only_skips_dependency_scan(self):
         summary = {
             "scan_mode": "hygiene_only",
@@ -2745,6 +2780,17 @@ class DefaultAssetPathTests(unittest.TestCase):
             path = scan.default_asset_path(root, "test.json", preflight=preflight)
             self.assertTrue(path.endswith("test.json"))
             self.assertIn(run_dir, path)
+
+    def test_preflight_run_dir_must_stay_under_project_workspace(self):
+        with (
+            tempfile.TemporaryDirectory(prefix="butian-asset-") as root,
+            tempfile.TemporaryDirectory(prefix="butian-outside-") as outside,
+        ):
+            scan._GITIGNORE_STATUS_BY_PROJECT.clear()
+            preflight = {"butian_workspace": {"run_dir": outside}}
+
+            with self.assertRaises(ValueError):
+                scan.default_asset_path(root, "scan.json", preflight=preflight)
 
 
 class BuildOfficialVulnerabilityTests(unittest.TestCase):
