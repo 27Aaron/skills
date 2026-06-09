@@ -11,6 +11,7 @@ Pipeline:
 """
 
 import argparse
+import importlib
 import json
 import logging
 import os
@@ -99,7 +100,100 @@ def parse_args(argv):
         action="store_true",
         help="跟随符号链接扫描",
     )
+    parser.add_argument(
+        "--server",
+        default="",
+        help="只读 SSH 扫描 Linux 服务器，例如 user@host",
+    )
+    parser.add_argument(
+        "--server-only",
+        action="store_true",
+        help="只生成服务器运行环境扫描结果，不执行项目依赖扫描",
+    )
+    parser.add_argument(
+        "--server-inventory",
+        default="",
+        help="读取已有 server-inventory.json 做离线分析",
+    )
+    parser.add_argument(
+        "--ssh-port",
+        type=int,
+        default=22,
+        help="服务器 SSH 端口",
+    )
+    parser.add_argument(
+        "--identity",
+        default="",
+        help="SSH 私钥路径；只传给 ssh，不写入报告",
+    )
+    parser.add_argument(
+        "--include-docker-metadata",
+        action="store_true",
+        help="采集 Docker 容器名、镜像标签和端口映射；不进入容器、不扫描镜像内部",
+    )
     return parser.parse_args(argv)
+
+
+def import_server_module(name):
+    if __package__:
+        qualified = f"{__package__}.{name}"
+        try:
+            return importlib.import_module(f".{name}", __package__)
+        except ImportError as exc:
+            if exc.name != qualified:
+                raise
+    return importlib.import_module(name)
+
+
+SERVER_IDENTITY_KEYS = {"identity", "identity_file", "ssh_identity"}
+
+
+def _collect_server_identity_secrets(value):
+    secrets = set()
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key in SERVER_IDENTITY_KEYS and isinstance(item, str) and item:
+                secrets.add(item)
+            secrets.update(_collect_server_identity_secrets(item))
+    elif isinstance(value, list):
+        for item in value:
+            secrets.update(_collect_server_identity_secrets(item))
+    return secrets
+
+
+def _redact_server_identity_text(value, secrets):
+    text = str(value)
+    for secret in sorted(secrets, key=len, reverse=True):
+        if secret:
+            text = text.replace(secret, "[redacted-identity]")
+    return text
+
+
+def _strip_server_identity(value, secrets):
+    if isinstance(value, dict):
+        return {
+            key: _strip_server_identity(item, secrets)
+            for key, item in value.items()
+            if key not in SERVER_IDENTITY_KEYS
+        }
+    if isinstance(value, list):
+        return [_strip_server_identity(item, secrets) for item in value]
+    if isinstance(value, str):
+        return _redact_server_identity_text(value, secrets)
+    return value
+
+
+def strip_server_identity(value):
+    return _strip_server_identity(value, _collect_server_identity_secrets(value))
+
+
+def write_json(path, data):
+    output_dir = os.path.dirname(os.path.abspath(path))
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(data, handle, ensure_ascii=False, indent=2)
+        handle.write("\n")
 
 
 def run_json(cmd):
@@ -295,7 +389,10 @@ def risk_nature(issues):
         if any(needle in text for needle in needles):
             tags.append(label)
     if not tags:
-        tags.append("依赖漏洞")
+        if any(str(issue.get("scope") or "") == "server" for issue in issues):
+            tags.append("服务器运行环境风险")
+        else:
+            tags.append("依赖漏洞")
     suffix = f" 共 {len(issues)} 条" if len(issues) > 1 else ""
     return "、".join(tags) + suffix
 
@@ -338,13 +435,21 @@ def format_focus(analysis, scan_mode=None):
     if scan_mode == "hygiene_only":
         return HYGIENE_ONLY_NOTICE
 
-    issues = analysis.get("top_issues") or []
+    issues = (analysis.get("top_issues") or []) + (
+        analysis.get("server_issues") or []
+    )
     if not issues:
         if has_vulnerability_source_errors(analysis):
             return (
                 "本次未命中需要优先处理的依赖漏洞，但官方漏洞源检查存在失败，"
                 "不能当作完整的安全结论；请先查看扫描错误，确认 OSV/NVD/EPSS "
                 "等数据源恢复后再复扫。"
+            )
+        risk_summary = analysis.get("risk_summary") or {}
+        if any(int(risk_summary.get(key) or 0) for key in ("critical", "high", "medium", "low")):
+            return (
+                "本次分析中存在风险计数，但缺少可展示的明细；请查看 analysis.json "
+                "和扫描错误，确认报告生成链路是否完整。"
             )
         return "未发现需要优先处理的依赖漏洞。"
 
@@ -356,7 +461,12 @@ def format_focus(analysis, scan_mode=None):
     focus_source = priority or issues
     groups = defaultdict(list)
     for issue in focus_source:
-        package = issue.get("package") or issue.get("name") or "未知依赖"
+        package = (
+            issue.get("package")
+            or issue.get("name")
+            or issue.get("title")
+            or ("服务器风险" if issue.get("scope") == "server" else "未知依赖")
+        )
         version = issue.get("version") or "-"
         groups[(package, version)].append(issue)
 
@@ -371,11 +481,12 @@ def format_focus(analysis, scan_mode=None):
     selected_count = sum(len(items) for _, items in ranked)
     total_priority = len(priority) if priority else len(issues)
     noun = "紧急/高风险项" if priority else "已确认风险项"
+    subject_label = "组件" if any(issue.get("scope") == "server" for issue in issues) else "包"
     lines = [
-        f"核心风险集中在 {len(ranked)} 个包（{total_priority} 个{noun}中它们占 {selected_count} 个）：",
+        f"核心风险集中在 {len(ranked)} 个{subject_label}（{total_priority} 个{noun}中它们占 {selected_count} 个）：",
         "",
         table(
-            ["包", "当前", "建议升到", "风险性质"],
+            [subject_label, "当前", "建议升到", "风险性质"],
             [
                 [package, version, best_fixed_version(items), risk_nature(items)]
                 for (package, version), items in ranked
@@ -417,6 +528,23 @@ def format_human_summary(summary, scan, analysis, args):
     total_packages = project.get("total_packages") or analysis.get("package_count") or 0
     ecosystems = project.get("ecosystems") or []
     dependency_unit = f" {' / '.join(ecosystems)} 包" if ecosystems else "依赖包"
+    dependency_issue_count = analysis.get(
+        "vulnerability_count", len(analysis.get("top_issues") or [])
+    )
+    server_issue_count = analysis.get(
+        "server_issue_count", len(analysis.get("server_issues") or [])
+    )
+    server_maintenance_count = analysis.get(
+        "server_maintenance_count", len(analysis.get("server_maintenance") or [])
+    )
+    confirmed_issue_count = dependency_issue_count + server_issue_count
+    server_lines = (
+        [
+            f"- 服务器运行环境：{server_issue_count} 个已确认风险 / {server_maintenance_count} 条维护建议",
+        ]
+        if server_issue_count or server_maintenance_count or analysis.get("server")
+        else []
+    )
     secret_count = len(hygiene.get("tracked_secrets") or [])
     sensitive_count = len(hygiene.get("sensitive_tracked") or [])
     missing_count = len(hygiene.get("gitignore_missing") or [])
@@ -448,7 +576,8 @@ def format_human_summary(summary, scan, analysis, args):
         ),
         "",
         f"- 总依赖：{total_packages} 个{dependency_unit}",
-        f"- 已确认风险项：{analysis.get('vulnerability_count', len(analysis.get('top_issues') or []))} 个",
+        f"- 已确认风险项：{confirmed_issue_count} 个",
+        *server_lines,
         f"- 仓库安检：{secret_count} 个硬编码凭证 / {sensitive_count} 个跟踪的敏感文件 / {gitignore_label}",
         f"- 过期依赖：{analysis.get('outdated_count', len(analysis.get('outdated') or []))} 个（建议按维护窗口评估升级）",
         f"- 扫描错误：{error_label}",
@@ -498,6 +627,61 @@ def build_scan_cmd(args, preflight_file):
     return cmd
 
 
+def build_server_scan_payload(inventory, project_path):
+    server_inventory = import_server_module("server_inventory")
+    server_match = import_server_module("server_match")
+    server_analyze = import_server_module("server_analyze")
+
+    assets = server_inventory.build_server_assets(inventory)
+    matched = server_match.match_server_vulnerabilities(
+        assets, project_path=project_path
+    )
+    analysis = server_analyze.build_server_analysis(assets, matched)
+    return {
+        "server": {
+            "inventory": inventory,
+            "assets": assets,
+            "matched": matched,
+            "analysis": analysis,
+        },
+        "assets": assets,
+        "analysis": analysis,
+    }
+
+
+def build_server_only_scan(preflight):
+    return {
+        "generated_at": preflight.get("generated_at"),
+        "scan_seconds": 0,
+        "project": preflight.get("project") or {},
+        "scan_config": {"scan_mode": "server_only"},
+        "vulnerabilities": [],
+        "outdated": [],
+        "hygiene": {},
+        "errors": [],
+        "package_count": 0,
+        "output_file": os.path.join(
+            os.path.dirname(os.path.abspath(preflight["output_file"])),
+            "scan.json",
+        ),
+        "butian_workspace": preflight.get("butian_workspace") or {},
+    }
+
+
+def merge_server_payload(scan, server_payload):
+    server = server_payload["server"]
+    analysis = server.get("analysis") or {}
+    scan["server"] = analysis
+    scan.setdefault("errors", []).extend(analysis.get("errors") or [])
+
+    assets_dir = os.path.dirname(os.path.abspath(scan["output_file"]))
+    write_json(os.path.join(assets_dir, "server-inventory.json"), server["inventory"])
+    write_json(os.path.join(assets_dir, "server-assets.json"), server["assets"])
+    write_json(os.path.join(assets_dir, "server-vulns.json"), server["matched"])
+    write_json(os.path.join(assets_dir, "server-analysis.json"), analysis)
+    return scan
+
+
 def main():
     args = parse_args(sys.argv[1:])
     # Early logging to stderr; file logging set up after scan produces output_file
@@ -520,8 +704,35 @@ def main():
         preflight["output_file"],
     )
 
+    server_payload = None
+    if args.server or args.server_inventory:
+        server_collect = import_server_module("server_collect")
+        if args.server_inventory:
+            inventory = server_collect.read_inventory_file(args.server_inventory)
+        else:
+            inventory = server_collect.collect_server_inventory(
+                args.server,
+                port=args.ssh_port,
+                identity=args.identity,
+                include_docker_metadata=args.include_docker_metadata,
+            )
+        inventory = strip_server_identity(inventory)
+        project_path_for_server = (preflight.get("project") or {}).get(
+            "path"
+        ) or os.path.abspath(args.project_path)
+        server_payload = build_server_scan_payload(
+            inventory, project_path=project_path_for_server
+        )
+
     # Step 2: scan
-    scan = run_json(build_scan_cmd(args, preflight["output_file"]))
+    if args.server_only:
+        scan = build_server_only_scan(preflight)
+    else:
+        scan = run_json(build_scan_cmd(args, preflight["output_file"]))
+    if server_payload:
+        merge_server_payload(scan, server_payload)
+    if args.server_only or server_payload:
+        write_json(scan["output_file"], scan)
     scan_mode = scan.get("scan_config", {}).get("scan_mode", "unknown")
 
     # Set up file logging now that we know the workspace layout

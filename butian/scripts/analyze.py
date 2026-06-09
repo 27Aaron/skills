@@ -698,6 +698,45 @@ def count_risks(*groups):
     return summary
 
 
+def build_server_items(scan):
+    server = scan.get("server") or {}
+    low_evidence_categories = {
+        "cpe_only",
+        "docker_tag_inference",
+        "low_evidence",
+        "nvd_cpe",
+        "service_version",
+        "service_version_only",
+    }
+    confirmed = []
+    for item in server.get("confirmed_issues") or []:
+        confidence = str(item.get("confidence") or "confirmed").lower()
+        if confidence != "confirmed":
+            continue
+        issue = dict(item)
+        issue.setdefault("name", issue.get("package") or issue.get("title") or "服务器风险")
+        issue.setdefault("summary", "服务器运行环境命中已确认风险。")
+        issue["severity"] = normalize_severity(issue.get("severity") or "medium")
+        issue["scope"] = "server"
+        issue["confidence"] = "confirmed"
+        confirmed.append(issue)
+
+    maintenance = []
+    for item in server.get("maintenance_items") or []:
+        confidence = str(item.get("confidence") or "maintenance").lower()
+        category = str(item.get("category") or item.get("evidence_level") or "").lower()
+        if confidence != "maintenance" or category in low_evidence_categories:
+            continue
+        entry = dict(item)
+        entry.setdefault("kind", "maintenance_advice")
+        entry.setdefault("severity", "low")
+        entry.setdefault("confidence", "maintenance")
+        entry["severity"] = normalize_severity(entry.get("severity"))
+        entry["scope"] = "server"
+        maintenance.append(entry)
+    return confirmed, maintenance
+
+
 def is_maintenance_advice(item):
     return item.get("kind") == "maintenance_advice"
 
@@ -749,7 +788,9 @@ def build_summary(scan, analysis):
     risk_summary = analysis["risk_summary"]
     critical_high = risk_summary["critical"] + risk_summary["high"]
     medium_low = risk_summary["medium"] + risk_summary["low"]
-    vuln_count = len(analysis["top_issues"])
+    dependency_issue_count = len(analysis.get("top_issues") or [])
+    server_issue_count = len(analysis.get("server_issues") or [])
+    vuln_count = dependency_issue_count + server_issue_count
     secret_count = len(hygiene.get("tracked_secrets") or [])
     sensitive_count = len(hygiene.get("sensitive_tracked") or [])
     missing_count = len(hygiene.get("gitignore_missing") or [])
@@ -775,8 +816,9 @@ def build_summary(scan, analysis):
     if hygiene_only:
         tldr = "本次没有发现补天支持的依赖文件，因此未执行依赖漏洞扫描；报告结论仅覆盖仓库安检范围。"
     elif critical_high and vuln_count:
+        risk_scope = "依赖风险项" if server_issue_count == 0 else "风险项"
         tldr = (
-            f"发现 {vuln_count} 个已确认依赖风险项，其中 {summary_severity_phrase(risk_summary)}，"
+            f"发现 {vuln_count} 个已确认{risk_scope}，其中 {summary_severity_phrase(risk_summary)}，"
             f"{summary_hygiene_status_phrase(secret_count, sensitive_count, missing_count, local_check_count)}。"
         )
     elif critical_high:
@@ -784,8 +826,9 @@ def build_summary(scan, analysis):
     elif secret_count or sensitive_count:
         tldr = "未发现高优先级依赖漏洞，但仓库里有凭证或敏感文件迹象，需要研发确认。"
     elif vuln_count and medium_low:
+        risk_scope = "依赖风险项" if server_issue_count == 0 else "风险项"
         tldr = (
-            "发现已确认依赖风险项，当前以中风险或低风险为主，建议按维护窗口分批升级。"
+            f"发现已确认{risk_scope}，当前以中风险或低风险为主，建议按维护窗口分批处理。"
         )
     elif vuln_count:
         tldr = "命中已确认风险项，但严重度数据不足，需要结合公告复核影响范围。"
@@ -817,12 +860,18 @@ def build_summary(scan, analysis):
     if hygiene_only:
         priority.append(HYGIENE_ONLY_NOTICE)
     elif critical_high:
+        primary_scope = (
+            "依赖漏洞和服务器运行环境风险"
+            if server_issue_count
+            else "依赖漏洞"
+        )
         priority.append(
-            f"优先处理 {critical_high} 个紧急/高风险项；依赖漏洞先升级有明确修复版本的包，仓库安检项先处理工作流权限、凭证、容器和供应链配置。"
+            f"优先处理 {critical_high} 个紧急/高风险项；{primary_scope}先处理有明确修复版本或官方处置路径的项，仓库安检项先处理工作流权限、凭证、容器和供应链配置。"
         )
     elif vuln_count:
+        risk_scope = "依赖风险项" if server_issue_count == 0 else "风险项"
         priority.append(
-            f"按影响程度处理 {vuln_count} 个已确认依赖风险项，优先选择兼容范围内的修复版本。"
+            f"按影响程度处理 {vuln_count} 个已确认{risk_scope}，优先选择有明确证据和修复路径的项。"
         )
     if secret_count or sensitive_count:
         priority.append(
@@ -872,7 +921,8 @@ def build_analysis(scan, source_scan_file=None, output_file=None):
     top_issues = build_top_issues(scan)
     red, yellow, hygiene_green = build_hygiene_items(scan)
     dependency_green = build_dependency_fix_items(top_issues)
-    green = dependency_green + hygiene_green
+    server_issues, server_maintenance = build_server_items(scan)
+    green = dependency_green + hygiene_green + server_maintenance
 
     analysis = {
         "generated_at": scan.get("generated_at"),
@@ -881,10 +931,13 @@ def build_analysis(scan, source_scan_file=None, output_file=None):
         "scan_config": scan.get("scan_config") or {},
         "source_scan_file": source_scan_file,
         "output_file": output_file,
-        "risk_summary": count_risks(top_issues, red, yellow),
+        "risk_summary": count_risks(top_issues + server_issues, red, yellow),
         "hygiene": scan.get("hygiene") or {},
         "outdated": scan.get("outdated") or [],
+        "server": scan.get("server") or {},
         "top_issues": top_issues,
+        "server_issues": sort_items(server_issues),
+        "server_maintenance": sort_items(server_maintenance),
         "red": sort_items(red),
         "yellow": sort_items(yellow),
         "green": sort_items(green),
@@ -893,6 +946,8 @@ def build_analysis(scan, source_scan_file=None, output_file=None):
             "package_count", (scan.get("project") or {}).get("total_packages", 0)
         ),
         "vulnerability_count": len(top_issues),
+        "server_issue_count": len(server_issues),
+        "server_maintenance_count": len(server_maintenance),
         "outdated_count": len(scan.get("outdated") or []),
         "package_sources": scan.get("package_sources") or [],
         "butian_workspace": scan.get("butian_workspace") or {},

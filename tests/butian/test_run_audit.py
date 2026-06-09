@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from types import SimpleNamespace
+from unittest import mock
 
 from butian.scripts import run_audit
 
@@ -301,6 +302,19 @@ class FormatFocusTests(unittest.TestCase):
         self.assertIn("不能当作完整的安全结论", result)
         self.assertNotIn("未发现需要优先处理的依赖漏洞。", result)
 
+    def test_risk_summary_without_issue_details_warns_incomplete(self):
+        result = run_audit.format_focus(
+            {
+                "top_issues": [],
+                "server_issues": [],
+                "risk_summary": {"high": 1},
+            }
+        )
+
+        self.assertIn("风险计数", result)
+        self.assertIn("缺少可展示的明细", result)
+        self.assertNotIn("未发现需要优先处理", result)
+
     def test_with_critical(self):
         analysis = {
             "top_issues": [
@@ -410,6 +424,47 @@ class FormatHumanSummaryTests(unittest.TestCase):
         self.assertIn("已确认风险项", result)
         self.assertIn("lodash", result)
         self.assertIn("风险项修复验证", result)
+
+    def test_server_only_mode_counts_server_issues(self):
+        summary = {
+            "scan_mode": "server_only",
+            "markdown_report": "/tmp/r.md",
+            "html_report": "/tmp/r.html",
+            "analysis_file": "/tmp/a.json",
+            "errors": [],
+        }
+        scan = {"scan_config": {"scan_mode": "server_only"}, "hygiene": {}}
+        analysis = {
+            "project": {
+                "path": "/tmp/demo",
+                "name": "demo",
+                "ecosystems": [],
+                "total_packages": 0,
+            },
+            "risk_summary": {"critical": 0, "high": 1, "medium": 0, "low": 0},
+            "hygiene": {},
+            "top_issues": [],
+            "server_issues": [
+                {
+                    "scope": "server",
+                    "package": "nginx",
+                    "version": "1.24.0",
+                    "severity": "high",
+                    "summary": "nginx confirmed",
+                }
+            ],
+            "server_issue_count": 1,
+            "vulnerability_count": 0,
+            "outdated_count": 0,
+            "errors": [],
+        }
+        args = SimpleNamespace(no_open=True, final_report=False)
+
+        result = run_audit.format_human_summary(summary, scan, analysis, args)
+
+        self.assertIn("已确认风险项：1 个", result)
+        self.assertIn("nginx", result)
+        self.assertNotIn("未发现需要优先处理的依赖漏洞", result)
 
 
 class PipelinePathTests(unittest.TestCase):
@@ -541,6 +596,295 @@ class BuildScanCmdTests(unittest.TestCase):
         cmd = run_audit.build_scan_cmd(args, "preflight.json")
         self.assertIn("--max-secret-files", cmd)
         self.assertIn("100", cmd)
+
+
+class ServerArgsTests(unittest.TestCase):
+    def test_parse_server_args(self):
+        args = run_audit.parse_args(
+            [
+                "--server",
+                "root@example.test",
+                "--server-only",
+                "--ssh-port",
+                "2222",
+                "--identity",
+                "/tmp/id",
+                "--include-docker-metadata",
+            ]
+        )
+
+        self.assertEqual(args.server, "root@example.test")
+        self.assertTrue(args.server_only)
+        self.assertEqual(args.ssh_port, 2222)
+        self.assertEqual(args.identity, "/tmp/id")
+        self.assertTrue(args.include_docker_metadata)
+
+    def test_parse_server_inventory_arg(self):
+        args = run_audit.parse_args(["--server-inventory", "/tmp/server-inventory.json"])
+        self.assertEqual(args.server_inventory, "/tmp/server-inventory.json")
+
+
+class ServerPipelineHelperTests(unittest.TestCase):
+    def test_build_server_scan_payload_from_inventory(self):
+        inventory = {
+            "target": "root@example.test",
+            "outputs": {"os_release": {"stdout": "ID=ubuntu\nVERSION_ID=24.04\n"}},
+            "errors": [],
+        }
+        calls = []
+        fake_assets = {"distro": {"id": "ubuntu"}, "packages": []}
+        fake_matches = {"confirmed": []}
+        fake_analysis = {
+            "summary": {"package_count": 0, "confirmed_count": 0},
+            "confirmed_issues": [],
+            "maintenance_items": [],
+            "errors": [],
+        }
+        modules = {
+            "butian.scripts.server_inventory": SimpleNamespace(
+                build_server_assets=lambda data: calls.append(("assets", data))
+                or fake_assets
+            ),
+            "butian.scripts.server_match": SimpleNamespace(
+                match_server_vulnerabilities=lambda assets, project_path: calls.append(
+                    ("match", assets, project_path)
+                )
+                or fake_matches
+            ),
+            "butian.scripts.server_analyze": SimpleNamespace(
+                build_server_analysis=lambda assets, matches: calls.append(
+                    ("analysis", assets, matches)
+                )
+                or fake_analysis
+            ),
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.dict(sys.modules, modules):
+                payload = run_audit.build_server_scan_payload(
+                    inventory, project_path=tmp
+                )
+
+        self.assertIn("assets", payload)
+        self.assertIn("analysis", payload)
+        self.assertIn("server", payload)
+        self.assertEqual(payload["server"]["assets"]["distro"]["id"], "ubuntu")
+        self.assertEqual(payload["server"]["analysis"], fake_analysis)
+        self.assertEqual(
+            calls,
+            [
+                ("assets", inventory),
+                ("match", fake_assets, tmp),
+                ("analysis", fake_assets, fake_matches),
+            ],
+        )
+
+
+class ServerOnlyPipelineTests(unittest.TestCase):
+    def test_main_server_only_writes_scan_and_artifacts_without_identity(self):
+        original_argv = sys.argv
+        original_run_json = run_audit.run_json
+        original_run_text = run_audit.run_text
+        original_setup_logging = run_audit.setup_logging
+        with tempfile.TemporaryDirectory(prefix="butian-server-only-") as root:
+            project = os.path.join(root, "project")
+            run_dir = os.path.join(project, ".butian", "20260609-2100")
+            assets_dir = os.path.join(run_dir, "assets")
+            content_dir = os.path.join(run_dir, "content")
+            os.makedirs(assets_dir)
+            preflight_path = os.path.join(assets_dir, "preflight.json")
+            scan_path = os.path.join(assets_dir, "scan.json")
+            analysis_path = os.path.join(assets_dir, "analysis.json")
+            server_inventory = {
+                "target": "root@example.test",
+                "identity": "/tmp/id_server_only",
+                "ssh": {"identity_file": "/tmp/id_server_only"},
+                "outputs": {"os_release": {"stdout": "ID=ubuntu\nVERSION_ID=24.04\n"}},
+                "errors": [
+                    {
+                        "step": "ssh",
+                        "message": "ssh failed while using /tmp/id_server_only",
+                    }
+                ],
+            }
+            sanitized_server_inventory = {
+                "target": "root@example.test",
+                "ssh": {},
+                "outputs": {"os_release": {"stdout": "ID=ubuntu\nVERSION_ID=24.04\n"}},
+                "errors": [
+                    {
+                        "step": "ssh",
+                        "message": "ssh failed while using [redacted-identity]",
+                    }
+                ],
+            }
+            server_assets = {"distro": {"id": "ubuntu"}, "packages": []}
+            server_matched = {"confirmed_issues": [], "errors": []}
+            server_analysis = {
+                "summary": {"package_count": 0, "confirmed_count": 1},
+                "confirmed_issues": [
+                    {
+                        "scope": "server",
+                        "package": "nginx",
+                        "version": "1.24.0",
+                        "severity": "high",
+                        "confidence": "confirmed",
+                        "summary": "nginx confirmed",
+                    }
+                ],
+                "maintenance_items": [],
+                "errors": [{"step": "server_match", "message": "partial source"}],
+            }
+            collect_calls = []
+            captured = {"commands": []}
+
+            modules = {
+                "butian.scripts.server_collect": SimpleNamespace(
+                    collect_server_inventory=lambda target, port, identity, include_docker_metadata: collect_calls.append(
+                        {
+                            "target": target,
+                            "port": port,
+                            "identity": identity,
+                            "include_docker_metadata": include_docker_metadata,
+                        }
+                    )
+                    or server_inventory,
+                    read_inventory_file=lambda path: server_inventory,
+                ),
+                "butian.scripts.server_inventory": SimpleNamespace(
+                    build_server_assets=lambda inventory: server_assets
+                ),
+                "butian.scripts.server_match": SimpleNamespace(
+                    match_server_vulnerabilities=lambda assets, project_path: server_matched
+                ),
+                "butian.scripts.server_analyze": SimpleNamespace(
+                    build_server_analysis=lambda assets, matched: server_analysis
+                ),
+            }
+
+            def fake_run_json(cmd):
+                script = os.path.basename(cmd[1])
+                if script != "detect.py":
+                    raise AssertionError("server-only must skip dependency scan")
+                return {
+                    "generated_at": "2026-06-09 21:00:00",
+                    "output_file": preflight_path,
+                    "recommended_scan_mode": "full_dependency_scan",
+                    "project": {
+                        "path": project,
+                        "name": "demo",
+                        "ecosystems": [],
+                        "total_packages": 0,
+                    },
+                    "butian_workspace": {
+                        "run_dir": run_dir,
+                        "assets_dir": assets_dir,
+                        "content_dir": content_dir,
+                    },
+                }
+
+            def fake_run_text(cmd, echo=True):
+                captured["commands"].append(cmd)
+                script = os.path.basename(cmd[1])
+                if script == "analyze.py":
+                    self.assertEqual(cmd[2], scan_path)
+                    self.assertEqual(cmd[3], analysis_path)
+                    with open(analysis_path, "w", encoding="utf-8") as handle:
+                        json.dump(
+                            {
+                                "generated_at": "2026-06-09 21:00:00",
+                                "project": {"path": project, "name": "demo"},
+                                "risk_summary": {"high": 1},
+                                "top_issues": [],
+                                "hygiene": {},
+                                "outdated": [],
+                                "errors": server_analysis["errors"],
+                                "butian_workspace": {
+                                    "run_dir": run_dir,
+                                    "assets_dir": assets_dir,
+                                    "content_dir": content_dir,
+                                },
+                            },
+                            handle,
+                        )
+                return ""
+
+            try:
+                sys.argv = [
+                    "run_audit.py",
+                    "--server",
+                    "root@example.test",
+                    "--server-only",
+                    "--ssh-port",
+                    "2222",
+                    "--identity",
+                    "/tmp/id_server_only",
+                    "--include-docker-metadata",
+                    "--no-open",
+                    project,
+                ]
+                run_audit.run_json = fake_run_json
+                run_audit.run_text = fake_run_text
+                run_audit.setup_logging = lambda *args, **kwargs: None
+                with mock.patch.dict(sys.modules, modules):
+                    self.assertEqual(run_audit.main(), 0)
+            finally:
+                sys.argv = original_argv
+                run_audit.run_json = original_run_json
+                run_audit.run_text = original_run_text
+                run_audit.setup_logging = original_setup_logging
+
+            self.assertEqual(
+                collect_calls,
+                [
+                    {
+                        "target": "root@example.test",
+                        "port": 2222,
+                        "identity": "/tmp/id_server_only",
+                        "include_docker_metadata": True,
+                    }
+                ],
+            )
+            with open(scan_path, "r", encoding="utf-8") as handle:
+                scan = json.load(handle)
+            with open(
+                os.path.join(assets_dir, "server-inventory.json"),
+                "r",
+                encoding="utf-8",
+            ) as handle:
+                inventory_json = json.load(handle)
+            with open(
+                os.path.join(assets_dir, "server-assets.json"),
+                "r",
+                encoding="utf-8",
+            ) as handle:
+                assets_json = json.load(handle)
+            with open(
+                os.path.join(assets_dir, "server-analysis.json"),
+                "r",
+                encoding="utf-8",
+            ) as handle:
+                server_analysis_json = json.load(handle)
+            with open(
+                os.path.join(assets_dir, "server-vulns.json"),
+                "r",
+                encoding="utf-8",
+            ) as handle:
+                server_vulns_json = json.load(handle)
+
+            self.assertEqual(scan["scan_config"]["scan_mode"], "server_only")
+            self.assertEqual(scan["vulnerabilities"], [])
+            self.assertEqual(scan["server"], server_analysis)
+            self.assertIn(server_analysis["errors"][0], scan["errors"])
+            self.assertEqual(inventory_json, sanitized_server_inventory)
+            self.assertEqual(assets_json, server_assets)
+            self.assertEqual(server_analysis_json, server_analysis)
+            self.assertEqual(server_vulns_json, server_matched)
+            self.assertNotIn("/tmp/id_server_only", json.dumps(scan, ensure_ascii=False))
+            self.assertNotIn(
+                "/tmp/id_server_only",
+                json.dumps(inventory_json, ensure_ascii=False),
+            )
 
 
 # ---------------------------------------------------------------------------

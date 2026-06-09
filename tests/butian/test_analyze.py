@@ -1099,6 +1099,122 @@ class TestCountRisks(unittest.TestCase):
         self.assertEqual(result["info"], 1)
 
 
+class ServerAnalysisMergeTests(unittest.TestCase):
+    def test_build_server_items_filters_low_evidence_candidates(self):
+        confirmed, maintenance = analyze.build_server_items(
+            {
+                "server": {
+                    "confirmed_issues": [
+                        {
+                            "scope": "server",
+                            "package": "nginx",
+                            "version": "1.24.0",
+                            "severity": "high",
+                            "confidence": "confirmed",
+                            "summary": "nginx confirmed",
+                        },
+                        {
+                            "scope": "server",
+                            "package": "openssl",
+                            "version": "3.0.0",
+                            "severity": "critical",
+                            "confidence": "low_evidence",
+                            "summary": "CPE-only candidate",
+                        },
+                    ],
+                    "maintenance_items": [
+                        {
+                            "scope": "server",
+                            "title": "redis public",
+                            "severity": "low",
+                            "confidence": "maintenance",
+                            "category": "public_sensitive_service",
+                        },
+                        {
+                            "scope": "server",
+                            "title": "nginx version only",
+                            "severity": "low",
+                            "confidence": "maintenance",
+                            "category": "service_version",
+                        },
+                        {
+                            "scope": "server",
+                            "title": "docker unclear",
+                            "severity": "low",
+                            "confidence": "low_evidence",
+                        }
+                    ],
+                }
+            }
+        )
+
+        self.assertEqual(len(confirmed), 1)
+        self.assertEqual(confirmed[0]["package"], "nginx")
+        self.assertEqual(confirmed[0]["confidence"], "confirmed")
+        self.assertEqual(len(maintenance), 1)
+        self.assertEqual(maintenance[0]["kind"], "maintenance_advice")
+
+    def test_build_analysis_includes_server_confirmed_issues(self):
+        scan = _make_scan(
+            generated_at="2026-06-09 21:00:00",
+            scan_seconds=1,
+            project={"name": "demo", "path": "/tmp/demo", "total_packages": 0},
+            scan_config={"scan_mode": "server_only"},
+            server={
+                "summary": {
+                    "package_count": 2,
+                    "confirmed_count": 1,
+                    "maintenance_count": 1,
+                },
+                "confirmed_issues": [
+                    {
+                        "scope": "server",
+                        "package": "nginx",
+                        "version": "1",
+                        "severity": "high",
+                        "confidence": "confirmed",
+                        "summary": "nginx confirmed",
+                    },
+                    {
+                        "scope": "server",
+                        "package": "openssl",
+                        "version": "3",
+                        "severity": "critical",
+                        "confidence": "low_evidence",
+                        "summary": "NVD/CPE only",
+                    },
+                ],
+                "maintenance_items": [
+                    {
+                        "scope": "server",
+                        "title": "redis public",
+                        "severity": "low",
+                        "confidence": "maintenance",
+                        "category": "public_sensitive_service",
+                    }
+                ],
+                "errors": [],
+            },
+        )
+
+        analysis = analyze.build_analysis(scan)
+
+        self.assertIn("server", analysis)
+        self.assertEqual(analysis["server"]["summary"]["confirmed_count"], 1)
+        self.assertEqual(analysis["risk_summary"]["high"], 1)
+        self.assertEqual(analysis["risk_summary"]["critical"], 0)
+        self.assertEqual(analysis["server_issue_count"], 1)
+        self.assertEqual(analysis["server_issues"][0]["package"], "nginx")
+        self.assertEqual(analysis["server_maintenance"][0]["title"], "redis public")
+        self.assertTrue(
+            any(item.get("title") == "redis public" for item in analysis["green"])
+        )
+        self.assertNotIn(
+            "NVD/CPE only",
+            json.dumps(analysis["server_issues"], ensure_ascii=False),
+        )
+
+
 # ===========================================================================
 # build_summary
 # ===========================================================================
@@ -1115,6 +1231,7 @@ class TestBuildSummary(unittest.TestCase):
                 "info": 0,
             },
             "top_issues": [],
+            "server_issues": [],
             "red": [],
             "yellow": [],
             "green": [],
@@ -1144,6 +1261,27 @@ class TestBuildSummary(unittest.TestCase):
         self.assertIn("1 个为紧急项、2 个为高风险项", result["tldr"])
         self.assertTrue(any("3 个紧急/高风险项" in p for p in result["priority"]))
         self.assertIn("已确认风险项", result["detail"])
+
+    def test_server_high_risk_counts_as_confirmed_risk(self):
+        scan = _make_scan()
+        analysis = self._make_analysis(
+            risk_summary={"critical": 0, "high": 1, "medium": 0, "low": 0, "info": 0},
+            top_issues=[],
+            server_issues=[
+                {
+                    "scope": "server",
+                    "package": "nginx",
+                    "severity": "high",
+                    "confidence": "confirmed",
+                }
+            ],
+        )
+        result = analyze.build_summary(scan, analysis)
+
+        self.assertIn("发现 1 个已确认风险项", result["tldr"])
+        self.assertNotIn("仓库安检发现", result["tldr"])
+        self.assertIn("命中 1 个已确认风险项", result["detail"])
+        self.assertTrue(any("服务器运行环境风险" in p for p in result["priority"]))
 
     def test_tldr_uses_counts_focus_package_and_clean_hygiene_status(self):
         scan = _make_scan(
