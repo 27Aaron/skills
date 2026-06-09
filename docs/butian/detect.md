@@ -8,12 +8,12 @@
 
 ## 职责
 
-| #   | 职责           | 说明                                                              |
-| --- | -------------- | ----------------------------------------------------------------- |
-| 1   | 依赖文件检测   | 扫描项目根目录，匹配已知的 lockfile 名称                          |
-| 2   | 工作区准备     | 创建 `.butian/<timestamp>/` 运行目录结构                          |
-| 3   | 扫描模式推荐   | 根据是否找到依赖文件推荐 `full_dependency_scan` 或 `hygiene_only` |
-| 4   | Gitignore 准备 | 确保 `.gitignore` 覆盖 Butian 本地工作区和报告目录                |
+| #   | 职责           | 说明                                                                                           |
+| --- | -------------- | ---------------------------------------------------------------------------------------------- |
+| 1   | 依赖文件检测   | 扫描项目根目录，匹配已知的 lockfile 名称                                                       |
+| 2   | 工作区准备     | 创建 `.butian/<run>/` 运行目录结构；默认 run id 为 `YYYYMMDD-HHMM`，同一分钟重复扫描会追加后缀 |
+| 3   | 扫描模式推荐   | 根据是否找到依赖文件推荐 `full_dependency_scan` 或 `hygiene_only`                              |
+| 4   | Gitignore 准备 | 确保 `.gitignore` 覆盖 Butian 本地工作区和报告目录                                             |
 
 ## CLI 用法
 
@@ -67,13 +67,13 @@ python3 detect.py --compact              # 输出紧凑 JSON
 
 ### `default_output_path(project_path)`
 
-默认输出路径：`.butian/<timestamp>/assets/preflight.json`
+默认输出路径：`.butian/<run>/assets/preflight.json`
 
 ## 输出 JSON 结构
 
 ```json
 {
-  "generated_at": "2025-01-15 10:30:00",
+  "generated_at": "2026-06-09 15:50:00",
   "project": {
     "path": "/absolute/path/to/project",
     "name": "my-project"
@@ -85,9 +85,9 @@ python3 detect.py --compact              # 输出紧凑 JSON
   },
   "recommended_scan_mode": "full_dependency_scan",
   "butian_workspace": {
-    "run_dir": ".butian/20250115-103000-abc123",
-    "assets_dir": ".butian/20250115-103000-abc123/assets",
-    "content_dir": ".butian/20250115-103000-abc123/content",
+    "run_dir": ".butian/20260609-1550",
+    "assets_dir": ".butian/20260609-1550/assets",
+    "content_dir": ".butian/20260609-1550/content",
     "gitignore": {
       "path": ".gitignore",
       "preexisting": true,
@@ -98,7 +98,7 @@ python3 detect.py --compact              # 输出紧凑 JSON
       "exists_after": true
     }
   },
-  "output_file": ".butian/20250115-103000-abc123/assets/preflight.json"
+  "output_file": ".butian/20260609-1550/assets/preflight.json"
 }
 ```
 

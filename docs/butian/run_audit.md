@@ -8,14 +8,14 @@
 
 ## 职责
 
-| #   | 职责          | 说明                                                                                       |
-| --- | ------------- | ------------------------------------------------------------------------------------------ |
-| 1   | 管线编排      | 按序调用 detect → scan → analyze → report → visualize                                      |
-| 2   | 参数透传      | 将用户参数传递给各子阶段（verbose/debug/follow-symlinks）                                  |
-| 3   | 结果汇总      | 收集各阶段的文件路径和风险统计                                                             |
-| 4   | 终端摘要      | 输出格式化的终端摘要（包含 Unicode 表格）                                                  |
-| 5   | 报告打开      | 首次扫描自动用系统浏览器打开 HTML 报告，复扫跳过（由 `.butian/.first-scan-done` 标记控制） |
-| 6   | Markdown 控制 | 首次扫描 + 最终复扫（`--final-report`）生成 Markdown，中间复扫跳过                         |
+| #   | 职责          | 说明                                                                                                                         |
+| --- | ------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| 1   | 管线编排      | 按序调用 detect → scan → analyze → report → visualize                                                                        |
+| 2   | 参数透传      | 将用户参数传递给各子阶段（verbose/debug/follow-symlinks）                                                                    |
+| 3   | 结果汇总      | 收集各阶段的文件路径和风险统计                                                                                               |
+| 4   | 终端摘要      | 输出格式化的终端摘要（包含 Unicode 表格）                                                                                    |
+| 5   | 报告打开      | 首次扫描自动用系统浏览器打开 HTML 报告，复扫跳过（由 `.butian/.first-scan-done` 标记控制）；`--no-open` 时明确标注未自动打开 |
+| 6   | Markdown 控制 | 首次扫描 + 最终复扫（`--final-report`）生成 Markdown，中间复扫跳过                                                           |
 
 ## CLI 用法
 
@@ -68,7 +68,7 @@ run_audit.py
 │     → analysis.json
 │
 ├─ 4. report.py <analysis_path> <markdown_path>  ← 首次扫描或 --final-report 时执行
-│     → docs/butian/security-report-YYYY-MM-DD_HHMMSS.md
+│     → docs/butian/security-report-YYYYMMDD-HHMM.md
 │     复扫时跳过（由 .butian/.first-scan-done 标记控制）
 ├─ 5. visualize.py <analysis_path> <html_path> [--no-open]
 │     → .butian/<run>/content/security-report.html
@@ -127,24 +127,26 @@ run_audit.py
 [核心风险包的 Unicode 表格]
 
 📁 报告路径
-- Markdown 审计报告：docs/butian/security-report-2025-01-15_120000.md
-- HTML 报告：.butian/.../content/security-report.html
+- Markdown 审计报告：docs/butian/security-report-20260609-1550.md
+- HTML 报告（未自动打开）：.butian/.../content/security-report.html
 - analysis JSON：.butian/.../assets/analysis.json
 
 # 或最终复扫时：
 📁 报告路径
-- 最终Markdown 审计报告：docs/butian/security-report-2025-01-15_143000.md
-- HTML 报告：.butian/.../content/security-report.html
+- 最终Markdown 审计报告：docs/butian/security-report-20260609-1550.md
+- HTML 报告（已自动打开）：.butian/.../content/security-report.html
 - analysis JSON：.butian/.../assets/analysis.json
 
 # 或中间复扫时（无 Markdown 生成）：
 📁 报告路径
 - Markdown 审计报告：复扫未生成（首次扫描已有）
-- HTML 报告：.butian/.../content/security-report.html
+- HTML 报告（复扫已跳过自动打开）：.butian/.../content/security-report.html
 - analysis JSON：.butian/.../assets/analysis.json
 ```
 
 终端摘要只展示仓库安检的基础计数，详细的 GitHub Actions、依赖配置与维护、IaC/容器 finding 会进入 Markdown 和 HTML 报告的"仓库安检"章节，并继续参与 `red/yellow/green` 风险分级。`hygiene_only` 模式只跳过依赖漏洞和过期依赖检查，不跳过这些本地 Python 仓库安检规则。
+
+终端摘要不是完整报告。判断 HTML/Markdown 展示是否准确时，应打开最新 `.butian/<run>/content/security-report.html`，并查看同一 run 生成的 `docs/butian/security-report-<run>.md`。
 
 ## 核心辅助函数
 
@@ -158,14 +160,14 @@ run_audit.py
 
 ### 漏洞分析
 
-| 函数                                                  | 作用                                                    |
-| ----------------------------------------------------- | ------------------------------------------------------- |
-| `format_focus(analysis, scan_mode)`                   | 生成重点关注区域的表格（按命中风险项数排序的前 6 个包） |
-| `format_risk_rows(risk_summary)`                      | 格式化风险统计行（含 emoji 指示器）                     |
-| `format_human_summary(summary, scan, analysis, args)` | 组装完整的终端摘要文本                                  |
-| `best_fixed_version(issues)`                          | 从多个风险项记录中选出最佳修复版本                      |
-| `risk_nature(issues)`                                 | 通过模式匹配识别风险类型（SSRF、XSS、DoS 等）           |
-| `mode_label(scan_mode)`                               | 将扫描模式映射为中文标签                                |
+| 函数                                                  | 作用                                                                                     |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `format_focus(analysis, scan_mode)`                   | 生成重点关注区域的表格（按命中风险项数排序的前 6 个包）                                  |
+| `format_risk_rows(risk_summary)`                      | 格式化风险统计行（含 emoji 指示器）                                                      |
+| `format_human_summary(summary, scan, analysis, args)` | 组装完整的终端摘要文本                                                                   |
+| `best_fixed_version(issues)`                          | 从多个风险项记录中选出最佳修复版本                                                       |
+| `risk_nature(issues)`                                 | 通过模式匹配识别风险类型（中间件/代理绕过、SSRF、DoS、缓存风险等），仅用于终端重点关注表 |
+| `mode_label(scan_mode)`                               | 将扫描模式映射为中文标签                                                                 |
 
 ### 路径工具
 
@@ -182,6 +184,7 @@ run_audit.py
 - **首次标记**：`.butian/.first-scan-done` 标记控制浏览器弹出和 Markdown 生成，复扫不重复
 - **最终报告**：`--final-report` 在修复完成后强制生成最终 Markdown 审计报告
 - **仓库安检明细下沉到报告**：终端保持短摘要，结构化本地规则的依据、处理方式和分组展示放在 Markdown/HTML 报告里，避免终端输出过长
+- **报告验收以最新 run 为准**：同一项目可能保留多个 `.butian/<run>`，不要用旧 HTML 判断当前模板。
 
 ## 相关文档
 

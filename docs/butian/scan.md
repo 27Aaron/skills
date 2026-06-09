@@ -79,12 +79,12 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 
 ### 工作区管理
 
-| 函数                                                    | 作用                                                                      |
-| ------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `find_project_root(start_path)`                         | 向上遍历目录树，找到包含项目标记文件（`.git`、`package.json` 等）的根目录 |
-| `ensure_butian_run(project_path, run_id)`               | 创建 `.butian/<timestamp>-<run_id>/` 运行目录                             |
-| `default_asset_path(project_path, filename, preflight)` | 返回默认的资产文件路径                                                    |
-| `butian_gitignore_status(project_path)`                 | 返回 Butian 本地产物忽略规则的状态，包含缺失项和已新增项                  |
+| 函数                                                    | 作用                                                                           |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `find_project_root(start_path)`                         | 向上遍历目录树，找到包含项目标记文件（`.git`、`package.json` 等）的根目录      |
+| `ensure_butian_run(project_path, run_id)`               | 创建 `.butian/<run>/` 运行目录；默认 run id 为 `YYYYMMDD-HHMM`，重复时追加后缀 |
+| `default_asset_path(project_path, filename, preflight)` | 返回默认的资产文件路径                                                         |
+| `butian_gitignore_status(project_path)`                 | 返回 Butian 本地产物忽略规则的状态，包含缺失项和已新增项                       |
 
 ### 日志系统
 
@@ -92,7 +92,7 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 | ---------------------------------------- | -------------------------------------------------- |
 | `setup_logging(verbose, debug, log_dir)` | 配置 `butian` logger，输出到 stderr 和可选日志文件 |
 
-- 日志文件路径：`.butian/<timestamp>/logs/scan.log`
+- 日志文件路径：`.butian/<run>/logs/scan.log`
 - stderr 级别：默认 WARNING，`--verbose` → INFO，`--debug` → DEBUG
 - 文件始终 DEBUG 级别
 - Logger 名称：`butian`，避免重复添加 handler
@@ -240,7 +240,7 @@ main()
 
 ```json
 {
-  "generated_at": "2025-01-15 10:30:00",
+  "generated_at": "2026-06-09 15:50:00",
   "scan_seconds": 12.3,
   "project": {
     "path": "/path/to/project",
@@ -528,8 +528,8 @@ main()
 ## 安全设计
 
 - **业务只读**：不会修改业务源码或依赖；只创建 `.butian/` 工作区、缓存、报告产物，并维护对应忽略规则
-- **密钥预览脱敏**：`secret_preview()` 对硬编码密钥只显示前缀字符，不暴露完整值
-- **模板文件识别**：`is_env_template()` 跳过 `.example`、`.sample`、`.template` 后缀的文件
+- **密钥预览策略**：`secret_preview()` 默认对硬编码密钥做预览化展示；`generic_*`、连接串、私钥等高风险格式会更强地遮盖。
+- **模板文件识别**：`is_env_template()` 识别 `.env.example`、`.env.sample`、`.env.template`、`.env.dist` 等模板文件；这类文件不会被当成“敏感文件被 git 跟踪”，但仍会参与密钥特征扫描，并允许 HTML 展示扫描阶段提供的代码上下文，方便研发确认是否为真实可用凭证。
 - **文件大小限制**：默认最大扫描 1MB 的文件内容
 - **二进制文件跳过**：`is_binary_file()` 检测 NUL 字节，自动跳过二进制文件
 - **符号链接处理**：默认跳过符号链接，`--follow-symlinks` 时跟随
@@ -542,7 +542,7 @@ main()
 ```
 .butian/
 ├── .first-scan-done                # 首次扫描标记（控制浏览器弹出和 Markdown 生成）
-├── <timestamp>/                    # 每次扫描的运行目录
+├── <run>/                          # 每次扫描的运行目录，例如 20260609-1550
 │   ├── assets/
 │   │   ├── scan.json               # 扫描结果
 │   │   └── analysis.json           # 分析结果

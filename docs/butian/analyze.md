@@ -19,7 +19,7 @@
 ## CLI 用法
 
 ```bash
-python3 analyze.py .butian/<timestamp>/assets/scan.json                    # 自动输出到同目录
+python3 analyze.py .butian/<run>/assets/scan.json                          # 自动输出到同目录
 python3 analyze.py scan.json output-analysis.json                          # 指定输出路径
 ```
 
@@ -76,19 +76,21 @@ STRUCTURED_HYGIENE_GROUPS = (
 
 ### 风险分级
 
-| 函数                                     | 作用                                                                                     |
-| ---------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `build_top_issues(scan)`                 | 将漏洞列表标准化，补充 `tier`（red/yellow/green）、`rank`（排名）、`summary`（中文摘要） |
-| `build_hygiene_items(scan)`              | 将仓库安检问题分为 red/yellow/green，覆盖密钥、敏感文件、`.gitignore` 和结构化本地规则   |
-| `build_dependency_fix_items(top_issues)` | 按包分组漏洞，生成升级建议（包含目标版本、涉及的公告 ID）                                |
+| 函数                                     | 作用                                                                                                |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `build_top_issues(scan)`                 | 将漏洞列表标准化，补充 `tier`（red/yellow/green）、`rank`（排名）、`summary`（Markdown 用中文摘要） |
+| `build_hygiene_items(scan)`              | 将仓库安检问题分为 red/yellow/green，覆盖密钥、敏感文件、`.gitignore` 和结构化本地规则              |
+| `build_dependency_fix_items(top_issues)` | 按包分组漏洞，生成升级建议（包含目标版本、涉及的公告 ID）                                           |
 
 ### 摘要生成
 
-| 函数                             | 作用                                                    |
-| -------------------------------- | ------------------------------------------------------- |
-| `build_summary(scan, analysis)`  | 生成 TL;DR、详细说明和优先级建议列表                    |
-| `advisory_issue_phrase(summary)` | 将英文公告摘要翻译/精简为中文风险描述                   |
-| `vulnerability_summary(item)`    | 为单条漏洞生成完整的中文描述（包名+版本+风险+修复建议） |
+| 函数                             | 作用                                                          |
+| -------------------------------- | ------------------------------------------------------------- |
+| `build_summary(scan, analysis)`  | 生成 TL;DR、详细说明和优先级建议列表                          |
+| `advisory_issue_phrase(summary)` | 将英文公告摘要翻译/精简为 Markdown 风险表说明                 |
+| `vulnerability_summary(item)`    | 为单条漏洞生成 Markdown 用完整描述（包名+版本+风险+修复建议） |
+
+HTML 的 `当前风险 / 详情` 不直接使用 `vulnerability_summary()` 的长句，而是在 `templates/report.js` 中通过 `plainRiskStory()` 依据 advisory 摘要和 CWE 生成更适合普通读者的精确描述。这样 Markdown 保持归档表格，HTML 保持可读解释，两者共享风险数量、安全编号和修复版本。
 
 ### 工具函数
 
@@ -105,14 +107,14 @@ STRUCTURED_HYGIENE_GROUPS = (
 ┌─────────────────────────────────────────────────┐
 │ RED（优先处理）                                 │
 │   - 被跟踪的 .env、私钥、凭证、SSH 密钥文件     │
-│   - 严重/高危漏洞                               │
+│   - 紧急/高风险漏洞                             │
 │   - high/critical 的本地仓库安检项               │
 ├─────────────────────────────────────────────────┤
 │ YELLOW（需要人工确认）                          │
 │   - 疑似硬编码凭证                              │
 │   - 被跟踪的日志、数据库文件                    │
 │   - .gitignore 缺少敏感文件规则                 │
-│   - 中危漏洞                                    │
+│   - 中风险漏洞                                  │
 │   - medium 的本地仓库安检项                      │
 ├─────────────────────────────────────────────────┤
 │ GREEN（可作为修复计划）                         │
@@ -147,11 +149,13 @@ STRUCTURED_HYGIENE_GROUPS = (
 
 分级规则很直接：`critical/high` 进入 red，`medium` 进入 yellow，`low/info` 进入 green。这样专业用户能在报告里看到完整证据，小白用户也能按"优先处理 / 需要确认 / 可作为计划"理解行动顺序。
 
+HTML 渲染时会对凭证类 yellow 项做一次展示归并：`type == "secret_exposure"` 的事项会移动到 `仓库安检 / 凭证与敏感文件` 中，和 `tracked_secrets` 的代码证据放在一起；非凭证类 yellow 项才保留在底部 `待确认事项`。
+
 ## 输出 JSON 结构
 
 ```json
 {
-  "generated_at": "2025-01-15 10:30:00",
+  "generated_at": "2026-06-09 15:50:00",
   "scan_seconds": 12.3,
   "project": { "path": "...", "name": "..." },
   "scan_config": { "scan_mode": "full_dependency_scan", ... },
@@ -168,7 +172,7 @@ STRUCTURED_HYGIENE_GROUPS = (
       "package": "next",
       "version": "15.5.1",
       "severity": "critical",
-      "summary": "next 15.5.1 存在...风险；建议升级到 15.5.2 或更高版本。",
+      "summary": "next 15.5.1 命中已公开安全公告；建议升级到 15.5.2 或更高版本。",
       "advisory_summary": "...",
       "fixed_versions": ["15.5.2"],
       "dependency_context": {
@@ -226,9 +230,9 @@ STRUCTURED_HYGIENE_GROUPS = (
 }
 ```
 
-## `advisory_issue_phrase` 智能摘要
+## `advisory_issue_phrase` Markdown 摘要
 
-该函数通过模式匹配将英文公告摘要转化为简洁的中文风险描述，支持识别以下类型：
+该函数通过模式匹配将英文公告摘要转化为 Markdown 表格中的简洁中文说明。它的目标是归档和修复排期，不负责 HTML 中更细的普通人解释。
 
 | 模式                                 | 输出示例                                                        |
 | ------------------------------------ | --------------------------------------------------------------- |
@@ -239,6 +243,8 @@ STRUCTURED_HYGIENE_GROUPS = (
 | `denial of service`                  | "存在拒绝服务风险"                                              |
 | `cache`                              | "存在缓存可信度风险"                                            |
 | 未匹配                               | "公告摘要：{原文}"                                              |
+
+HTML 详情的映射范围更广，见 [`report.md`](./report.md) 的“HTML 详情文案映射”。维护时不要只更新 `advisory_issue_phrase()`；如果用户会在浏览器里看到该风险，还要同步检查 `plainRiskStory()` 和 `tests.butian.test_report_assets`。
 
 ## 设计要点
 
