@@ -3640,7 +3640,7 @@ function renderCredentialReview(item, fallback) {
     ? `<code class="secret-preview">${esc(softMaskSecretLine(merged.preview))}</code>`
     : "";
   return `<div class="hygiene-secret-review item yellow">
-  <div class="item-head" onclick="this.parentNode.classList.toggle('open')">
+  <div class="item-head" ${itemCardHeadAttrs()}>
     <div class="item-main">
       <div class="item-kicker">${tierBadge("yellow")}${sevHtml}${route}</div>
       <div class="item-name">${esc(normalizeSecurityLanguage(name))}</div>
@@ -3674,13 +3674,36 @@ function renderErrors() {
 }
 
 // ---- Shared helpers ----
+function itemCardHeadAttrs() {
+  return 'tabindex="0" role="button" aria-expanded="false" onclick="toggleItemCard(this)" onkeydown="handleItemCardKey(event, this)"';
+}
+
+function setItemCardOpen(head, open) {
+  const card = head && head.parentNode;
+  if (!card) return;
+  card.classList.toggle("open", open);
+  head.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
+function toggleItemCard(head) {
+  const card = head && head.parentNode;
+  if (!card) return;
+  setItemCardOpen(head, !card.classList.contains("open"));
+}
+
+function handleItemCardKey(event, head) {
+  if (!event || (event.key !== "Enter" && event.key !== " ")) return;
+  event.preventDefault();
+  toggleItemCard(head);
+}
+
 function card(tier, name, sev, path, inner) {
   const sevHtml = sev ? `<span class="item-sev">${sevBadge(sev)}</span>` : "";
   const route = path
     ? `<span class="item-route" title="${esc(path)}">${esc(path)}</span>`
     : "";
   return `<div class="item ${tier}">
-  <div class="item-head" onclick="this.parentNode.classList.toggle('open')">
+  <div class="item-head" ${itemCardHeadAttrs()}>
     <div class="item-main">
       <div class="item-kicker">${tierBadge(tier)}${sevHtml}${route}</div>
       <div class="item-name">${esc(normalizeSecurityLanguage(name))}</div>

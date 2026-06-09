@@ -1174,6 +1174,45 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn(".bar::after", reduced_motion_css)
         self.assertIn("animation: none !important;", reduced_motion_css)
 
+    def test_html_item_cards_expand_with_keyboard_and_aria(self):
+        data = {
+            "generated_at": "2026-06-05 09:05:50",
+            "project": {"name": "demo", "path": "/tmp/demo", "ecosystems": []},
+            "risk_summary": {
+                "critical": 0,
+                "high": 0,
+                "medium": 1,
+                "low": 0,
+                "info": 0,
+            },
+            "summary": {"tldr": "demo", "detail": "demo", "priority": []},
+            "top_issues": [],
+            "yellow": [
+                {
+                    "name": "需要人工确认的配置",
+                    "type": "repo_check",
+                    "severity": "medium",
+                    "path": ".github/workflows/ci.yml",
+                    "why_manual": "需要确认权限是否符合项目策略。",
+                }
+            ],
+            "hygiene": {},
+            "outdated": [],
+        }
+
+        html = self._render_html(data)
+
+        self.assertIn(
+            'class="item-head" tabindex="0" role="button" aria-expanded="false" '
+            'onclick="toggleItemCard(this)" onkeydown="handleItemCardKey(event, this)"',
+            html,
+        )
+        with open(REPORT_JS, "r", encoding="utf-8") as handle:
+            js = handle.read()
+        self.assertIn("function toggleItemCard", js)
+        self.assertIn("function handleItemCardKey", js)
+        self.assertIn('head.setAttribute("aria-expanded"', js)
+
     def test_html_more_buttons_expand_only_on_click_not_hover(self):
         data = {
             "generated_at": "2026-06-05 09:05:50",
