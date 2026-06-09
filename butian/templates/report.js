@@ -14,7 +14,7 @@ const CAPABILITY_BOUNDARY =
 const HYGIENE_ONLY_NOTICE =
   "当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；本次仅做仓库安检，检查硬编码密钥、敏感文件跟踪、.gitignore、GitHub Actions、依赖配置与维护和 IaC/容器配置风险。";
 
-// ---- Normalize: accept common field name variations from different agents ----
+// ---- Normalize: accept common field name variations from upstream producers ----
 const DATA = (() => {
   const d = Object.assign({}, RAW);
   // Arrays: green|green_items, yellow|yellow_items, red|red_items
@@ -528,7 +528,7 @@ function readableTldr(raw) {
 }
 
 function readableDetail(raw) {
-  // Clean up agent-generated detail: remove zero-value security-check mentions, normalize outdated phrasing
+  // Clean up generated detail: remove zero-value security-check mentions, normalize outdated phrasing
   const cleaned = String(raw || "")
     .replace(
       /仓库(?:卫生|安检)[，、]?\s*发现[^。]*?0\s*[处个][^。]*?0\s*[个条][^。]*?0\s*条[^。]*。?/g,

@@ -5,7 +5,7 @@ Usage:
     visualize.py <analysis.json> [output.html]
     visualize.py --no-open <analysis.json> [output.html]
 
-analysis JSON 由 analyze.py 生成，Agent 可以在解释 scan.py 输出后轻量复核。
+analysis JSON 由 analyze.py 生成，可在解释 scan.py 输出后轻量复核。
 完整 schema 见 ``references/project-scan.md``。
 """
 

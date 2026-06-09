@@ -5,7 +5,7 @@ Usage:
     python3 scripts/analyze.py .butian/<timestamp>/assets/scan.json
     python3 scripts/analyze.py scan.json output-analysis.json
 
-脚本运行后，Agent 仍可复核并润色面向业务的文案；
+脚本运行后，后续流程仍可复核并润色面向业务的文案；
 但必需 schema、风险计数和问题列表应来自这个确定性基线。
 """
 

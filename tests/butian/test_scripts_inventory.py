@@ -107,11 +107,16 @@ class ButianScriptInventoryTests(unittest.TestCase):
         with open(os.path.join(DOC_DIR, "run_audit.md"), "r", encoding="utf-8") as handle:
             text = handle.read()
 
-        self.assertIn("服务器扫描，仅显式要求时使用", text)
+        self.assertIn("服务器扫描入口", text)
+        self.assertNotIn("显式要求", text)
         self.assertIn("默认项目扫描不会连接服务器", text)
         self.assertIn("--server", text)
         self.assertIn("--server-only", text)
         self.assertIn("--server-inventory", text)
+        self.assertNotIn("user@example.com", text)
+        self.assertIn("--server <ssh_target>", text)
+        self.assertNotIn("用户明确要求", text)
+        self.assertNotIn("Agent 工作流", text)
 
     def test_public_docs_do_not_contain_generated_security_reports(self):
         result = subprocess.run(
@@ -247,6 +252,46 @@ class ButianScriptInventoryTests(unittest.TestCase):
         self.assertIn("--server", server_text)
         self.assertIn("--server-inventory", server_text)
         self.assertIn("只读 SSH", server_text)
+
+    def test_skill_keeps_detailed_entries_in_references(self):
+        with open(SKILL_PATH, "r", encoding="utf-8") as handle:
+            skill_text = handle.read()
+        with open(
+            os.path.join(REFERENCE_DIR, "project-scan.md"), "r", encoding="utf-8"
+        ) as handle:
+            project_text = handle.read()
+        with open(
+            os.path.join(REFERENCE_DIR, "server-scan.md"), "r", encoding="utf-8"
+        ) as handle:
+            server_text = handle.read()
+
+        self.assertNotIn("## 服务器扫描入口", skill_text)
+        self.assertNotIn("## 分步调试入口", skill_text)
+        self.assertIn("## 分步调试入口", project_text)
+        self.assertIn("## 服务器扫描入口", server_text)
+        self.assertNotIn("user@example.com", skill_text)
+        self.assertNotIn("user@example.com", server_text)
+        self.assertIn("--server <ssh_target>", server_text)
+
+    def test_public_markdown_avoids_internal_routing_language(self):
+        paths = [SKILL_PATH]
+        paths.extend(glob.glob(os.path.join(REFERENCE_DIR, "*.md")))
+        paths.extend(glob.glob(os.path.join(DOC_DIR, "*.md")))
+        banned_patterns = {
+            "internal reference routing": r"读 `references|不要在主流程",
+            "explicit-user-requirement phrasing": r"显式要求|用户明确|用户点头|用户明确要求|只有用户明确要求|除非用户明确要求|必须由用户明确要求",
+            "agent-facing wording": r"(?<!User-)\b[Aa]gent\b",
+        }
+
+        for path in sorted(paths):
+            with self.subTest(path=os.path.relpath(path, ROOT)):
+                with open(path, "r", encoding="utf-8") as handle:
+                    text = handle.read()
+                for label, pattern in banned_patterns.items():
+                    self.assertIsNone(
+                        re.search(pattern, text),
+                        f"{label} appears in {path}",
+                    )
 
     def test_scan_comments_describe_current_module_boundaries(self):
         with open(os.path.join(SCRIPT_DIR, "scan.py"), "r", encoding="utf-8") as handle:

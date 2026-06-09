@@ -1,21 +1,23 @@
 # 服务器的安全扫描
 
-服务器扫描是项目扫描之外的可选能力。只有用户明确要求检查 Linux 服务器运行环境，并提供 SSH 目标或离线 inventory 时才启用。
+服务器扫描是项目扫描之外的可选能力，用于检查已提供 SSH 目标或离线 inventory 的 Linux 运行环境。
 
 服务器扫描只生成 Markdown 报告，不生成 HTML 展示页。OpenSSH 和防火墙相关结论默认作为“服务器维护建议”，用于告诉用户如何优化，不写成 confirmed CVE。
 
-## 启用方式
+## 服务器扫描入口
+
+`<ssh_target>` 必须替换成真实 SSH 目标，例如实际的 `user@host`、IP、域名或本机 SSH config 中的 Host 别名；不要把占位符当成可直接执行的服务器地址。`<project_path>` 是本次关联的项目目录；在项目根目录执行时可以省略。
 
 ```bash
 # macOS / Linux
-python3 scripts/run_audit.py --server user@example.com
-python3 scripts/run_audit.py --server-only --server user@example.com
-python3 scripts/run_audit.py --server-inventory server-inventory.json
+python3 scripts/run_audit.py --server <ssh_target> <project_path>
+python3 scripts/run_audit.py --server-only --server <ssh_target> <project_path>
+python3 scripts/run_audit.py --server-inventory <server_inventory_json> <project_path>
 
 # Windows
-py -3 scripts/run_audit.py --server user@example.com
-py -3 scripts/run_audit.py --server-only --server user@example.com
-py -3 scripts/run_audit.py --server-inventory server-inventory.json
+py -3 scripts/run_audit.py --server <ssh_target> <project_path>
+py -3 scripts/run_audit.py --server-only --server <ssh_target> <project_path>
+py -3 scripts/run_audit.py --server-inventory <server_inventory_json> <project_path>
 ```
 
 `--server-only` 必须搭配 `--server` 或 `--server-inventory`。没有服务器来源时不能启动服务器单独扫描。
@@ -24,7 +26,7 @@ Windows 上也可以运行服务器扫描；使用 `--server` 时本机需要可
 
 ## 只读边界
 
-服务器采集只使用白名单内的只读 SSH 命令。它不安装 agent，不复制二进制，不使用 `sudo`，不升级软件，不重启服务，不修改服务器文件，不读取业务数据库，不读取应用日志。
+服务器采集只使用白名单内的只读 SSH 命令。它不安装采集程序，不复制二进制，不使用 `sudo`，不升级软件，不重启服务，不修改服务器文件，不读取业务数据库，不读取应用日志。
 
 允许采集的信息包括：
 
@@ -113,6 +115,6 @@ Markdown 报告必须说明：
 
 ## 与项目扫描的关系
 
-默认项目扫描不会扫描操作系统包或系统服务。服务器扫描和项目扫描都属于安全相关内容，但触发条件、数据来源和证据标准不同：项目扫描查仓库和应用依赖；服务器扫描查用户明确提供的 Linux 运行环境。
+默认项目扫描不会扫描操作系统包或系统服务。服务器扫描和项目扫描都属于安全相关内容，但触发条件、数据来源和证据标准不同：项目扫描查仓库和应用依赖；服务器扫描查已提供的 Linux 运行环境。
 
 项目 + 服务器同时扫描时，应用依赖和仓库安检仍按项目规则输出；服务器内容只在“服务器运行环境”中单独展示。`--server-only` 时只做服务器运行环境扫描，并只生成 Markdown 报告。

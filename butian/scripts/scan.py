@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """项目安全扫描器。
 
-采集项目范围内的安全数据，并输出 JSON 供 Agent 分析。
+采集项目范围内的安全数据，并输出 JSON 供后续分析。
 扫描器会先识别依赖生态和精确包坐标。
 仓库安检、漏洞和过期依赖检查随后独立运行，
 因为它们依赖不同的本地文件、包管理器和官方数据源。
@@ -1748,7 +1748,7 @@ def scan_secrets(
             ext = os.path.splitext(fname)[1].lower()
             if not should_scan_secret_file(fpath, project_path):
                 continue
-            # 除非显式要求跟随，否则跳过符号链接。
+            # 未开启 follow-symlinks 时跳过符号链接。
             if not follow_symlinks and os.path.islink(fpath):
                 continue
             # 跳过二进制文件。

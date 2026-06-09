@@ -43,20 +43,22 @@ py -3 run_audit.py --follow-symlinks .      # 跟随符号链接
 py -3 run_audit.py --final-report .         # 最终复扫：强制生成 Markdown 报告
 ```
 
-## 服务器扫描，仅显式要求时使用
+## 服务器扫描入口
 
-默认项目扫描不会连接服务器，也不会扫描系统包、系统服务、数据库或日志。只有用户明确要求服务器扫描时，才使用下面这些入口：
+默认项目扫描不会连接服务器，也不会扫描系统包、系统服务、数据库或日志。服务器扫描需要 SSH 目标或离线 inventory，入口如下：
+
+`<ssh_target>` 必须替换成真实 SSH 目标，例如实际的 `user@host`、IP、域名或本机 SSH config 中的 Host 别名。
 
 ```bash
 # macOS / Linux
-python3 run_audit.py --server user@example.com .
-python3 run_audit.py --server-only --server user@example.com .
-python3 run_audit.py --server-inventory server-inventory.json .
+python3 run_audit.py --server <ssh_target> .
+python3 run_audit.py --server-only --server <ssh_target> .
+python3 run_audit.py --server-inventory <server_inventory_json> .
 
 # Windows
-py -3 run_audit.py --server user@example.com .
-py -3 run_audit.py --server-only --server user@example.com .
-py -3 run_audit.py --server-inventory server-inventory.json .
+py -3 run_audit.py --server <ssh_target> .
+py -3 run_audit.py --server-only --server <ssh_target> .
+py -3 run_audit.py --server-inventory <server_inventory_json> .
 ```
 
 服务器扫描仍然只做只读采集；`--server-only` 必须搭配 `--server` 或 `--server-inventory`。
@@ -114,7 +116,7 @@ run_audit.py
 
 `run_audit.py` 不执行依赖升级，也不询问用户是否修复。完整修复交互契约以 `butian/references/project-scan.md` 为准；本页只说明脚本编排和输出边界。
 
-Agent 工作流在用户看完报告后再进入 AskUserQuestion：先确认是否修复，再选择升级策略；修复后重新运行 `run_audit.py` 复扫。复扫确认仍有 npm 嵌套残留时，才进入 `parent-upgrade` 或 `force-residual` 后续轮次。Dependabot、凭证占位符和过期依赖维护属于收尾维护动作，不由 `run_audit.py` 自动执行。
+修复交互在报告展示后进入 AskUserQuestion：先确认是否修复，再选择升级策略；修复后重新运行 `run_audit.py` 复扫。复扫确认仍有 npm 嵌套残留时，才进入 `parent-upgrade` 或 `force-residual` 后续轮次。Dependabot、凭证占位符和过期依赖维护属于收尾维护动作，不由 `run_audit.py` 自动执行。
 
 所有项目修复轮次结束后，运行 `run_audit.py --final-report` 生成最终 Markdown 审计报告和项目 HTML 报告。服务器单独扫描只生成 Markdown 报告，终端摘要会标注“服务器扫描不生成 HTML”。
 
