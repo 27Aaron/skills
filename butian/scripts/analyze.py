@@ -107,6 +107,48 @@ def unique_values(values):
     return result
 
 
+def security_ids_for_issue(item):
+    ids = []
+
+    def push(value):
+        if isinstance(value, list):
+            for entry in value:
+                push(entry)
+            return
+        if value is None:
+            return
+        for part in re.split(r"[,，\s]+", str(value)):
+            part = part.strip()
+            if part and part not in ids:
+                ids.append(part)
+
+    for field in (
+        "cve_id",
+        "cve_ids",
+        "advisory_id",
+        "advisory_ids",
+        "aliases",
+        "advisory_aliases",
+    ):
+        push(item.get(field))
+    return ids
+
+
+def canonical_security_id(item):
+    ids = security_ids_for_issue(item)
+    for pattern in (
+        r"^CVE-\d{4}-\d+",
+        r"^GHSA-",
+        r"^GO-\d{4}-\d+",
+        r"^PYSEC-",
+        r"^RUSTSEC-",
+    ):
+        for security_id in ids:
+            if re.match(pattern, security_id, re.IGNORECASE):
+                return security_id.upper()
+    return ids[0].upper() if ids else ""
+
+
 def version_key(value):
     parts = re.findall(r"\d+", str(value or ""))
     return tuple(int(part) for part in parts)
@@ -242,6 +284,92 @@ def item_best_cvss_score(item):
             if isinstance(metric, dict):
                 scores.append(number_or_zero(metric.get("baseScore")))
     return max(scores or [0.0])
+
+
+def merge_list_field(target, source, field):
+    merged = unique_values(to_list(target.get(field)) + to_list(source.get(field)))
+    if merged:
+        target[field] = merged
+
+
+def merge_duplicate_issue(target, source):
+    if severity_rank(source) > severity_rank(target):
+        target["severity"] = source.get("severity")
+    if item_best_cvss_score(source) > item_best_cvss_score(target):
+        target["cvss"] = source.get("cvss")
+
+    for field in (
+        "fixed_versions",
+        "fix_versions",
+        "patched_versions",
+        "aliases",
+        "advisory_aliases",
+        "advisory_ids",
+        "cve_ids",
+        "risk_signals",
+        "enrichment_sources",
+    ):
+        merge_list_field(target, source, field)
+
+    advisory_ids = unique_values(
+        to_list(target.get("advisory_ids"))
+        + to_list(target.get("advisory_id"))
+        + to_list(source.get("advisory_id"))
+    )
+    if advisory_ids:
+        target["advisory_ids"] = advisory_ids
+
+    aliases = unique_values(
+        to_list(target.get("aliases"))
+        + to_list(source.get("aliases"))
+        + security_ids_for_issue(source)
+    )
+    if aliases:
+        target["aliases"] = aliases
+
+    if not target.get("cve_id") and source.get("cve_id"):
+        target["cve_id"] = source.get("cve_id")
+    if not target.get("advisory_id") and source.get("advisory_id"):
+        target["advisory_id"] = source.get("advisory_id")
+
+    enrichments = []
+    seen = set()
+    for enrichment in to_list(target.get("cve_enrichments")) + to_list(
+        source.get("cve_enrichments")
+    ):
+        if not isinstance(enrichment, dict):
+            continue
+        key = (
+            enrichment.get("cveId")
+            or enrichment.get("id")
+            or json.dumps(enrichment, sort_keys=True, ensure_ascii=False)
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        enrichments.append(enrichment)
+    if enrichments:
+        target["cve_enrichments"] = enrichments
+    return target
+
+
+def dedupe_vulnerabilities(vulnerabilities):
+    merged = []
+    by_key = {}
+    for vuln in vulnerabilities or []:
+        item = dict(vuln)
+        key = (
+            str(item.get("ecosystem") or "").lower(),
+            str(item.get("package") or item.get("name") or "").lower(),
+            str(item.get("version") or ""),
+            canonical_security_id(item),
+        )
+        if key[-1] and key in by_key:
+            merge_duplicate_issue(by_key[key], item)
+            continue
+        by_key[key] = item
+        merged.append(item)
+    return merged
 
 
 def _parse_version(version_str):
@@ -457,7 +585,7 @@ def build_top_issues(scan):
     raw = scan.get("vulnerabilities") or []
     logger.debug("build_top_issues: %d 个原始漏洞记录", len(raw))
     issues = []
-    for vuln in scan.get("vulnerabilities") or []:
+    for vuln in dedupe_vulnerabilities(raw):
         item = dict(vuln)
         item["severity"] = normalize_severity(item.get("severity"))
         # 红黄绿分组是报告契约。除非模板、修复计划和文档同步调整，
@@ -626,16 +754,18 @@ def build_dependency_fix_items(top_issues):
         current_versions = []
         missing_fixed = False
         for issue in issues:
-            advisory_id = (
-                issue.get("advisory_id")
+            issue_advisory_ids = to_list(
+                issue.get("advisory_ids")
+                or issue.get("advisory_id")
                 or issue.get("cve_id")
                 or issue.get("match_summary")
                 or "unknown"
             )
-            if advisory_id not in advisory_ids:
-                advisory_ids.append(advisory_id)
             fixed = unique_values(to_list(issue.get("fixed_versions")))
-            fixed_versions_by_advisory[advisory_id] = fixed
+            for advisory_id in issue_advisory_ids:
+                if advisory_id not in advisory_ids:
+                    advisory_ids.append(advisory_id)
+                fixed_versions_by_advisory[advisory_id] = fixed
             if fixed:
                 fixed_versions.extend(fixed)
             else:

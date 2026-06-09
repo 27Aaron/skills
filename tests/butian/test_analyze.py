@@ -633,6 +633,58 @@ class TestBuildTopIssues(unittest.TestCase):
         issues = analyze.build_top_issues(scan)
         self.assertIn("lodash", issues[0]["summary"])
 
+    def test_merges_duplicate_vulnerabilities_with_same_security_ids(self):
+        scan = _make_scan(
+            project={"name": "demo-app", "path": "/tmp/demo", "ecosystems": ["hex"]},
+            vulnerabilities=[
+                {
+                    "package": "plug",
+                    "version": "1.11.0",
+                    "severity": "high",
+                    "summary": "DoS via crafted input",
+                    "fixed_versions": ["1.15.4", "1.19.2"],
+                    "ecosystem": "hex",
+                    "advisory_id": "EEF-CVE-2026-8468",
+                    "cve_id": "CVE-2026-8468",
+                    "aliases": [
+                        "CVE-2026-8468",
+                        "GHSA-468c-vq7p-gh64",
+                        "EEF-CVE-2026-8468",
+                    ],
+                },
+                {
+                    "package": "plug",
+                    "version": "1.11.0",
+                    "severity": "high",
+                    "summary": "Same vulnerability from GHSA",
+                    "fixed_versions": ["1.16.3", "1.19.2"],
+                    "ecosystem": "hex",
+                    "advisory_id": "GHSA-468c-vq7p-gh64",
+                    "cve_id": "CVE-2026-8468",
+                    "aliases": [
+                        "CVE-2026-8468",
+                        "EEF-CVE-2026-8468",
+                        "GHSA-468c-vq7p-gh64",
+                    ],
+                },
+            ],
+        )
+
+        issues = analyze.build_top_issues(scan)
+
+        self.assertEqual(len(issues), 1)
+        self.assertEqual(
+            issues[0]["fixed_versions"], ["1.15.4", "1.19.2", "1.16.3"]
+        )
+        self.assertEqual(
+            issues[0]["advisory_ids"],
+            ["EEF-CVE-2026-8468", "GHSA-468c-vq7p-gh64"],
+        )
+        self.assertEqual(
+            issues[0]["aliases"],
+            ["CVE-2026-8468", "GHSA-468c-vq7p-gh64", "EEF-CVE-2026-8468"],
+        )
+
     def test_nested_npm_residual_context_is_explained(self):
         with tempfile.TemporaryDirectory() as tmp:
             package_lock = {

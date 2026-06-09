@@ -2030,6 +2030,35 @@ class ExtractOsvFixedVersionsTests(unittest.TestCase):
         fixed = scan.extract_osv_fixed_versions(osv_record, pkg)
         self.assertEqual(fixed, ["4.17.21"])
 
+    def test_skips_commit_hash_fixed_events(self):
+        osv_record = {
+            "affected": [
+                {
+                    "package": {"ecosystem": "Hex", "name": "plug"},
+                    "ranges": [
+                        {
+                            "events": [
+                                {"introduced": "0"},
+                                {"fixed": "1.15.4"},
+                                {
+                                    "fixed": "2cb7958d33030aa826b0c7404375844d4593d43a"
+                                },
+                                {"fixed": "1.19.2"},
+                                {
+                                    "fixed": "aa69c5ece99c40ded88b8c6581ecc86664b0b734"
+                                },
+                            ]
+                        }
+                    ],
+                }
+            ]
+        }
+        pkg = {"ecosystem": "hex", "name": "plug"}
+
+        fixed = scan.extract_osv_fixed_versions(osv_record, pkg)
+
+        self.assertEqual(fixed, ["1.15.4", "1.19.2"])
+
     def test_no_affected(self):
         pkg = {"ecosystem": "npm", "name": "lodash"}
         self.assertEqual(scan.extract_osv_fixed_versions({}, pkg), [])

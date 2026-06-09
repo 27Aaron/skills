@@ -411,18 +411,22 @@ class ReportAssetTests(unittest.TestCase):
         self.assertNotIn("有新版本 4.12.21 可用", html)
         self.assertNotIn("建议在近期迭代中安排升级", html)
         self.assertIn('class="fixed-list"', html)
-        self.assertEqual(html.count('class="fixed-chip"'), 1)
-        self.assertIn('<span class="fixed-chip">13.0.1</span>', html)
-        self.assertNotIn('<span class="fixed-chip">11.1.1</span>', html)
-        self.assertNotIn('<span class="fixed-chip">12.0.1</span>', html)
+        self.assertEqual(html.count('class="fixed-chip version-scroll"'), 1)
+        self.assertIn(
+            '<span class="fixed-chip version-scroll" title="13.0.1">13.0.1</span>',
+            html,
+        )
+        self.assertNotIn('<span class="fixed-chip version-scroll">11.1.1</span>', html)
+        self.assertNotIn('<span class="fixed-chip version-scroll">12.0.1</span>', html)
         self.assertNotIn("11.1.1、12.0.1、13.0.1", html)
 
         with open(REPORT_CSS, "r", encoding="utf-8") as handle:
             css = handle.read()
         self.assertIn(".fixed-list", css)
         fixed_list_css = css.split(".fixed-list {", 1)[1].split("}", 1)[0]
-        self.assertIn("display: inline-grid;", fixed_list_css)
-        self.assertIn("grid-template-columns: minmax(0, max-content);", fixed_list_css)
+        self.assertIn("display: grid;", fixed_list_css)
+        self.assertIn("grid-template-columns: minmax(0, 1fr);", fixed_list_css)
+        self.assertIn("max-width: 100%;", fixed_list_css)
         self.assertNotIn("repeat(2, max-content)", fixed_list_css)
         self.assertIn("td.fixed-cell", css)
         bar_css = css.split(".bar {", 1)[1].split("}", 1)[0]
@@ -938,7 +942,7 @@ class ReportAssetTests(unittest.TestCase):
         self.assertNotIn("关键数据被覆盖", html)
         self.assertNotIn("当前版本命中已公开安全公告", html)
 
-    def test_current_risk_table_shows_security_ids_and_higher_fixed_versions(self):
+    def test_current_risk_table_shows_security_ids_and_best_fixed_version(self):
         data = {
             "generated_at": "2026-06-05 09:05:50",
             "project": {
@@ -992,8 +996,15 @@ class ReportAssetTests(unittest.TestCase):
         next_row = html.split('title="next"', 1)[1].split("</tr>", 1)[0]
         self.assertIn("CVE-2026-44578", next_row)
         self.assertIn("GHSA-c4j6-fc7j-m34r", next_row)
-        self.assertIn('<span class="fixed-chip">16.2.5</span>', next_row)
-        self.assertIn('<span class="fixed-chip">17.0.0</span>', next_row)
+        self.assertIn(
+            '<span class="version-scroll" title="16.2.4">16.2.4</span>',
+            next_row,
+        )
+        self.assertIn(
+            '<span class="fixed-chip version-scroll" title="16.2.5">16.2.5</span>',
+            next_row,
+        )
+        self.assertNotIn("17.0.0", next_row)
         self.assertNotIn("15.5.16", next_row)
 
         ghsa_only_row = html.split('title="ghsa-only-lib"', 1)[1].split("</tr>", 1)[0]
@@ -1007,6 +1018,59 @@ class ReportAssetTests(unittest.TestCase):
         ]
         self.assertIn("PYSEC-2026-1", pysec_only_row)
         self.assertIn("https://osv.dev/vulnerability/PYSEC-2026-1", pysec_only_row)
+
+    def test_current_risk_long_versions_use_horizontal_scroll_cells(self):
+        data = {
+            "generated_at": "2026-06-05 09:05:50",
+            "project": {
+                "name": "demo",
+                "path": "/tmp/demo",
+                "ecosystems": ["go"],
+                "total_packages": 1,
+            },
+            "scan_config": {"scan_mode": "full_dependency_scan"},
+            "risk_summary": {
+                "critical": 1,
+                "high": 0,
+                "medium": 0,
+                "low": 0,
+                "info": 0,
+            },
+            "summary": {"tldr": "demo", "detail": "demo", "priority": []},
+            "top_issues": [
+                {
+                    "package": "golang.org/x/crypto",
+                    "version": "v0.0.0-20200622213623-75b288015ac9",
+                    "severity": "critical",
+                    "fixed_versions": ["v0.0.0-20260622213623-75b288015ac9"],
+                    "advisory_id": "GO-2026-5006",
+                    "cve_id": "CVE-2026-39832",
+                    "summary": "Package has a long pseudo version",
+                }
+            ],
+            "hygiene": {},
+            "outdated": [],
+        }
+
+        html = self._render_html(data)
+
+        row = html.split('title="golang.org/x/crypto"', 1)[1].split("</tr>", 1)[0]
+        self.assertIn(
+            '<span class="version-scroll" title="v0.0.0-20200622213623-75b288015ac9">v0.0.0-20200622213623-75b288015ac9</span>',
+            row,
+        )
+        self.assertIn(
+            '<span class="fixed-chip version-scroll" title="v0.0.0-20260622213623-75b288015ac9">v0.0.0-20260622213623-75b288015ac9</span>',
+            row,
+        )
+
+        with open(REPORT_CSS, "r", encoding="utf-8") as handle:
+            css = handle.read()
+        self.assertIn(".version-scroll", css)
+        version_scroll_css = css.split(".version-scroll {", 1)[1].split("}", 1)[0]
+        self.assertIn("max-width: 100%;", version_scroll_css)
+        self.assertIn("overflow-x: auto;", version_scroll_css)
+        self.assertIn("white-space: nowrap;", version_scroll_css)
 
     def test_html_report_assets_only_ship_secret_evidence_copy_handler(self):
         with open(REPORT_JS, "r", encoding="utf-8") as handle:

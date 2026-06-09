@@ -828,19 +828,19 @@ function shortFixedVersionText(r) {
     : "建议研发确认官方修复版本后再安排升级。";
 }
 
+function versionScrollHtml(value, extraClass = "") {
+  const text = String(value || "");
+  const classes = [extraClass, "version-scroll"].filter(Boolean).join(" ");
+  return `<span class="${classes}" title="${esc(text)}">${esc(text)}</span>`;
+}
+
 function fixedVersionHtml(r) {
   const versions = toList(
     r.fixed_versions || r.fix_versions || r.patched_versions,
   );
-  const currentVersion = r && r.version;
-  const higherVersions = currentVersion
-    ? versions.filter((version) => compareVersions(version, currentVersion) > 0)
-    : versions;
-  const displayVersions = higherVersions.length ? higherVersions : versions;
-  if (!displayVersions.length) return '<span class="fixed-empty">待确认</span>';
-  return `<div class="fixed-list">${displayVersions
-    .map((version) => `<span class="fixed-chip">${esc(version)}</span>`)
-    .join("")}</div>`;
+  const displayVersion = bestFixedVersion(versions, r && r.version);
+  if (!displayVersion) return '<span class="fixed-empty">待确认</span>';
+  return `<div class="fixed-list">${versionScrollHtml(displayVersion, "fixed-chip")}</div>`;
 }
 
 function miniFields(fields) {
@@ -2998,7 +2998,7 @@ function renderVulnTable(rows) {
       return `<tr class="${hasDetail}${extraCls}"${detailAttrs}>
   <td class="sev" data-label="影响程度">${sevBadge(r.severity)}</td>
   <td class="package-cell" data-label="依赖名称"><b title="${esc(packageName)}">${esc(packageName)}</b></td>
-  <td class="ver" data-label="当前版本">${esc(r.version || "")}</td>
+  <td class="ver" data-label="当前版本">${versionScrollHtml(r.version || "")}</td>
   <td class="ver fixed-cell" data-label="修复版本">${fixedHtml}</td>
   <td class="advisory" data-label="安全编号">${advHtml}</td>
   <td class="summary-cell" data-label="详情">${vulnerabilityExplanation(r)}</td>

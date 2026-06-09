@@ -659,18 +659,21 @@ td.ver {
     font-family: var(--font-mono);
     font-size: 12px;
     white-space: nowrap;
-    min-width: 80px;
+    min-width: 0;
+    overflow: hidden;
 }
 td.fixed-cell {
     white-space: normal;
 }
 .fixed-list {
-    display: inline-grid;
-    grid-template-columns: minmax(0, max-content);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 2px;
     align-items: start;
     justify-content: start;
     line-height: 1.45;
+    width: 100%;
+    max-width: 100%;
 }
 .fixed-chip,
 .fixed-empty {
@@ -682,6 +685,14 @@ td.fixed-cell {
 }
 .fixed-empty {
     color: var(--sub);
+}
+.version-scroll {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    scrollbar-width: thin;
 }
 td.path {
     font-family: var(--font-mono);
@@ -1933,9 +1944,11 @@ footer {
         justify-content: stretch;
     }
     .vuln-table .fixed-list {
-        display: inline-grid;
-        grid-template-columns: minmax(0, max-content);
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
         gap: 2px;
+        max-width: 100%;
+        width: 100%;
     }
     .vuln-table .summary-cell {
         color: var(--text-soft);

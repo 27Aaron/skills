@@ -28,6 +28,11 @@
         inset 0 0 0 1px rgba(10, 10, 10, 0.04),
         inset 0 1px 0 rgba(255, 255, 255, 0.85);
     --surface-bg: rgba(255, 255, 255, 0.65);
+    --surface-highlight: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.58),
+        transparent 74%
+    );
     --surface-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
     --tile-border: rgba(0, 0, 0, 0.05);
     --tile-border-soft: rgba(0, 0, 0, 0.04);
@@ -41,7 +46,16 @@
     --field-bg: rgba(236, 253, 245, 0.36);
     --bg-code: rgba(15, 23, 42, 0.045);
     --code-block-bg: rgba(255, 255, 255, 0.7);
+    --code-block-highlight: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.54),
+        transparent 48%
+    );
     --code-block-hit: rgba(16, 185, 129, 0.12);
+    --code-block-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.72),
+        0 12px 26px -24px rgba(15, 23, 42, 0.32);
+    --code-header-bg: rgba(236, 253, 245, 0.24);
     --code-button-bg: rgba(255, 255, 255, 0.62);
     --code-button-hover-bg: rgba(236, 253, 245, 0.7);
     --warning-border: rgba(217, 119, 6, 0.22);
@@ -546,8 +560,18 @@ tbody tr:hover {
     table-layout: fixed;
 }
 .vuln-table {
-    min-width: max(760px, calc(460px + var(--package-col, 150px)));
+    --risk-table-min-width: max(
+        760px,
+        calc(
+            328px + var(--package-col, 150px) +
+                var(--advisory-col, 132px)
+        )
+    );
+    min-width: var(--risk-table-min-width);
     table-layout: fixed;
+}
+.table-scroll table.vuln-table {
+    min-width: var(--risk-table-min-width);
 }
 .outdated-list-wrap {
     padding: 12px;
@@ -559,14 +583,14 @@ tbody tr:hover {
 }
 .outdated-row {
     display: grid;
-    grid-template-columns: minmax(128px, 1fr) minmax(190px, auto);
+    grid-template-columns: minmax(0, 1fr) minmax(0, min(190px, 48%));
     align-items: center;
     gap: 12px;
     min-width: 0;
     border: 1px solid var(--surface-border);
     border-radius: 8px;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.58), transparent 74%),
+        var(--surface-highlight),
         color-mix(in srgb, var(--surface-bg) 82%, var(--panel-soft));
     padding: 10px 12px;
 }
@@ -587,9 +611,11 @@ tbody tr:hover {
     justify-content: flex-end;
     gap: 7px;
     min-width: 0;
+    overflow: hidden;
     text-align: right;
 }
 .outdated-version-flow code {
+    min-width: 0;
     max-width: 100%;
     overflow: visible;
     overflow-wrap: anywhere;
@@ -625,7 +651,7 @@ tbody tr:hover {
     width: 112px;
 }
 .vuln-table .col-advisory {
-    width: 132px;
+    width: var(--advisory-col, 132px);
 }
 .vuln-table .col-detail {
     width: auto;
@@ -645,18 +671,21 @@ td.ver {
     font-family: var(--font-mono);
     font-size: 12px;
     white-space: nowrap;
-    min-width: 80px;
+    min-width: 0;
+    overflow: hidden;
 }
 td.fixed-cell {
     white-space: normal;
 }
 .fixed-list {
-    display: inline-grid;
-    grid-template-columns: minmax(0, max-content);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 2px;
     align-items: start;
     justify-content: start;
     line-height: 1.45;
+    width: 100%;
+    max-width: 100%;
 }
 .fixed-chip,
 .fixed-empty {
@@ -668,6 +697,14 @@ td.fixed-cell {
 }
 .fixed-empty {
     color: var(--sub);
+}
+.version-scroll {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    scrollbar-width: thin;
 }
 td.path {
     font-family: var(--font-mono);
@@ -694,14 +731,16 @@ td.advisory {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 .adv-list a {
     color: var(--accent);
     font-family: var(--font-mono);
     font-size: 11px;
     text-decoration: none;
-    overflow-wrap: anywhere;
-    white-space: normal;
+    white-space: nowrap;
 }
 .adv-list a:hover {
     color: var(--accent-ink);
@@ -885,11 +924,9 @@ td.summary-cell {
     border: 1px solid var(--field-border);
     border-radius: var(--radius-field);
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.54), transparent 48%),
+        var(--code-block-highlight),
         var(--code-block-bg);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.72),
-        0 12px 26px -24px rgba(15, 23, 42, 0.32);
+    box-shadow: var(--code-block-shadow);
 }
 .secret-evidence-head {
     display: flex;
@@ -898,7 +935,7 @@ td.summary-cell {
     gap: 12px;
     padding: 7px 11px;
     border-bottom: 1px solid var(--field-border);
-    background: rgba(236, 253, 245, 0.24);
+    background: var(--code-header-bg);
     color: var(--accent);
     font-size: 12px;
     font-weight: 720;
@@ -945,13 +982,14 @@ td.summary-cell {
 }
 .secret-code-line {
     display: grid;
-    grid-template-columns: 4ch minmax(0, max-content);
+    grid-template-columns: 4ch minmax(0, 1fr);
     gap: 12px;
+    width: 100%;
     min-height: 22px;
     padding: 1px 12px;
 }
 .secret-code-line.is-hit {
-    background: linear-gradient(90deg, var(--code-block-hit), transparent 72%);
+    background: var(--code-block-hit);
     box-shadow: inset 3px 0 0 var(--accent);
 }
 .secret-code-no {
@@ -1573,6 +1611,12 @@ footer {
             inset 0 1px 0 rgba(255, 255, 255, 0.04);
         --surface-border: rgba(255, 255, 255, 0.1);
         --surface-bg: rgba(255, 255, 255, 0.04);
+        --surface-highlight: linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.055),
+            rgba(255, 255, 255, 0.012) 42%,
+            transparent 78%
+        );
         --surface-shadow: none;
         --tile-border: rgba(255, 255, 255, 0.08);
         --tile-border-soft: rgba(255, 255, 255, 0.08);
@@ -1585,7 +1629,17 @@ footer {
         --field-bg: rgba(110, 231, 183, 0.06);
         --bg-code: rgba(255, 255, 255, 0.07);
         --code-block-bg: rgba(255, 255, 255, 0.045);
+        --code-block-highlight: linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.06),
+            rgba(255, 255, 255, 0.012) 44%,
+            transparent 72%
+        );
         --code-block-hit: rgba(16, 185, 129, 0.16);
+        --code-block-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.06),
+            0 14px 28px -26px rgba(0, 0, 0, 0.78);
+        --code-header-bg: rgba(110, 231, 183, 0.055);
         --code-button-bg: rgba(255, 255, 255, 0.06);
         --code-button-hover-bg: rgba(16, 185, 129, 0.12);
         --warning-border: rgba(251, 191, 36, 0.24);
@@ -1902,9 +1956,11 @@ footer {
         justify-content: stretch;
     }
     .vuln-table .fixed-list {
-        display: inline-grid;
-        grid-template-columns: minmax(0, max-content);
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
         gap: 2px;
+        max-width: 100%;
+        width: 100%;
     }
     .vuln-table .summary-cell {
         color: var(--text-soft);
@@ -2663,7 +2719,7 @@ footer {
         </div>
 
         <script>
-            window.__BUTIAN_REPORT_DATA__ = {"generated_at":"2026-06-10 03:55:57","scan_seconds":5.8,"project":{"path":"/Users/aaron/Documents/Project/skills/tests/demo/projects/elixir","name":"elixir","ecosystems":["hex"],"lockfiles":["mix.lock"],"git_repo":true,"git_branch":"main","total_packages":2,"total_vulnerabilities":2},"scan_config":{"api_concurrency":4,"outdated_concurrency":4,"preflight_file":"/Users/aaron/Documents/Project/skills/tests/demo/projects/elixir/.butian/20260610-035551/assets/preflight.json","scan_mode":"full_dependency_scan","skip_dependency_checks":false,"skip_hygiene":false,"skip_outdated":false,"include_packages":false,"max_secret_files":500,"vulnerability_sources":["osv","nvd","cisa-kev","first-epss"]},"source_scan_file":"/Users/aaron/Documents/Project/skills/tests/demo/projects/elixir/.butian/20260610-035551/assets/scan.json","output_file":"/Users/aaron/Documents/Project/skills/tests/demo/projects/elixir/.butian/20260610-035551/assets/analysis.json","risk_summary":{"critical":0,"high":2,"medium":0,"low":0,"info":0},"dependency_risk_summary":{"critical":0,"high":2,"medium":0,"low":0,"info":0},"server_risk_summary":{"critical":0,"high":0,"medium":0,"low":0,"info":0},"local_risk_summary":{"critical":0,"high":0,"medium":0,"low":0,"info":0},"hygiene":{"gitignore_exists":true,"gitignore_missing":[],"tracked_secrets":[],"sensitive_tracked":[],"repository_checks":[{"id":"repo.missing_dependabot","category":"repo_governance","severity":"info","confidence":"high","file":".github/dependabot.yml","line":null,"title":"配置 Dependabot","detail":"检测到仓库 remote 指向 GitHub，且项目包含 Dependabot 支持的依赖生态或 GitHub Actions 配置；可用 Dependabot 定期创建版本更新 PR。","evidence":"GitHub remote origin: git@github.com:27Aaron/skills.git","recommendation":".github/dependabot.yml，建议创建覆盖 mix 的配置；推送到 GitHub 后，Dependabot 会按 schedule 检查更新。","source":"builtin","fixable":true,"fix_config":{"type":"dependabot_config","path":".github/dependabot.yml","content":"version: 2\nupdates:\n  - package-ecosystem: \"mix\"\n    directory: \"/\"\n    schedule:\n      interval: \"weekly\"\n","ecosystems":["mix"]},"kind":"maintenance_advice"}],"workflow_checks":[],"iac_checks":[],"errors":[],"coverage":{"builtin_rules":["secrets","sensitive_files","gitignore","github_actions","repo_governance","supply_chain","iac_container"],"secret_scan":{"max_files":500,"candidate_files":0,"scanned_files":0,"skipped_by_limit":0,"skipped_fixture_files":0,"skipped_too_large":0,"skipped_unreadable":0}}},"outdated":[],"server":{},"top_issues":[{"package":"plug","version":"1.11.0","ecosystem":"hex","affected":true,"match_reason":"osv_query_match","match_summary":"plug@1.11.0 matched EEF-CVE-2026-8468 in OSV official data.","confidence":"high","advisory_id":"EEF-CVE-2026-8468","aliases":["CVE-2026-8468","GHSA-468c-vq7p-gh64","EEF-CVE-2026-8468"],"cve_id":"CVE-2026-8468","severity":"high","cvss":"8.2","fixed_versions":["1.15.4","1.16.3","1.17.1","1.18.2","1.19.2","2cb7958d33030aa826b0c7404375844d4593d43a","aa69c5ece99c40ded88b8c6581ecc86664b0b734","d5dfffe25e975585227b1b85d247b0d14164bc45","df812a1527bae9e941965e897308a2b8bbf83a94","33858427c7f2737d560a2e40a0c9a9270d77d1d7"],"summary":"plug 1.11.0 存在拒绝服务风险；建议升级到 1.15.4、1.16.3、1.17.1、1.18.2、1.19.2、2cb7958d33030aa826b0c7404375844d4593d43a、aa69c5ece99c40ded88b8c6581ecc86664b0b734、d5dfffe25e975585227b1b85d247b0d14164bc45、df812a1527bae9e941965e897308a2b8bbf83a94、33858427c7f2737d560a2e40a0c9a9270d77d1d7 或更高版本。","risk_signals":["affected_version_match","fixed_version_available","cvss_high"],"cve_enrichments":[{"cveId":"CVE-2026-8468","cvssMetrics":[{"source":"nvd","version":"4.0","vector":"CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N/E:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MAT:X/MPR:X/MUI:X/MVC:X/MVI:X/MVA:X/MSC:X/MSI:X/MSA:X/S:X/AU:X/R:X/V:X/RE:X/U:X","baseScore":"8.2","baseSeverity":"HIGH","exploitabilityScore":null,"impactScore":null}],"cweIds":["CWE-770"],"kevListed":false,"title":"Allocation of Resources Without Limits or Throttling vulnerability in plug_project plug allows denial of service via unbounded buffer accumulation in multipart header parsing","description":"Allocation of Resources Without Limits or Throttling vulnerability in plug_project plug allows denial of service via unbounded buffer accumulation in multipart header parsing.\n\n'Elixir.Plug.Conn':read_part_headers/2 in lib/plug/conn.ex does not obey its :length parameter. There is no upper bound on the size of the accumulated buffer. By contrast, the sibling function read_part_body has an explicit byte_size(acc) \u003e length guard that stops accumulation once a limit is reached. No such guard exists in read_part_headers. An unauthenticated remote attacker can exhaust server memory by sending a crafted multipart/form-data request, causing a denial of service.\n\nThis issue affects plug from 1.4.0 before 1.15.4, 1.16.3, 1.17.1, 1.18.2, and 1.19.2.","bestCvssScore":"8.2","bestCvssSeverity":"HIGH","nvdPublishedAt":"2026-05-14T11:16:18.900Z","nvdModifiedAt":"2026-05-14T17:07:07.030Z","epss":"0.002690000","epssPercentile":"0.505720000","epssScoreDate":"2026-06-09T00:00:00.000Z"}],"vulnerability_source":"official-osv","enrichment_sources":["nvd","cisa-kev","first-epss"],"tier":"red","name":"plug","advisory_summary":"Unbounded buffer accumulation in multipart header parsing causes denial of service in plug","rank":1},{"package":"plug","version":"1.11.0","ecosystem":"hex","affected":true,"match_reason":"osv_query_match","match_summary":"plug@1.11.0 matched GHSA-468c-vq7p-gh64 in OSV official data.","confidence":"high","advisory_id":"GHSA-468c-vq7p-gh64","aliases":["CVE-2026-8468","EEF-CVE-2026-8468","GHSA-468c-vq7p-gh64"],"cve_id":"CVE-2026-8468","severity":"high","cvss":"8.2","fixed_versions":["1.15.4","1.16.3","1.17.1","1.18.2","1.19.2"],"summary":"plug 1.11.0 存在拒绝服务风险；建议升级到 1.15.4、1.16.3、1.17.1、1.18.2、1.19.2 或更高版本。","risk_signals":["affected_version_match","fixed_version_available","cvss_high"],"cve_enrichments":[{"cveId":"CVE-2026-8468","cvssMetrics":[{"source":"nvd","version":"4.0","vector":"CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N/E:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MAT:X/MPR:X/MUI:X/MVC:X/MVI:X/MVA:X/MSC:X/MSI:X/MSA:X/S:X/AU:X/R:X/V:X/RE:X/U:X","baseScore":"8.2","baseSeverity":"HIGH","exploitabilityScore":null,"impactScore":null}],"cweIds":["CWE-770"],"kevListed":false,"title":"Allocation of Resources Without Limits or Throttling vulnerability in plug_project plug allows denial of service via unbounded buffer accumulation in multipart header parsing","description":"Allocation of Resources Without Limits or Throttling vulnerability in plug_project plug allows denial of service via unbounded buffer accumulation in multipart header parsing.\n\n'Elixir.Plug.Conn':read_part_headers/2 in lib/plug/conn.ex does not obey its :length parameter. There is no upper bound on the size of the accumulated buffer. By contrast, the sibling function read_part_body has an explicit byte_size(acc) \u003e length guard that stops accumulation once a limit is reached. No such guard exists in read_part_headers. An unauthenticated remote attacker can exhaust server memory by sending a crafted multipart/form-data request, causing a denial of service.\n\nThis issue affects plug from 1.4.0 before 1.15.4, 1.16.3, 1.17.1, 1.18.2, and 1.19.2.","bestCvssScore":"8.2","bestCvssSeverity":"HIGH","nvdPublishedAt":"2026-05-14T11:16:18.900Z","nvdModifiedAt":"2026-05-14T17:07:07.030Z","epss":"0.002690000","epssPercentile":"0.505720000","epssScoreDate":"2026-06-09T00:00:00.000Z"}],"vulnerability_source":"official-osv","enrichment_sources":["nvd","cisa-kev","first-epss"],"tier":"red","name":"plug","advisory_summary":"Plug: Unbounded buffer accumulation in multipart header parsing causes denial of service","rank":2}],"server_issues":[],"server_maintenance":[],"red":[],"yellow":[],"green":[{"name":"升级 plug","type":"dependency_upgrade","severity":"high","package":"plug","version":"1.11.0","ecosystem":"hex","summary":"plug 命中 2 个风险项，建议升级到 33858427c7f2737d560a2e40a0c9a9270d77d1d7 或更高版本后运行测试。该建议只覆盖包管理器可解析的普通升级；修复后必须复扫。","fix_config":{"type":"upgrade","ecosystem":"hex","package":"plug","current_versions":["1.11.0"],"target_version":"33858427c7f2737d560a2e40a0c9a9270d77d1d7","fixed_versions":["1.15.4","1.16.3","1.17.1","1.18.2","1.19.2","2cb7958d33030aa826b0c7404375844d4593d43a","aa69c5ece99c40ded88b8c6581ecc86664b0b734","d5dfffe25e975585227b1b85d247b0d14164bc45","df812a1527bae9e941965e897308a2b8bbf83a94","33858427c7f2737d560a2e40a0c9a9270d77d1d7"],"advisory_ids":["EEF-CVE-2026-8468","GHSA-468c-vq7p-gh64"],"fixed_versions_by_advisory":{"EEF-CVE-2026-8468":["1.15.4","1.16.3","1.17.1","1.18.2","1.19.2","2cb7958d33030aa826b0c7404375844d4593d43a","aa69c5ece99c40ded88b8c6581ecc86664b0b734","d5dfffe25e975585227b1b85d247b0d14164bc45","df812a1527bae9e941965e897308a2b8bbf83a94","33858427c7f2737d560a2e40a0c9a9270d77d1d7"],"GHSA-468c-vq7p-gh64":["1.15.4","1.16.3","1.17.1","1.18.2","1.19.2"]},"upgrade_scope":"direct_package","residual_guidance":"如果复扫仍出现同名旧版本，通常是间接依赖被父包锁定；需要升级父依赖、等待上游修复，或在用户确认后把锁住旧子依赖的父依赖升级到 latest。"},"dependency_context":null},{"name":"配置 Dependabot","type":"local_repository_check","severity":"info","path":".github/dependabot.yml","file":".github/dependabot.yml","line":null,"category":"repo_governance","source_id":"repo.missing_dependabot","kind":"maintenance_advice","confidence":"high","evidence":"GitHub remote origin: git@github.com:27Aaron/skills.git","why_manual":"检测到仓库 remote 指向 GitHub，且项目包含 Dependabot 支持的依赖生态或 GitHub Actions 配置；可用 Dependabot 定期创建版本更新 PR。","risk":"检测到仓库 remote 指向 GitHub，且项目包含 Dependabot 支持的依赖生态或 GitHub Actions 配置；可用 Dependabot 定期创建版本更新 PR。","disposal":".github/dependabot.yml，建议创建覆盖 mix 的配置；推送到 GitHub 后，Dependabot 会按 schedule 检查更新。","source":"builtin","fix_config":{"type":"dependabot_config","path":".github/dependabot.yml","content":"version: 2\nupdates:\n  - package-ecosystem: \"mix\"\n    directory: \"/\"\n    schedule:\n      interval: \"weekly\"\n","ecosystems":["mix"]},"summary":".github/dependabot.yml，建议创建覆盖 mix 的配置；推送到 GitHub 后，Dependabot 会按 schedule 检查更新。"}],"errors":[],"package_count":2,"vulnerability_count":2,"server_issue_count":0,"server_maintenance_count":0,"outdated_count":0,"package_sources":[{"ecosystem":"hex","source":"mix.lock","count":2}],"butian_workspace":{"gitignore":{"path":"/Users/aaron/Documents/Project/skills/tests/demo/projects/elixir/.gitignore","preexisting":true,"had_butian_entry":true,"missing_entries":[],"added_butian_entry":false,"added_entries":[],"exists_after":true}},"summary":{"tldr":"发现 2 个已确认依赖风险项，其中 2 个为高风险项，仓库安检未发现凭证或敏感文件问题。","detail":"本次检查覆盖项目 elixir，识别到 2 个依赖包，命中 2 个已确认风险项。仓库安检方面，发现疑似硬编码凭证 0 处、被 git 跟踪的敏感文件 0 个、建议补充的 .gitignore 规则 0 条、本地配置/工作流检查项 0 个、建议 1 条。过期依赖 0 个，建议按维护窗口和兼容性评估安排升级。","priority":["优先处理 2 个紧急/高风险项；依赖漏洞先处理有明确修复版本或官方处置路径的项，仓库安检项先处理工作流权限、凭证、容器和供应链配置。","依赖修复后必须重新运行扫描；如果仍出现同名旧版本，通常是间接依赖被父包锁定，需要询问用户是否确认升级父依赖到 latest。"],"tier_stats":{"red":"0 项优先处理","yellow":"0 项需要人工确认","green":"2 项可作为修复计划"}}};
+            window.__BUTIAN_REPORT_DATA__ = {"generated_at":"2026-06-10 04:48:34","scan_seconds":7.4,"project":{"path":"/Users/aaron/Documents/Project/skills/tests/demo/projects/elixir","name":"elixir","ecosystems":["hex"],"lockfiles":["mix.lock"],"git_repo":true,"git_branch":"main","total_packages":2,"total_vulnerabilities":2},"scan_config":{"api_concurrency":4,"outdated_concurrency":4,"preflight_file":"/Users/aaron/Documents/Project/skills/tests/demo/projects/elixir/.butian/20260610-044827/assets/preflight.json","scan_mode":"full_dependency_scan","skip_dependency_checks":false,"skip_hygiene":false,"skip_outdated":false,"include_packages":false,"max_secret_files":500,"vulnerability_sources":["osv","nvd","cisa-kev","first-epss"]},"source_scan_file":"/Users/aaron/Documents/Project/skills/tests/demo/projects/elixir/.butian/20260610-044827/assets/scan.json","output_file":"/Users/aaron/Documents/Project/skills/tests/demo/projects/elixir/.butian/20260610-044827/assets/analysis.json","risk_summary":{"critical":0,"high":1,"medium":0,"low":0,"info":0},"dependency_risk_summary":{"critical":0,"high":1,"medium":0,"low":0,"info":0},"server_risk_summary":{"critical":0,"high":0,"medium":0,"low":0,"info":0},"local_risk_summary":{"critical":0,"high":0,"medium":0,"low":0,"info":0},"hygiene":{"gitignore_exists":true,"gitignore_missing":[],"tracked_secrets":[],"sensitive_tracked":[],"repository_checks":[{"id":"repo.missing_dependabot","category":"repo_governance","severity":"info","confidence":"high","file":".github/dependabot.yml","line":null,"title":"配置 Dependabot","detail":"检测到仓库 remote 指向 GitHub，且项目包含 Dependabot 支持的依赖生态或 GitHub Actions 配置；可用 Dependabot 定期创建版本更新 PR。","evidence":"GitHub remote origin: git@github.com:27Aaron/skills.git","recommendation":".github/dependabot.yml，建议创建覆盖 mix 的配置；推送到 GitHub 后，Dependabot 会按 schedule 检查更新。","source":"builtin","fixable":true,"fix_config":{"type":"dependabot_config","path":".github/dependabot.yml","content":"version: 2\nupdates:\n  - package-ecosystem: \"mix\"\n    directory: \"/\"\n    schedule:\n      interval: \"weekly\"\n","ecosystems":["mix"]},"kind":"maintenance_advice"}],"workflow_checks":[],"iac_checks":[],"errors":[],"coverage":{"builtin_rules":["secrets","sensitive_files","gitignore","github_actions","repo_governance","supply_chain","iac_container"],"secret_scan":{"max_files":500,"candidate_files":0,"scanned_files":0,"skipped_by_limit":0,"skipped_fixture_files":0,"skipped_too_large":0,"skipped_unreadable":0}}},"outdated":[],"server":{},"top_issues":[{"package":"plug","version":"1.11.0","ecosystem":"hex","affected":true,"match_reason":"osv_query_match","match_summary":"plug@1.11.0 matched EEF-CVE-2026-8468 in OSV official data.","confidence":"high","advisory_id":"EEF-CVE-2026-8468","aliases":["CVE-2026-8468","GHSA-468c-vq7p-gh64","EEF-CVE-2026-8468"],"cve_id":"CVE-2026-8468","severity":"high","cvss":"8.2","fixed_versions":["1.15.4","1.16.3","1.17.1","1.18.2","1.19.2"],"summary":"plug 1.11.0 存在拒绝服务风险；建议升级到 1.15.4、1.16.3、1.17.1、1.18.2、1.19.2 或更高版本。","risk_signals":["affected_version_match","fixed_version_available","cvss_high"],"cve_enrichments":[{"cveId":"CVE-2026-8468","cvssMetrics":[{"source":"nvd","version":"4.0","vector":"CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N/E:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MAT:X/MPR:X/MUI:X/MVC:X/MVI:X/MVA:X/MSC:X/MSI:X/MSA:X/S:X/AU:X/R:X/V:X/RE:X/U:X","baseScore":"8.2","baseSeverity":"HIGH","exploitabilityScore":null,"impactScore":null}],"cweIds":["CWE-770"],"kevListed":false,"title":"Allocation of Resources Without Limits or Throttling vulnerability in plug_project plug allows denial of service via unbounded buffer accumulation in multipart header parsing","description":"Allocation of Resources Without Limits or Throttling vulnerability in plug_project plug allows denial of service via unbounded buffer accumulation in multipart header parsing.\n\n'Elixir.Plug.Conn':read_part_headers/2 in lib/plug/conn.ex does not obey its :length parameter. There is no upper bound on the size of the accumulated buffer. By contrast, the sibling function read_part_body has an explicit byte_size(acc) \u003e length guard that stops accumulation once a limit is reached. No such guard exists in read_part_headers. An unauthenticated remote attacker can exhaust server memory by sending a crafted multipart/form-data request, causing a denial of service.\n\nThis issue affects plug from 1.4.0 before 1.15.4, 1.16.3, 1.17.1, 1.18.2, and 1.19.2.","bestCvssScore":"8.2","bestCvssSeverity":"HIGH","nvdPublishedAt":"2026-05-14T11:16:18.900Z","nvdModifiedAt":"2026-05-14T17:07:07.030Z","epss":"0.002690000","epssPercentile":"0.505720000","epssScoreDate":"2026-06-09T00:00:00.000Z"}],"vulnerability_source":"official-osv","enrichment_sources":["nvd","cisa-kev","first-epss"],"advisory_ids":["EEF-CVE-2026-8468","GHSA-468c-vq7p-gh64"],"tier":"red","name":"plug","advisory_summary":"Unbounded buffer accumulation in multipart header parsing causes denial of service in plug","rank":1}],"server_issues":[],"server_maintenance":[],"red":[],"yellow":[],"green":[{"name":"升级 plug","type":"dependency_upgrade","severity":"high","package":"plug","version":"1.11.0","ecosystem":"hex","summary":"plug 命中 1 个风险项，建议升级到 1.19.2 或更高版本后运行测试。该建议只覆盖包管理器可解析的普通升级；修复后必须复扫。","fix_config":{"type":"upgrade","ecosystem":"hex","package":"plug","current_versions":["1.11.0"],"target_version":"1.19.2","fixed_versions":["1.15.4","1.16.3","1.17.1","1.18.2","1.19.2"],"advisory_ids":["EEF-CVE-2026-8468","GHSA-468c-vq7p-gh64"],"fixed_versions_by_advisory":{"EEF-CVE-2026-8468":["1.15.4","1.16.3","1.17.1","1.18.2","1.19.2"],"GHSA-468c-vq7p-gh64":["1.15.4","1.16.3","1.17.1","1.18.2","1.19.2"]},"upgrade_scope":"direct_package","residual_guidance":"如果复扫仍出现同名旧版本，通常是间接依赖被父包锁定；需要升级父依赖、等待上游修复，或在用户确认后把锁住旧子依赖的父依赖升级到 latest。"},"dependency_context":null},{"name":"配置 Dependabot","type":"local_repository_check","severity":"info","path":".github/dependabot.yml","file":".github/dependabot.yml","line":null,"category":"repo_governance","source_id":"repo.missing_dependabot","kind":"maintenance_advice","confidence":"high","evidence":"GitHub remote origin: git@github.com:27Aaron/skills.git","why_manual":"检测到仓库 remote 指向 GitHub，且项目包含 Dependabot 支持的依赖生态或 GitHub Actions 配置；可用 Dependabot 定期创建版本更新 PR。","risk":"检测到仓库 remote 指向 GitHub，且项目包含 Dependabot 支持的依赖生态或 GitHub Actions 配置；可用 Dependabot 定期创建版本更新 PR。","disposal":".github/dependabot.yml，建议创建覆盖 mix 的配置；推送到 GitHub 后，Dependabot 会按 schedule 检查更新。","source":"builtin","fix_config":{"type":"dependabot_config","path":".github/dependabot.yml","content":"version: 2\nupdates:\n  - package-ecosystem: \"mix\"\n    directory: \"/\"\n    schedule:\n      interval: \"weekly\"\n","ecosystems":["mix"]},"summary":".github/dependabot.yml，建议创建覆盖 mix 的配置；推送到 GitHub 后，Dependabot 会按 schedule 检查更新。"}],"errors":[],"package_count":2,"vulnerability_count":1,"server_issue_count":0,"server_maintenance_count":0,"outdated_count":0,"package_sources":[{"ecosystem":"hex","source":"mix.lock","count":2}],"butian_workspace":{"gitignore":{"path":"/Users/aaron/Documents/Project/skills/tests/demo/projects/elixir/.gitignore","preexisting":true,"had_butian_entry":true,"missing_entries":[],"added_butian_entry":false,"added_entries":[],"exists_after":true}},"summary":{"tldr":"发现 1 个已确认依赖风险项，其中 1 个为高风险项，仓库安检未发现凭证或敏感文件问题。","detail":"本次检查覆盖项目 elixir，识别到 2 个依赖包，命中 1 个已确认风险项。仓库安检方面，发现疑似硬编码凭证 0 处、被 git 跟踪的敏感文件 0 个、建议补充的 .gitignore 规则 0 条、本地配置/工作流检查项 0 个、建议 1 条。过期依赖 0 个，建议按维护窗口和兼容性评估安排升级。","priority":["优先处理 1 个紧急/高风险项；依赖漏洞先处理有明确修复版本或官方处置路径的项，仓库安检项先处理工作流权限、凭证、容器和供应链配置。","依赖修复后必须重新运行扫描；如果仍出现同名旧版本，通常是间接依赖被父包锁定，需要询问用户是否确认升级父依赖到 latest。"],"tier_stats":{"red":"0 项优先处理","yellow":"0 项需要人工确认","green":"2 项可作为修复计划"}}};
         </script>
         <script>
             const RAW = window.__BUTIAN_REPORT_DATA__ || {};
@@ -3496,19 +3552,19 @@ function shortFixedVersionText(r) {
     : "建议研发确认官方修复版本后再安排升级。";
 }
 
+function versionScrollHtml(value, extraClass = "") {
+  const text = String(value || "");
+  const classes = [extraClass, "version-scroll"].filter(Boolean).join(" ");
+  return `<span class="${classes}" title="${esc(text)}">${esc(text)}</span>`;
+}
+
 function fixedVersionHtml(r) {
   const versions = toList(
     r.fixed_versions || r.fix_versions || r.patched_versions,
   );
-  const currentVersion = r && r.version;
-  const higherVersions = currentVersion
-    ? versions.filter((version) => compareVersions(version, currentVersion) > 0)
-    : versions;
-  const displayVersions = higherVersions.length ? higherVersions : versions;
-  if (!displayVersions.length) return '<span class="fixed-empty">待确认</span>';
-  return `<div class="fixed-list">${displayVersions
-    .map((version) => `<span class="fixed-chip">${esc(version)}</span>`)
-    .join("")}</div>`;
+  const displayVersion = bestFixedVersion(versions, r && r.version);
+  if (!displayVersion) return '<span class="fixed-empty">待确认</span>';
+  return `<div class="fixed-list">${versionScrollHtml(displayVersion, "fixed-chip")}</div>`;
 }
 
 function miniFields(fields) {
@@ -5593,9 +5649,15 @@ function packageColumnWidth(rows) {
   return Math.min(220, Math.max(132, maxChars * 8 + 30));
 }
 
-function packageColumnWidthStyle(rows) {
-  const px = packageColumnWidth(rows);
-  return `--package-col:${px}px;`;
+function advisoryColumnWidth(rows) {
+  const maxChars = (rows || []).reduce((max, row) => {
+    return Math.max(max, ...securityIds(row).map(measuredTextLength));
+  }, 4);
+  return Math.min(260, Math.max(132, maxChars * 8 + 30));
+}
+
+function riskTableColumnWidthStyle(rows) {
+  return `--package-col:${packageColumnWidth(rows)}px;--advisory-col:${advisoryColumnWidth(rows)}px;`;
 }
 
 function renderTableColgroup(columns) {
@@ -5660,7 +5722,7 @@ function renderVulnTable(rows) {
       return `<tr class="${hasDetail}${extraCls}"${detailAttrs}>
   <td class="sev" data-label="影响程度">${sevBadge(r.severity)}</td>
   <td class="package-cell" data-label="依赖名称"><b title="${esc(packageName)}">${esc(packageName)}</b></td>
-  <td class="ver" data-label="当前版本">${esc(r.version || "")}</td>
+  <td class="ver" data-label="当前版本">${versionScrollHtml(r.version || "")}</td>
   <td class="ver fixed-cell" data-label="修复版本">${fixedHtml}</td>
   <td class="advisory" data-label="安全编号">${advHtml}</td>
   <td class="summary-cell" data-label="详情">${vulnerabilityExplanation(r)}</td>
@@ -5673,7 +5735,7 @@ function renderVulnTable(rows) {
   return section(
     "当前风险",
     sortedRows.length,
-    `<div class="table-scroll"><table class="stable-table vuln-table" style="${packageColumnWidthStyle(sortedRows)}">
+    `<div class="table-scroll"><table class="stable-table vuln-table" style="${riskTableColumnWidthStyle(sortedRows)}">
   ${renderTableColgroup(["severity", "package", "version", "fixed", "advisory", "detail"])}
   <thead><tr><th>影响程度</th><th>依赖名称</th><th>当前版本</th><th>修复版本</th><th>安全编号</th><th>详情</th></tr></thead>
   <tbody>${body}${toggle}</tbody></table></div>`,
