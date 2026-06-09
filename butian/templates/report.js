@@ -2906,7 +2906,7 @@ function packageColumnWidth(rows) {
   const maxChars = (rows || []).reduce((max, row) => {
     return Math.max(max, measuredTextLength(packageNameFor(row)));
   }, 4);
-  return Math.min(260, Math.max(132, maxChars * 8 + 30));
+  return Math.min(220, Math.max(132, maxChars * 8 + 30));
 }
 
 function packageColumnWidthStyle(rows) {
@@ -2990,7 +2990,7 @@ function renderVulnTable(rows) {
     "当前风险",
     sortedRows.length,
     `<div class="table-scroll"><table class="stable-table vuln-table" style="${packageColumnWidthStyle(sortedRows)}">
-  ${renderTableColgroup(["severity", "package", "version", "fixed", "advisory", "summary"])}
+  ${renderTableColgroup(["severity", "package", "version", "fixed", "advisory", "detail"])}
   <thead><tr><th>影响程度</th><th>依赖名称</th><th>当前版本</th><th>修复版本</th><th>安全编号</th><th>详情</th></tr></thead>
   <tbody>${body}${toggle}</tbody></table></div>`,
     "",

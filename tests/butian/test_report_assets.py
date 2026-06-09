@@ -350,7 +350,10 @@ class ButianReportAssetTests(unittest.TestCase):
         with open(REPORT_CSS, "r", encoding="utf-8") as handle:
             css = handle.read()
         self.assertIn(".fixed-list", css)
-        self.assertIn("grid-template-columns: repeat(2, max-content)", css)
+        fixed_list_css = css.split(".fixed-list {", 1)[1].split("}", 1)[0]
+        self.assertIn("display: inline-grid;", fixed_list_css)
+        self.assertIn("grid-template-columns: minmax(0, max-content);", fixed_list_css)
+        self.assertNotIn("repeat(2, max-content)", fixed_list_css)
         self.assertIn("td.fixed-cell", css)
         bar_css = css.split(".bar {", 1)[1].split("}", 1)[0]
         self.assertIn("position: relative;", bar_css)
@@ -586,6 +589,59 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertNotIn("border-left-width: 4px", css)
         self.assertNotIn("border-left-color: var(--warning-ink)", css)
 
+    def test_current_risk_table_gives_detail_column_more_room(self):
+        data = {
+            "generated_at": "2026-06-05 09:05:50",
+            "project": {"name": "demo", "path": "/tmp/demo", "ecosystems": ["npm"]},
+            "scan_config": {"scan_mode": "full_dependency_scan"},
+            "risk_summary": {
+                "critical": 0,
+                "high": 1,
+                "medium": 0,
+                "low": 0,
+                "info": 0,
+            },
+            "summary": {"tldr": "demo", "detail": "demo", "priority": []},
+            "top_issues": [
+                {
+                    "package": "@scope/long-current-risk-package",
+                    "version": "16.2.4",
+                    "severity": "high",
+                    "fixed_versions": ["16.2.5"],
+                    "advisory_id": "GHSA-layout",
+                    "cve_id": "CVE-2026-44578",
+                    "summary": "Next.js vulnerable to server-side request forgery in applications using WebSocket upgrades",
+                }
+            ],
+            "hygiene": {},
+            "outdated": [],
+        }
+
+        html = self._render_html(data)
+
+        self.assertIn(
+            '<col class="col-severity"><col class="col-package"><col class="col-version"><col class="col-fixed"><col class="col-advisory"><col class="col-detail">',
+            html,
+        )
+        self.assertIn('data-label="详情"', html)
+        self.assertNotIn('<col class="col-summary">', html)
+
+        with open(REPORT_CSS, "r", encoding="utf-8") as handle:
+            css = handle.read()
+        vuln_css = css.split(".vuln-table {", 1)[1].split("}", 1)[0]
+        self.assertIn("table-layout: fixed;", vuln_css)
+        self.assertIn("calc(460px + var(--package-col, 150px))", vuln_css)
+        self.assertIn(".vuln-table .col-detail", css)
+        detail_col_css = css.split(".vuln-table .col-detail {", 1)[1].split("}", 1)[0]
+        self.assertIn("width: auto;", detail_col_css)
+        advisory_col_css = css.split(".vuln-table .col-advisory {", 1)[1].split("}", 1)[0]
+        self.assertIn("width: 132px;", advisory_col_css)
+        fixed_col_css = css.split(".vuln-table .col-fixed {", 1)[1].split("}", 1)[0]
+        self.assertIn("width: 112px;", fixed_col_css)
+        summary_css = css.split("td.summary-cell {", 1)[1].split("}", 1)[0]
+        self.assertIn("min-width: 0;", summary_css)
+        self.assertIn("text-wrap: pretty;", summary_css)
+
     def test_current_risk_details_use_precise_plain_language(self):
         data = {
             "generated_at": "2026-06-05 09:05:50",
@@ -764,7 +820,7 @@ class ButianReportAssetTests(unittest.TestCase):
                     "package": "next",
                     "version": "16.2.4",
                     "severity": "high",
-                    "fixed_versions": ["15.5.16", "16.2.5"],
+                    "fixed_versions": ["15.5.16", "16.2.5", "17.0.0"],
                     "advisory_id": "GHSA-c4j6-fc7j-m34r",
                     "cve_id": "CVE-2026-44578",
                     "summary": "Next.js vulnerable to server-side request forgery in applications using WebSocket upgrades",
@@ -788,6 +844,7 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("CVE-2026-44578", next_row)
         self.assertNotIn("GHSA-c4j6-fc7j-m34r", next_row)
         self.assertIn('<span class="fixed-chip">16.2.5</span>', next_row)
+        self.assertIn('<span class="fixed-chip">17.0.0</span>', next_row)
         self.assertNotIn("15.5.16", next_row)
 
         ghsa_only_row = html.split('title="ghsa-only-lib"', 1)[1].split("</tr>", 1)[0]

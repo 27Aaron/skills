@@ -534,7 +534,8 @@ tbody tr:hover {
     table-layout: fixed;
 }
 .vuln-table {
-    min-width: max(820px, calc(620px + var(--package-col, 160px)));
+    min-width: max(760px, calc(460px + var(--package-col, 150px)));
+    table-layout: fixed;
 }
 .outdated-list-wrap {
     padding: 12px;
@@ -599,24 +600,27 @@ tbody tr:hover {
     font-size: 12px;
     line-height: 1;
 }
-.col-severity {
+.vuln-table .col-severity {
     width: 72px;
 }
-.col-package {
-    width: var(--package-col, 160px);
+.vuln-table .col-package {
+    width: var(--package-col, 150px);
 }
-.col-version {
-    width: 84px;
+.vuln-table .col-version {
+    width: 82px;
 }
-.col-fixed {
-    width: 148px;
+.vuln-table .col-fixed {
+    width: 112px;
+}
+.vuln-table .col-advisory {
+    width: 132px;
+}
+.vuln-table .col-detail {
+    width: auto;
 }
 .col-current,
 .col-latest {
     width: 112px;
-}
-.col-advisory {
-    width: 180px;
 }
 tr:last-child td {
     border-bottom: none;
@@ -635,10 +639,10 @@ td.fixed-cell {
     white-space: normal;
 }
 .fixed-list {
-    display: grid;
-    grid-template-columns: repeat(2, max-content);
-    gap: 3px 10px;
-    align-items: center;
+    display: inline-grid;
+    grid-template-columns: minmax(0, max-content);
+    gap: 2px;
+    align-items: start;
     justify-content: start;
     line-height: 1.45;
 }
@@ -660,7 +664,7 @@ td.path {
     word-break: break-all;
 }
 td.advisory {
-    min-width: 180px;
+    min-width: 0;
     font-size: 12px;
 }
 .package-cell {
@@ -692,10 +696,11 @@ td.advisory {
     text-decoration: underline;
 }
 td.summary-cell {
-    min-width: 260px;
+    min-width: 0;
     color: var(--sub);
     font-size: 12px;
     line-height: 1.65;
+    text-wrap: pretty;
     white-space: normal;
 }
 .mini-fields {
@@ -1833,9 +1838,9 @@ footer {
         justify-content: stretch;
     }
     .vuln-table .fixed-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 3px 10px;
+        display: inline-grid;
+        grid-template-columns: minmax(0, max-content);
+        gap: 2px;
     }
     .vuln-table .summary-cell {
         color: var(--text-soft);
