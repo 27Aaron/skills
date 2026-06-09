@@ -103,6 +103,28 @@ jobs:
                 any(f["id"] == "actions.untrusted_context_in_run" for f in findings)
             )
 
+    def test_detects_untrusted_context_in_multiline_run_block(self):
+        with tempfile.TemporaryDirectory(prefix="butian-workflow-") as root:
+            write(
+                os.path.join(root, ".github", "workflows", "title.yml"),
+                """on: [pull_request]
+permissions: contents: read
+jobs:
+  t:
+    steps:
+      - run: |
+          echo "title=${{ github.event.pull_request.title }}"
+""",
+            )
+
+            findings = workflow_checks.scan_workflows(root)
+
+            item = next(
+                f for f in findings if f["id"] == "actions.untrusted_context_in_run"
+            )
+            self.assertEqual(item["line"], 7)
+            self.assertIn("pull_request.title", item["evidence"])
+
     def test_detects_remote_script_pipe(self):
         with tempfile.TemporaryDirectory(prefix="butian-workflow-") as root:
             write(

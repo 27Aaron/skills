@@ -141,8 +141,16 @@ def scan_workflows(project_path: str):
                     )
                 )
 
+        run_block_indent = None
         for line_no, line in enumerate(text.splitlines(), 1):
-            if "run:" in line and UNTRUSTED_CONTEXT_RE.search(line):
+            stripped = line.strip()
+            indent = len(line) - len(line.lstrip(" "))
+            in_run_block = run_block_indent is not None
+            if in_run_block and stripped and indent <= run_block_indent:
+                run_block_indent = None
+                in_run_block = False
+
+            if (in_run_block or "run:" in line) and UNTRUSTED_CONTEXT_RE.search(line):
                 findings.append(
                     make_finding(
                         "actions.untrusted_context_in_run",
@@ -157,6 +165,9 @@ def scan_workflows(project_path: str):
                         recommendation="先把表达式写入 env，再在 shell 中用带引号的变量读取，或改成 action 参数处理。",
                     )
                 )
+            if not in_run_block and re.search(r"\brun\s*:\s*[|>]", line):
+                run_block_indent = indent
+
             if re.search(r"\b(curl|wget)\b.+\|\s*(sh|bash)\b", line):
                 findings.append(
                     make_finding(
