@@ -83,7 +83,7 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 | `BUTIAN_DIR`                     | `.butian`                                                       | 工作区目录名                   |
 | `BUTIAN_ASSETS_DIR`              | `assets`                                                        | 工作区内的资产子目录           |
 | `BUTIAN_CONTENT_DIR`             | `content`                                                       | 工作区内的内容子目录           |
-| `BUTIAN_GITIGNORE_EXTRA_ENTRIES` | `("docs/butian",)`                                              | 除 `.butian/` 外额外忽略的目录 |
+| `BUTIAN_GITIGNORE_EXTRA_ENTRIES` | `("docs/butian/security-report-*.md",)`                         | 除 `.butian/` 外额外忽略的生成报告 |
 | `CACHE_DIR_NAME`                 | `cache`                                                         | 缓存子目录名                   |
 
 ## 关键函数
@@ -583,10 +583,10 @@ main()
 ```
 # Butian local workspace
 .butian/
-docs/butian
+docs/butian/security-report-*.md
 ```
 
 - `.butian/` — 本地扫描工作区（扫描结果、缓存、日志）
-- `docs/butian` — Markdown 审计报告目录（无需提交到版本控制）
+- `docs/butian/security-report-*.md` — 生成的 Markdown 审计报告；`docs/butian/` 下的手写文档不应被忽略
 
 `has_butian_gitignore_entry()` 检查 `.butian/` 或 `.butian` 条目是否存在；`ensure_butian_gitignore()` 在首次扫描时追加完整条目。

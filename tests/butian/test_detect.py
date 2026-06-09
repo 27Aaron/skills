@@ -308,8 +308,10 @@ class BuildPreflightTests(unittest.TestCase):
             self.assertTrue(os.path.exists(gitignore_path))
             with open(gitignore_path, "r", encoding="utf-8") as handle:
                 content = handle.read()
-            self.assertIn(".butian/", content)
-            self.assertIn("docs/butian", content)
+            lines = content.splitlines()
+            self.assertIn(".butian/", lines)
+            self.assertIn("docs/butian/security-report-*.md", lines)
+            self.assertNotIn("docs/butian", lines)
             self.assertTrue(result["butian_workspace"]["gitignore"]["exists_after"])
             self.assertTrue(result["butian_workspace"]["gitignore"]["added_butian_entry"])
 
@@ -323,9 +325,11 @@ class BuildPreflightTests(unittest.TestCase):
 
             with open(gitignore_path, "r", encoding="utf-8") as handle:
                 content = handle.read()
+            lines = content.splitlines()
             self.assertIn("node_modules/", content)
-            self.assertIn(".butian/", content)
-            self.assertIn("docs/butian", content)
+            self.assertIn(".butian/", lines)
+            self.assertIn("docs/butian/security-report-*.md", lines)
+            self.assertNotIn("docs/butian", lines)
             self.assertFalse(result["butian_workspace"]["gitignore"]["had_butian_entry"])
             self.assertEqual(result["butian_workspace"]["gitignore"]["missing_entries"], [])
 

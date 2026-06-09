@@ -22,6 +22,10 @@ SCRIPT_TEST_FILES = {
     "report.py": ["test_report.py", "test_report_assets.py"],
     "run_audit.py": ["test_run_audit.py"],
     "scan.py": ["test_scan.py", "test_scan_helpers.py", "test_cache.py"],
+    "server_analyze.py": ["test_server_analyze.py"],
+    "server_collect.py": ["test_server_collect.py"],
+    "server_inventory.py": ["test_server_inventory.py"],
+    "server_match.py": ["test_server_match.py"],
     "visualize.py": ["test_visualize.py", "test_report_assets.py"],
     "workflow_checks.py": ["test_workflow_checks.py"],
 }
@@ -37,6 +41,10 @@ SCRIPT_DOC_FILES = {
     "report.py": "report.md",
     "run_audit.py": "run_audit.md",
     "scan.py": "scan.md",
+    "server_analyze.py": "server_analyze.md",
+    "server_collect.py": "server_collect.md",
+    "server_inventory.py": "server_inventory.md",
+    "server_match.py": "server_match.md",
     "visualize.py": "visualize.md",
     "workflow_checks.py": "workflow_checks.md",
 }

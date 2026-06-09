@@ -8,7 +8,7 @@ Collects security-related data and outputs JSON for agent analysis:
   4. Outdated dependency checks
 
 The scan is read-only for project code and dependency files: it creates/updates
-local report workspaces and silently ensures .gitignore ignores those workspaces.
+local report workspaces and silently ensures .gitignore ignores generated reports.
 
 Usage:
     python3 scan.py --preflight <preflight_json>
@@ -76,7 +76,7 @@ BUTIAN_DIR = ".butian"
 CACHE_DIR_NAME = "cache"
 
 BUTIAN_GITIGNORE_ENTRY = ".butian/"
-BUTIAN_GITIGNORE_EXTRA_ENTRIES = ("docs/butian",)
+BUTIAN_GITIGNORE_EXTRA_ENTRIES = ("docs/butian/security-report-*.md",)
 BUTIAN_ASSETS_DIR = "assets"
 BUTIAN_CONTENT_DIR = "content"
 _GITIGNORE_STATUS_BY_PROJECT = {}

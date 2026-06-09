@@ -206,8 +206,10 @@ class ButianScanTests(unittest.TestCase):
             self.assertTrue(os.path.isdir(os.path.join(root, ".butian")))
             with open(os.path.join(root, ".gitignore"), "r", encoding="utf-8") as handle:
                 content = handle.read()
-            self.assertIn(".butian/", content)
-            self.assertIn("docs/butian", content)
+            lines = content.splitlines()
+            self.assertIn(".butian/", lines)
+            self.assertIn("docs/butian/security-report-*.md", lines)
+            self.assertNotIn("docs/butian", lines)
             self.assertTrue(
                 os.path.abspath(preflight["butian_workspace"]["run_dir"]).startswith(
                     os.path.join(os.path.abspath(root), ".butian")
@@ -369,7 +371,6 @@ class ButianScanTests(unittest.TestCase):
         self.assertIn("不修改源码、依赖、数据库、日志或任意项目文件", skill_doc)
         self.assertIn("会创建/更新 `.butian/` 本地报告工作区", skill_doc)
         self.assertIn("会确保 `.gitignore` 忽略 `.butian/`", skill_doc)
-        self.assertIn("docs/butian", skill_doc)
         self.assertIn("docs/butian/security-report-<run-id>.md", skill_doc)
         self.assertNotIn("docs/security-report-YYYY-MM-DD.md", skill_doc)
         self.assertNotIn("全程只读，绝不擅自动手", skill_doc)
@@ -2297,8 +2298,10 @@ class EnsureButianRunTests(unittest.TestCase):
             self.assertTrue(os.path.isdir(os.path.join(run_dir, "content")))
             with open(os.path.join(root, ".gitignore"), "r", encoding="utf-8") as f:
                 content = f.read()
-            self.assertIn(".butian/", content)
-            self.assertIn("docs/butian", content)
+            lines = content.splitlines()
+            self.assertIn(".butian/", lines)
+            self.assertIn("docs/butian/security-report-*.md", lines)
+            self.assertNotIn("docs/butian", lines)
 
     def test_collision_avoidance(self):
         with tempfile.TemporaryDirectory(prefix="butian-run-") as root:
@@ -2332,8 +2335,10 @@ class EnsureButianGitignoreTests(unittest.TestCase):
             self.assertTrue(os.path.isfile(path))
             with open(path) as f:
                 content = f.read()
-            self.assertIn(".butian/", content)
-            self.assertIn("docs/butian", content)
+            lines = content.splitlines()
+            self.assertIn(".butian/", lines)
+            self.assertIn("docs/butian/security-report-*.md", lines)
+            self.assertNotIn("docs/butian", lines)
 
     def test_appends_to_existing(self):
         with tempfile.TemporaryDirectory(prefix="butian-gitignore-") as root:
@@ -2343,11 +2348,13 @@ class EnsureButianGitignoreTests(unittest.TestCase):
             scan.ensure_butian_gitignore(root)
             with open(os.path.join(root, ".gitignore")) as f:
                 content = f.read()
+            lines = content.splitlines()
             self.assertIn("node_modules/", content)
-            self.assertIn(".butian/", content)
-            self.assertIn("docs/butian", content)
+            self.assertIn(".butian/", lines)
+            self.assertIn("docs/butian/security-report-*.md", lines)
+            self.assertNotIn("docs/butian", lines)
 
-    def test_adds_docs_butian_when_butian_entry_already_exists(self):
+    def test_adds_report_ignore_when_butian_entry_already_exists(self):
         with tempfile.TemporaryDirectory(prefix="butian-gitignore-") as root:
             scan._GITIGNORE_STATUS_BY_PROJECT.clear()
             with open(os.path.join(root, ".gitignore"), "w") as f:
@@ -2355,8 +2362,10 @@ class EnsureButianGitignoreTests(unittest.TestCase):
             scan.ensure_butian_gitignore(root)
             with open(os.path.join(root, ".gitignore")) as f:
                 content = f.read()
+            lines = content.splitlines()
             self.assertEqual(content.count(".butian/"), 1)
-            self.assertEqual(content.count("docs/butian"), 1)
+            self.assertEqual(content.count("docs/butian/security-report-*.md"), 1)
+            self.assertNotIn("docs/butian", lines)
 
     def test_does_not_duplicate_entry(self):
         with tempfile.TemporaryDirectory(prefix="butian-gitignore-") as root:
@@ -2366,8 +2375,10 @@ class EnsureButianGitignoreTests(unittest.TestCase):
             scan.ensure_butian_gitignore(root)
             with open(os.path.join(root, ".gitignore")) as f:
                 content = f.read()
+            lines = content.splitlines()
             self.assertEqual(content.count(".butian/"), 1)
-            self.assertEqual(content.count("docs/butian"), 1)
+            self.assertEqual(content.count("docs/butian/security-report-*.md"), 1)
+            self.assertNotIn("docs/butian", lines)
 
 
 class DefaultAssetPathTests(unittest.TestCase):

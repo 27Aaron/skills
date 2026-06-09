@@ -4,7 +4,7 @@ __pycache__/
 
 # Butian local workspace
 .butian/
-docs/butian
+docs/butian/security-report-*.md
 
 # Local agent planning artifacts
 docs/superpowers/
