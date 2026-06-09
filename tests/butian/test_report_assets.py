@@ -875,19 +875,19 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertNotIn("关键数据被覆盖", html)
         self.assertNotIn("当前版本命中已公开安全公告", html)
 
-    def test_current_risk_table_shows_only_cve_and_higher_fixed_versions(self):
+    def test_current_risk_table_shows_security_ids_and_higher_fixed_versions(self):
         data = {
             "generated_at": "2026-06-05 09:05:50",
             "project": {
                 "name": "demo",
                 "path": "/tmp/demo",
                 "ecosystems": ["npm"],
-                "total_packages": 2,
+                "total_packages": 3,
             },
             "scan_config": {"scan_mode": "full_dependency_scan"},
             "risk_summary": {
                 "critical": 0,
-                "high": 2,
+                "high": 3,
                 "medium": 0,
                 "low": 0,
                 "info": 0,
@@ -911,6 +911,14 @@ class ButianReportAssetTests(unittest.TestCase):
                     "advisory_id": "GHSA-only-test-id",
                     "summary": "Package has an advisory without a CVE identifier",
                 },
+                {
+                    "package": "pysec-only-lib",
+                    "version": "2.0.0",
+                    "severity": "high",
+                    "fixed_versions": ["2.0.1"],
+                    "advisory_id": "PYSEC-2026-1",
+                    "summary": "Package has an OSV advisory without a CVE identifier",
+                },
             ],
             "hygiene": {},
             "outdated": [],
@@ -920,14 +928,22 @@ class ButianReportAssetTests(unittest.TestCase):
 
         next_row = html.split('title="next"', 1)[1].split("</tr>", 1)[0]
         self.assertIn("CVE-2026-44578", next_row)
-        self.assertNotIn("GHSA-c4j6-fc7j-m34r", next_row)
+        self.assertIn("GHSA-c4j6-fc7j-m34r", next_row)
         self.assertIn('<span class="fixed-chip">16.2.5</span>', next_row)
         self.assertIn('<span class="fixed-chip">17.0.0</span>', next_row)
         self.assertNotIn("15.5.16", next_row)
 
         ghsa_only_row = html.split('title="ghsa-only-lib"', 1)[1].split("</tr>", 1)[0]
-        self.assertIn('<span style="color:var(--sub)">-</span>', ghsa_only_row)
-        self.assertNotIn("GHSA-only-test-id", ghsa_only_row)
+        self.assertIn("GHSA-only-test-id", ghsa_only_row)
+        self.assertIn(
+            "https://osv.dev/vulnerability/GHSA-only-test-id", ghsa_only_row
+        )
+
+        pysec_only_row = html.split('title="pysec-only-lib"', 1)[1].split("</tr>", 1)[
+            0
+        ]
+        self.assertIn("PYSEC-2026-1", pysec_only_row)
+        self.assertIn("https://osv.dev/vulnerability/PYSEC-2026-1", pysec_only_row)
 
     def test_html_report_assets_only_ship_secret_evidence_copy_handler(self):
         with open(REPORT_JS, "r", encoding="utf-8") as handle:

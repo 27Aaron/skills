@@ -2338,7 +2338,7 @@ function isRenderableOutdated(it) {
 }
 
 function securityIds(r) {
-  const cves = [];
+  const ids = [];
   const push = (v) => {
     if (Array.isArray(v)) {
       v.forEach(push);
@@ -2350,10 +2350,7 @@ function securityIds(r) {
       .map((x) => x.trim())
       .filter(Boolean)
       .forEach((id) => {
-        if (/^CVE-/i.test(id)) {
-          if (!cves.some((x) => x.toLowerCase() === id.toLowerCase()))
-            cves.push(id);
-        }
+        if (!ids.some((x) => x.toLowerCase() === id.toLowerCase())) ids.push(id);
       });
   };
 
@@ -2364,7 +2361,7 @@ function securityIds(r) {
   push(r.aliases);
   push(r.advisory_aliases);
 
-  return cves;
+  return ids;
 }
 
 function securityIdUrl(id) {
