@@ -5,6 +5,8 @@ import os
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -426,6 +428,43 @@ class CliHelperTests(unittest.TestCase):
         self.assertIn("父依赖", text)
         self.assertIn("latest", text)
 
+    def test_main_without_yes_prints_plan_and_does_not_execute(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            analysis_path = os.path.join(tmp, "analysis.json")
+            with open(analysis_path, "w", encoding="utf-8") as handle:
+                json.dump(
+                    {
+                        "project": {"path": tmp},
+                        "green": [
+                            {
+                                "type": "dependency_upgrade",
+                                "package": "left-pad",
+                                "fix_config": {
+                                    "ecosystem": "npm",
+                                    "package": "left-pad",
+                                    "current_versions": ["1.0.0"],
+                                    "target_version": "1.1.0",
+                                },
+                            }
+                        ],
+                    },
+                    handle,
+                )
+
+            out = StringIO()
+            with (
+                mock.patch.object(fix_mod, "execute_fixes") as mocked_execute,
+                redirect_stdout(out),
+            ):
+                code = fix_mod.main([analysis_path, "--strategy", "fixed"])
+
+            self.assertEqual(code, 0)
+            mocked_execute.assert_not_called()
+            text = out.getvalue()
+            self.assertIn("执行计划", text)
+            self.assertIn("npm install left-pad@1.1.0", text)
+            self.assertIn("--yes", text)
+
     def test_main_returns_nonzero_when_minimal_fix_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
             analysis_path = os.path.join(tmp, "analysis.json")
@@ -454,7 +493,7 @@ class CliHelperTests(unittest.TestCase):
                 "execute_fixes",
                 return_value=([], [("left-pad", "npm install failed")]),
             ):
-                code = fix_mod.main([analysis_path, "--strategy", "fixed"])
+                code = fix_mod.main([analysis_path, "--strategy", "fixed", "--yes"])
 
         self.assertEqual(code, 1)
 
@@ -473,7 +512,7 @@ class CliHelperTests(unittest.TestCase):
                 "execute_fixes",
                 return_value=([], [("all-deps", "npm install failed")]),
             ):
-                code = fix_mod.main([analysis_path, "--strategy", "latest"])
+                code = fix_mod.main([analysis_path, "--strategy", "latest", "--yes"])
 
         self.assertEqual(code, 1)
 
@@ -498,7 +537,7 @@ class CliHelperTests(unittest.TestCase):
                     handle,
                 )
 
-            code = fix_mod.main([analysis_path, "--strategy", "dependabot"])
+            code = fix_mod.main([analysis_path, "--strategy", "dependabot", "--yes"])
 
             self.assertEqual(code, 0)
             with open(
@@ -533,7 +572,7 @@ class CliHelperTests(unittest.TestCase):
                     handle,
                 )
 
-            code = fix_mod.main([analysis_path, "--strategy", "dependabot"])
+            code = fix_mod.main([analysis_path, "--strategy", "dependabot", "--yes"])
 
             self.assertEqual(code, 1)
             with open(existing_path, "r", encoding="utf-8") as handle:

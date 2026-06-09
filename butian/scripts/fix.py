@@ -869,6 +869,16 @@ def parse_args(argv):
             "'dependabot' creates generated .github/dependabot.yml"
         ),
     )
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="actually execute the generated fix plan; omitted means dry-run",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="print the generated fix plan without modifying the project",
+    )
     return parser.parse_args(argv)
 
 
@@ -888,6 +898,32 @@ def strategy_label(strategy):
 
 def normalize_strategy(strategy):
     return "minimal" if strategy == "fixed" else strategy
+
+
+def should_execute(args):
+    return bool(getattr(args, "yes", False)) and not bool(
+        getattr(args, "dry_run", False)
+    )
+
+
+def print_execution_plan(strategy, project_path, commands=None, note=""):
+    label = strategy_label(strategy)
+    print()
+    print(f"执行计划：{label}")
+    print(f"项目路径：{project_path}")
+    if note:
+        print(f"说明：{note}")
+    if commands:
+        print("将执行的命令：")
+        for pkg, cmd in commands:
+            print(f"  - {pkg}: {' '.join(cmd)}")
+    else:
+        print("将根据 analysis.json 计算需要修改的项目文件或依赖。")
+    print()
+    print(
+        "默认不会修改项目。确认无误后追加 --yes 才会真正执行；"
+        "使用 --dry-run 可显式只看计划。"
+    )
 
 
 def post_fix_guidance(strategy):
@@ -942,6 +978,9 @@ def main(argv=None):
             logger.info("未发现可升级的依赖")
             print("没有发现可升级的依赖。")
             return 0
+        if not should_execute(args):
+            print_execution_plan(strategy, project_path, commands)
+            return 0
         print()
         label = strategy_label(strategy)
         logger.info("开始%s: 升级全部依赖到最新版本", label)
@@ -962,6 +1001,13 @@ def main(argv=None):
 
     # --- Strategy: parent-upgrade ---
     if strategy == "parent-upgrade":
+        if not should_execute(args):
+            print_execution_plan(
+                strategy,
+                project_path,
+                note="会分析 npm package-lock.json 中的父依赖链，并升级相关父依赖。",
+            )
+            return 0
         print()
         print("正在升级父依赖和残留子依赖到最新版本...")
         successes, failures = execute_parent_upgrade_fixes(analysis, project_path)
@@ -979,6 +1025,13 @@ def main(argv=None):
 
     # --- Strategy: force-residual ---
     if strategy == "force-residual":
+        if not should_execute(args):
+            print_execution_plan(
+                strategy,
+                project_path,
+                note="会写入 package.json overrides，并重新运行 npm install。",
+            )
+            return 0
         print()
         print("正在通过 npm overrides 强制覆盖残留依赖...")
         successes, failures = execute_force_residual_fixes(analysis, project_path)
@@ -996,6 +1049,19 @@ def main(argv=None):
 
     # --- Strategy: dependabot ---
     if strategy == "dependabot":
+        if not should_execute(args):
+            items = extract_dependabot_config_items(analysis)
+            commands = [
+                (item.get("path") or ".github/dependabot.yml", ["write-file"])
+                for item in items
+            ]
+            print_execution_plan(
+                strategy,
+                project_path,
+                commands,
+                note="会创建缺失的 Dependabot 配置文件，不会覆盖已有文件。",
+            )
+            return 0
         print()
         print("正在创建 Dependabot 配置...")
         successes, failures = execute_dependabot_config_fixes(analysis, project_path)
@@ -1026,6 +1092,10 @@ def main(argv=None):
     if not commands:
         logger.info("没有匹配到可执行的升级命令")
         print("没有匹配到可执行的升级命令。")
+        return 0
+
+    if not should_execute(args):
+        print_execution_plan(strategy, project_path, commands)
         return 0
 
     print()
