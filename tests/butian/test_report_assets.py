@@ -2030,6 +2030,38 @@ class ReportAssetTests(unittest.TestCase):
         self.assertIn("border-radius: var(--radius-field);", finding_note_css)
         self.assertIn("background: var(--field-bg);", finding_note_css)
 
+    def test_dark_mode_uses_muted_surfaces_for_outdated_and_secret_evidence(self):
+        with open(REPORT_CSS, "r", encoding="utf-8") as handle:
+            css = handle.read()
+
+        outdated_css = css.split(".outdated-row {", 1)[1].split("}", 1)[0]
+        self.assertIn("var(--surface-highlight)", outdated_css)
+        self.assertNotIn("rgba(255, 255, 255, 0.58)", outdated_css)
+
+        secret_css = css.split(".secret-evidence {", 1)[1].split("}", 1)[0]
+        self.assertIn("var(--code-block-highlight)", secret_css)
+        self.assertIn("box-shadow: var(--code-block-shadow);", secret_css)
+        self.assertNotIn("rgba(255, 255, 255, 0.54)", secret_css)
+        self.assertNotIn("rgba(255, 255, 255, 0.72)", secret_css)
+
+        secret_head_css = css.split(".secret-evidence-head {", 1)[1].split(
+            "}",
+            1,
+        )[0]
+        self.assertIn("background: var(--code-header-bg);", secret_head_css)
+
+        dark_css = css.split("@media (prefers-color-scheme: dark) {", 1)[1].split(
+            "@media (max-width: 900px)",
+            1,
+        )[0]
+        self.assertIn("--surface-highlight:", dark_css)
+        self.assertIn("--code-block-highlight:", dark_css)
+        self.assertIn("--code-block-shadow:", dark_css)
+        self.assertIn("--code-header-bg:", dark_css)
+        self.assertNotIn("rgba(255, 255, 255, 0.58)", dark_css)
+        self.assertNotIn("rgba(255, 255, 255, 0.54)", dark_css)
+        self.assertNotIn("rgba(255, 255, 255, 0.72)", dark_css)
+
     def test_tldr_fallback_uses_risk_item_term_for_critical_high(self):
         data = {
             "generated_at": "2026-06-05 09:05:50",
