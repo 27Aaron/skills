@@ -2481,7 +2481,7 @@ function detailAction(r) {
   const followUp = target.includes("建议升级到")
     ? "升级后重新扫描，并完成核心流程兼容性验证。"
     : "处理完成后重新扫描，确认风险状态已经关闭。";
-  return `<div class="detail-action"><div class="detail-action-label">建议处理</div><div class="detail-action-text">${esc(target)}${esc(followUp)}</div></div>`;
+  return `<div class="detail-action"><div class="detail-action-label">处理建议</div><div class="detail-action-text">${esc(target)}${esc(followUp)}</div></div>`;
 }
 
 function detailStory(label, valueHtml, signalHtml) {

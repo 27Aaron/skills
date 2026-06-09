@@ -382,7 +382,8 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn('class="detail-action"', html)
         self.assertIn('class="detail-facts"', html)
         self.assertIn('class="detail-facts-bottom"', html)
-        self.assertIn(">建议处理</div>", html)
+        self.assertIn(">处理建议</div>", html)
+        self.assertNotIn(">建议处理</div>", html)
         self.assertIn("建议升级到 13.0.1 或更高版本。升级后重新扫描", html)
         self.assertIn(
             'class="sig-tag sig-epss" data-tooltip="EPSS 用公开数据预测漏洞被真实利用的可能性：未来 30 天利用概率约 0.04%，比约 12.8% 的漏洞更容易被利用。数值越高，越要优先处理。">EPSS 12.8%</span>',
