@@ -50,7 +50,23 @@ class ButianScanTests(unittest.TestCase):
                     handle,
                 )
 
-            self.assertEqual(scan.find_project_root(app), app)
+        self.assertEqual(scan.find_project_root(app), app)
+
+
+# ---------------------------------------------------------------------------
+# dependency_parsers module compatibility
+# ---------------------------------------------------------------------------
+class DependencyParsersModuleCompatibilityTests(unittest.TestCase):
+    def test_scan_reexports_dependency_parser_helpers(self):
+        from butian.scripts import dependency_parsers
+
+        self.assertIs(scan.LOCKFILE_MAP, dependency_parsers.LOCKFILE_MAP)
+        self.assertIs(scan.detect_ecosystems, dependency_parsers.detect_ecosystems)
+        self.assertIs(scan.extract_packages, dependency_parsers.extract_packages)
+        self.assertIs(scan.parse_npm_lock, dependency_parsers.parse_npm_lock)
+        self.assertIs(
+            scan.parse_requirements_txt, dependency_parsers.parse_requirements_txt
+        )
 
     def test_npm_lock_nested_node_modules_uses_real_package_names(self):
         with tempfile.TemporaryDirectory(prefix="butian-npm-nested-") as root:

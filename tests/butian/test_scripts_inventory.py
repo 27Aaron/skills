@@ -14,6 +14,7 @@ SCRIPT_TEST_FILES = {
     "__init__.py": ["test_scripts_inventory.py"],
     "analyze.py": ["test_analyze.py"],
     "cache.py": ["test_cache.py"],
+    "dependency_parsers.py": ["test_scan.py"],
     "detect.py": ["test_detect.py"],
     "finding_utils.py": ["test_finding_utils.py", "test_repo_checks.py"],
     "fix.py": ["test_fix.py"],
@@ -35,6 +36,7 @@ SCRIPT_TEST_FILES = {
 SCRIPT_DOC_FILES = {
     "analyze.py": "analyze.md",
     "cache.py": "cache.md",
+    "dependency_parsers.py": "dependency_parsers.md",
     "detect.py": "detect.md",
     "finding_utils.py": "finding_utils.md",
     "fix.py": "fix.md",

@@ -37,6 +37,7 @@
 | --------------------- | --------------------------------- | --------------------------------------- | ------------------------------------------------------------ |
 | `analyze.py`          | `docs/butian/analyze.md`          | `tests/butian/test_analyze.py`          | 风险排序、摘要、依赖修复项、仓库安检归一化                   |
 | `cache.py`            | `docs/butian/cache.md`            | `tests/butian/test_cache.py`            | 官方漏洞源本地缓存目录、读写和过期清理                       |
+| `dependency_parsers.py` | `docs/butian/dependency_parsers.md` | `tests/butian/test_scan.py`             | 依赖生态检测、lockfile 解析、包坐标去重和来源汇总            |
 | `detect.py`           | `docs/butian/detect.md`           | `tests/butian/test_detect.py`           | 项目根发现、lockfile 识别、preflight 输出                    |
 | `finding_utils.py`    | `docs/butian/finding_utils.md`    | `tests/butian/test_finding_utils.py`    | finding schema、文件遍历、证据截断、去重                     |
 | `fix.py`              | `docs/butian/fix.md`              | `tests/butian/test_fix.py`              | fixed/latest/parent-upgrade/force-residual/dependabot 策略   |
