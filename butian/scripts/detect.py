@@ -21,6 +21,7 @@ try:
         LOCKFILE_MAP,
         butian_gitignore_status,
         default_asset_path,
+        ensure_safe_project_path,
         ensure_butian_run,
         find_project_root,
         run_dir_from_output_file,
@@ -30,6 +31,7 @@ except ImportError:
         LOCKFILE_MAP,
         butian_gitignore_status,
         default_asset_path,
+        ensure_safe_project_path,
         ensure_butian_run,
         find_project_root,
         run_dir_from_output_file,
@@ -78,6 +80,7 @@ def detect_language_support(project_path):
 
 
 def build_preflight(project_path, args):
+    ensure_safe_project_path(project_path)
     language_support = detect_language_support(project_path)
     output_file = args.output or default_output_path(project_path)
     run_dir = (
@@ -114,7 +117,11 @@ def main():
         if args.no_root_discovery
         else find_project_root(args.project_path)
     )
-    preflight = build_preflight(project_path, args)
+    try:
+        preflight = build_preflight(project_path, args)
+    except ValueError as e:
+        print(str(e), file=sys.stderr)
+        return 2
     output = preflight["output_file"]
     os.makedirs(os.path.dirname(os.path.abspath(output)), exist_ok=True)
 
@@ -126,7 +133,8 @@ def main():
         print(json.dumps(preflight, ensure_ascii=False, separators=(",", ":")))
     else:
         print(json.dumps(preflight, ensure_ascii=False, indent=2))
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main() or 0)

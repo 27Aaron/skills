@@ -179,7 +179,7 @@ class BuildUpgradeCommandsTests(unittest.TestCase):
         cmds = fix_mod.build_upgrade_commands(self._FIX_ITEMS, "minimal")
         pkgs = {pkg for pkg, _ in cmds}
         self.assertIn("lodash", pkgs)
-        self.assertIn("requests", pkgs)
+        self.assertNotIn("requests", pkgs)
         # lodash should use npm install lodash@4.17.21
         lodash_cmd = [c for p, c in cmds if p == "lodash"][0]
         self.assertEqual(lodash_cmd[-1], "lodash@4.17.21")
@@ -190,9 +190,43 @@ class BuildUpgradeCommandsTests(unittest.TestCase):
         self.assertEqual(lodash_cmd[-1], "lodash@latest")
 
     def test_latest_pypi(self):
-        cmds = fix_mod.build_upgrade_commands(self._FIX_ITEMS, "latest")
-        requests_cmd = [c for p, c in cmds if p == "requests"][0]
-        self.assertIn("--upgrade", requests_cmd)
+        with tempfile.TemporaryDirectory(prefix="butian-pypi-uv-") as root:
+            open(os.path.join(root, "uv.lock"), "w", encoding="utf-8").close()
+            cmds = fix_mod.build_upgrade_commands(
+                self._FIX_ITEMS, "latest", project_path=root
+            )
+            requests_cmd = [c for p, c in cmds if p == "requests"][0]
+            self.assertEqual(requests_cmd, ["uv", "add", "requests"])
+
+    def test_pypi_without_project_manager_is_not_auto_fixable(self):
+        with tempfile.TemporaryDirectory(prefix="butian-pypi-no-manager-") as root:
+            items = [
+                {
+                    "package": "requests",
+                    "ecosystem": "pypi",
+                    "target_version": "2.32.0",
+                }
+            ]
+
+            self.assertEqual(
+                fix_mod.build_upgrade_commands(
+                    items, "minimal", project_path=root
+                ),
+                [],
+            )
+            self.assertEqual(
+                fix_mod.build_upgrade_commands(items, "latest", project_path=root),
+                [],
+            )
+
+    def test_requirements_txt_without_project_manager_is_not_bulk_upgraded(self):
+        with tempfile.TemporaryDirectory(prefix="butian-pypi-reqs-") as root:
+            with open(
+                os.path.join(root, "requirements.txt"), "w", encoding="utf-8"
+            ) as f:
+                f.write("requests==2.31.0\n")
+
+            self.assertEqual(fix_mod.build_all_latest_commands(root), [])
 
     def test_ecosystem_filter(self):
         cmds = fix_mod.build_upgrade_commands(
@@ -216,7 +250,19 @@ class BuildUpgradeCommandsTests(unittest.TestCase):
         """Verify command builders exist for all supported ecosystems."""
         for eco in ["npm", "pnpm", "yarn", "pypi", "go", "crates-io"]:
             items = [{"package": "pkg", "ecosystem": eco, "target_version": "1.0"}]
-            cmds = fix_mod.build_upgrade_commands(items, "minimal")
+            project_path = None
+            tmp = None
+            if eco == "pypi":
+                tmp = tempfile.TemporaryDirectory(prefix="butian-pypi-uv-")
+                project_path = tmp.name
+                open(
+                    os.path.join(project_path, "uv.lock"), "w", encoding="utf-8"
+                ).close()
+            cmds = fix_mod.build_upgrade_commands(
+                items, "minimal", project_path=project_path
+            )
+            if tmp:
+                tmp.cleanup()
             self.assertEqual(len(cmds), 1, f"No command for ecosystem {eco}")
             self.assertTrue(len(cmds[0][1]) > 0, f"Empty command for {eco}")
 

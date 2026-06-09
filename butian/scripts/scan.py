@@ -794,6 +794,44 @@ PROJECT_ROOT_MARKERS = (
     "Gemfile",
 )
 
+_PROTECTED_SCAN_ROOTS = {
+    os.path.abspath(os.sep),
+    "/Applications",
+    "/bin",
+    "/boot",
+    "/dev",
+    "/etc",
+    "/home",
+    "/Library",
+    "/lib",
+    "/lib64",
+    "/opt",
+    "/private",
+    "/private/var",
+    "/proc",
+    "/root",
+    "/sbin",
+    "/System",
+    "/tmp",
+    "/usr",
+    "/var",
+}
+_HOME_DIR = os.path.expanduser("~")
+if _HOME_DIR and _HOME_DIR != "~":
+    _PROTECTED_SCAN_ROOTS.add(os.path.abspath(_HOME_DIR))
+
+
+def is_protected_project_path(path):
+    return os.path.abspath(path) in _PROTECTED_SCAN_ROOTS
+
+
+def ensure_safe_project_path(project_path):
+    if is_protected_project_path(project_path):
+        raise ValueError(
+            "补天只扫描项目目录，不能把系统目录或用户主目录作为 project_path。"
+            "请切换到具体代码仓库后重新运行。"
+        )
+
 # 敏感文件类型 → 对应的 .gitignore 规则（只按实际发现的文件推荐，不一股脑全加）
 SENSITIVE_TO_GITIGNORE = {
     "env_file": [".env", ".env.*"],
@@ -4260,6 +4298,11 @@ def main():
             if args.no_root_discovery
             else find_project_root(start)
         )
+    try:
+        ensure_safe_project_path(project_path)
+    except ValueError as e:
+        print(str(e), file=sys.stderr)
+        return 2
     preflight_scan_mode = (preflight or {}).get("recommended_scan_mode")
     preflight_hygiene_only = preflight_scan_mode == "hygiene_only"
     output_file = args.output or default_output_path(project_path, preflight=preflight)

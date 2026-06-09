@@ -89,38 +89,37 @@ def _pypi_manager(project_path):
         return "poetry"
     if os.path.isfile(os.path.join(project_path, "Pipfile.lock")):
         return "pipenv"
-    return "pip"
+    return None
 
 
 def _pypi_fixed_cmd(pkg, ver, project_path="."):
     """Build fixed-version install command for the detected Python package manager."""
     mgr = _pypi_manager(project_path)
     if mgr == "uv":
-        return ["uv", "pip", "install", f"{pkg}=={ver}"]
+        return ["uv", "add", f"{pkg}=={ver}"]
     if mgr == "poetry":
         return ["poetry", "add", f"{pkg}@{ver}"]
     if mgr == "pipenv":
         return ["pipenv", "install", f"{pkg}=={ver}"]
-    return [sys.executable, "-m", "pip", "install", f"{pkg}=={ver}"]
+    return None
 
 
 def _pypi_latest_cmd(pkg, project_path="."):
     """Build latest-version upgrade command for the detected Python package manager."""
     mgr = _pypi_manager(project_path)
     if mgr == "uv":
-        return ["uv", "pip", "install", "--upgrade", pkg]
+        return ["uv", "add", pkg]
     if mgr == "poetry":
         return ["poetry", "add", f"{pkg}@latest"]
     if mgr == "pipenv":
         return ["pipenv", "install", pkg]
-    return [sys.executable, "-m", "pip", "install", "--upgrade", pkg]
+    return None
 
 
 _UPGRADE_BUILDERS = {
     "npm": lambda pkg, ver: ["npm", "install", f"{pkg}@{ver}"],
     "pnpm": lambda pkg, ver: ["pnpm", "add", f"{pkg}@{ver}"],
     "yarn": lambda pkg, ver: ["yarn", "add", f"{pkg}@{ver}"],
-    "pypi": lambda pkg, ver: [sys.executable, "-m", "pip", "install", f"{pkg}=={ver}"],
     "go": lambda pkg, ver: ["go", "get", f"{pkg}@{_go_version(ver)}"],
     "crates-io": lambda pkg, ver: ["cargo", "update", "-p", pkg, "--precise", ver],
 }
@@ -187,7 +186,6 @@ def build_all_latest_commands(project_path):
     poetry_lock = os.path.join(project_path, "poetry.lock")
     uv_lock = os.path.join(project_path, "uv.lock")
     pipfile_lock = os.path.join(project_path, "Pipfile.lock")
-    req_txt = os.path.join(project_path, "requirements.txt")
 
     if os.path.isfile(poetry_lock):
         commands.append(("all-deps", ["poetry", "update"]))
@@ -195,25 +193,6 @@ def build_all_latest_commands(project_path):
         commands.append(("all-deps", ["uv", "lock", "--upgrade"]))
     elif os.path.isfile(pipfile_lock):
         commands.append(("all-deps", ["pipenv", "update"]))
-    elif os.path.isfile(req_txt):
-        names = []
-        with open(req_txt, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith("#") or line.startswith("-"):
-                    continue
-                if " #" in line:
-                    line = line[: line.index(" #")]
-                name = line
-                for sep in ("==", ">=", "<=", "~=", "!=", ">", "<", "["):
-                    name = name.split(sep)[0]
-                name = name.strip()
-                if name and not name.startswith("-") and name not in names:
-                    names.append(name)
-        for name in names:
-            commands.append(
-                (name, [sys.executable, "-m", "pip", "install", "--upgrade", name])
-            )
 
     # --- Go ---
     if os.path.isfile(os.path.join(project_path, "go.sum")):

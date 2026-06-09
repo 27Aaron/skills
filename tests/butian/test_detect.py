@@ -4,6 +4,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 from butian.scripts import detect
 
@@ -338,6 +339,18 @@ class BuildPreflightTests(unittest.TestCase):
             self.assertEqual(
                 result["butian_workspace"]["gitignore"]["missing_entries"], []
             )
+
+    def test_preflight_rejects_system_project_roots_before_scanning(self):
+        args = self._make_args()
+        with (
+            mock.patch.object(
+                detect,
+                "detect_language_support",
+                side_effect=AssertionError("system path must not be scanned"),
+            ),
+            self.assertRaises(ValueError),
+        ):
+            detect.build_preflight(os.path.abspath(os.sep), args)
 
 
 # ---------------------------------------------------------------------------
