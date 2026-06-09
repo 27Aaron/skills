@@ -200,6 +200,9 @@ REGISTRY_CONFIG_FILES = (
 TOKEN_RE = re.compile(
     r"(?i)(?:_authToken|token|password|secret|apikey|api[_-]?key)\s*[=:]\s*['\"]?[^'\"\s]{8,}"
 )
+TOKEN_VALUE_RE = re.compile(
+    r"(?i)((?:_authToken|token|password|secret|apikey|api[_-]?key)\s*[=:]\s*['\"]?)[^'\"\s]+(['\"]?)"
+)
 REGISTRY_SOURCE_RE = re.compile(
     r"(?i)^\s*(?:\[\[?tool\.poetry\.source\]?\]|\[(?:source|registries)\.|@[^:\s]+:registry|registry|registries\.[A-Za-z0-9_.-]+\.index|index|index-url|extra-index-url|repository|index-servers|replace-with)(?:\s*[=:]\s*\S+)?"
 )
@@ -500,6 +503,11 @@ def _registry_config_findings(project_path):
         text = read_text(path)
         if TOKEN_RE.search(text):
             match = TOKEN_RE.search(text)
+            evidence = (
+                TOKEN_VALUE_RE.sub(r"\1***\2", match.group(0), count=1)
+                if match
+                else rel
+            )
             findings.append(
                 make_finding(
                     "supply_chain.registry_token_config",
@@ -510,7 +518,7 @@ def _registry_config_findings(project_path):
                     line=text[: match.start()].count("\n") + 1 if match else 1,
                     title="包管理器配置中出现认证凭据",
                     detail="registry 配置文件中的 token、password 或 secret 可能让包发布、安装或私有源访问凭据随仓库泄露。",
-                    evidence=match.group(0) if match else rel,
+                    evidence=evidence,
                     recommendation="把凭据移到本机或 CI secret 管理；如已提交，先轮换凭据，再清理历史记录。",
                 )
             )

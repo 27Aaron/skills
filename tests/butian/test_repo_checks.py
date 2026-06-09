@@ -292,9 +292,10 @@ class RepositoryChecksTests(unittest.TestCase):
 
     def test_detects_registry_token_config(self):
         with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
+            token = "npm_123456789012345678901234567890123456"
             write(
                 os.path.join(root, ".npmrc"),
-                "//registry.npmjs.org/:_authToken=npm_123456789012345678901234567890123456\n",
+                f"//registry.npmjs.org/:_authToken={token}\n",
             )
 
             findings = repo_checks.scan_repository_checks(root)
@@ -302,6 +303,12 @@ class RepositoryChecksTests(unittest.TestCase):
             self.assertTrue(
                 any(f["id"] == "supply_chain.registry_token_config" for f in findings)
             )
+            item = next(
+                f for f in findings if f["id"] == "supply_chain.registry_token_config"
+            )
+            self.assertNotIn(token, item["evidence"])
+            self.assertIn("_authToken=", item["evidence"])
+            self.assertIn("***", item["evidence"])
 
     def test_detects_registry_source_config(self):
         with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
