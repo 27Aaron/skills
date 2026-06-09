@@ -5,6 +5,8 @@ gitignore helpers, lockfile parsers, vulnerability data parsing, CVSS scoring,
 workspace management, utility helpers, and pipeline integration.
 """
 
+# butian: allow-secret-fixtures
+
 import json
 import os
 import subprocess
@@ -2581,6 +2583,30 @@ class CheckSensitiveTrackedTests(unittest.TestCase):
 
 
 class SecretScanLimitTests(unittest.TestCase):
+    def test_secret_fixture_marker_skips_file(self):
+        with tempfile.TemporaryDirectory(prefix="butian-secret-fixture-") as root:
+            with open(os.path.join(root, "config.py"), "w", encoding="utf-8") as handle:
+                handle.write(
+                    "# butian: allow-secret-fixtures\n"
+                    'OPENAI_API_KEY = "sk-proj-1234567890abcdef1234567890"\n'
+                )
+
+            stats = {}
+            findings = scan.scan_secrets(root, stats=stats)
+
+            self.assertEqual(findings, [])
+            self.assertEqual(stats["candidate_files"], 1)
+            self.assertEqual(stats["skipped_fixture_files"], 1)
+
+    def test_fixture_marker_is_required_for_test_like_secret_values(self):
+        with tempfile.TemporaryDirectory(prefix="butian-secret-fixture-") as root:
+            with open(os.path.join(root, "config.py"), "w", encoding="utf-8") as handle:
+                handle.write('OPENAI_API_KEY = "sk-proj-1234567890abcdef1234567890"\n')
+
+            findings = scan.scan_secrets(root)
+
+            self.assertTrue(any(item["type"] == "openai_key" for item in findings))
+
     def test_scan_secrets_reports_limit_stats(self):
         with tempfile.TemporaryDirectory(prefix="butian-secret-limit-") as root:
             for index in range(3):

@@ -184,6 +184,13 @@ class ButianScriptInventoryTests(unittest.TestCase):
         self.assertNotIn('"pypi":      lambda pkg, ver', text)
         self.assertNotIn("| pip    | 默认", text)
 
+    def test_scan_docs_document_secret_fixture_marker(self):
+        with open(os.path.join(DOC_DIR, "scan.md"), "r", encoding="utf-8") as handle:
+            text = handle.read()
+
+        self.assertIn("butian: allow-secret-fixtures", text)
+        self.assertIn("只用于测试夹具", text)
+
     def test_skill_links_scenario_references(self):
         with open(SKILL_PATH, "r", encoding="utf-8") as handle:
             text = handle.read()

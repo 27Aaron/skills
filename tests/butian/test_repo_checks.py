@@ -1,3 +1,5 @@
+# butian: allow-secret-fixtures
+
 import json
 import os
 import subprocess

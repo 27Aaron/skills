@@ -719,6 +719,7 @@ SECRET_SKIP_WORD_MARKERS = (
     "test",
     "default",
 )
+SECRET_FIXTURE_FILE_MARKER = "butian: allow-secret-fixtures"
 HIGH_CONFIDENCE_SECRET_TYPES = {
     # Cloud providers (with unique prefixes)
     "aws_access_key",
@@ -1171,6 +1172,16 @@ def is_binary_file(filepath):
         return b"\x00" in chunk
     except OSError:
         return True
+
+
+def declares_secret_fixture_file(filepath, max_header_bytes=4096):
+    """Return True when a file explicitly marks itself as secret test fixtures."""
+    try:
+        with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
+            header = handle.read(max_header_bytes)
+    except OSError:
+        return False
+    return SECRET_FIXTURE_FILE_MARKER in header
 
 
 # ---------------------------------------------------------------------------
@@ -1712,6 +1723,7 @@ def scan_secrets(
         "candidate_files": 0,
         "scanned_files": 0,
         "skipped_by_limit": 0,
+        "skipped_fixture_files": 0,
         "skipped_too_large": 0,
         "skipped_unreadable": 0,
     }
@@ -1729,6 +1741,9 @@ def scan_secrets(
             if is_binary_file(fpath):
                 continue
             secret_scan_stats["candidate_files"] += 1
+            if declares_secret_fixture_file(fpath):
+                secret_scan_stats["skipped_fixture_files"] += 1
+                continue
             if count >= limit:
                 secret_scan_stats["skipped_by_limit"] += 1
                 continue

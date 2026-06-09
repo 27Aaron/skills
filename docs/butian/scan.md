@@ -537,6 +537,16 @@ main()
 
 `xxx`、`test`、`default`
 
+#### 测试夹具文件标记
+
+如果某个文件只用于测试密钥检测规则，可以在文件头部加入：
+
+```text
+# butian: allow-secret-fixtures
+```
+
+带有该标记的文件会整体跳过硬编码密钥扫描，并在 `coverage.secret_scan.skipped_fixture_files` 中计数。这个标记只用于测试夹具，不应用在业务源码、配置文件或真实凭据文件里。
+
 #### 文件过滤
 
 - 扫描文件扩展名白名单：`.py`、`.js`、`.ts`、`.jsx`、`.tsx`、`.go`、`.rs`、`.rb`、`.php`、`.java`、`.yaml`、`.env*` 等
