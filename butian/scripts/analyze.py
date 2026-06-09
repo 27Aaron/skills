@@ -714,7 +714,9 @@ def build_server_items(scan):
         if confidence != "confirmed":
             continue
         issue = dict(item)
-        issue.setdefault("name", issue.get("package") or issue.get("title") or "服务器风险")
+        issue.setdefault(
+            "name", issue.get("package") or issue.get("title") or "服务器风险"
+        )
         issue.setdefault("summary", "服务器运行环境命中已确认风险。")
         issue["severity"] = normalize_severity(issue.get("severity") or "medium")
         issue["scope"] = "server"
@@ -827,9 +829,7 @@ def build_summary(scan, analysis):
         tldr = "未发现高优先级依赖漏洞，但仓库里有凭证或敏感文件迹象，需要研发确认。"
     elif vuln_count and medium_low:
         risk_scope = "依赖风险项" if server_issue_count == 0 else "风险项"
-        tldr = (
-            f"发现已确认{risk_scope}，当前以中风险或低风险为主，建议按维护窗口分批处理。"
-        )
+        tldr = f"发现已确认{risk_scope}，当前以中风险或低风险为主，建议按维护窗口分批处理。"
     elif vuln_count:
         tldr = "命中已确认风险项，但严重度数据不足，需要结合公告复核影响范围。"
     elif errors:
@@ -861,9 +861,7 @@ def build_summary(scan, analysis):
         priority.append(HYGIENE_ONLY_NOTICE)
     elif critical_high:
         primary_scope = (
-            "依赖漏洞和服务器运行环境风险"
-            if server_issue_count
-            else "依赖漏洞"
+            "依赖漏洞和服务器运行环境风险" if server_issue_count else "依赖漏洞"
         )
         priority.append(
             f"优先处理 {critical_high} 个紧急/高风险项；{primary_scope}先处理有明确修复版本或官方处置路径的项，仓库安检项先处理工作流权限、凭证、容器和供应链配置。"

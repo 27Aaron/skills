@@ -7,7 +7,6 @@ import os
 import re
 from typing import Any
 
-
 SENSITIVE_PUBLIC_SERVICE_ALIASES = {
     "redis-server": "redis",
     "redis": "redis",
@@ -75,13 +74,15 @@ def _sensitive_service_name(process: str, port: int | None = None) -> str:
     return ""
 
 
-def public_service_maintenance_items(ports: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def public_service_maintenance_items(
+    ports: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     items = []
     seen = set()
     for port in ports or []:
         port_number = port.get("port")
         try:
-            port_number = int(port_number)
+            port_number = int(port_number) if port_number is not None else None
         except (TypeError, ValueError):
             port_number = None
         service = _sensitive_service_name(str(port.get("process") or ""), port_number)
@@ -118,9 +119,11 @@ def build_server_analysis(
         for item in (matched.get("confirmed_issues") or [])
         if item.get("confidence") == "confirmed"
     ]
-    containers = ((server_assets.get("docker") or {}).get("containers") or [])
+    containers = (server_assets.get("docker") or {}).get("containers") or []
     ports = server_assets.get("ports") or []
-    maintenance = docker_maintenance_items(containers) + public_service_maintenance_items(ports)
+    maintenance = docker_maintenance_items(
+        containers
+    ) + public_service_maintenance_items(ports)
     errors = []
     errors.extend(server_assets.get("errors") or [])
     errors.extend(matched.get("errors") or [])

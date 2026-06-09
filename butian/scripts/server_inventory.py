@@ -7,7 +7,6 @@ import json
 import re
 from typing import Any
 
-
 SUPPORTED_DISTROS = {
     "ubuntu",
     "debian",
@@ -128,7 +127,9 @@ def parse_os_release(raw: str) -> dict[str, Any]:
     }
 
 
-def _purl(type_name: str, distro_id: str, name: str, version: str, arch: str = "") -> str:
+def _purl(
+    type_name: str, distro_id: str, name: str, version: str, arch: str = ""
+) -> str:
     distro = re.sub(r"[^a-z0-9_.-]+", "-", str(distro_id or "").lower()).strip("-")
     package = str(name or "").strip()
     rendered = f"pkg:{type_name}/{distro}/{package}@{version}"
@@ -231,7 +232,11 @@ def build_kernel_asset(
             name.startswith("linux-image-") and release and release in name
         ):
             candidates.append(package)
-        elif name in kernel_names and version and (version in release or release.startswith(version)):
+        elif (
+            name in kernel_names
+            and version
+            and (version in release or release.startswith(version))
+        ):
             candidates.append(package)
 
     if candidates:
@@ -386,7 +391,11 @@ def build_server_assets(inventory: dict[str, Any]) -> dict[str, Any]:
         )
 
     packages = parse_packages_for_distro(inventory, distro)
-    if distro.get("supported") and distro.get("package_type") != "unknown" and not packages:
+    if (
+        distro.get("supported")
+        and distro.get("package_type") != "unknown"
+        and not packages
+    ):
         errors.append(
             {
                 "step": "server_inventory",

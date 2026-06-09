@@ -279,10 +279,7 @@ def aggregate_enrichments(item):
             result["kev_due_date"] = short_date(enrichment.get("kevDueDate"))
         if enrichment.get("kevRequiredAction"):
             result["kev_required_action"] = text(enrichment.get("kevRequiredAction"))
-        if (
-            text(enrichment.get("kevKnownRansomwareCampaignUse")).lower()
-            == "known"
-        ):
+        if text(enrichment.get("kevKnownRansomwareCampaignUse")).lower() == "known":
             result["ransomware"] = True
         if enrichment.get("nvdPublishedAt") and (
             not result["published_at"]
@@ -295,8 +292,7 @@ def aggregate_enrichments(item):
                 continue
             score = number_or_none(metric.get("baseScore"))
             if score is not None and (
-                result["best_cvss_score"] is None
-                or score > result["best_cvss_score"]
+                result["best_cvss_score"] is None or score > result["best_cvss_score"]
             ):
                 result["best_cvss_score"] = score
                 result["cvss_vector"] = text(metric.get("vector"))

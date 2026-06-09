@@ -144,4 +144,3 @@ SENSITIVE_TYPE_LABELS = {
     "backup": "备份文件",
     "history": "命令历史文件",
 }
-

@@ -79,8 +79,10 @@ def _unsupported_ecosystem_errors(
 
 def _severity_from_cvss(score: float | int | str | None) -> str:
     try:
-        value = float(score)
+        value = float(score) if score is not None else None
     except (TypeError, ValueError):
+        return "medium"
+    if value is None:
         return "medium"
     if value >= 9:
         return "critical"
@@ -189,9 +191,7 @@ def build_confirmed_issue(
         fixed_versions = scan.extract_osv_fixed_versions(osv_record, asset)
     except Exception:
         fixed_versions = []
-    summary = (
-        f"{source_name} {asset.get('version')} 命中发行版包坐标确认的已知漏洞。"
-    )
+    summary = f"{source_name} {asset.get('version')} 命中发行版包坐标确认的已知漏洞。"
     if source_name and source_name != installed_name:
         summary = (
             f"{installed_name} {asset.get('version')} 的源包 {source_name} "
@@ -212,7 +212,9 @@ def build_confirmed_issue(
         "advisory_id": osv_record.get("id") or (aliases[0] if aliases else ""),
         "aliases": aliases or (osv_record.get("aliases") or []),
         "cve_id": aliases[0] if aliases else "",
-        "advisory_summary": osv_record.get("summary") or osv_record.get("details") or "",
+        "advisory_summary": osv_record.get("summary")
+        or osv_record.get("details")
+        or "",
         "summary": summary,
         "cvss": cvss,
         "cwe": _cwes(enrichments),
@@ -273,7 +275,9 @@ def match_server_vulnerabilities(
             data = scan.fetch_osv_querybatch(batch_assets)
             matches.extend(_extract_osv_matches(data, batch_assets))
         except Exception as exc:
-            errors.append(scan.official_source_error("OSV", "服务器包批量查询", str(exc)))
+            errors.append(
+                scan.official_source_error("OSV", "服务器包批量查询", str(exc))
+            )
 
     details: dict[str, dict[str, Any]] = {}
     records: list[tuple[dict[str, Any], dict[str, Any]]] = []
@@ -290,11 +294,17 @@ def match_server_vulnerabilities(
 
     cve_ids = _unique_cves(records)
     nvd = scan.fetch_nvd_enrichments(cve_ids, errors) if cve_ids else {}
-    kev = scan.fetch_cisa_kev_enrichments(cve_ids, errors, project_path) if cve_ids else {}
+    kev = (
+        scan.fetch_cisa_kev_enrichments(cve_ids, errors, project_path)
+        if cve_ids
+        else {}
+    )
     epss = scan.fetch_epss_enrichments(cve_ids, errors) if cve_ids else {}
     enrichments = _merge_enrichments(nvd, kev, epss)
 
-    issues = [build_confirmed_issue(asset, record, enrichments) for asset, record in records]
+    issues = [
+        build_confirmed_issue(asset, record, enrichments) for asset, record in records
+    ]
     return {
         "confirmed_issues": filter_reportable_issues(issues),
         "asset_count": len(assets),

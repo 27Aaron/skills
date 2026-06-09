@@ -95,7 +95,7 @@ def line_for_text(path: str, needle: str) -> int | None:
     return None
 
 
-def evidence_snippet(value: str, max_len: int = 180) -> str:
+def evidence_snippet(value: str | None, max_len: int = 180) -> str:
     value = " ".join(str(value or "").strip().split())
     if len(value) <= max_len:
         return value

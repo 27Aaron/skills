@@ -200,12 +200,9 @@ def main():
     tpl = read_text(TEMPLATE)
     report_css = style_asset_for_html(read_text(REPORT_CSS).rstrip())
     report_js = read_text(REPORT_JS).rstrip()
-    report_js = (
-        report_js.replace("__SECRET_TYPE_LABELS__", json_for_script(SECRET_TYPE_LABELS))
-        .replace(
-            "__SENSITIVE_TYPE_LABELS__", json_for_script(SENSITIVE_TYPE_LABELS)
-        )
-    )
+    report_js = report_js.replace(
+        "__SECRET_TYPE_LABELS__", json_for_script(SECRET_TYPE_LABELS)
+    ).replace("__SENSITIVE_TYPE_LABELS__", json_for_script(SENSITIVE_TYPE_LABELS))
     report_js = script_asset_for_html(report_js)
 
     blob = json_for_script(data)

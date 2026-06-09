@@ -209,9 +209,7 @@ REGISTRY_INSECURE_RE = re.compile(
 SUSPICIOUS_SCRIPT_RE = re.compile(
     r"(?i)(curl|wget).+\|\s*(sh|bash)|base64\s+(-d|--decode)|chmod\s+\+x|/etc/profile|\.bashrc|\.zshrc"
 )
-DEPENDABOT_ECOSYSTEM_RE = re.compile(
-    r"package-ecosystem\s*:\s*['\"]?([^'\"\s#]+)"
-)
+DEPENDABOT_ECOSYSTEM_RE = re.compile(r"package-ecosystem\s*:\s*['\"]?([^'\"\s#]+)")
 
 
 def _exists_any(project_path, candidates):
@@ -271,11 +269,18 @@ def _dependabot_entries_for_file(rel_file):
         _add_dependabot_entry(entries, "conda", rel)
     if name in {"deno.json", "deno.jsonc"}:
         _add_dependabot_entry(entries, "deno", rel)
-    if name == "devcontainer.json" or lower.endswith("/.devcontainer/devcontainer.json"):
+    if name == "devcontainer.json" or lower.endswith(
+        "/.devcontainer/devcontainer.json"
+    ):
         _add_dependabot_entry(entries, "devcontainers", rel, directory="/")
     if name in {"dockerfile", "containerfile"}:
         _add_dependabot_entry(entries, "docker", rel)
-    if name in {"docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"}:
+    if name in {
+        "docker-compose.yml",
+        "docker-compose.yaml",
+        "compose.yml",
+        "compose.yaml",
+    }:
         _add_dependabot_entry(entries, "docker-compose", rel)
     if name == "global.json":
         _add_dependabot_entry(entries, "dotnet-sdk", rel)
@@ -289,7 +294,12 @@ def _dependabot_entries_for_file(rel_file):
         _add_dependabot_entry(entries, "elm", rel)
     if name in {"go.mod", "go.sum"}:
         _add_dependabot_entry(entries, "gomod", rel)
-    if name in {"build.gradle", "build.gradle.kts", "gradle.lockfile", "gradle-wrapper.properties"}:
+    if name in {
+        "build.gradle",
+        "build.gradle.kts",
+        "gradle.lockfile",
+        "gradle-wrapper.properties",
+    }:
         _add_dependabot_entry(entries, "gradle", rel)
     if lower == "gradle/libs.versions.toml":
         _add_dependabot_entry(entries, "gradle", rel)
@@ -299,16 +309,17 @@ def _dependabot_entries_for_file(rel_file):
         _add_dependabot_entry(entries, "nix", rel)
     if name in {"package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock"}:
         _add_dependabot_entry(entries, "npm", rel)
-    if (
-        name.endswith((".csproj", ".vbproj", ".fsproj"))
-        or name in {"packages.config", "directory.packages.props"}
-    ):
+    if name.endswith((".csproj", ".vbproj", ".fsproj")) or name in {
+        "packages.config",
+        "directory.packages.props",
+    }:
         _add_dependabot_entry(entries, "nuget", rel)
     if name.endswith(".tofu") or name == ".terraform.lock.hcl":
         _add_dependabot_entry(entries, "opentofu", rel)
     if (
         name in {"pipfile", "pipfile.lock", "poetry.lock", "pyproject.toml"}
-        or name.startswith("requirements") and name.endswith(".txt")
+        or name.startswith("requirements")
+        and name.endswith(".txt")
     ):
         _add_dependabot_entry(entries, "pip", rel)
     if name == "uv.lock":
@@ -319,8 +330,10 @@ def _dependabot_entries_for_file(rel_file):
         _add_dependabot_entry(entries, "rust-toolchain", rel)
     if (
         name == "build.sbt"
-        or lower.startswith("project/") and name in {"plugins.sbt", "build.properties"}
-        or lower.startswith("project/") and name.endswith(".scala")
+        or lower.startswith("project/")
+        and name in {"plugins.sbt", "build.properties"}
+        or lower.startswith("project/")
+        and name.endswith(".scala")
     ):
         _add_dependabot_entry(entries, "sbt", rel)
     if name in {"package.swift", "package.resolved"}:
@@ -333,7 +346,10 @@ def _dependabot_entries_for_file(rel_file):
 
 
 def _dedupe_dependabot_entries(entries):
-    order = {value: index for index, value in enumerate(DEPENDABOT_SUPPORTED_PACKAGE_ECOSYSTEMS)}
+    order = {
+        value: index
+        for index, value in enumerate(DEPENDABOT_SUPPORTED_PACKAGE_ECOSYSTEMS)
+    }
     seen = set()
     result = []
     for entry in sorted(
@@ -347,9 +363,7 @@ def _dedupe_dependabot_entries(entries):
         if not key[0] or key in seen:
             continue
         seen.add(key)
-        result.append(
-            {"package-ecosystem": key[0], "directory": key[1]}
-        )
+        result.append({"package-ecosystem": key[0], "directory": key[1]})
     return result
 
 
@@ -429,8 +443,7 @@ def _dependabot_has_ecosystem(dependabot, package_ecosystem):
     if not dependabot or not package_ecosystem:
         return False
     return package_ecosystem in {
-        match.group(1)
-        for match in DEPENDABOT_ECOSYSTEM_RE.finditer(str(dependabot))
+        match.group(1) for match in DEPENDABOT_ECOSYSTEM_RE.finditer(str(dependabot))
     }
 
 
@@ -562,9 +575,7 @@ def scan_repository_checks(project_path: str, ecosystems=None):
     github_evidence = github_remote_evidence(project_path)
     if not dependabot and github_evidence and dependabot_entries:
         content = build_dependabot_config(project_path, ecosystems)
-        ecosystem_names = [
-            entry["package-ecosystem"] for entry in dependabot_entries
-        ]
+        ecosystem_names = [entry["package-ecosystem"] for entry in dependabot_entries]
         visible = "、".join(ecosystem_names[:8])
         if len(ecosystem_names) > 8:
             visible += f" 等 {len(ecosystem_names)} 个生态"

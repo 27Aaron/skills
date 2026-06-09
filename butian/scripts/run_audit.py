@@ -435,9 +435,7 @@ def format_focus(analysis, scan_mode=None):
     if scan_mode == "hygiene_only":
         return HYGIENE_ONLY_NOTICE
 
-    issues = (analysis.get("top_issues") or []) + (
-        analysis.get("server_issues") or []
-    )
+    issues = (analysis.get("top_issues") or []) + (analysis.get("server_issues") or [])
     if not issues:
         if has_vulnerability_source_errors(analysis):
             return (
@@ -446,7 +444,10 @@ def format_focus(analysis, scan_mode=None):
                 "等数据源恢复后再复扫。"
             )
         risk_summary = analysis.get("risk_summary") or {}
-        if any(int(risk_summary.get(key) or 0) for key in ("critical", "high", "medium", "low")):
+        if any(
+            int(risk_summary.get(key) or 0)
+            for key in ("critical", "high", "medium", "low")
+        ):
             return (
                 "本次分析中存在风险计数，但缺少可展示的明细；请查看 analysis.json "
                 "和扫描错误，确认报告生成链路是否完整。"
@@ -481,7 +482,9 @@ def format_focus(analysis, scan_mode=None):
     selected_count = sum(len(items) for _, items in ranked)
     total_priority = len(priority) if priority else len(issues)
     noun = "紧急/高风险项" if priority else "已确认风险项"
-    subject_label = "组件" if any(issue.get("scope") == "server" for issue in issues) else "包"
+    subject_label = (
+        "组件" if any(issue.get("scope") == "server" for issue in issues) else "包"
+    )
     lines = [
         f"核心风险集中在 {len(ranked)} 个{subject_label}（{total_priority} 个{noun}中它们占 {selected_count} 个）：",
         "",

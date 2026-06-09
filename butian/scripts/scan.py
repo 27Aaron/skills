@@ -2282,7 +2282,9 @@ def parse_pubspec_lock(project_path):
             if source_match:
                 current_source = source_match.group(1)
                 continue
-            version_match = re.match(r"^\s+version:\s*['\"]?([^'\"\s]+)['\"]?\s*$", line)
+            version_match = re.match(
+                r"^\s+version:\s*['\"]?([^'\"\s]+)['\"]?\s*$", line
+            )
             if version_match:
                 current_version = version_match.group(1)
 

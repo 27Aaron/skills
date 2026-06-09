@@ -124,7 +124,9 @@ def collect_server_inventory(
     errors = []
     for item in command_plan(include_docker_metadata=include_docker_metadata):
         try:
-            result = run_ssh_command(target, item["command"], port=port, identity=identity)
+            result = run_ssh_command(
+                target, item["command"], port=port, identity=identity
+            )
         except (subprocess.SubprocessError, OSError) as exc:
             result = {
                 "command": item["command"],
@@ -163,8 +165,12 @@ def write_inventory(path: str, data: dict[str, Any]) -> None:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("target", nargs="?", default="", help="SSH target, e.g. user@host")
-    parser.add_argument("--output", default="", help="Write collected inventory JSON here")
+    parser.add_argument(
+        "target", nargs="?", default="", help="SSH target, e.g. user@host"
+    )
+    parser.add_argument(
+        "--output", default="", help="Write collected inventory JSON here"
+    )
     parser.add_argument("--ssh-port", type=int, default=22, help="SSH port")
     parser.add_argument("--identity", default="", help="SSH private key path")
     parser.add_argument(
