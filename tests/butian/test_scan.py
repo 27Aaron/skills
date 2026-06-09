@@ -720,14 +720,20 @@ class ParseGemfileLockTests(unittest.TestCase):
                     "GEM\n"
                     "  specs:\n"
                     "    nokogiri (1.13.10-x86_64-linux)\n"
+                    "    nokogiri (1.13.10-x86-mingw32)\n"
                     "    rails (7.1.0.beta1)\n"
                 )
 
             pkgs = scan.parse_gemfile_lock(root)
 
-            versions = {pkg["name"]: pkg["version"] for pkg in pkgs}
-            self.assertEqual(versions["nokogiri"], "1.13.10")
-            self.assertEqual(versions["rails"], "7.1.0.beta1")
+            versions = [
+                pkg["version"] for pkg in pkgs if pkg["name"] == "nokogiri"
+            ]
+            self.assertEqual(versions, ["1.13.10"])
+            self.assertEqual(
+                next(pkg["version"] for pkg in pkgs if pkg["name"] == "rails"),
+                "7.1.0.beta1",
+            )
 
 
 class ParsePubspecLockTests(unittest.TestCase):
@@ -791,6 +797,29 @@ class ParsePubspecLockTests(unittest.TestCase):
             self.assertEqual(
                 [(pkg["name"], pkg["version"]) for pkg in pkgs],
                 [("path", "1.9.0")],
+            )
+
+    def test_skips_non_hosted_packages(self):
+        with tempfile.TemporaryDirectory(prefix="butian-pubspec-") as root:
+            with open(os.path.join(root, "pubspec.lock"), "w", encoding="utf-8") as f:
+                f.write(
+                    "packages:\n"
+                    "  local_pkg:\n"
+                    "    source: path\n"
+                    "    version: \"1.0.0\"\n"
+                    "  sdk_pkg:\n"
+                    "    source: sdk\n"
+                    "    version: \"0.0.0\"\n"
+                    "  hosted_pkg:\n"
+                    "    source: hosted\n"
+                    "    version: \"2.0.0\"\n"
+                )
+
+            pkgs = scan.parse_pubspec_lock(root)
+
+            self.assertEqual(
+                [(pkg["name"], pkg["version"]) for pkg in pkgs],
+                [("hosted_pkg", "2.0.0")],
             )
 
 
@@ -1108,6 +1137,38 @@ class ParseMavenPomTests(unittest.TestCase):
                 [("org.example:direct", "1.0.0")],
             )
 
+    def test_skips_unresolved_property_package_names(self):
+        with tempfile.TemporaryDirectory(prefix="butian-maven-pom-") as root:
+            with open(os.path.join(root, "pom.xml"), "w", encoding="utf-8") as f:
+                f.write(
+                    "<project>\n"
+                    "  <dependencies>\n"
+                    "    <dependency>\n"
+                    "      <groupId>${dep.group}</groupId>\n"
+                    "      <artifactId>demo</artifactId>\n"
+                    "      <version>1.2.3</version>\n"
+                    "    </dependency>\n"
+                    "    <dependency>\n"
+                    "      <groupId>org.example</groupId>\n"
+                    "      <artifactId>${dep.artifact}</artifactId>\n"
+                    "      <version>1.2.3</version>\n"
+                    "    </dependency>\n"
+                    "    <dependency>\n"
+                    "      <groupId>org.example</groupId>\n"
+                    "      <artifactId>direct</artifactId>\n"
+                    "      <version>1.2.3</version>\n"
+                    "    </dependency>\n"
+                    "  </dependencies>\n"
+                    "</project>\n"
+                )
+
+            pkgs = scan.parse_maven_pom(root)
+
+            self.assertEqual(
+                [(pkg["name"], pkg["version"]) for pkg in pkgs],
+                [("org.example:direct", "1.2.3")],
+            )
+
 
 class YarnV1DescriptorNameTests(unittest.TestCase):
     def test_simple(self):
@@ -1362,7 +1423,12 @@ class ExtractPackagesTests(unittest.TestCase):
             with open(os.path.join(root, "Gemfile.lock"), "w", encoding="utf-8") as f:
                 f.write("GEM\n  specs:\n    rack (2.2.8)\n")
             with open(os.path.join(root, "pubspec.lock"), "w", encoding="utf-8") as f:
-                f.write("packages:\n  collection:\n    version: \"1.18.0\"\n")
+                f.write(
+                    "packages:\n"
+                    "  collection:\n"
+                    "    source: hosted\n"
+                    "    version: \"1.18.0\"\n"
+                )
             with open(os.path.join(root, "mix.lock"), "w", encoding="utf-8") as f:
                 f.write(
                     '%{"plug": {:hex, :plug, "1.11.0", "abcd", [:mix], [], "hexpm", "hash"}}\n'

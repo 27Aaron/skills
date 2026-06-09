@@ -2164,7 +2164,7 @@ def parse_composer_lock(project_path):
 def normalized_rubygems_version(value):
     version = str(value or "").strip()
     return re.sub(
-        r"-(?:x86_64|x64|aarch64|arm64|arm|java|universal)(?:-[A-Za-z0-9_]+)*$",
+        r"-(?:x86|x86_64|x64|aarch64|arm64|arm|java|universal)(?:-[A-Za-z0-9_]+)*$",
         "",
         version,
     )
@@ -2239,9 +2239,10 @@ def parse_pubspec_lock(project_path):
     in_packages = False
     current_name = ""
     current_version = ""
+    current_source = ""
 
     def flush_current():
-        if not current_name or not current_version:
+        if not current_name or not current_version or current_source != "hosted":
             return
         key = (current_name, current_version)
         if key in seen:
@@ -2273,9 +2274,14 @@ def parse_pubspec_lock(project_path):
             flush_current()
             current_name = package_match.group(1)
             current_version = ""
+            current_source = ""
             continue
 
         if current_name:
+            source_match = re.match(r"^\s+source:\s*['\"]?([^'\"\s]+)['\"]?\s*$", line)
+            if source_match:
+                current_source = source_match.group(1)
+                continue
             version_match = re.match(r"^\s+version:\s*['\"]?([^'\"\s]+)['\"]?\s*$", line)
             if version_match:
                 current_version = version_match.group(1)
@@ -2429,6 +2435,13 @@ def is_exact_dependency_version(version):
     return bool(re.match(r"^[0-9][0-9A-Za-z._+-]*$", version))
 
 
+def is_exact_maven_coordinate_part(value):
+    text = str(value or "").strip()
+    if not text or "${" in text or "}" in text:
+        return False
+    return bool(re.match(r"^[A-Za-z0-9_.-]+$", text))
+
+
 def parse_maven_pom(project_path):
     path = os.path.join(project_path, "pom.xml")
     if not os.path.isfile(path):
@@ -2446,7 +2459,11 @@ def parse_maven_pom(project_path):
         group_id = xml_child_text(dependency, "groupId")
         artifact_id = xml_child_text(dependency, "artifactId")
         version = xml_child_text(dependency, "version")
-        if not group_id or not artifact_id or not is_exact_dependency_version(version):
+        if (
+            not is_exact_maven_coordinate_part(group_id)
+            or not is_exact_maven_coordinate_part(artifact_id)
+            or not is_exact_dependency_version(version)
+        ):
             continue
         name = f"{group_id}:{artifact_id}"
         key = (name, version)
