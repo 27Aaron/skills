@@ -1323,6 +1323,7 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertGreater(evidence_pos, title_pos)
         self.assertIn('class="hygiene-secret-review item yellow"', html)
         self.assertNotIn('class="hygiene-secret-review item yellow open"', html)
+        self.assertNotIn('<span class="chev">▶</span>', html)
         self.assertIn('<span class="secret-code-lang">ENV</span>', html[evidence_pos:])
         self.assertIn(f'OPENAI_API_KEY=&quot;{key}&quot;', html[evidence_pos:])
         self.assertNotIn('<span class="mini-label">硬编码密钥</span>', html)

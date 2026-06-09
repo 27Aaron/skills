@@ -3360,7 +3360,6 @@ function renderCredentialReview(item, fallback) {
       <div class="item-name">${esc(normalizeSecurityLanguage(name))}</div>
     </div>
     <span class="item-badge"></span>
-    <span class="chev">▶</span>
   </div>
   <div class="item-body">
     ${evidence || fallbackPreview}
