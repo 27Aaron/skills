@@ -2478,6 +2478,42 @@ class EnsureButianGitignoreTests(unittest.TestCase):
             self.assertNotIn("docs/butian", lines)
 
 
+class CheckSensitiveTrackedTests(unittest.TestCase):
+    def test_git_ls_files_failure_is_reported(self):
+        with tempfile.TemporaryDirectory(prefix="butian-git-sensitive-") as root:
+            errors = []
+            completed = subprocess.CompletedProcess(
+                ["git", "ls-files"],
+                128,
+                stdout="",
+                stderr="fatal: bad object HEAD",
+            )
+
+            with mock.patch.object(scan.subprocess, "run", return_value=completed):
+                result = scan.check_sensitive_tracked(root, errors=errors)
+
+            self.assertEqual(result, [])
+            self.assertEqual(errors[0]["step"], "hygiene.git_ls_files")
+            self.assertIn("无法确认被 Git 跟踪的敏感文件", errors[0]["message"])
+            self.assertIn("fatal: bad object HEAD", errors[0]["message"])
+
+    def test_non_git_directory_does_not_report_git_error(self):
+        with tempfile.TemporaryDirectory(prefix="butian-not-git-") as root:
+            errors = []
+            completed = subprocess.CompletedProcess(
+                ["git", "ls-files"],
+                128,
+                stdout="",
+                stderr="fatal: not a git repository",
+            )
+
+            with mock.patch.object(scan.subprocess, "run", return_value=completed):
+                result = scan.check_sensitive_tracked(root, errors=errors)
+
+            self.assertEqual(result, [])
+            self.assertEqual(errors, [])
+
+
 class DefaultAssetPathTests(unittest.TestCase):
     def test_without_preflight_creates_run(self):
         with tempfile.TemporaryDirectory(prefix="butian-asset-") as root:
@@ -3912,6 +3948,7 @@ class ExpandedHygieneIntegrationTests(unittest.TestCase):
                     "repository_checks",
                     "workflow_checks",
                     "iac_checks",
+                    "errors",
                     "coverage",
                 },
             )

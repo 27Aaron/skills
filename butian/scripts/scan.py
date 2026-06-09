@@ -1373,8 +1373,64 @@ def check_gitignore(project_path, sensitive_tracked):
     return gitignore_exists, missing
 
 
-def check_sensitive_tracked(project_path):
-    output = run_cmd(["git", "ls-files"], cwd=project_path)
+def git_ls_files(project_path, errors=None):
+    try:
+        result = subprocess.run(
+            ["git", "ls-files"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            cwd=project_path,
+            stdin=subprocess.DEVNULL,
+        )
+    except FileNotFoundError:
+        if errors is not None:
+            errors.append(
+                {
+                    "step": "hygiene.git_ls_files",
+                    "message": "命令不可用：git，无法确认被 Git 跟踪的敏感文件。",
+                }
+            )
+        return ""
+    except subprocess.TimeoutExpired:
+        if errors is not None:
+            errors.append(
+                {
+                    "step": "hygiene.git_ls_files",
+                    "message": "git ls-files 超时，无法确认被 Git 跟踪的敏感文件。",
+                }
+            )
+        return ""
+    except OSError as exc:
+        if errors is not None:
+            errors.append(
+                {
+                    "step": "hygiene.git_ls_files",
+                    "message": f"git ls-files 执行失败，无法确认被 Git 跟踪的敏感文件：{exc}",
+                }
+            )
+        return ""
+
+    stdout = result.stdout.strip()
+    if result.returncode == 0:
+        return stdout
+
+    stderr = (result.stderr or "").strip()
+    if "not a git repository" in stderr.lower():
+        return ""
+    if errors is not None:
+        message = stderr or "无 stderr 输出"
+        errors.append(
+            {
+                "step": "hygiene.git_ls_files",
+                "message": f"git ls-files 失败，无法确认被 Git 跟踪的敏感文件：{message}",
+            }
+        )
+    return ""
+
+
+def check_sensitive_tracked(project_path, errors=None):
+    output = git_ls_files(project_path, errors=errors)
     if not output:
         return []
     findings = []
@@ -1904,8 +1960,9 @@ def scan_secrets(
 def scan_hygiene(
     project_path, max_secret_files=500, follow_symlinks=False, ecosystems=None
 ):
+    errors = []
     # Scan sensitive files first, then use findings to drive gitignore recommendations
-    sensitive_tracked = check_sensitive_tracked(project_path)
+    sensitive_tracked = check_sensitive_tracked(project_path, errors=errors)
     tracked_secrets = scan_secrets(
         project_path, max_files=max_secret_files, follow_symlinks=follow_symlinks
     )
@@ -1925,6 +1982,7 @@ def scan_hygiene(
         "repository_checks": repository_checks,
         "workflow_checks": workflow_checks,
         "iac_checks": iac_checks,
+        "errors": errors,
         "coverage": {
             "builtin_rules": [
                 "secrets",
@@ -4455,7 +4513,12 @@ def main():
                 n_sensitive,
                 round(time.time() - step_started, 3),
             )
-            return "hygiene", result, [], round(time.time() - step_started, 3)
+            return (
+                "hygiene",
+                result,
+                result.get("errors") or [],
+                round(time.time() - step_started, 3),
+            )
         except Exception as e:
             logger.error("Step 3/5 仓库安检失败: %s", e)
             return (
