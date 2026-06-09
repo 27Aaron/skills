@@ -570,7 +570,7 @@ _SAAS_PATTERNS = [
     # Linear
     ("linear_api_key", r"lin_api_[A-Za-z0-9_]{30,}"),
     # Airtable
-    ("airtable_api_key", r"key[A-Za-z0-9]{14}"),
+    ("airtable_api_key", r"(?<![A-Za-z0-9])key[A-Za-z0-9]{14}(?![A-Za-z0-9])"),
     # Asana（需要上下文，避免误匹配版本字符串）
     (
         "asana_token",
@@ -1448,12 +1448,26 @@ def is_placeholder_secret_candidate(text: str) -> bool:
     )
 
 
+def looks_like_code_reference(value: str) -> bool:
+    """判断候选值是否更像代码引用，而不是密钥字符串。"""
+    text = str(value or "").strip()
+    if not text:
+        return False
+    if not re.fullmatch(r"[A-Za-z0-9_.$\[\]().]+", text):
+        return False
+    if any(ch in text for ch in "()[]"):
+        return bool(re.search(r"[A-Za-z_$][A-Za-z0-9_$]*\s*\(", text) or "." in text)
+    return False
+
+
 def entropy_check_value(value: str) -> dict | None:
     """分析字符串是否具备高熵特征，判断它是否可能是密钥。
 
     命中时返回包含 ``entropy_type`` 和 ``entropy`` 的字典，否则返回 *None*。
     """
     if not value or len(value) < _MIN_SECRET_LENGTH or len(value) > _MAX_SECRET_LENGTH:
+        return None
+    if looks_like_code_reference(value):
         return None
 
     # 跳过明显不是密钥的值。

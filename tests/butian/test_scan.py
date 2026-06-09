@@ -3284,6 +3284,13 @@ class EntropyEngineTests(unittest.TestCase):
             # No entropy duplicates for the same line
             self.assertEqual(len(low), 0)
 
+    def test_entropy_scan_skips_code_identifier_lookup(self):
+        with tempfile.TemporaryDirectory(prefix="butian-ent-") as root:
+            with open(os.path.join(root, "server_inventory.py"), "w") as f:
+                f.write('key = SSHD_OPTION_KEYS.get(parts[0].lower())\n')
+            findings = scan.scan_secrets(root)
+            self.assertEqual(findings, [])
+
 
 class SkipMarkerTests(unittest.TestCase):
     def _count_findings(self, content: str) -> int:
@@ -3911,6 +3918,14 @@ class ExhaustiveSecretPatternTests(unittest.TestCase):
 
     def test_airtable_api_key(self):
         self._detect_one('AIRTABLE = "key' + "a" * 14 + '"', "airtable_api_key")
+
+    def test_airtable_api_key_does_not_match_pubkey_authentication(self):
+        with tempfile.TemporaryDirectory(prefix="butian-airtable-") as root:
+            with open(os.path.join(root, "server_analyze.py"), "w") as f:
+                f.write('pubkey_auth = options.get("PubkeyAuthentication")\n')
+                f.write('evidence = ["PubkeyAuthentication no"]\n')
+            findings = scan.scan_secrets(root)
+            self.assertEqual(findings, [])
 
     def test_asana_token(self):
         self._detect_one(
