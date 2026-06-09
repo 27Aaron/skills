@@ -20,17 +20,27 @@
 ## CLI 用法
 
 ```bash
-# 基本用法
+# macOS / Linux
 python3 run_audit.py                        # 当前目录，完整扫描
 python3 run_audit.py /path/to/project       # 指定项目路径
 python3 run_audit.py --skip-outdated .      # 跳过过期依赖检查
 python3 run_audit.py --no-open .            # CI/自动化场景：不自动打开 HTML 报告
 
-# 可选参数
 python3 run_audit.py --verbose .            # 详细日志输出
 python3 run_audit.py --debug .              # 调试级别日志
 python3 run_audit.py --follow-symlinks .    # 跟随符号链接
 python3 run_audit.py --final-report .       # 最终复扫：强制生成 Markdown 报告
+
+# Windows
+py -3 run_audit.py                          # 当前目录，完整扫描
+py -3 run_audit.py C:\path\to\project       # 指定项目路径
+py -3 run_audit.py --skip-outdated .        # 跳过过期依赖检查
+py -3 run_audit.py --no-open .              # CI/自动化场景：不自动打开 HTML 报告
+
+py -3 run_audit.py --verbose .              # 详细日志输出
+py -3 run_audit.py --debug .                # 调试级别日志
+py -3 run_audit.py --follow-symlinks .      # 跟随符号链接
+py -3 run_audit.py --final-report .         # 最终复扫：强制生成 Markdown 报告
 ```
 
 ## 服务器扫描，仅显式要求时使用
@@ -38,9 +48,15 @@ python3 run_audit.py --final-report .       # 最终复扫：强制生成 Markdo
 默认项目扫描不会连接服务器，也不会扫描系统包、系统服务、数据库或日志。只有用户明确要求服务器扫描时，才使用下面这些入口：
 
 ```bash
+# macOS / Linux
 python3 run_audit.py --server user@example.com .
 python3 run_audit.py --server-only --server user@example.com .
 python3 run_audit.py --server-inventory server-inventory.json .
+
+# Windows
+py -3 run_audit.py --server user@example.com .
+py -3 run_audit.py --server-only --server user@example.com .
+py -3 run_audit.py --server-inventory server-inventory.json .
 ```
 
 服务器扫描仍然只做只读采集；`--server-only` 必须搭配 `--server` 或 `--server-inventory`。

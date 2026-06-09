@@ -253,15 +253,27 @@ python3 scripts/run_audit.py --final-report
 默认使用：
 
 ```bash
+# macOS / Linux
 python3 scripts/run_audit.py
+
+# Windows
+py -3 scripts/run_audit.py
 ```
 
 调试时再分步运行：
 
 ```bash
+# macOS / Linux
 python3 scripts/detect.py
 python3 scripts/scan.py --preflight .butian/<run-id>/assets/preflight.json
 python3 scripts/analyze.py .butian/<run-id>/assets/scan.json
 python3 scripts/report.py .butian/<run-id>/assets/analysis.json
 python3 scripts/visualize.py .butian/<run-id>/assets/analysis.json
+
+# Windows
+py -3 scripts/detect.py
+py -3 scripts/scan.py --preflight .butian/<run-id>/assets/preflight.json
+py -3 scripts/analyze.py .butian/<run-id>/assets/scan.json
+py -3 scripts/report.py .butian/<run-id>/assets/analysis.json
+py -3 scripts/visualize.py .butian/<run-id>/assets/analysis.json
 ```

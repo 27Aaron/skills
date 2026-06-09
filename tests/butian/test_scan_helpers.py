@@ -72,6 +72,13 @@ class WorkspaceModuleCompatibilityTests(unittest.TestCase):
             self.assertTrue(os.path.isdir(os.path.join(run_dir, "content")))
             self.assertEqual(os.path.basename(run_dir), "20260610-010203")
 
+    def test_workspace_rejects_windows_drive_roots(self):
+        from butian.scripts import workspace
+
+        self.assertTrue(workspace.is_protected_project_path("C:\\"))
+        self.assertTrue(workspace.is_protected_project_path("D:/"))
+        self.assertFalse(workspace.is_protected_project_path("C:\\Users\\alice\\repo"))
+
     def test_setup_with_log_dir(self):
         import logging
 

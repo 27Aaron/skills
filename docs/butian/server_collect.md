@@ -6,6 +6,8 @@
 
 `server_collect.py` 负责通过只读 SSH 命令采集 Linux 服务器 inventory，或读取已有的离线 `server-inventory.json`。它不安装 agent，不复制二进制，不升级软件，不重启服务，也不使用 `sudo`。
 
+macOS、Linux 和 Windows 都可以运行采集脚本；使用 SSH 采集时本机需要可用的 `ssh` 命令。没有 SSH 客户端时，可以改用离线 inventory 流程。
+
 ## 职责
 
 | #   | 职责          | 说明                                                                      |

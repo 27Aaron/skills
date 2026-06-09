@@ -60,6 +60,18 @@ if _HOME_DIR and _HOME_DIR != "~":
     _PROTECTED_SCAN_ROOTS.add(os.path.abspath(_HOME_DIR))
 
 
+def _looks_like_windows_drive_root(path):
+    text = str(path or "").strip()
+    return bool(re.fullmatch(r"[A-Za-z]:[\\/]*", text))
+
+
+def _is_filesystem_root(path):
+    if _looks_like_windows_drive_root(path):
+        return True
+    absolute = os.path.abspath(path)
+    return os.path.dirname(absolute) == absolute
+
+
 def has_gitignore_entry(content, entry):
     normalized = str(entry or "").strip().rstrip("/")
     candidates = {normalized, f"{normalized}/"}
@@ -234,7 +246,7 @@ def default_asset_path(project_path, filename, preflight=None):
 
 
 def is_protected_project_path(path):
-    return os.path.abspath(path) in _PROTECTED_SCAN_ROOTS
+    return _is_filesystem_root(path) or os.path.abspath(path) in _PROTECTED_SCAN_ROOTS
 
 
 def ensure_safe_project_path(project_path):

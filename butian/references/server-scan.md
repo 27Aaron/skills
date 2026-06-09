@@ -7,12 +7,20 @@
 ## 启用方式
 
 ```bash
+# macOS / Linux
 python3 scripts/run_audit.py --server user@example.com
 python3 scripts/run_audit.py --server-only --server user@example.com
 python3 scripts/run_audit.py --server-inventory server-inventory.json
+
+# Windows
+py -3 scripts/run_audit.py --server user@example.com
+py -3 scripts/run_audit.py --server-only --server user@example.com
+py -3 scripts/run_audit.py --server-inventory server-inventory.json
 ```
 
 `--server-only` 必须搭配 `--server` 或 `--server-inventory`。没有服务器来源时不能启动服务器单独扫描。
+
+Windows 上也可以运行服务器扫描；使用 `--server` 时本机需要可用的 OpenSSH `ssh` 命令。没有 SSH 客户端、跳板机策略较复杂或只想复现报告时，使用 `--server-inventory` 读取离线 inventory。
 
 ## 只读边界
 

@@ -20,11 +20,11 @@ description: >
 
 服务器扫描是另一个显式能力：只有用户明确要求 Linux 服务器安全扫描，并提供 SSH 目标或离线 inventory 时才启用。服务器扫描只生成 Markdown 报告，不生成 HTML 展示页。
 
-## 新手快速路径
+## 默认执行规则
 
-1. **第一次扫描报告**：在目标项目目录中，让 Agent 调用补天脚本；手动运行时使用脚本绝对路径，例如 `python3 /path/to/butian/scripts/run_audit.py /path/to/project`。项目扫描会生成 `.butian/<run-id>/content/security-report.html` 和 `docs/butian/security-report-<run-id>.md`，并尝试自动打开 HTML。先让用户看报告，再问是否修复。
+1. **第一次扫描报告**：在目标项目目录中，让 Agent 调用补天脚本；不要要求用户自己复制命令执行。项目扫描会生成 `.butian/<run-id>/content/security-report.html` 和 `docs/butian/security-report-<run-id>.md`，并尝试自动打开 HTML。先让用户看报告，再问是否修复。
 2. **修复前先确认**：用户明确选择开始修复后，才运行 `fix.py` 或包管理器命令。默认优先升级到已知修复版本；升级到 latest、Dependabot、凭证占位符替换、过期依赖维护都需要用户点头。
-3. **修复完成后的最终报告**：修复和复扫结束后运行 `python3 /path/to/butian/scripts/run_audit.py --final-report /path/to/project`。项目最终复扫会再次生成 HTML 和 Markdown，并尝试打开最终 HTML；如果用户显式传了 `--no-open`，仍尊重不打开。
+3. **修复完成后的最终报告**：修复和复扫结束后，Agent 自己执行 `run_audit.py --final-report`。项目最终复扫会再次生成 HTML 和 Markdown，并尝试打开最终 HTML；如果用户显式传了 `--no-open`，仍尊重不打开。
 4. **默认只处理项目**：不要加 `--server`、`--server-only` 或 `--server-inventory`，除非用户明确要求服务器扫描。普通项目扫描不扫描系统 Python、全局 npm、全局 pnpm 或操作系统包，也不会碰系统升级、系统服务、数据库或日志。
 
 ## 什么时候读哪个 reference
@@ -44,14 +44,14 @@ description: >
 
 ## 默认项目流程
 
-Agent 优先直接调用本 skill 里的 `run_audit.py`。如果用户手动运行，先确认 shell 位于本 skill 目录；否则使用脚本绝对路径。
+Agent 优先直接调用本 skill 里的 `run_audit.py`，并按当前操作系统选择 Python 启动器。命令由 Agent 自己执行；不要把这些命令当成用户必须手动输入的步骤。实际执行时可以使用脚本绝对路径，避免依赖 shell 当前目录。
 
 ```bash
-# 在本 skill 目录中
-python3 scripts/run_audit.py /path/to/project
+# macOS / Linux
+python3 scripts/run_audit.py <project_path>
 
-# 不在本 skill 目录中
-python3 /path/to/butian/scripts/run_audit.py /path/to/project
+# Windows
+py -3 scripts/run_audit.py <project_path>
 ```
 
 流水线顺序是：
@@ -87,23 +87,38 @@ python3 /path/to/butian/scripts/run_audit.py /path/to/project
 服务器扫描只在用户明确要求时使用：
 
 ```bash
-python3 scripts/run_audit.py --server user@example.com /path/to/project
-python3 scripts/run_audit.py --server-only --server user@example.com /path/to/project
-python3 scripts/run_audit.py --server-inventory server-inventory.json /path/to/project
+# macOS / Linux
+python3 scripts/run_audit.py --server user@example.com <project_path>
+python3 scripts/run_audit.py --server-only --server user@example.com <project_path>
+python3 scripts/run_audit.py --server-inventory server-inventory.json <project_path>
+
+# Windows
+py -3 scripts/run_audit.py --server user@example.com <project_path>
+py -3 scripts/run_audit.py --server-only --server user@example.com <project_path>
+py -3 scripts/run_audit.py --server-inventory server-inventory.json <project_path>
 ```
 
 服务器扫描只做只读 SSH 或离线 inventory 分析，不使用 `sudo`，不修改配置，不重启服务，不安装工具，不读取业务数据库和日志。详细规则见 `references/server-scan.md`。
+Windows 上也可以发起服务器扫描；使用 `--server` 时本机需要可用的 `ssh` 命令，缺少 SSH 客户端时改用 `--server-inventory` 读取离线 inventory。
 
 ## 分步调试入口
 
 默认使用 `run_audit.py`。只有流水线失败或需要调试时，才分步运行：
 
 ```bash
+# macOS / Linux
 python3 scripts/detect.py
 python3 scripts/scan.py --preflight .butian/<run-id>/assets/preflight.json
 python3 scripts/analyze.py .butian/<run-id>/assets/scan.json
 python3 scripts/report.py .butian/<run-id>/assets/analysis.json
 python3 scripts/visualize.py .butian/<run-id>/assets/analysis.json
+
+# Windows
+py -3 scripts/detect.py
+py -3 scripts/scan.py --preflight .butian/<run-id>/assets/preflight.json
+py -3 scripts/analyze.py .butian/<run-id>/assets/scan.json
+py -3 scripts/report.py .butian/<run-id>/assets/analysis.json
+py -3 scripts/visualize.py .butian/<run-id>/assets/analysis.json
 ```
 
-各脚本参数以 `python3 scripts/<script>.py --help` 为准；维护项目扫描、报告或修复流程前先读 `references/project-scan.md`，维护服务器扫描前先读 `references/server-scan.md`。
+各脚本参数以 `python3 scripts/<script>.py --help` 或 `py -3 scripts/<script>.py --help` 为准；维护项目扫描、报告或修复流程前先读 `references/project-scan.md`，维护服务器扫描前先读 `references/server-scan.md`。

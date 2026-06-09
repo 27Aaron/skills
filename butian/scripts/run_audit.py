@@ -5,6 +5,7 @@
     python3 scripts/run_audit.py [project_path]
     python3 scripts/run_audit.py --no-root-discovery [project_path]
     python3 scripts/run_audit.py --skip-outdated [project_path]
+    py -3 scripts/run_audit.py [project_path]  # Windows
 
 流水线：
   detect -> scan -> analyze -> report -> visualize
