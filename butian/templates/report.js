@@ -3291,11 +3291,33 @@ function renderSecretEvidence(item) {
   const rows = context
     .map((line) => {
       const hitClass = line.match ? " is-hit" : "";
-      return `<span class="secret-code-line${hitClass}"><span class="secret-code-no">${esc(line.line)}</span><span class="secret-code-text">${esc(line.content || "")}</span></span>`;
+      return `<span class="secret-code-line${hitClass}"><span class="secret-code-no">${esc(line.line)}</span><span class="secret-code-text">${esc(softMaskSecretLine(line.content || ""))}</span></span>`;
     })
     .join("");
 
   return `<div class="secret-evidence"><div class="secret-evidence-head"><span class="secret-code-lang">${esc(language)}</span><button type="button" class="secret-copy-btn" onclick="copySecretEvidence(this)">复制</button></div><pre class="secret-code"><code>${rows}</code></pre></div>`;
+}
+
+function softMaskSecretValue(value) {
+  value = String(value || "");
+  if (!value) return value;
+  if (value.length <= 4) return "*".repeat(value.length);
+  const hidden = Math.min(4, Math.max(3, Math.floor(value.length / 4)));
+  const visible = value.length - hidden;
+  const left = Math.max(1, Math.floor(visible / 2));
+  const right = visible - left;
+  return `${value.slice(0, left)}${"*".repeat(hidden)}${
+    right ? value.slice(-right) : ""
+  }`;
+}
+
+function softMaskSecretLine(text) {
+  text = String(text || "");
+  return text.replace(
+    /([:=]\s*["']?)([^"'\s#]{8,})(["']?)/g,
+    (_match, prefix, value, suffix) =>
+      `${prefix}${softMaskSecretValue(value)}${suffix}`,
+  );
 }
 
 function secretEvidenceLanguage(item) {
@@ -3608,7 +3630,7 @@ function renderCredentialReview(item, fallback) {
     : "";
   const evidence = renderSecretEvidence(merged);
   const fallbackPreview = merged.preview
-    ? `<code class="secret-preview">${esc(merged.preview)}</code>`
+    ? `<code class="secret-preview">${esc(softMaskSecretLine(merged.preview))}</code>`
     : "";
   return `<div class="hygiene-secret-review item yellow">
   <div class="item-head" onclick="this.parentNode.classList.toggle('open')">

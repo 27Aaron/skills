@@ -1536,6 +1536,24 @@ def _mask_entropy_value(value: str) -> str:
     return value[:6] + "..." + value[-4:]
 
 
+def _soft_mask_value(value: str, mask_chars: int = 4) -> str:
+    """Mask a small middle slice while keeping enough text to locate the value."""
+    if not value:
+        return value
+    if len(value) <= mask_chars:
+        return "*" * len(value)
+    hidden = min(mask_chars, max(3, len(value) // 4))
+    visible = len(value) - hidden
+    left = max(1, visible // 2)
+    right = visible - left
+    return value[:left] + ("*" * hidden) + (value[-right:] if right else "")
+
+
+_ASSIGNMENT_VALUE_RE = re.compile(
+    r"""(?P<prefix>[:=]\s*["']?)(?P<value>[^"'\s#]+)(?P<suffix>["']?)"""
+)
+
+
 # ---------------------------------------------------------------------------
 # Secret preview & scanning
 # ---------------------------------------------------------------------------
@@ -1575,8 +1593,40 @@ def secret_preview(secret_type, match_text):
     return match_text[:15] + "..." + match_text[-10:]
 
 
+def soft_secret_preview(secret_type, match_text):
+    """Partially mask evidence from template files without hiding its location."""
+    if secret_type == "private_key":
+        return "-----BEGIN **** PRIVATE KEY-----"
+
+    masked = _ASSIGNMENT_VALUE_RE.sub(
+        lambda match: (
+            f"{match.group('prefix')}"
+            f"{_soft_mask_value(match.group('value'))}"
+            f"{match.group('suffix')}"
+        ),
+        match_text,
+        count=1,
+    )
+    if masked != match_text:
+        return masked
+
+    return _soft_mask_value(match_text)
+
+
 def should_reveal_secret_evidence(path):
     return is_env_template(path)
+
+
+def soft_mask_secret_context_line(line):
+    masked = line
+    for secret_type, pattern in SECRET_REGEXES:
+        masked = pattern.sub(
+            lambda match, kind=secret_type: soft_secret_preview(
+                kind, match.group(0)
+            ),
+            masked,
+        )
+    return masked
 
 
 def mask_secret_context_line(line):
@@ -1601,7 +1651,13 @@ def mask_secret_context_line(line):
 
 
 def build_secret_code_context(
-    lines, line_num, match_text="", preview="", reveal=False, radius=2
+    lines,
+    line_num,
+    match_text="",
+    preview="",
+    reveal=False,
+    soft_mask=False,
+    radius=2,
 ):
     if not lines or not line_num:
         return []
@@ -1612,7 +1668,11 @@ def build_secret_code_context(
     for idx in range(start, end + 1):
         content = lines[idx - 1].rstrip("\n").rstrip("\r") if idx <= len(lines) else ""
         if content and not reveal:
-            content = mask_secret_context_line(content)
+            content = (
+                soft_mask_secret_context_line(content)
+                if soft_mask
+                else mask_secret_context_line(content)
+            )
             if idx == line_num and match_text and preview:
                 content = content.replace(match_text, preview, 1)
         context.append(
@@ -1651,7 +1711,7 @@ def scan_secrets(
                     continue
                 with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
                     file_lines = f.readlines()
-                    reveal_evidence = should_reveal_secret_evidence(fpath)
+                    soft_mask_evidence = should_reveal_secret_evidence(fpath)
                     rel = os.path.relpath(fpath, project_path)
                     for line_num, line in enumerate(file_lines, 1):
                         stripped = line.strip()
@@ -1678,8 +1738,8 @@ def scan_secrets(
                             if m:
                                 match_text = m.group(0)
                                 preview = (
-                                    match_text
-                                    if reveal_evidence
+                                    soft_secret_preview(secret_type, match_text)
+                                    if soft_mask_evidence
                                     else secret_preview(secret_type, match_text)
                                 )
                                 findings.append(
@@ -1693,7 +1753,7 @@ def scan_secrets(
                                             line_num,
                                             match_text=match_text,
                                             preview=preview,
-                                            reveal=reveal_evidence,
+                                            soft_mask=soft_mask_evidence,
                                         ),
                                         "confidence": "high"
                                         if secret_type in HIGH_CONFIDENCE_SECRET_TYPES
@@ -1723,8 +1783,8 @@ def scan_secrets(
                             for einfo in scan_entropy_for_line(line):
                                 match_text = einfo.get("value") or ""
                                 preview = (
-                                    match_text
-                                    if reveal_evidence and match_text
+                                    _soft_mask_value(match_text)
+                                    if soft_mask_evidence and match_text
                                     else einfo["value_preview"]
                                 )
                                 entropy_findings.append(
@@ -1738,7 +1798,7 @@ def scan_secrets(
                                             line_num,
                                             match_text=match_text,
                                             preview=preview,
-                                            reveal=reveal_evidence,
+                                            soft_mask=soft_mask_evidence,
                                         ),
                                         "key": einfo.get("key", ""),
                                         "entropy": einfo["entropy"],

@@ -1610,7 +1610,10 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn('class="secret-code-line is-hit"', html)
         self.assertIn('<span class="secret-code-no">15</span>', html)
         self.assertIn('<span class="secret-code-no">19</span>', html)
-        self.assertIn(f"OPENAI_API_KEY=&quot;{key}&quot;", html)
+        self.assertNotIn(f"OPENAI_API_KEY=&quot;{key}&quot;", html)
+        self.assertIn("OPENAI_API_KEY=&quot;sk-proj-", html)
+        self.assertIn(key[-6:], html)
+        self.assertIn("****", html)
         self.assertNotIn("<span>代码位置</span>", html)
 
     def test_html_renders_secret_code_context_in_yellow_card(self):
