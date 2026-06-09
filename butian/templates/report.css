@@ -493,7 +493,7 @@ tbody tr:hover {
 .outdated-row.outdated-extra {
     display: none;
 }
-.vuln-expanded .vuln-table tr.vuln-extra {
+.vuln-table.vuln-expanded tr.vuln-extra {
     display: table-row;
 }
 .outdated-expanded .outdated-row.outdated-extra {
@@ -1794,7 +1794,7 @@ footer {
     .vuln-table tr.vuln-extra {
         display: none;
     }
-    .vuln-expanded .vuln-table tr.vuln-extra:not(.vuln-detail-row) {
+    .vuln-table.vuln-expanded tr.vuln-extra:not(.vuln-detail-row) {
         display: grid;
     }
     .vuln-detail-row.vuln-detail-open {

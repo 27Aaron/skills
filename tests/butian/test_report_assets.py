@@ -392,7 +392,7 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn(".outdated-toggle-label-expanded", css)
         self.assertIn(".vuln-table tr.vuln-extra", css)
         self.assertIn(
-            ".vuln-expanded .vuln-table tr.vuln-extra:not(.vuln-detail-row)",
+            ".vuln-table.vuln-expanded tr.vuln-extra:not(.vuln-detail-row)",
             css,
         )
         self.assertNotIn(".outdated-folded-note", css)
