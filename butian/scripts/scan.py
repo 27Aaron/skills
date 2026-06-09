@@ -1979,34 +1979,58 @@ def parse_npm_lock(project_path):
     except (json.JSONDecodeError, OSError):
         return []
     pkgs = []
-    deps = data.get("dependencies") or data.get("packages") or {}
-    if "dependencies" in data:
-        for name, info in deps.items():
-            pkgs.append(
-                {
-                    "ecosystem": "npm",
-                    "name": name,
-                    "version": info.get("version", ""),
-                    "is_direct": False,
-                    "source": "package-lock.json",
-                }
-            )
-    else:
-        for key, info in deps.items():
-            if not key:
+    seen = set()
+    packages = data.get("packages")
+    if isinstance(packages, dict):
+        root_info = packages.get("") if isinstance(packages.get(""), dict) else {}
+        root_deps = set()
+        for section in ("dependencies", "devDependencies", "optionalDependencies"):
+            root_deps.update((root_info.get(section) or {}).keys())
+        for key, info in packages.items():
+            if not key or not isinstance(info, dict):
                 continue
             name = npm_lock_package_name(key)
-            if not name:
+            version = str(info.get("version") or "").strip()
+            if not name or not version:
                 continue
+            item_key = (name, version, key)
+            if item_key in seen:
+                continue
+            seen.add(item_key)
             pkgs.append(
                 {
                     "ecosystem": "npm",
                     "name": name,
-                    "version": info.get("version", ""),
-                    "is_direct": not info.get("dev", True) and not info.get("resolved"),
+                    "version": version,
+                    "is_direct": key == f"node_modules/{name}" and name in root_deps,
                     "source": "package-lock.json",
                 }
             )
+        return pkgs
+
+    def walk_dependencies(deps, direct=False):
+        if not isinstance(deps, dict):
+            return
+        for name, info in deps.items():
+            if not isinstance(info, dict):
+                continue
+            version = str(info.get("version") or "").strip()
+            if version:
+                item_key = (name, version)
+                if item_key not in seen:
+                    seen.add(item_key)
+                    pkgs.append(
+                        {
+                            "ecosystem": "npm",
+                            "name": name,
+                            "version": version,
+                            "is_direct": direct,
+                            "source": "package-lock.json",
+                        }
+                    )
+            walk_dependencies(info.get("dependencies"), direct=False)
+
+    walk_dependencies(data.get("dependencies"), direct=True)
     return pkgs
 
 

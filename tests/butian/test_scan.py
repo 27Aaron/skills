@@ -529,6 +529,56 @@ class ParseNpmLockV2Tests(unittest.TestCase):
             self.assertIn(("lodash", "4.17.21"), names)
             self.assertIn(("express", "4.18.2"), names)
 
+    def test_packages_map_takes_precedence_when_dependencies_also_exists(self):
+        with tempfile.TemporaryDirectory(prefix="butian-npm-v2-packages-") as root:
+            with open(os.path.join(root, "package-lock.json"), "w") as f:
+                json.dump(
+                    {
+                        "lockfileVersion": 2,
+                        "dependencies": {
+                            "postcss": {"version": "8.5.10"},
+                        },
+                        "packages": {
+                            "": {"dependencies": {"next": "16.2.6"}},
+                            "node_modules/postcss": {"version": "8.5.10"},
+                            "node_modules/next/node_modules/postcss": {
+                                "version": "8.4.31"
+                            },
+                        },
+                    },
+                    f,
+                )
+
+            pkgs = scan.parse_npm_lock(root)
+            names = [(p["name"], p["version"]) for p in pkgs]
+
+            self.assertIn(("postcss", "8.5.10"), names)
+            self.assertIn(("postcss", "8.4.31"), names)
+
+    def test_legacy_dependencies_tree_is_parsed_recursively(self):
+        with tempfile.TemporaryDirectory(prefix="butian-npm-v1-tree-") as root:
+            with open(os.path.join(root, "package-lock.json"), "w") as f:
+                json.dump(
+                    {
+                        "lockfileVersion": 1,
+                        "dependencies": {
+                            "next": {
+                                "version": "16.2.6",
+                                "dependencies": {
+                                    "postcss": {"version": "8.4.31"}
+                                },
+                            }
+                        },
+                    },
+                    f,
+                )
+
+            pkgs = scan.parse_npm_lock(root)
+            names = [(p["name"], p["version"]) for p in pkgs]
+
+            self.assertIn(("next", "16.2.6"), names)
+            self.assertIn(("postcss", "8.4.31"), names)
+
     def test_missing_file(self):
         with tempfile.TemporaryDirectory(prefix="butian-npm-") as root:
             self.assertEqual(scan.parse_npm_lock(root), [])
