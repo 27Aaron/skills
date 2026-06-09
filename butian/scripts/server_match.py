@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Match Linux server package assets against official vulnerability sources."""
+"""把 Linux 服务器包资产和官方漏洞源进行匹配。"""
 
 from __future__ import annotations
 
@@ -13,8 +13,8 @@ except ImportError:  # pragma: no cover
 
 OSV_SERVER_ECOSYSTEM_PREFIXES = ("Ubuntu:", "Debian:", "Alpine:")
 
-# Unsupported server ecosystems are coverage gaps, not clean results. Keep
-# explicit errors so reports do not turn an OSV support limit into "no risk".
+# 不支持的服务器生态是覆盖缺口，不是干净结果。
+# 保留显式错误，避免报告把 OSV 支持限制写成“无风险”。
 
 
 def _candidate_assets(server_assets: dict[str, Any]) -> list[dict[str, Any]]:

@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""Inject analysis JSON into the HTML template -> a standalone security report.
+"""把 analysis JSON 注入 HTML 模板，生成独立安全报告。
 
 Usage:
     visualize.py <analysis.json> [output.html]
     visualize.py --no-open <analysis.json> [output.html]
 
-The analysis JSON is produced by analyze.py and may be lightly reviewed by
-the agent after interpreting scan.py output.  For the full schema, see
-``references/report-contract.md``.
+analysis JSON 由 analyze.py 生成，Agent 可以在解释 scan.py 输出后轻量复核。
+完整 schema 见 ``references/project-scan.md``。
 """
 
 import argparse
@@ -40,7 +39,7 @@ REPORT_JS = os.path.join(TEMPLATES_DIR, "report.js")
 
 
 def json_for_script(value):
-    """Serialize JSON for embedding inside a <script> block."""
+    """序列化 JSON，供嵌入 <script> 块。"""
     blob = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
     return (
         blob.replace("&", "\\u0026")
@@ -91,7 +90,7 @@ def parse_args(argv):
 
 
 def _butian_dir_for(output_path):
-    """Find the .butian/ directory that contains *output_path*."""
+    """查找包含 *output_path* 的 .butian/ 目录。"""
     current = os.path.dirname(os.path.abspath(output_path))
     while current != os.path.dirname(current):
         if os.path.basename(current) == ".butian":
@@ -104,7 +103,7 @@ FIRST_SCAN_MARKER = ".first-scan-done"
 
 
 def _first_scan_done(output_path):
-    """Return True if a previous scan already completed for this project."""
+    """如果当前项目已有一次扫描完成，则返回 True。"""
     butian_dir = _butian_dir_for(output_path)
     if butian_dir:
         return os.path.exists(os.path.join(butian_dir, FIRST_SCAN_MARKER))
@@ -134,7 +133,7 @@ def open_decision(args, output_path=None):
         return False, "environment"
     if getattr(args, "force_open", False):
         return True, "open"
-    # Only open the browser on the very first scan for this project.
+    # 只在当前项目第一次扫描时自动打开浏览器。
     if output_path and _first_scan_done(output_path):
         return False, "first_scan_done"
     return True, "open"

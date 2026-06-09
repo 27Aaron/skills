@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build reportable server analysis from assets and vulnerability matches."""
+"""根据服务器资产和漏洞匹配结果构建可报告分析。"""
 
 from __future__ import annotations
 

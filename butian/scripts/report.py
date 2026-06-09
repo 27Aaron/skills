@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render a Markdown security report from analysis JSON.
+"""根据 analysis JSON 渲染 Markdown 安全报告。
 
 Usage:
     python3 scripts/report.py .butian/<timestamp>/assets/analysis.json
@@ -64,8 +64,8 @@ def text(value):
 
 
 def cell(value):
-    # Markdown helpers are the last escaping layer before analyzer text enters
-    # pipe tables; keep table delimiters and newlines inert here.
+    # Markdown helper 是最后一层转义；分析器文本进入管道表格前，
+    # 需要在这里让表格分隔符和换行失效。
     return text(value).replace("|", "\\|").replace("\n", " ")
 
 
@@ -102,7 +102,7 @@ def date_from_analysis(analysis):
 
 
 def datetime_from_analysis(analysis):
-    """Extract filesystem-safe datetime string (YYYYMMDD-HHMM) from analysis."""
+    """从 analysis 中提取适合文件系统使用的时间字符串（YYYYMMDD-HHMM）。"""
     generated_at = text(analysis.get("generated_at"))
     cleaned = re.sub(r"[^\d]", "", generated_at)
     if len(cleaned) >= 12:
@@ -211,8 +211,8 @@ def markdown_link_label(value):
 
 
 def security_id_markdown(security_id):
-    # Security IDs must remain clickable in Markdown and the generated HTML.
-    # CVEs use the CVE record page; GHSA/OSV-style identifiers use OSV.
+    # 安全编号必须保持可点击。CVE 使用 CVE 记录页；
+    # GHSA/OSV 风格编号使用 OSV。
     value = text(security_id)
     if not value:
         return ""
@@ -597,11 +597,10 @@ def render_server_environment(analysis):
 
 
 def is_low_evidence_server_item(item):
-    """Return True for weak server clues that should not be promoted.
+    """判断服务器弱证据线索是否不应提升为人工 finding。
 
-    Low-evidence server hints stay out of manual findings because server scans
-    are optional and must not blur confirmed project risks with inferred host
-    maintenance signals.
+    低证据服务器线索不进入人工 finding，因为服务器扫描是可选能力，
+    不能把已确认项目风险和推断出的主机维护信号混在一起。
     """
     if not isinstance(item, dict):
         return False
@@ -748,8 +747,8 @@ def render_markdown(analysis):
         sum(risk_summary.values()),
     )
     tpl = load_template()
-    # Template placeholders are the renderer contract shared with report.md.
-    # Add new placeholders here and in the template together.
+    # 模板占位符是渲染器契约，和 report.md 共享；
+    # 新增占位符时这里和模板必须同步。
     return (
         tpl.substitute(
             project_name=text(project.get("name")) or "-",
@@ -771,7 +770,7 @@ def render_markdown(analysis):
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(
-        description="Render a Markdown security report from analysis JSON",
+        description="根据 analysis JSON 渲染 Markdown 安全报告",
     )
     parser.add_argument("analysis_json")
     parser.add_argument("output_markdown", nargs="?")

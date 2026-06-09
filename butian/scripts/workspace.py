@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Butian workspace and project-boundary helpers."""
+"""补天工作区和项目边界工具。"""
 
 from __future__ import annotations
 
@@ -168,7 +168,7 @@ def ensure_butian_workspace(project_path):
 
 
 def _latest_existing_run(workspace):
-    """Return the path of the most recent run directory, or None."""
+    """返回最新一次运行目录路径；没有历史运行时返回 None。"""
     if not os.path.isdir(workspace):
         return None
     run_id_pattern = re.compile(r"^\d{8}-\d{4}(?:\d{2})?(?:-\d+)?$")
@@ -270,7 +270,7 @@ def gitignore_ignores(content, pattern):
 
 
 def find_project_root(start_path="."):
-    """Walk up to find the nearest project marker, with .git as a fallback."""
+    """向上查找最近的项目标记；找不到时用 .git 作为兜底。"""
     path = os.path.abspath(start_path)
     if os.path.isfile(path):
         path = os.path.dirname(path)
@@ -290,4 +290,3 @@ def find_project_root(start_path="."):
             break
         path = parent
     return git_root or original
-

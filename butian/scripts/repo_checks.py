@@ -1,4 +1,4 @@
-"""Local repository governance and supply-chain checks."""
+"""本地仓库治理和供应链检查。"""
 
 from __future__ import annotations
 

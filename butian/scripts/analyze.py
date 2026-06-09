@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""Build deterministic analysis JSON from scan.py output.
+"""从 scan.py 输出构建确定性的 analysis JSON。
 
 Usage:
     python3 scripts/analyze.py .butian/<timestamp>/assets/scan.json
     python3 scripts/analyze.py scan.json output-analysis.json
 
-The agent may still review and refine business-facing wording after this
-script runs, but the required schema, risk counters, and issue lists should
-come from this deterministic baseline.
+脚本运行后，Agent 仍可复核并润色面向业务的文案；
+但必需 schema、风险计数和问题列表应来自这个确定性基线。
 """
 
 import argparse
@@ -195,7 +194,7 @@ def vulnerability_summary(item):
         top_versions = unique_values(context.get("top_level_versions") or [])
         if top_versions:
             summary += f" 顶层 {package} 当前版本为 {'、'.join(top_versions)}。"
-        # Show semver range analysis
+        # 展示 semver 范围分析。
         target_ver = str(item.get("target_version") or "")
         for loc in (context.get("locations") or [])[:1]:
             parent_range = loc.get("parent_range")
@@ -246,7 +245,7 @@ def item_best_cvss_score(item):
 
 
 def _parse_version(version_str):
-    """Parse "1.2.3" into (1, 2, 3), stripping pre-release tags."""
+    """将 "1.2.3" 解析为 (1, 2, 3)，并去掉预发布标签。"""
     parts = version_str.lstrip("v").split(".")
     result = []
     for part in parts:
@@ -263,29 +262,29 @@ def _parse_version(version_str):
 
 
 def _semver_satisfies(version, range_str):
-    """Check if *version* satisfies an npm-style semver *range_str*.
+    """检查 *version* 是否满足 npm 风格 semver 范围 *range_str*。
 
-    Covers the patterns most commonly used in package.json dependency
-    declarations: ^, ~, >=, >, <=, <, exact, *, x-ranges, and || unions.
+    覆盖 package.json 依赖声明中最常见的模式：
+    ^、~、>=、>、<=、<、精确版本、*、x 范围和 || 并集。
     """
     range_str = range_str.strip()
     if not range_str or range_str == "*" or range_str == "latest":
         return True
 
-    # Union (||): any matching sub-range is enough.
+    # 并集（||）：任一子范围命中即可。
     if "||" in range_str:
         return any(
             _semver_satisfies(version, part.strip()) for part in range_str.split("||")
         )
 
-    # Space-separated intersection (e.g. ">=1.0.0 <2.0.0").
+    # 空格分隔的交集，例如 ">=1.0.0 <2.0.0"。
     tokens = range_str.split()
     if len(tokens) > 1:
         return all(_semver_satisfies(version, t) for t in tokens)
 
     ver = _parse_version(version)
 
-    # Caret range  ^X.Y.Z
+    # caret 范围：^X.Y.Z。
     if range_str.startswith("^"):
         base = _parse_version(range_str[1:])
         if base[0] > 0:
@@ -294,12 +293,12 @@ def _semver_satisfies(version, range_str):
             return ver >= base and ver[0] == 0 and ver[1] == base[1]
         return ver == base
 
-    # Tilde range  ~X.Y.Z
+    # tilde 范围：~X.Y.Z。
     if range_str.startswith("~"):
         base = _parse_version(range_str[1:])
         return ver >= base and ver[0] == base[0] and ver[1] == base[1]
 
-    # Comparison operators (>=, >, <=, <)
+    # 比较操作符：>=、>、<=、<。
     if range_str.startswith(">="):
         return ver >= _parse_version(range_str[2:])
     if range_str.startswith(">"):
@@ -309,31 +308,31 @@ def _semver_satisfies(version, range_str):
     if range_str.startswith("<"):
         return ver < _parse_version(range_str[1:])
 
-    # x-range  "1.x", "1.2.x"
+    # x 范围："1.x"、"1.2.x"。
     cleaned = range_str.lower().replace("x", "0")
     if cleaned != range_str.lower():
         base = _parse_version(cleaned)
-        # "1.x" is like ^1.0.0, "1.2.x" is like ~1.2.0
+        # "1.x" 类似 ^1.0.0，"1.2.x" 类似 ~1.2.0。
         parts = range_str.lower().split(".")
         if len(parts) == 2:
             return ver >= base and ver[0] == base[0]
         return ver >= base and ver[0] == base[0] and ver[1] == base[1]
 
-    # Exact version
+    # 精确版本。
     return ver == _parse_version(range_str)
 
 
 def _parent_dep_range(lock_data, parent_lock_path, child_name, project_path=None):
-    """Read the semver range a parent declares for *child_name*.
+    """读取父依赖为 *child_name* 声明的 semver 范围。
 
-    Checks the lockfile ``packages`` entry first (``requires`` then
-    ``dependencies``), then falls back to ``node_modules/<parent>/package.json``.
-    Returns the range string (e.g. "^8.4.0") or None.
+    先检查 lockfile 的 ``packages`` 条目（``requires`` 优先于
+    ``dependencies``），再兜底到 ``node_modules/<parent>/package.json``。
+    返回范围字符串（如 "^8.4.0"）或 None。
     """
     packages = lock_data.get("packages") or {}
     parent_meta = packages.get(parent_lock_path) or {}
 
-    # lockfile v2/v3 "requires" field (declared ranges)
+    # lockfile v2/v3 的 requires 字段（声明范围）。
     for field in ("requires", "dependencies"):
         deps = parent_meta.get(field)
         if isinstance(deps, dict):
@@ -341,7 +340,7 @@ def _parent_dep_range(lock_data, parent_lock_path, child_name, project_path=None
             if isinstance(dep_range, str):
                 return dep_range
 
-    # Fallback: read from node_modules
+    # 兜底：从 node_modules 读取。
     if parent_lock_path:
         pkg_json_path = parent_lock_path.replace("/", os.sep)
         pkg_json_path = os.path.join(pkg_json_path, "package.json")
@@ -389,7 +388,7 @@ def _npm_names_from_lock_path(path):
 
 
 def _npm_lock_path_for_names(names):
-    """Build a lockfile path like 'node_modules/next/node_modules/postcss'."""
+    """构造类似 'node_modules/next/node_modules/postcss' 的 lockfile 路径。"""
     path = ""
     for name in names:
         path = f"{path}/node_modules/{name}" if path else f"node_modules/{name}"
@@ -401,7 +400,7 @@ def _is_top_level_npm_lock_path(path):
 
 
 def dependency_context_for_issue(scan, issue):
-    """Describe whether an npm vulnerability is a nested locked copy."""
+    """描述 npm 漏洞是否来自被锁定的嵌套副本。"""
     if issue.get("ecosystem") != "npm":
         return None
     package = issue.get("package") or issue.get("name")
@@ -429,7 +428,7 @@ def dependency_context_for_issue(scan, issue):
             top_level_versions.append(found_version)
         if found_version != version or len(names) < 2:
             continue
-        # Read the parent's declared semver range for this child
+        # 读取父依赖为该子依赖声明的 semver 范围。
         parent_lock_path = _npm_lock_path_for_names(names[:-1])
         parent_range = _parent_dep_range(
             lock_data, parent_lock_path, package, project_path=project_path
@@ -461,8 +460,8 @@ def build_top_issues(scan):
     for vuln in scan.get("vulnerabilities") or []:
         item = dict(vuln)
         item["severity"] = normalize_severity(item.get("severity"))
-        # The red/yellow/green buckets are a report contract. Keep severity
-        # routing stable unless templates, repair planning, and docs change together.
+        # 红黄绿分组是报告契约。除非模板、修复计划和文档同步调整，
+        # 否则不要改变影响程度路由。
         item["tier"] = (
             "red"
             if item["severity"] in {"critical", "high"}
@@ -647,9 +646,9 @@ def build_dependency_fix_items(top_issues):
         target_version = highest_version(fixed_versions)
         if not target_version:
             continue
-        # Go requires 'v' prefix on versions (e.g. v1.2.3, not 1.2.3);
-        # OSV sometimes omits it; normalize here so downstream tools
-        # and reports always see correct Go version format.
+        # Go 版本需要 v 前缀（如 v1.2.3，而不是 1.2.3）；
+        # OSV 有时会省略，这里统一规范化，保证下游工具
+        # 和报告始终看到正确的 Go 版本格式。
         if ecosystem == "go":
             fixed_versions = [
                 v if v.startswith("v") else f"v{v}" for v in fixed_versions
@@ -670,8 +669,8 @@ def build_dependency_fix_items(top_issues):
         )
         if missing_fixed:
             summary += " 其中部分公告未给出明确修复版本，需升级后复扫确认。"
-        # fix_config is the machine contract consumed by fix.py; prose can be
-        # refined independently, but these fields must stay automation-safe.
+        # fix_config 是 fix.py 消费的机器契约；说明文案可以独立润色，
+        # 但这些字段必须保持适合自动化消费。
         green.append(
             {
                 "name": f"升级 {package}",
@@ -737,8 +736,8 @@ def build_server_items(scan):
         "service_version",
         "service_version_only",
     }
-    # Server confirmed issues are separate from maintenance advice; only
-    # confirmed evidence may enter the risk counters and top report rows.
+    # 服务器已确认风险和维护建议必须分开；只有 confirmed 证据
+    # 可以进入风险计数和报告顶部风险行。
     confirmed = []
     for item in server.get("confirmed_issues") or []:
         confidence = str(item.get("confidence") or "confirmed").lower()
@@ -946,8 +945,8 @@ def build_summary(scan, analysis):
     if missing_count:
         priority.append("补充 .gitignore 敏感文件规则，降低后续误提交概率。")
     if outdated_count:
-        # Outdated dependencies are maintenance signals, not confirmed
-        # vulnerabilities; keep them out of the red/yellow risk totals.
+        # 过期依赖是维护信号，不是已确认漏洞；
+        # 不要把它们计入红黄风险总数。
         priority.append(
             "过期依赖按维护计划处理，结合版本跨度、兼容性和发布窗口分批升级。"
         )

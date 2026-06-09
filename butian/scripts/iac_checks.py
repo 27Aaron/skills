@@ -1,4 +1,4 @@
-"""Local IaC, container, and deployment configuration checks."""
+"""本地 IaC、容器和部署配置检查。"""
 
 from __future__ import annotations
 

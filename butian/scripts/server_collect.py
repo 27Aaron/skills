@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Collect read-only Linux server inventory over SSH."""
+"""通过 SSH 只读采集 Linux 服务器 inventory。"""
 
 from __future__ import annotations
 
@@ -12,10 +12,10 @@ from typing import Any
 
 
 def command_plan(include_docker_metadata: bool = False) -> list[dict[str, str]]:
-    """Return the bounded remote commands used for inventory collection.
+    """返回采集 inventory 使用的受限远程命令。
 
-    Read-only SSH collection must never install, upgrade, restart, use sudo,
-    or enter container filesystems. Docker mode only reads host-visible metadata.
+    只读 SSH 采集绝不能安装、升级、重启、使用 sudo，
+    也不能进入容器文件系统。Docker 模式只读取宿主机可见元数据。
     """
     commands = [
         {"id": "os_release", "command": "cat /etc/os-release"},

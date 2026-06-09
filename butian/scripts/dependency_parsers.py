@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dependency ecosystem detection and lockfile parsers."""
+"""依赖生态检测和 lockfile 解析器。"""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import re
 import xml.etree.ElementTree as ET
 
 # ---------------------------------------------------------------------------
-# Dependency ecosystem detection and package extraction
+# 依赖生态检测和包提取
 # ---------------------------------------------------------------------------
 
 LOCKFILE_MAP = {
@@ -172,7 +172,7 @@ def parse_pnpm_lock(project_path):
                         )
             elif stripped and not stripped.startswith("  "):
                 in_packages = False
-    # Fallback: older format with importers
+    # 兜底：带 importers 的旧格式。
     if not pkgs:
         for m in re.finditer(
             r"^\s+['\"/]([^@'\"/]+)@([^'\"/:]+)", content, re.MULTILINE
@@ -204,7 +204,7 @@ def parse_yarn_lock(project_path):
             content = f.read()
     except OSError:
         return []
-    # Detect Yarn Berry (v2+) by checking for __metadata field
+    # 通过 __metadata 判断 Yarn Berry（v2+）。
     is_berry = "__metadata:" in content or bool(
         re.search(r'^"[^"]+@npm:[^"]+":', content, re.MULTILINE)
     )
@@ -214,7 +214,7 @@ def parse_yarn_lock(project_path):
 
 
 def _parse_yarn_lock_v1(content):
-    """Parse Yarn v1 (classic) lockfile format."""
+    """解析 Yarn v1 classic lockfile。"""
     pkgs, seen = [], set()
     current_names = []
     for raw in content.splitlines():
@@ -263,9 +263,9 @@ def _yarn_v1_descriptor_name(desc):
 
 
 def _parse_yarn_lock_berry(content):
-    """Parse Yarn Berry (v2+) lockfile format.
+    """解析 Yarn Berry（v2+）lockfile。
 
-    Berry format uses descriptors like:
+    Berry 格式使用类似下面的 descriptor：
       "@scope/pkg@npm:1.2.3":
         version: 1.2.3
     """
@@ -308,9 +308,9 @@ def _parse_yarn_lock_berry(content):
 
 
 def _yarn_berry_descriptor_name(desc):
-    """Extract package name from Yarn Berry descriptor.
+    """从 Yarn Berry descriptor 中提取包名。
 
-    Examples:
+    示例：
       "lodash@npm:^4.0.0" -> "lodash"
       "@scope/pkg@npm:1.2.3" -> "@scope/pkg"
     """
@@ -697,18 +697,17 @@ def parse_maven_pom(project_path):
 
 
 def parse_requirements_txt(project_path):
-    """Parse requirements.txt with enhanced PEP 440 support.
+    """解析 requirements.txt，并支持更完整的 PEP 440 写法。
 
-    Supports:
-    - PEP 440 specifiers: >=, <=, ~=, !=, ===, >, <
-    - Comments and blank lines
-    - -r / --requirement includes (recursive, max depth 5)
-    - Extras with brackets: package[extra1,extra2]==1.0
-    - Environment markers (after ;)
-    - Line continuations with backslash
+    支持：
+    - PEP 440 版本约束：>=、<=、~=、!=、===、>、<
+    - 注释和空行
+    - -r / --requirement include（递归深度最多 5 层）
+    - Extras 写法：package[extra1,extra2]==1.0
+    - 环境标记（分号后的部分）
+    - 反斜杠行续接
 
-    Only packages with == or === exact versions are included for
-    vulnerability matching.
+    漏洞匹配只纳入 == 或 === 固定版本的包。
     """
     path = os.path.join(project_path, "requirements.txt")
     if not os.path.isfile(path):
@@ -726,7 +725,7 @@ def parse_requirements_txt(project_path):
         except OSError:
             return
 
-        # Handle line continuations (backslash at end of line)
+        # 处理行续接（行尾反斜杠）。
         merged_lines = []
         current = ""
         for raw_line in lines:
@@ -743,11 +742,11 @@ def parse_requirements_txt(project_path):
         for line in merged_lines:
             line = line.strip()
 
-            # Skip empty lines and comments
+            # 跳过空行和注释。
             if not line or line.startswith("#"):
                 continue
 
-            # Handle -r / --requirement includes
+            # 处理 -r / --requirement 引用。
             if line.startswith("-r ") or line.startswith("--requirement "):
                 parts = line.split(None, 1)
                 if len(parts) == 2:
@@ -759,11 +758,11 @@ def parse_requirements_txt(project_path):
                     _parse_file(include_path, depth + 1)
                 continue
 
-            # Skip other pip flags (-i, --index-url, -e, etc.)
+            # 跳过其他 pip 参数（-i、--index-url、-e 等）。
             if line.startswith("-"):
                 continue
 
-            # Remove environment markers (after ;)
+            # 移除环境标记（分号之后）。
             line = line.split(";", 1)[0].strip()
             if not line:
                 continue
@@ -783,7 +782,7 @@ def parse_requirements_txt(project_path):
             specifier = m.group(2)
             version = m.group(3)
 
-            # Only exact versions for vulnerability matching
+            # 漏洞匹配只使用精确版本。
             if specifier not in {"==", "==="} or "*" in version:
                 continue
 

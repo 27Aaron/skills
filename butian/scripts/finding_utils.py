@@ -1,4 +1,4 @@
-"""Shared helpers for local repository security findings."""
+"""本地仓库安全 finding 的共享工具。"""
 
 from __future__ import annotations
 

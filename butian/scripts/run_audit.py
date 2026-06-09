@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Run the complete Butian local audit pipeline.
+"""运行完整的补天本地审计流水线。
 
-Usage:
+用法：
     python3 scripts/run_audit.py [project_path]
     python3 scripts/run_audit.py --no-root-discovery [project_path]
     python3 scripts/run_audit.py --skip-outdated [project_path]
 
-Pipeline:
+流水线：
   detect -> scan -> analyze -> report -> visualize
 """
 
@@ -47,43 +47,43 @@ def script_path(name):
 
 
 def parse_args(argv):
-    parser = argparse.ArgumentParser(description="Run Butian local audit pipeline")
+    parser = argparse.ArgumentParser(description="运行补天本地审计流水线")
     parser.add_argument("project_path", nargs="?", default=".")
     parser.add_argument(
         "--no-root-discovery",
         action="store_true",
-        help="scan the provided path directly instead of walking up to a repo root",
+        help="直接扫描传入路径，不向上查找项目根目录",
     )
     parser.add_argument(
         "--skip-outdated",
         action="store_true",
-        help="skip package-manager outdated checks for faster vulnerability-only scans",
+        help="跳过包管理器 outdated 检查，加快只看漏洞的扫描",
     )
     parser.add_argument(
         "--skip-hygiene",
         action="store_true",
-        help="skip gitignore, tracked sensitive file, and hardcoded secret checks",
+        help="跳过 gitignore、被跟踪敏感文件和硬编码密钥检查",
     )
     parser.add_argument(
         "--max-secret-files",
         type=int,
         default=None,
-        help="maximum number of candidate files to scan for hardcoded secrets",
+        help="硬编码密钥候选文件的最大扫描数量",
     )
     parser.add_argument(
         "--include-packages",
         action="store_true",
-        help="include the full package list in scan output JSON",
+        help="在 scan 输出 JSON 中包含完整包列表",
     )
     parser.add_argument(
         "--no-open",
         action="store_true",
-        help="do not open the generated HTML report in the default browser",
+        help="不使用默认浏览器打开生成后的 HTML 报告",
     )
     parser.add_argument(
         "--final-report",
         action="store_true",
-        help="force generate Markdown report (use on the last re-scan after all fixes)",
+        help="强制生成 Markdown 报告（所有修复完成后的最后一次复扫使用）",
     )
     parser.add_argument(
         "--verbose",
@@ -152,8 +152,8 @@ SERVER_IDENTITY_KEYS = {"identity", "identity_file", "ssh_identity"}
 
 
 def _collect_server_identity_secrets(value):
-    # Server identity paths are report secrets because they reveal local key
-    # material locations; strip them before writing server inventory artifacts.
+    # 服务器 identity 路径属于报告敏感信息，因为它会暴露本地密钥材料位置；
+    # 写入服务器 inventory 产物前必须剥离。
     secrets = set()
     if isinstance(value, dict):
         for key, item in value.items():
@@ -713,11 +713,11 @@ def merge_server_payload(scan, server_payload):
 
 def main():
     args = parse_args(sys.argv[1:])
-    # Start with stderr logging; add file logging after scan.json fixes the run dir.
+    # 先启用 stderr 日志；scan.json 固定运行目录后再追加文件日志。
     setup_logging()
     logger.info("补天审计流水线开始: 路径=%s", args.project_path)
 
-    # Preflight fixes the run workspace before downstream artifact paths exist.
+    # 预检先固定本次运行工作区，再让下游阶段写入产物路径。
     preflight_cmd = [
         sys.executable,
         script_path("detect.py"),
@@ -735,7 +735,7 @@ def main():
 
     server_payload = None
     if args.server or args.server_inventory:
-        # Server scan remains opt-in; default project scans never touch system packages.
+        # 服务器扫描保持显式启用；默认项目扫描绝不触碰系统包。
         server_collect = import_server_module("server_collect")
         if args.server_inventory:
             inventory = server_collect.read_inventory_file(args.server_inventory)
@@ -754,7 +754,7 @@ def main():
             inventory, project_path=project_path_for_server
         )
 
-    # Project scan is skipped only for explicit server-only inventory runs.
+    # 只有显式 server-only 时才跳过项目扫描。
     if args.server_only:
         scan = build_server_only_scan(preflight)
     else:
@@ -765,7 +765,7 @@ def main():
         write_json(scan["output_file"], scan)
     scan_mode = scan.get("scan_config", {}).get("scan_mode", "unknown")
 
-    # Add run-scoped file logging once the workspace layout is known.
+    # 工作区布局确定后，追加本次运行范围内的文件日志。
     scan_log_dir = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(scan["output_file"]))),
         "logs",
@@ -795,7 +795,7 @@ def main():
         len(scan.get("errors") or []),
     )
 
-    # Analysis is the deterministic JSON contract for reports and repair planning.
+    # analysis 是报告和修复计划使用的确定性 JSON 契约。
     analysis_path = os.path.join(
         os.path.dirname(os.path.abspath(scan["output_file"])),
         "analysis.json",
@@ -825,8 +825,7 @@ def main():
 
     run_dir = report_run_dir(analysis, scan)
 
-    # Intermediate repair rescans skip Markdown unless --final-report asks for
-    # an archival report.
+    # 中间修复复扫跳过 Markdown，除非 --final-report 要求生成归档报告。
     butian_dir = os.path.join(analysis["project"]["path"], ".butian")
     first_scan_marker = os.path.join(butian_dir, ".first-scan-done")
     skip_markdown = (
@@ -853,8 +852,8 @@ def main():
         html_path = None
         logger.info("服务器单独扫描不生成 HTML 报告")
     else:
-        # HTML is always regenerated so the latest project run has a review surface
-        # even when Markdown is skipped.
+        # 项目 HTML 每次都重新生成；即使跳过 Markdown，最新项目 run
+        # 也仍然有可验收的阅读界面。
         html_path = html_report_path(run_dir)
         os.makedirs(os.path.dirname(html_path), exist_ok=True)
         build_report_cmd = build_visualize_cmd(args, analysis_path, html_path)

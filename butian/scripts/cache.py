@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Local cache helpers for official vulnerability source responses."""
+"""官方漏洞源响应的本地缓存工具。"""
 
 from __future__ import annotations
 
@@ -14,14 +14,14 @@ except ImportError:  # pragma: no cover - direct script execution
 
 
 def cache_dir(project_path, source):
-    """Return the cache directory for a given source (osv/nvd/epss/kev)."""
+    """返回指定漏洞源（osv/nvd/epss/kev）的缓存目录。"""
     base = os.path.join(project_path, BUTIAN_DIR, CACHE_DIR_NAME, source)
     os.makedirs(base, exist_ok=True)
     return base
 
 
 def cache_read(cache_path, ttl_seconds=86400):
-    """Read from cache if not expired. Returns data dict or None."""
+    """缓存未过期时读取数据字典，否则返回 None。"""
     if not os.path.isfile(cache_path):
         return None
     try:
@@ -36,7 +36,7 @@ def cache_read(cache_path, ttl_seconds=86400):
 
 
 def cache_write(cache_path, data, source="unknown", key=""):
-    """Write data to cache with metadata."""
+    """将数据和元数据写入缓存。"""
     entry = {
         "cached_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "ttl_seconds": 86400,
@@ -53,7 +53,7 @@ def cache_write(cache_path, data, source="unknown", key=""):
 
 
 def cache_clean(project_path, ttl_seconds=86400):
-    """Remove expired cache entries."""
+    """移除过期缓存条目。"""
     cache_base = os.path.join(project_path, BUTIAN_DIR, CACHE_DIR_NAME)
     if not os.path.isdir(cache_base):
         return
@@ -72,4 +72,3 @@ def cache_clean(project_path, ttl_seconds=86400):
                     pass
     except OSError:
         pass
-

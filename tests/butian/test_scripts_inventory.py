@@ -252,9 +252,7 @@ class ButianScriptInventoryTests(unittest.TestCase):
         with open(os.path.join(SCRIPT_DIR, "scan.py"), "r", encoding="utf-8") as handle:
             scan_text = handle.read()
 
-        self.assertIn(
-            "Repository hygiene, vulnerability, and outdated checks", scan_text
-        )
+        self.assertIn("仓库安检、漏洞和过期依赖检查", scan_text)
         self.assertIn("Packagist", scan_text)
         self.assertIn("RubyGems", scan_text)
         self.assertIn("NuGet", scan_text)
@@ -275,10 +273,10 @@ class ButianScriptInventoryTests(unittest.TestCase):
         with open(os.path.join(SCRIPT_DIR, "scan.py"), "r", encoding="utf-8") as handle:
             scan_text = handle.read()
 
-        self.assertIn("Secret scan file selection", scan_text)
-        self.assertIn("Entropy is a fallback signal", scan_text)
-        self.assertIn("Template files keep evidence locatable", scan_text)
-        self.assertIn("Regex findings take precedence over entropy", scan_text)
+        self.assertIn("密钥扫描文件选择", scan_text)
+        self.assertIn("熵值是未知 token 格式的兜底信号", scan_text)
+        self.assertIn("模板文件保留可定位证据", scan_text)
+        self.assertIn("正则命中优先于熵值命中", scan_text)
 
     def test_run_audit_comments_use_pipeline_contract_names(self):
         with open(os.path.join(SCRIPT_DIR, "run_audit.py"), "r", encoding="utf-8") as handle:
@@ -289,20 +287,20 @@ class ButianScriptInventoryTests(unittest.TestCase):
             "run_audit.py should use pipeline contract names, not numeric Step labels",
         )
         for phrase in (
-            "Preflight fixes the run workspace",
-            "Server scan remains opt-in",
-            "Intermediate repair rescans skip Markdown",
-            "HTML is always regenerated",
+            "预检先固定本次运行工作区",
+            "服务器扫描保持显式启用",
+            "中间修复复扫跳过 Markdown",
+            "项目 HTML 每次都重新生成",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, text)
 
     def test_server_scan_comments_preserve_safety_boundaries(self):
         expectations = {
-            "server_collect.py": "Read-only SSH collection must never install",
-            "server_inventory.py": "Unsupported or empty inventories preserve gaps",
-            "server_match.py": "Unsupported server ecosystems are coverage gaps",
-            "run_audit.py": "Server identity paths are report secrets",
+            "server_collect.py": "只读 SSH 采集绝不能安装",
+            "server_inventory.py": "不支持或为空的 inventory 保留为覆盖缺口",
+            "server_match.py": "不支持的服务器生态是覆盖缺口",
+            "run_audit.py": "服务器 identity 路径属于报告敏感信息",
         }
         for script, phrase in expectations.items():
             with self.subTest(script=script):
@@ -317,10 +315,10 @@ class ButianScriptInventoryTests(unittest.TestCase):
             text = handle.read()
 
         for phrase in (
-            "The red/yellow/green buckets are a report contract",
-            "fix_config is the machine contract consumed by fix.py",
-            "Server confirmed issues are separate from maintenance advice",
-            "Outdated dependencies are maintenance signals",
+            "红黄绿分组是报告契约",
+            "fix_config 是 fix.py 消费的机器契约",
+            "服务器已确认风险和维护建议必须分开",
+            "过期依赖是维护信号",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, text)
@@ -330,10 +328,10 @@ class ButianScriptInventoryTests(unittest.TestCase):
             text = handle.read()
 
         for phrase in (
-            "The latest strategy is intentionally broad",
-            "Parent-upgrade is a second-round repair",
-            "force-residual writes a durable npm policy",
-            "Dry-run is the safety boundary",
+            "latest 策略刻意保持宽泛",
+            "parent-upgrade 是第二轮修复",
+            "force-residual 会写入持久 npm 策略",
+            "dry-run 是独立 CLI 的安全边界",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, text)
@@ -343,10 +341,10 @@ class ButianScriptInventoryTests(unittest.TestCase):
             text = handle.read()
 
         for phrase in (
-            "Markdown helpers are the last escaping layer",
-            "Security IDs must remain clickable",
-            "Low-evidence server hints stay out of manual findings",
-            "Template placeholders are the renderer contract",
+            "Markdown helper 是最后一层转义",
+            "安全编号必须保持可点击",
+            "低证据服务器线索不进入人工 finding",
+            "模板占位符是渲染器契约",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, text)

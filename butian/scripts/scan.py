@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Project security scanner.
+"""项目安全扫描器。
 
-Collects project-bound security data and outputs JSON for agent analysis.
-The scanner first detects dependency ecosystems and exact package coordinates.
-Repository hygiene, vulnerability, and outdated checks then run independently
-because they use different local files, package managers, and official sources.
+采集项目范围内的安全数据，并输出 JSON 供 Agent 分析。
+扫描器会先识别依赖生态和精确包坐标。
+仓库安检、漏洞和过期依赖检查随后独立运行，
+因为它们依赖不同的本地文件、包管理器和官方数据源。
 
-The scan is read-only for project code and dependency files: it creates/updates
-local report workspaces and silently ensures .gitignore ignores generated reports.
+扫描对项目代码和依赖文件只读：它只创建/更新本地报告工作区，
+并静默确保 .gitignore 忽略生成报告。
 
 Usage:
     python3 scan.py --preflight <preflight_json>
@@ -322,10 +322,10 @@ CAPABILITY_BOUNDARY = (
     "业务逻辑、权限控制、SQL 注入、XSS 等代码层风险仍需单独复核。"
 )
 # ---------------------------------------------------------------------------
-# Secret detection patterns
+# 密钥检测模式
 # ---------------------------------------------------------------------------
 
-# --- Cloud Provider Keys ---
+# --- 云服务商密钥 ---
 _CLOUD_PROVIDER_PATTERNS = [
     # AWS
     ("aws_access_key", r"(?<![A-Za-z0-9/+=])AKIA[0-9A-Z]{16}(?![A-Za-z0-9/+=])"),
@@ -372,12 +372,12 @@ _CLOUD_PROVIDER_PATTERNS = [
         "digitalocean_token",
         r"dop_v1_[a-f0-9]{64}|do_v1_[a-f0-9]{64}|doo_v1_[a-f0-9]{64}",
     ),
-    # Linode / Akamai (requires context)
+    # Linode / Akamai（需要上下文）
     (
         "linode_api_key",
         r"(?:linode|akamai|LINODE)[_\s-]?(?:api|token|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[0-9a-f]{64}[\"']?",
     ),
-    # Vultr (requires context)
+    # Vultr（需要上下文）
     (
         "vultr_api_key",
         r"(?:vultr|VULTR)[_\s-]?(?:api|token|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[A-Za-z0-9]{36}[\"']?",
@@ -385,14 +385,14 @@ _CLOUD_PROVIDER_PATTERNS = [
     # Cloudflare
     ("cloudflare_api_key", r"v1\.0-[a-f0-9]{24}-[a-f0-9]{146}"),
     ("cloudflare_origin_ca", r"-----BEGIN ORIGIN " r"CERTIFICATE-----"),
-    # Heroku (requires context to avoid matching random UUIDs)
+    # Heroku（需要上下文，避免误匹配随机 UUID）
     (
         "heroku_api_key",
         r"(?:heroku|HEROKU)[_\s-]?(?:api|token|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[\"']?",
     ),
 ]
 
-# --- SaaS / Third-Party Service Tokens ---
+# --- SaaS / 第三方服务 Token ---
 _SAAS_PATTERNS = [
     # GitHub
     (
@@ -407,13 +407,13 @@ _SAAS_PATTERNS = [
     ("gitlab_token", r"glpat-[A-Za-z0-9\-_]{20,}"),
     ("gitlab_runner_token", r"glrt-[A-Za-z0-9\-_]{20,}"),
     ("gitlab_deploy_token", r"gldt-[A-Za-z0-9\-_]{20,}"),
-    # Platform / secret-management tokens with stable prefixes
+    # 带稳定前缀的平台 / 密钥管理 token
     ("hashicorp_vault_token", r"hv[bs]\.[A-Za-z0-9_-]{20,}"),
     ("pulumi_token", r"pul-[A-Za-z0-9]{30,}"),
-    # LLM / AI provider keys
+    # LLM / AI 服务商密钥
     ("groq_api_key", r"gsk_[A-Za-z0-9]{20,}"),
-    # Context-bound platform keys. These intentionally require the product name
-    # near token/key wording to keep generic random strings from becoming noisy.
+    # 需要上下文的平台密钥。这里故意要求产品名靠近 token/key 文案，
+    # 避免普通随机字符串造成噪声。
     (
         "cloudflare_api_token",
         r"(?i)(?:cloudflare|CF)[_\s-]?(?:api[_\s-]?)?(?:token|key)[_\s-]*[:=]\s*[\"']?[A-Za-z0-9_.-]{24,}[\"']?",
@@ -500,7 +500,7 @@ _SAAS_PATTERNS = [
         "firebase_key",
         r"[Ff]irebase[_\s-]?[Kk]ey\s*[:=]\s*[\"']?[A-Za-z0-9_-]{20,}",
     ),
-    # Datadog (requires context)
+    # Datadog（需要上下文）
     (
         "datadog_api_key",
         r"(?:datadog|DATADOG|DD)[_\s-]?(?:api|client)[_\s-]?key(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[a-f0-9]{32}[\"']?",
@@ -516,7 +516,7 @@ _SAAS_PATTERNS = [
         "pagerduty_token",
         r"(?:pagerduty|PAGERDUTY)[_\s-]?token\s*[:=]\s*[\"']?[A-Za-z0-9_-]{20,}[\"']?|pd[_-]?token\s*[:=]\s*[\"']?[A-Za-z0-9_-]{20,}[\"']?",
     ),
-    # Grafana (requires context)
+    # Grafana（需要上下文）
     (
         "grafana_api_key",
         r"(?:grafana|GRAFANA)[_\s-]?(?:api|token|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?eyJ[A-Za-z0-9+/]+=*\.eyJ[A-Za-z0-9+/]+=*\.[A-Za-z0-9+/]+=*",
@@ -530,14 +530,14 @@ _SAAS_PATTERNS = [
     ("terraform_token", r"[a-zA-Z0-9]{14}\.atlasv1\.[a-zA-Z0-9\-\.]{50,}"),
     # CircleCI
     ("circleci_token", r"CCIRERES_[A-Za-z0-9]{22,}"),
-    # Travis CI (requires context)
+    # Travis CI（需要上下文）
     (
         "travis_token",
         r"(?:travis|TRAVIS)[_\s-]?(?:ci|token|api|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[A-Za-z0-9]{22,}[\"']?",
     ),
     # Buildkite
     ("buildkite_token", r"bkua_[a-f0-9]{40}"),
-    # Jenkins (requires context)
+    # Jenkins（需要上下文）
     (
         "jenkins_token",
         r"(?:jenkins|JENKINS)[_\s-]?(?:token|api|key|password)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[0-9a-f]{40}[\"']?",
@@ -549,7 +549,7 @@ _SAAS_PATTERNS = [
     # OpenAI / LLM Providers
     ("openai_key", r"sk-(?:proj-)?[A-Za-z0-9_-]{20,}"),
     ("anthropic_key", r"sk-ant-[A-Za-z0-9_-]{20,}"),
-    # google_ai_key uses the same AIza prefix as gcp_api_key and is covered above.
+    # google_ai_key 与 gcp_api_key 共用 AIza 前缀，上面已覆盖。
     ("huggingface_token", r"hf_[A-Za-z0-9]{34}"),
     ("replicate_token", r"r8_[A-Za-z0-9]{30,}"),
     # PyPI
@@ -560,7 +560,7 @@ _SAAS_PATTERNS = [
     ("nuget_api_key", r"oy2[a-z0-9]{43}"),
     # Sonar
     ("sonar_token", r"squ_[0-9a-f]{40}"),
-    # Atlassian (JIRA / Confluence) (requires context)
+    # Atlassian（JIRA / Confluence，需要上下文）
     (
         "atlassian_token",
         r"(?:atlassian|jira|confluence|bitbucket|ATLASSIAN|JIRA)[_\s-]?(?:token|api|key|pat)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[A-Za-z0-9]{24}[\"']?",
@@ -571,17 +571,17 @@ _SAAS_PATTERNS = [
     ("linear_api_key", r"lin_api_[A-Za-z0-9_]{30,}"),
     # Airtable
     ("airtable_api_key", r"key[A-Za-z0-9]{14}"),
-    # Asana (requires context to avoid matching version strings)
+    # Asana（需要上下文，避免误匹配版本字符串）
     (
         "asana_token",
         r"(?:asana|ASANA)[_\s-]?(?:token|api|key|pat)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?(?:1|2)/[0-9]+:[A-Za-z0-9]+[\"']?",
     ),
-    # Fastly (requires context)
+    # Fastly（需要上下文）
     (
         "fastly_api_key",
         r"(?:fastly|FASTLY)[_\s-]?(?:api|token|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[A-Za-z0-9_-]{32}[\"']?",
     ),
-    # Ngrok (requires context)
+    # Ngrok（需要上下文）
     (
         "ngrok_token",
         r"(?:ngrok|NGROK)[_\s-]?(?:token|api|key)(?:[_\s-]?(?:key|token|id|secret))?[_\s-]*[:=]\s*[\"']?[A-Za-z0-9_-]{30,}[\"']?",
@@ -613,44 +613,44 @@ _SAAS_PATTERNS = [
     ),
 ]
 
-# --- Generic / Heuristic Patterns (lower confidence, user judges) ---
+# --- 通用 / 启发式模式（置信度较低，由用户判断） ---
 _GENERIC_PATTERNS = [
-    # Private keys (all variants)
+    # 私钥（所有变体）
     (
         "private_key",
         r"-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP |ENCRYPTED )?PRIVATE KEY(?:\sBLOCK)?-----",
     ),
-    # Generic passwords
+    # 通用密码
     (
         "generic_password",
         r"""(?:password|passwd|pwd|pass_word)\s*[:=]\s*["'][^"']{4,}["']""",
     ),
-    # Generic API keys
+    # 通用 API 密钥
     (
         "generic_api_key",
         r"""(?:api[_-]?key|apikey|secret[_-]?key|access[_-]?key|auth[_-]?token)\s*[:=]\s*["'][^"']{8,}["']""",
     ),
-    # Generic token assignments
+    # 通用 token 赋值
     (
         "generic_token",
         r"""(?:token|bearer|jwt|access_token|refresh_token|id_token|session_token|csrf_token)\s*[:=]\s*["'][A-Za-z0-9_\-\.]{20,}["']""",
     ),
-    # Bearer token in Authorization header
+    # Authorization header 中的 Bearer token
     (
         "bearer_token",
         r"""[Aa]uthorization\s*[:=]\s*["']?Bearer\s+[A-Za-z0-9_\-\.]{20,}["']?""",
     ),
-    # Generic secret assignments
+    # 通用 secret 赋值
     (
         "generic_secret",
         r"""(?:secret|SECRET|Secret)[_-]?(?:key|KEY|Key|token|TOKEN|Token|id|ID|Id)\s*[:=]\s*["'][A-Za-z0-9_\-]{16,}["']""",
     ),
-    # Base64-encoded potential secrets
+    # Base64 编码的疑似密钥
     (
         "base64_secret",
         r"""(?:secret|token|key|password|credential|auth)[_-]?(?:encoded|base64|b64)\s*[:=]\s*["'][A-Za-z0-9+/=]{24,}["']""",
     ),
-    # Hardcoded connection strings
+    # 硬编码连接字符串
     (
         "connection_string",
         r"""(?i)(?:connection[_-]?string|conn[_-]?str|database[_-]?url|db[_-]?url)\s*[:=]\s*["'][^"']{10,}["']""",
@@ -663,25 +663,25 @@ _GENERIC_PATTERNS = [
         "netrc_password",
         r"""(?i)\bmachine\s+\S+.*\blogin\s+\S+.*\bpassword\s+\S{8,}""",
     ),
-    # Encryption keys
+    # 加密密钥
     (
         "encryption_key",
         r"""(?:encryption|encrypt|cipher|aes|rsa|des)[_-]?key\s*[:=]\s*["'][A-Za-z0-9+/=]{16,}["']""",
     ),
-    # Webhook URLs with embedded secrets
+    # 内嵌密钥的 Webhook URL
     (
         "webhook_url",
         r"""https?://[^/\s"']+/webhook[s]?/[A-Za-z0-9_\-]{20,}""",
     ),
-    # JWT-like patterns
+    # JWT 形态模式
     (
         "jwt_token",
         r"""eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}""",
     ),
-    # Generic sk- prefix catch-all (MiniMax, DeepSeek, Moonshot, Zhipu, etc.)
-    # Many LLM/API providers use sk- as key prefix; medium confidence, user judges
-    # Excludes sk-proj- (openai_key) and sk-ant- (anthropic_key) already matched above
-    # \b ensures sk- is not part of a longer word (e.g. "mask-composite" in CSS)
+    # 通用 sk- 前缀兜底（MiniMax、DeepSeek、Moonshot、Zhipu 等）。
+    # 很多 LLM/API 服务商使用 sk- 作为密钥前缀；中等置信度，由用户判断。
+    # 排除上方已匹配的 sk-proj-（openai_key）和 sk-ant-（anthropic_key）。
+    # \b 确保 sk- 不是更长单词的一部分，例如 CSS 中的 "mask-composite"。
     (
         "generic_sk_key",
         r"""\bsk-(?!proj-|ant-)[A-Za-z0-9_-]{8,}""",
@@ -713,7 +713,7 @@ SECRET_SKIP_MARKERS = (
     "sanitized",
     "[secret]",
 )
-# Markers that are too short or ambiguous require word-boundary checks.
+# 过短或含义模糊的标记必须做单词边界检查。
 SECRET_SKIP_WORD_MARKERS = (
     "xxx",
     "test",
@@ -721,7 +721,7 @@ SECRET_SKIP_WORD_MARKERS = (
 )
 SECRET_FIXTURE_FILE_MARKER = "butian: allow-secret-fixtures"
 HIGH_CONFIDENCE_SECRET_TYPES = {
-    # Cloud providers (with unique prefixes)
+    # 云服务商（带唯一前缀）
     "aws_access_key",
     "aws_session_token",
     "gcp_service_account",
@@ -735,9 +735,9 @@ HIGH_CONFIDENCE_SECRET_TYPES = {
     "digitalocean_token",
     "cloudflare_api_key",
     "cloudflare_origin_ca",
-    # Crypto / keys
+    # 加密材料 / 密钥
     "private_key",
-    # SaaS tokens (with unique prefixes)
+    # SaaS token（带唯一前缀）
     "github_token",
     "github_fine_grained_pat",
     "github_oauth",
@@ -786,14 +786,14 @@ HIGH_CONFIDENCE_SECRET_TYPES = {
 }
 
 SENSITIVE_FILE_PATTERNS = [
-    # Environment / config files
+    # 环境 / 配置文件
     ("env_file", r"(^|/)\.env(\.[\w-]+)?$"),
     ("envrc", r"(^|/)\.envrc$"),
     ("npmrc", r"(^|/)\.npmrc$"),
     ("pypirc", r"(^|/)\.pypirc$"),
     ("netrc", r"(^|/)\.netrc$"),
     ("gem_credentials", r"(^|/)\.gem/credentials$"),
-    # Private keys / certificates
+    # 私钥 / 证书
     ("private_key", r"\.(pem|key|p12|pfx|jks|keystore|pub|gpg|pgp|asc|ppk)$"),
     (
         "ssh_key",
@@ -801,9 +801,9 @@ SENSITIVE_FILE_PATTERNS = [
     ),
     ("kubeconfig", r"(^|/)kubeconfig$|(^|/)\.kube/config$"),
     ("docker_cfg", r"(^|/)\.dockercfg$|(^|/)config\.json$"),
-    # Database files
+    # 数据库文件
     ("database", r"\.(sqlite|sqlite3|db|dump|rdb|redis|bson)$"),
-    # Credentials / service accounts
+    # 凭证 / 服务账号
     ("credentials", r"(^|/)credentials\.json$"),
     ("credentials", r"(^|/)service-account.*\.json$"),
     ("credentials", r"(^|/)client_secret.*\.json$"),
@@ -814,22 +814,22 @@ SENSITIVE_FILE_PATTERNS = [
     ("terraform_state", r"(^|/)terraform\.tfstate(\.backup)?$"),
     ("terraform_vars", r"(^|/)terraform\.tfvars$"),
     ("ansible_vault", r"(^|/)vault[_-]?password\.txt$"),
-    # Build / CI secrets
+    # 构建 / CI 密钥
     ("ci_secrets", r"(^|/)secrets\.yml$|(^|/)secrets\.yaml$|(^|/)secrets\.json$"),
     ("gradle_properties", r"(^|/)gradle\.properties$"),
     ("maven_settings", r"(^|/)settings\.xml$"),
-    # Logs (may contain leaked secrets)
+    # 日志（可能包含泄漏密钥）
     ("log", r"\.log$"),
-    # Dump / export files
+    # dump / 导出文件
     ("dump", r"\.(sql|pgdump|mysqldump|mongoexport|jsonl|csv)$"),
-    # App config with potential secrets
+    # 可能包含密钥的应用配置
     (
         "app_config",
         r"(^|/)(?:application|app)\.(?:yml|yaml|properties|conf)(?:\.[\w-]+)?$",
     ),
-    # Backup files
+    # 备份文件
     ("backup", r"\.(bak|backup|old|orig|save|swp)$"),
-    # History files (may contain pasted secrets)
+    # 历史文件（可能包含粘贴过的密钥）
     (
         "history",
         r"(^|/)\.(?:bash_history|zsh_history|python_history|node_repl_history|mysql_history|psql_history)$",
@@ -841,7 +841,7 @@ SENSITIVE_FILE_REGEXES = [
 
 ENV_TEMPLATE_SUFFIXES = (".example", ".sample", ".template", ".dist")
 
-# Sensitive file types map to .gitignore rules only after matching real files.
+# 敏感文件类型只有在匹配到真实文件后，才映射到 .gitignore 规则。
 SENSITIVE_TO_GITIGNORE = {
     "env_file": [".env", ".env.*"],
     "envrc": [".envrc"],
@@ -1057,7 +1057,7 @@ SECRET_SCAN_SENSITIVE_TYPES = {
 }
 
 # ---------------------------------------------------------------------------
-# Helpers
+# 通用工具
 # ---------------------------------------------------------------------------
 
 
@@ -1111,7 +1111,7 @@ def run_cmd_checked(cmd, timeout=60, cwd=None, errors=None, step="command"):
 
 
 # ---------------------------------------------------------------------------
-# Logging
+# 日志
 # ---------------------------------------------------------------------------
 
 _LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
@@ -1119,23 +1119,23 @@ _LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
 def setup_logging(verbose=False, debug=False, log_dir=None, log_file="scan.log"):
-    """Configure butian logging to stderr and optional log file.
+    """配置补天日志输出到 stderr 和可选日志文件。
 
-    Args:
-        verbose: If True, set stderr to INFO level.
-        debug: If True, set stderr and file to DEBUG level.
-        log_dir: Directory for log file. If None, no file logging.
-        log_file: Log file name within log_dir (default "scan.log").
+    参数：
+        verbose: 为 True 时，stderr 使用 INFO 级别。
+        debug: 为 True 时，stderr 和文件都使用 DEBUG 级别。
+        log_dir: 日志文件目录；为 None 时不写文件日志。
+        log_file: log_dir 内的日志文件名，默认 "scan.log"。
 
-    Returns:
-        logging.Logger: The configured 'butian' logger.
+    返回：
+        已配置好的 "butian" logger。
     """
     logger = logging.getLogger("butian")
-    # Avoid duplicate handlers on repeated calls
+    # 避免重复调用时添加重复 handler。
     if logger.handlers:
         return logger
-    # Keep logger at DEBUG so file handler can capture all messages;
-    # stderr handler controls what the user sees on console.
+    # logger 保持 DEBUG，方便文件 handler 捕获全部消息；
+    # stderr handler 负责控制用户在终端看到的内容。
     logger.setLevel(logging.DEBUG)
 
     stderr_handler = logging.StreamHandler(sys.stderr)
@@ -1160,12 +1160,12 @@ def setup_logging(verbose=False, debug=False, log_dir=None, log_file="scan.log")
 
 
 # ---------------------------------------------------------------------------
-# Binary / symlink helpers
+# 二进制 / 符号链接工具
 # ---------------------------------------------------------------------------
 
 
 def is_binary_file(filepath):
-    """Check if a file is binary by reading its first 8KB for NUL bytes."""
+    """读取文件前 8KB，判断是否包含 NUL 字节以识别二进制文件。"""
     try:
         with open(filepath, "rb") as f:
             chunk = f.read(8192)
@@ -1175,7 +1175,7 @@ def is_binary_file(filepath):
 
 
 def declares_secret_fixture_file(filepath, max_header_bytes=4096):
-    """Return True when a file explicitly marks itself as secret test fixtures."""
+    """文件显式声明自己是密钥测试夹具时返回 True。"""
     try:
         with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
             header = handle.read(max_header_bytes)
@@ -1185,7 +1185,7 @@ def declares_secret_fixture_file(filepath, max_header_bytes=4096):
 
 
 # ---------------------------------------------------------------------------
-# Secret scan file selection
+# 密钥扫描文件选择
 # ---------------------------------------------------------------------------
 
 
@@ -1237,12 +1237,12 @@ def is_git_worktree(path):
 
 
 # ---------------------------------------------------------------------------
-# Repository security checks
+# 仓库安全检查
 # ---------------------------------------------------------------------------
 
 
 def check_gitignore(project_path, sensitive_tracked):
-    """Check .gitignore: only recommend rules for sensitive file types actually found."""
+    """检查 .gitignore，只针对实际出现的敏感文件类型给出建议。"""
     gitignore_path = os.path.join(project_path, ".gitignore")
     gitignore_exists = os.path.isfile(gitignore_path)
     if not gitignore_exists:
@@ -1251,11 +1251,11 @@ def check_gitignore(project_path, sensitive_tracked):
         with open(gitignore_path, "r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
 
-    # Collect types of sensitive files actually found in the project
+    # 收集项目中实际发现的敏感文件类型。
     found_types = set()
     for item in sensitive_tracked:
         found_types.add(item.get("type", ""))
-    # Also check if .env files exist (even if not tracked)
+    # 同时检查 .env 文件是否存在，即使它没有被 git 跟踪。
     for name in (".env", ".env.local", ".env.production", ".env.development"):
         if os.path.isfile(os.path.join(project_path, name)):
             found_types.add("env_file")
@@ -1348,20 +1348,20 @@ def check_sensitive_tracked(project_path, errors=None):
 
 
 # ---------------------------------------------------------------------------
-# Entropy-based secret detection engine
+# 基于熵值的密钥检测引擎
 # ---------------------------------------------------------------------------
 
-# Entropy is a fallback signal for unknown token formats. Provider-specific
-# regex signatures remain the primary evidence because they are more precise.
+# 熵值是未知 token 格式的兜底信号。服务商特征正则更精确，
+# 因此仍然作为主要证据。
 
-# Shannon entropy thresholds
+# Shannon 熵值阈值
 _BASE64_ENTROPY_THRESHOLD = 4.5  # base64 chars: max ~6.0
 _HEX_ENTROPY_THRESHOLD = 3.0  # hex chars: max ~4.0
 _GENERIC_ENTROPY_THRESHOLD = 4.2  # generic high-entropy: mixed charset
 _MIN_SECRET_LENGTH = 20  # minimum candidate length for entropy check
 _MAX_SECRET_LENGTH = 500  # skip unreasonably long strings
 
-# Key names that hint at a secret value (used for contextual entropy scanning)
+# 暗示密钥值的键名（用于上下文熵值扫描）。
 _SECRET_HINT_KEYWORDS = (
     "key",
     "token",
@@ -1395,7 +1395,7 @@ _SECRET_HINT_KEYWORDS = (
 
 
 def _shannon_entropy(data: str) -> float:
-    """Calculate Shannon entropy of a string."""
+    """计算字符串的 Shannon 熵值。"""
     if not data:
         return 0.0
     freq: dict[str, int] = {}
@@ -1411,17 +1411,17 @@ def _shannon_entropy(data: str) -> float:
 
 
 def _is_base64(s: str) -> bool:
-    """Check if a string looks like base64-encoded data."""
+    """判断字符串是否像 base64 编码数据。"""
     return bool(re.fullmatch(r"[A-Za-z0-9+/=]+", s)) and len(s) % 4 <= 1
 
 
 def _is_hex(s: str) -> bool:
-    """Check if a string is hex-encoded."""
+    """判断字符串是否像十六进制编码数据。"""
     return bool(re.fullmatch(r"[0-9a-fA-F]+", s))
 
 
 def _extract_assignment_value(line: str) -> tuple[str, str] | None:
-    """Extract KEY=VALUE or KEY: VALUE from a line. Returns (key, value) or None."""
+    """从单行中提取 KEY=VALUE 或 KEY: VALUE，返回 (key, value) 或 None。"""
     m = re.match(
         r"""^\s*([A-Za-z_][A-Za-z0-9_]*)\s*[=:]\s*["']?([^\s"']+)["']?\s*$""",
         line,
@@ -1449,26 +1449,26 @@ def is_placeholder_secret_candidate(text: str) -> bool:
 
 
 def entropy_check_value(value: str) -> dict | None:
-    """Analyze a value string for high entropy indicating a possible secret.
+    """分析字符串是否具备高熵特征，判断它是否可能是密钥。
 
-    Returns a dict with ``entropy_type`` and ``entropy`` score, or *None*.
+    命中时返回包含 ``entropy_type`` 和 ``entropy`` 的字典，否则返回 *None*。
     """
     if not value or len(value) < _MIN_SECRET_LENGTH or len(value) > _MAX_SECRET_LENGTH:
         return None
 
-    # Skip obvious non-secrets
+    # 跳过明显不是密钥的值。
     if value.lower() in ("true", "false", "null", "none", "undefined", "yes", "no"):
         return None
-    if re.fullmatch(r"[0-9]+", value):  # pure numbers
+    if re.fullmatch(r"[0-9]+", value):  # 纯数字
         return None
-    if re.fullmatch(r"[a-z]+", value):  # pure lowercase word
+    if re.fullmatch(r"[a-z]+", value):  # 纯小写单词
         return None
-    if re.fullmatch(r"[A-Z]+", value):  # pure uppercase word
+    if re.fullmatch(r"[A-Z]+", value):  # 纯大写单词
         return None
 
     entropy = _shannon_entropy(value)
 
-    # Check encoding type and apply appropriate threshold
+    # 检查编码类型，并应用对应阈值。
     if _is_base64(value) and entropy >= _BASE64_ENTROPY_THRESHOLD:
         return {"entropy_type": "base64_high_entropy", "entropy": round(entropy, 2)}
     if _is_hex(value) and len(value) >= 32 and entropy >= _HEX_ENTROPY_THRESHOLD:
@@ -1480,19 +1480,19 @@ def entropy_check_value(value: str) -> dict | None:
 
 
 def scan_entropy_for_line(line: str) -> list[dict]:
-    """Scan a single line for high-entropy values.
+    """扫描单行中的高熵值。
 
-    Checks:
-      1. Assignment values where the key hints at a secret (lower threshold).
-      2. Standalone quoted strings that exhibit very high entropy.
+    检查：
+      1. key 暗示密钥的赋值（阈值较低）。
+      2. 独立出现且熵值很高的引号字符串。
 
-    Returns a list of dicts with ``entropy_type``, ``entropy``, ``key``,
-    ``value`` and ``value_preview``.
+    返回包含 ``entropy_type``、``entropy``、``key``、``value``、
+    ``value_preview`` 的字典列表。
     """
     results: list[dict] = []
     stripped = line.strip()
 
-    # 1. KEY = VALUE / KEY: VALUE patterns
+    # 1. KEY = VALUE / KEY: VALUE 模式。
     assignment = _extract_assignment_value(stripped)
     if assignment:
         key, value = assignment
@@ -1509,13 +1509,13 @@ def scan_entropy_for_line(line: str) -> list[dict]:
                         "value_preview": _mask_entropy_value(value),
                     }
                 )
-            return results  # only check the first assignment per line
+            return results  # 每行只检查第一个赋值。
 
-    # 2. Quoted high-entropy strings (standalone, no key context)
+    # 2. 带引号的高熵字符串（独立出现，没有 key 上下文）。
     for m in re.finditer(r"""["']([A-Za-z0-9+/=_\-]{24,})["']""", stripped):
         value = m.group(1)
         info = entropy_check_value(value)
-        if info and info["entropy"] >= 4.7:  # stricter threshold without key hint
+        if info and info["entropy"] >= 4.7:  # 没有 key 提示时使用更严格阈值。
             results.append(
                 {
                     **info,
@@ -1525,7 +1525,7 @@ def scan_entropy_for_line(line: str) -> list[dict]:
                 }
             )
 
-    # 3. Unquoted high-entropy values in env-like lines
+    # 3. env 风格行中的无引号高熵值。
     env_match = re.match(
         r"""^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=(.+)$""", stripped
     )
@@ -1550,14 +1550,14 @@ def scan_entropy_for_line(line: str) -> list[dict]:
 
 
 def _mask_entropy_value(value: str) -> str:
-    """Mask a value for safe display."""
+    """脱敏值，便于安全展示。"""
     if len(value) <= 12:
         return "***"
     return value[:6] + "..." + value[-4:]
 
 
 def _soft_mask_value(value: str, mask_chars: int = 4) -> str:
-    """Mask a small middle slice while keeping enough text to locate the value."""
+    """只脱敏中间少量字符，同时保留足够文本方便定位。"""
     if not value:
         return value
     if len(value) <= mask_chars:
@@ -1575,7 +1575,7 @@ _ASSIGNMENT_VALUE_RE = re.compile(
 
 
 # ---------------------------------------------------------------------------
-# Secret preview & scanning
+# 密钥预览和扫描
 # ---------------------------------------------------------------------------
 
 
@@ -1614,9 +1614,9 @@ def secret_preview(secret_type, match_text):
 
 
 def soft_secret_preview(secret_type, match_text):
-    """Partially mask evidence from template files without hiding its location."""
-    # Template files keep evidence locatable so beginners can find the exact
-    # placeholder line, while still masking enough characters for safe reports.
+    """局部脱敏模板文件证据，同时不隐藏其所在位置。"""
+    # 模板文件保留可定位证据，方便新手找到具体占位符行，
+    # 同时继续脱敏足够字符，保证报告安全。
     if secret_type == "private_key":
         return "-----BEGIN **** PRIVATE KEY-----"
 
@@ -1734,10 +1734,10 @@ def scan_secrets(
             ext = os.path.splitext(fname)[1].lower()
             if not should_scan_secret_file(fpath, project_path):
                 continue
-            # Skip symlinks unless explicitly following
+            # 除非显式要求跟随，否则跳过符号链接。
             if not follow_symlinks and os.path.islink(fpath):
                 continue
-            # Skip binary files
+            # 跳过二进制文件。
             if is_binary_file(fpath):
                 continue
             secret_scan_stats["candidate_files"] += 1
@@ -1762,7 +1762,7 @@ def scan_secrets(
                             stripped.startswith("//") and not is_npmrc
                         ):
                             continue
-                        # --- Phase 1: Regex pattern matching ---
+                        # --- 第 1 阶段：正则模式匹配 ---
                         for secret_type, pattern in SECRET_REGEXES:
                             m = pattern.search(line)
                             if m:
@@ -1793,7 +1793,7 @@ def scan_secrets(
                                     }
                                 )
 
-                        # --- Phase 2: Entropy-based detection ---
+                        # --- 第 2 阶段：基于熵值检测 ---
                         if is_env_secret_scan_file(fname) or ext in (
                             ".env",
                             ".yaml",
@@ -1845,8 +1845,8 @@ def scan_secrets(
             count += 1
             secret_scan_stats["scanned_files"] = count
 
-    # Regex findings take precedence over entropy. A provider-shaped token is
-    # stronger evidence than a generic random-looking value on the same line.
+    # 正则命中优先于熵值命中。同一行中，服务商形态 token
+    # 比泛化随机字符串证据更强。
     seen = set()
     high_conf_locations = set()
     deduped = []
@@ -1855,7 +1855,7 @@ def scan_secrets(
         loc = (f["file"], f["line"])
         if key in seen:
             continue
-        # Skip low/medium confidence if a high-confidence match already covers this line
+        # 如果高置信命中已经覆盖这一行，跳过低/中置信命中。
         if f.get("confidence") != "high" and loc in high_conf_locations:
             continue
         seen.add(key)
@@ -1863,7 +1863,7 @@ def scan_secrets(
             high_conf_locations.add(loc)
         deduped.append(f)
 
-    # Deduplicate entropy findings and suppress those already caught by regex
+    # 对熵值命中去重，并抑制已被正则捕获的项。
     regex_hit_keys = {(f["file"], f["line"]) for f in deduped}
     entropy_deduped = []
     entropy_seen: set[tuple[str, int, str]] = set()
@@ -1871,7 +1871,7 @@ def scan_secrets(
         ekey = (ef["file"], ef["line"], ef["type"])
         if ekey in entropy_seen:
             continue
-        # Skip if this file+line already has a regex match (regex is more specific)
+        # 如果同一文件同一行已有正则命中，跳过熵值命中（正则更具体）。
         if (ef["file"], ef["line"]) in regex_hit_keys:
             continue
         entropy_seen.add(ekey)
@@ -1888,7 +1888,7 @@ def scan_hygiene(
     project_path, max_secret_files=500, follow_symlinks=False, ecosystems=None
 ):
     errors = []
-    # Scan sensitive files first, then use findings to drive gitignore recommendations
+    # 先扫描敏感文件，再根据命中结果生成 gitignore 建议。
     sensitive_tracked = check_sensitive_tracked(project_path, errors=errors)
     secret_scan_stats = {}
     tracked_secrets = scan_secrets(
@@ -1942,7 +1942,7 @@ def scan_hygiene(
 
 
 # ---------------------------------------------------------------------------
-# Outdated dependency checks
+# 过期依赖检查
 # ---------------------------------------------------------------------------
 
 
@@ -2135,7 +2135,7 @@ def project_python_executable(cwd):
 
 
 def _pip_outdated(cwd, errors=None):
-    # uv-managed projects: use uv pip list for outdated check
+    # uv 管理的项目：使用 uv pip list 做过期检查。
     if os.path.isfile(os.path.join(cwd, "uv.lock")):
         output = run_cmd_checked(
             ["uv", "pip", "list", "--outdated", "--format=json"],
@@ -2293,7 +2293,7 @@ def _cargo_outdated(cwd, errors=None):
 
 
 # ---------------------------------------------------------------------------
-# Main
+# 主流程
 # ---------------------------------------------------------------------------
 
 
@@ -2398,13 +2398,13 @@ def main():
     preflight_hygiene_only = preflight_scan_mode == "hygiene_only"
     output_file = args.output or default_output_path(project_path, preflight=preflight)
     errors = []
-    # Initialize logging after the output path determines the run directory.
+    # 输出路径确定运行目录后再初始化日志。
     log_dir = os.path.join(os.path.dirname(os.path.dirname(output_file)), "logs")
     logger = setup_logging(verbose=args.verbose, debug=args.debug, log_dir=log_dir)
     logger.info("开始扫描项目: %s", project_path)
     step_seconds = {}
 
-    # Detect ecosystems and lockfiles before deciding whether dependencies exist.
+    # 先检测生态和 lockfile，再判断是否存在可扫描依赖。
     step_started = time.time()
     if preflight_hygiene_only:
         ecosystems, lockfiles = [], {}
@@ -2429,7 +2429,7 @@ def main():
     logger.info("扫描模式: %s", scan_mode)
     skip_dependency_checks = scan_mode == "hygiene_only"
 
-    # Parse exact package coordinates; range-only manifests stay out of matching.
+    # 只解析精确包坐标；只有范围的 manifest 不参与漏洞匹配。
     step_started = time.time()
     if skip_dependency_checks:
         packages = []
@@ -2460,7 +2460,7 @@ def main():
         )
     step_seconds["package_extraction"] = round(time.time() - step_started, 3)
 
-    # Steps 3-5 are independent I/O-heavy checks and can run in parallel.
+    # 第 3-5 类检查彼此独立且 I/O 较重，可以并行运行。
     def run_hygiene_step():
         step_started = time.time()
         if args.skip_hygiene:

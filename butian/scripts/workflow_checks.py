@@ -1,4 +1,4 @@
-"""Local GitHub Actions workflow security checks."""
+"""本地 GitHub Actions 工作流安全检查。"""
 
 from __future__ import annotations
 

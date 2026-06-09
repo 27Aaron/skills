@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Dependency fix executor for Butian.
+"""补天依赖修复执行器。
 
-Usage (standalone):
+独立用法：
     python3 scripts/fix.py <analysis.json> --strategy fixed
     python3 scripts/fix.py <analysis.json> --strategy latest
 
-Library helpers:
+库函数：
     from fix import build_upgrade_commands, execute_fixes, extract_fixable_items
 """
 
@@ -21,7 +21,7 @@ logger = logging.getLogger("butian")
 
 
 def _parse_version(version_str):
-    """Parse "1.2.3" into (1, 2, 3), stripping pre-release tags."""
+    """把 "1.2.3" 解析为 (1, 2, 3)，并去掉预发布后缀。"""
     parts = version_str.lstrip("v").split(".")
     result = []
     for part in parts:
@@ -38,7 +38,7 @@ def _parse_version(version_str):
 
 
 def _semver_satisfies(version, range_str):
-    """Check if *version* satisfies an npm-style semver range (simplified)."""
+    """检查 *version* 是否满足简化版 npm semver 范围。"""
     range_str = range_str.strip()
     if not range_str or range_str in ("*", "latest"):
         return True
@@ -67,22 +67,22 @@ def _semver_satisfies(version, range_str):
 
 
 # ---------------------------------------------------------------------------
-# Ecosystem upgrade command builders
+# 生态升级命令构造器
 # ---------------------------------------------------------------------------
 
-# Maps ecosystem name to a fixed-version upgrade command builder.
-# Each builder receives (package, version) and returns a command list.
+# 将生态名称映射到固定版本升级命令构造器。
+# 每个构造器接收 (package, version)，并返回命令列表。
 
 
 def _go_version(ver):
-    """Ensure Go version has 'v' prefix (Go requires v1.2.3, not 1.2.3)."""
+    """确保 Go 版本带 v 前缀（Go 需要 v1.2.3，而不是 1.2.3）。"""
     if ver and not ver.startswith("v"):
         return f"v{ver}"
     return ver
 
 
 def _pypi_manager(project_path):
-    """Detect Python package manager from lockfile presence."""
+    """根据 lockfile 判断 Python 包管理器。"""
     if os.path.isfile(os.path.join(project_path, "uv.lock")):
         return "uv"
     if os.path.isfile(os.path.join(project_path, "poetry.lock")):
@@ -93,7 +93,7 @@ def _pypi_manager(project_path):
 
 
 def _pypi_fixed_cmd(pkg, ver, project_path="."):
-    """Build fixed-version install command for the detected Python package manager."""
+    """为检测到的 Python 包管理器构造固定版本安装命令。"""
     mgr = _pypi_manager(project_path)
     if mgr == "uv":
         return ["uv", "add", f"{pkg}=={ver}"]
@@ -105,7 +105,7 @@ def _pypi_fixed_cmd(pkg, ver, project_path="."):
 
 
 def _pypi_latest_cmd(pkg, project_path="."):
-    """Build latest-version upgrade command for the detected Python package manager."""
+    """为检测到的 Python 包管理器构造 latest 升级命令。"""
     mgr = _pypi_manager(project_path)
     if mgr == "uv":
         return ["uv", "add", pkg]
@@ -126,7 +126,7 @@ _UPGRADE_BUILDERS = {
 
 
 def _latest_commands(ecosystem, package, project_path=None):
-    """Build commands to upgrade a package to its latest version."""
+    """构造把单个包升级到 latest 的命令。"""
     if ecosystem == "npm":
         return ["npm", "install", f"{package}@latest"]
     if ecosystem == "pnpm":
@@ -143,25 +143,24 @@ def _latest_commands(ecosystem, package, project_path=None):
 
 
 # ---------------------------------------------------------------------------
-# Bulk latest upgrades
+# 批量升级到最新版
 # ---------------------------------------------------------------------------
 
 
 def build_all_latest_commands(project_path):
-    """Build commands to upgrade ALL project dependencies to latest versions.
+    """构造把项目全部依赖升级到 latest 的命令。
 
-    The latest strategy is intentionally broad: it upgrades every detected
-    dependency in a supported ecosystem, not only packages tied to advisories.
+    latest 策略刻意保持宽泛：它会升级支持生态中检测到的每个依赖，
+    不只升级和漏洞公告相关的包。
 
-    Detects ecosystems from project files and generates bulk-upgrade
-    commands for each detected ecosystem.
+    函数会根据项目文件识别生态，并为每个检测到的生态生成批量升级命令。
 
-    Returns:
-        list of (label, command_list) tuples
+    返回：
+        (label, command_list) 元组列表
     """
     commands = []
 
-    # --- Node.js (npm / pnpm / yarn) ---
+    # --- Node.js（npm / pnpm / yarn） ---
     pkg_json_path = os.path.join(project_path, "package.json")
     if os.path.isfile(pkg_json_path):
         try:
@@ -209,17 +208,17 @@ def build_all_latest_commands(project_path):
 
 
 # ---------------------------------------------------------------------------
-# Extract fixable items from analysis
+# 从 analysis 中提取可修复项
 # ---------------------------------------------------------------------------
 
 
 def extract_fixable_items(analysis):
-    """Return list of items with type='dependency_upgrade' and a target_version.
+    """返回 type='dependency_upgrade' 且包含 target_version 的项目。
 
-    Each item has:
-      - package, ecosystem, version (current), target_version
-      - fixed_versions, advisory_ids
-      - severity, summary
+    每个项目包含：
+      - package、ecosystem、version（当前版本）、target_version
+      - fixed_versions、advisory_ids
+      - severity、summary
     """
     items = analysis.get("green") or analysis.get("green_items") or []
     fixable = []
@@ -246,7 +245,7 @@ def extract_fixable_items(analysis):
 
 
 def extract_dependabot_config_items(analysis):
-    """Return generated Dependabot config items from analysis green items."""
+    """从 analysis 的 green items 中提取可生成的 Dependabot 配置。"""
     items = analysis.get("green") or analysis.get("green_items") or []
     configs = []
     for item in items:
@@ -277,7 +276,7 @@ def _safe_project_file(project_path, rel_path):
 
 
 def execute_dependabot_config_fixes(analysis, project_path):
-    """Create generated Dependabot config files without overwriting user files."""
+    """创建生成的 Dependabot 配置文件，但不覆盖用户已有文件。"""
     items = extract_dependabot_config_items(analysis)
     if not items:
         return [], [("dependabot", "没有可创建的 Dependabot 配置。")]
@@ -302,21 +301,21 @@ def execute_dependabot_config_fixes(analysis, project_path):
 
 
 # ---------------------------------------------------------------------------
-# Build upgrade commands
+# 构造升级命令
 # ---------------------------------------------------------------------------
 
 
 def build_upgrade_commands(fix_items, strategy, ecosystem=None, project_path=None):
-    """Build upgrade commands for fixable items.
+    """为可修复项构造升级命令。
 
-    Args:
-        fix_items: list from extract_fixable_items()
+    参数：
+        fix_items: extract_fixable_items() 返回的列表
         strategy: "minimal" | "latest"
-        ecosystem: if set, filter to this ecosystem only
-        project_path: project root (used to detect uv/poetry/pipenv)
+        ecosystem: 设置后只处理该生态
+        project_path: 项目根目录（用于检测 uv/poetry/pipenv）
 
-    Returns:
-        list of (package, command_list) tuples
+    返回：
+        (package, command_list) 元组列表
     """
     project_path = project_path or "."
     commands = []
@@ -345,7 +344,7 @@ def build_upgrade_commands(fix_items, strategy, ecosystem=None, project_path=Non
 
 
 # ---------------------------------------------------------------------------
-# npm parent upgrades for nested residuals
+# npm 嵌套残留的父依赖升级
 # ---------------------------------------------------------------------------
 
 
@@ -474,11 +473,10 @@ def _load_json_file(path):
 
 
 def build_npm_parent_upgrade_plan(analysis, project_path=None):
-    """Build npm parent-upgrade actions for vulnerable nested lockfile entries.
+    """为有风险的嵌套 lockfile 条目构造 npm parent-upgrade 动作。
 
-    Parent-upgrade is a second-round repair. It should be used after a normal
-    upgrade plus rescan proves that an old nested npm copy is still locked by a
-    parent package.
+    parent-upgrade 是第二轮修复。只有普通升级加复扫证明旧的嵌套 npm
+    副本仍被父依赖锁定后，才应该使用它。
     """
     project_path = project_path or (analysis.get("project") or {}).get("path") or "."
     lock_path = os.path.join(project_path, "package-lock.json")
@@ -557,15 +555,15 @@ def build_npm_parent_upgrade_plan(analysis, project_path=None):
 
 
 def build_force_residual_overrides(analysis, project_path=None):
-    """Build npm overrides map for unfixable nested residuals.
+    """为无法常规修复的嵌套残留依赖构造 npm overrides 映射。
 
-    force-residual writes a durable npm policy into package.json. Use it only
-    after parent-upgrade cannot trace a safer root dependency update.
+    force-residual 会写入持久 npm 策略到 package.json。
+    只有 parent-upgrade 找不到更安全的根依赖升级路径后才使用。
 
-    Returns a dict with:
+    返回字典包含：
       - overrides: {package_name: target_version_or_ref, ...}
-      - items: list of dicts with package, current_version, target_version, note
-      - skipped: list of strings explaining what was skipped
+      - items: 包含 package、current_version、target_version、note 的字典列表
+      - skipped: 解释跳过原因的字符串列表
     """
     project_path = project_path or (analysis.get("project") or {}).get("path") or "."
     package_json_path = os.path.join(project_path, "package.json")
@@ -576,13 +574,13 @@ def build_force_residual_overrides(analysis, project_path=None):
         result["skipped"].append("未找到 package.json，无法写入 overrides。")
         return result
 
-    # Reuse parent-upgrade analysis so overrides only target entries that cannot
-    # be traced back to a safer root dependency update.
+    # 复用 parent-upgrade 分析，确保 overrides 只针对无法追溯到
+    # 更安全根依赖升级路径的条目。
     plan = build_npm_parent_upgrade_plan(analysis, project_path)
     unfixable = list(plan.get("unfixable") or [])
 
     if not unfixable:
-        # Fallback: all fixable npm items (covers standalone usage)
+        # 兜底：所有可修复 npm 项（覆盖独立使用场景）。
         fix_items = extract_fixable_items(analysis)
         npm_items = [i for i in fix_items if i.get("ecosystem") == "npm"]
         for item in npm_items:
@@ -601,8 +599,7 @@ def build_force_residual_overrides(analysis, project_path=None):
         result["skipped"].append("没有需要强制覆盖的残留依赖。")
         return result
 
-    # Root dependencies need the "$pkg" self-reference form; hardcoding their
-    # versions can trigger npm override conflicts.
+    # 根依赖需要 "$pkg" 自引用写法；直接写死版本可能触发 npm override 冲突。
     pkg_json = (
         _load_json_file(package_json_path) if os.path.isfile(package_json_path) else {}
     )
@@ -624,7 +621,7 @@ def build_force_residual_overrides(analysis, project_path=None):
 
 
 def execute_force_residual_fixes(analysis, project_path):
-    """Force-update unfixable nested residuals via npm overrides."""
+    """通过 npm overrides 强制更新无法常规修复的嵌套残留依赖。"""
     result = build_force_residual_overrides(analysis, project_path)
 
     if result["skipped"] or not result["overrides"]:
@@ -636,8 +633,7 @@ def execute_force_residual_fixes(analysis, project_path):
     with open(package_json_path, "r", encoding="utf-8") as f:
         pkg_data = json.load(f)
 
-    # Preserve existing user overrides; this strategy may only add or replace
-    # the generated keys needed for the confirmed residual items.
+    # 保留用户已有 overrides；本策略只新增或替换已确认残留项需要的 key。
     existing_overrides = pkg_data.get("overrides") or {}
     new_overrides = result["overrides"]
     merged = {**existing_overrides, **new_overrides}
@@ -651,8 +647,7 @@ def execute_force_residual_fixes(analysis, project_path):
     for pkg, ver in sorted(new_overrides.items()):
         print(f'    - "{pkg}": "{ver}"')
 
-    # Materialize overrides into package-lock.json so the follow-up scan sees
-    # the enforced dependency graph.
+    # 将 overrides 落到 package-lock.json，确保后续扫描看到被强制后的依赖图。
     print("  正在运行 npm install...")
     ok, err = _run_npm_install(project_path)
     if ok:
@@ -663,7 +658,7 @@ def execute_force_residual_fixes(analysis, project_path):
 
 
 def build_parent_upgrade_commands(plan):
-    """Build commands: upgrade parent to latest, then upgrade child to target."""
+    """构造命令：先把父依赖升到 latest，再把子依赖升到目标版本。"""
     commands = []
     seen_parents = set()
     seen_children = set()
@@ -677,14 +672,14 @@ def build_parent_upgrade_commands(plan):
         if child not in seen_children:
             seen_children.add(child)
             commands.append((child, ["npm", "install", f"{child}@{target}"]))
-    # After all upgrades, dedupe to hoist satisfied nested copies
+    # 所有升级完成后执行 dedupe，把已满足的嵌套副本提升上来。
     if seen_parents or seen_children:
         commands.append(("npm dedupe", ["npm", "dedupe"]))
     return commands
 
 
 def execute_parent_upgrade_fixes(analysis, project_path):
-    """Upgrade parent and child dependencies for nested npm residuals."""
+    """升级嵌套 npm 残留依赖对应的父依赖和子依赖。"""
     plan = build_npm_parent_upgrade_plan(analysis, project_path)
     commands = build_parent_upgrade_commands(plan)
     if not commands:
@@ -712,8 +707,8 @@ def execute_parent_upgrade_fixes(analysis, project_path):
     if failures:
         return successes, failures
 
-    # Post-upgrade cleanup: delete stale nested entries from lockfile and node_modules,
-    # then re-run npm install to force re-resolution.
+    # 升级后清理：删除 lockfile 和 node_modules 中陈旧的嵌套条目，
+    # 然后重新运行 npm install 强制解析。
     lock_path = os.path.join(project_path, "package-lock.json")
     removed = _cleanup_stale_nested(lock_path, project_path, plan)
     if removed:
@@ -728,7 +723,7 @@ def execute_parent_upgrade_fixes(analysis, project_path):
 
 
 def _cleanup_stale_nested(lock_path, project_path, plan):
-    """Remove stale nested lockfile entries and node_modules directories."""
+    """移除陈旧的嵌套 lockfile 条目和 node_modules 目录。"""
     if not os.path.isfile(lock_path):
         return []
     try:
@@ -747,8 +742,8 @@ def _cleanup_stale_nested(lock_path, project_path, plan):
             continue
         del packages[lock_key]
         removed.append(lock_key)
-        # Remove the cached nested copy as well; otherwise npm can keep stale
-        # node_modules content even after the lockfile path is removed.
+        # 同时移除缓存的嵌套副本；否则即使 lockfile 路径已删除，
+        # node_modules 内容也可能残留。
         if os.path.exists(target):
             shutil.rmtree(target, ignore_errors=True)
     if removed:
@@ -775,7 +770,7 @@ def _nested_lock_target(project_path, lock_key):
 
 
 def _run_npm_install(project_path):
-    """Run npm install and return (ok, error_message)."""
+    """运行 npm install，并返回 (ok, error_message)。"""
     try:
         result = subprocess.run(
             ["npm", "install"],
@@ -792,12 +787,12 @@ def _run_npm_install(project_path):
 
 
 # ---------------------------------------------------------------------------
-# Execute fixes
+# 执行修复
 # ---------------------------------------------------------------------------
 
 
 def execute_fixes(commands, project_path):
-    """Run upgrade commands sequentially. Returns (successes, failures)."""
+    """按顺序执行升级命令，返回 (successes, failures)。"""
     successes = []
     failures = []
     for pkg, cmd in commands:
@@ -830,16 +825,16 @@ def execute_fixes(commands, project_path):
 
 
 # ---------------------------------------------------------------------------
-# Standalone entry point
+# 独立入口
 # ---------------------------------------------------------------------------
 
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(
-        description="Execute selected Butian dependency fixes"
+        description="执行选定的补天依赖修复"
     )
     parser.add_argument(
-        "analysis_json", help="path to .butian/<run>/assets/analysis.json"
+        "analysis_json", help=".butian/<run>/assets/analysis.json 路径"
     )
     parser.add_argument(
         "--strategy",
@@ -853,22 +848,22 @@ def parse_args(argv):
             "dependabot",
         ],
         help=(
-            "'fixed'/'minimal' upgrades to known fixed versions; "
-            "'latest' upgrades to latest versions; "
-            "'parent-upgrade' upgrades root parent dependencies for nested residuals; "
-            "'force-residual' forces override versions for untraceable nested residuals; "
-            "'dependabot' creates generated .github/dependabot.yml"
+            "'fixed'/'minimal' 升级到已知修复版本；"
+            "'latest' 升级到最新版本；"
+            "'parent-upgrade' 为嵌套残留升级根父依赖；"
+            "'force-residual' 为无法追溯的嵌套残留写入强制覆盖版本；"
+            "'dependabot' 创建生成后的 .github/dependabot.yml"
         ),
     )
     parser.add_argument(
         "--yes",
         action="store_true",
-        help="actually execute the generated fix plan; omitted means dry-run",
+        help="真正执行生成后的修复计划；省略时只做 dry-run",
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="print the generated fix plan without modifying the project",
+        help="打印生成后的修复计划，不修改项目",
     )
     return parser.parse_args(argv)
 
@@ -892,10 +887,10 @@ def normalize_strategy(strategy):
 
 
 def should_execute(args):
-    """Return True only when the user explicitly opted into mutation.
+    """只有用户显式同意修改时才返回 True。
 
-    Dry-run is the safety boundary for the standalone CLI; AskUserQuestion
-    confirmation happens before callers pass --yes.
+    dry-run 是独立 CLI 的安全边界；AskUserQuestion 确认发生在
+    调用方传入 --yes 之前。
     """
     return bool(getattr(args, "yes", False)) and not bool(
         getattr(args, "dry_run", False)
@@ -923,7 +918,7 @@ def print_execution_plan(strategy, project_path, commands=None, note=""):
 
 
 def post_fix_guidance(strategy):
-    """Return human-readable guidance for the required verification scan."""
+    """返回修复后必须复扫的人类可读提示。"""
     if strategy == "latest":
         return [
             "全部依赖已升级到最新版本，请重新运行补天扫描验证结果。",
@@ -967,7 +962,7 @@ def main(argv=None):
     strategy = normalize_strategy(args.strategy)
     project_path = analysis.get("project", {}).get("path") or "."
 
-    # latest upgrades all detected dependencies and is not a targeted advisory fix.
+    # latest 会升级所有检测到的依赖，不是针对公告的定向修复。
     if strategy == "latest":
         commands = build_all_latest_commands(project_path)
         if not commands:
@@ -995,7 +990,7 @@ def main(argv=None):
             print(f"  {line}")
         return 1 if failures else 0
 
-    # parent-upgrade follows a rescan-confirmed npm nested residual.
+    # parent-upgrade 跟随复扫确认的 npm 嵌套残留。
     if strategy == "parent-upgrade":
         if not should_execute(args):
             print_execution_plan(
@@ -1019,7 +1014,7 @@ def main(argv=None):
             print(f"  {line}")
         return 1 if failures else 0
 
-    # force-residual leaves package.json policy behind and must stay explicit.
+    # force-residual 会留下 package.json 策略，必须保持显式。
     if strategy == "force-residual":
         if not should_execute(args):
             print_execution_plan(
@@ -1043,7 +1038,7 @@ def main(argv=None):
             print(f"  {line}")
         return 1 if failures else 0
 
-    # dependabot writes governance configuration, not dependency upgrade output.
+    # dependabot 写入治理配置，不是依赖升级输出。
     if strategy == "dependabot":
         if not should_execute(args):
             items = extract_dependabot_config_items(analysis)
@@ -1076,7 +1071,7 @@ def main(argv=None):
             print("  未创建 Dependabot 配置，请先处理上面的失败原因。")
         return 1 if failures else 0
 
-    # minimal/fixed is the targeted path generated from analysis fix_config.
+    # minimal/fixed 是 analysis fix_config 生成的定向路径。
     fix_items = extract_fixable_items(analysis)
     if not fix_items:
         logger.info("未发现可修复的漏洞")

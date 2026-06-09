@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Parse read-only Linux server inventory into reportable assets."""
+"""把只读 Linux 服务器 inventory 解析成可报告资产。"""
 
 from __future__ import annotations
 
@@ -22,8 +22,8 @@ SUPPORTED_DISTROS = {
     "ol",
 }
 
-# Unsupported or empty inventories preserve gaps as errors; they never prove
-# that a server has no vulnerable packages or exposed services.
+# 不支持或为空的 inventory 保留为覆盖缺口错误；
+# 它们绝不能证明服务器没有漏洞包或暴露服务。
 
 PUBLIC_ADDRESSES = {"0.0.0.0", "::", "*"}
 

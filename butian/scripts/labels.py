@@ -1,4 +1,4 @@
-"""Chinese display labels shared by Butian report renderers."""
+"""补天报告渲染器共享的中文展示标签。"""
 
 SECRET_TYPE_LABELS = {
     "aws_access_key": "AWS 访问密钥",

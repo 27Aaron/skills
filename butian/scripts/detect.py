@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""Environment detection.
+"""项目扫描预检。
 
-Checks before the full scanner:
-  1. Detect supported project dependency files.
-  2. Prepare the local .butian workspace and inspect .gitignore coverage.
+完整扫描前先检查：
+  1. 识别支持的项目依赖文件。
+  2. 准备本地 .butian 工作区，并检查 .gitignore 覆盖情况。
 
-The script prints JSON to stdout and writes the same JSON to
-.butian/<timestamp>/assets/preflight.json by default. It uses only Python
-standard library modules.
+脚本会把 JSON 输出到 stdout，默认也写入
+.butian/<timestamp>/assets/preflight.json。这里只使用 Python 标准库。
 """
 
 import argparse
@@ -39,21 +38,21 @@ except ImportError:
 
 
 def parse_args(argv):
-    parser = argparse.ArgumentParser(description="Run preflight checks")
+    parser = argparse.ArgumentParser(description="运行补天项目扫描预检")
     parser.add_argument("project_path", nargs="?", default=".")
     parser.add_argument(
         "--no-root-discovery",
         action="store_true",
-        help="use the supplied path exactly instead of walking up to the project root",
+        help="直接使用传入路径，不向上查找项目根目录",
     )
     parser.add_argument(
         "--output",
-        help="write JSON to this path instead of the default temp-file path",
+        help="把 JSON 写入指定路径，而不是默认资产路径",
     )
     parser.add_argument(
         "--compact",
         action="store_true",
-        help="emit compact JSON instead of pretty-printed JSON",
+        help="输出紧凑 JSON，而不是格式化 JSON",
     )
     return parser.parse_args(argv)
 
