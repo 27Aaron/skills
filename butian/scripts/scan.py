@@ -44,6 +44,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
@@ -1837,6 +1838,7 @@ LOCKFILE_MAP = {
     "rubygems": ["Gemfile.lock"],
     "pub": ["pubspec.lock"],
     "hex": ["mix.lock"],
+    "nuget": ["packages.lock.json", "packages.config"],
 }
 
 
@@ -2320,6 +2322,87 @@ def parse_mix_lock(project_path):
     return pkgs
 
 
+# --- .NET / NuGet ---
+
+
+def parse_packages_lock_json(project_path):
+    path = os.path.join(project_path, "packages.lock.json")
+    if not os.path.isfile(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return []
+
+    pkgs = []
+    dependencies = data.get("dependencies") or {}
+    if not isinstance(dependencies, dict):
+        return []
+    for target_packages in dependencies.values():
+        if not isinstance(target_packages, dict):
+            continue
+        for name, info in target_packages.items():
+            if not isinstance(info, dict):
+                continue
+            version = str(info.get("resolved") or "").strip()
+            if not name or not version:
+                continue
+            pkgs.append(
+                {
+                    "ecosystem": "nuget",
+                    "name": str(name),
+                    "version": version,
+                    "is_direct": str(info.get("type") or "").lower() == "direct",
+                    "source": "packages.lock.json",
+                }
+            )
+    return pkgs
+
+
+def parse_packages_config(project_path):
+    path = os.path.join(project_path, "packages.config")
+    if not os.path.isfile(path):
+        return []
+    try:
+        root = ET.parse(path).getroot()
+    except (ET.ParseError, OSError):
+        return []
+
+    pkgs = []
+    for package in root.findall(".//package"):
+        name = str(package.get("id") or "").strip()
+        version = str(package.get("version") or "").strip()
+        if not name or not version:
+            continue
+        pkgs.append(
+            {
+                "ecosystem": "nuget",
+                "name": name,
+                "version": version,
+                "is_direct": True,
+                "source": "packages.config",
+            }
+        )
+    return pkgs
+
+
+def parse_nuget(project_path):
+    pkgs, seen = [], set()
+    for parser in (parse_packages_lock_json, parse_packages_config):
+        for pkg in parser(project_path):
+            key = (
+                pkg["ecosystem"],
+                str(pkg["name"]).lower(),
+                pkg["version"],
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            pkgs.append(pkg)
+    return pkgs
+
+
 # --- Python ---
 
 
@@ -2636,6 +2719,7 @@ PARSERS = {
     "rubygems": parse_gemfile_lock,
     "pub": parse_pubspec_lock,
     "hex": parse_mix_lock,
+    "nuget": parse_nuget,
 }
 
 
@@ -2700,6 +2784,7 @@ OSV_ECOSYSTEMS = {
     "rubygems": "RubyGems",
     "pub": "Pub",
     "hex": "Hex",
+    "nuget": "NuGet",
 }
 
 

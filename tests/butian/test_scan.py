@@ -841,6 +841,121 @@ class ParseMixLockTests(unittest.TestCase):
             )
 
 
+class ParseNugetTests(unittest.TestCase):
+    def test_packages_lock_json_parses_direct_and_transitive_packages(self):
+        with tempfile.TemporaryDirectory(prefix="butian-nuget-lock-") as root:
+            with open(
+                os.path.join(root, "packages.lock.json"), "w", encoding="utf-8"
+            ) as f:
+                json.dump(
+                    {
+                        "version": 1,
+                        "dependencies": {
+                            "net8.0": {
+                                "Newtonsoft.Json": {
+                                    "type": "Direct",
+                                    "resolved": "13.0.3",
+                                },
+                                "System.Text.Json": {
+                                    "type": "Transitive",
+                                    "resolved": "8.0.4",
+                                },
+                            }
+                        },
+                    },
+                    f,
+                )
+
+            pkgs = scan.parse_nuget(root)
+
+            self.assertEqual(
+                pkgs,
+                [
+                    {
+                        "ecosystem": "nuget",
+                        "name": "Newtonsoft.Json",
+                        "version": "13.0.3",
+                        "is_direct": True,
+                        "source": "packages.lock.json",
+                    },
+                    {
+                        "ecosystem": "nuget",
+                        "name": "System.Text.Json",
+                        "version": "8.0.4",
+                        "is_direct": False,
+                        "source": "packages.lock.json",
+                    },
+                ],
+            )
+
+    def test_packages_config_parses_packages(self):
+        with tempfile.TemporaryDirectory(prefix="butian-nuget-config-") as root:
+            with open(os.path.join(root, "packages.config"), "w", encoding="utf-8") as f:
+                f.write(
+                    '<?xml version="1.0" encoding="utf-8"?>\n'
+                    "<packages>\n"
+                    '  <package id="NUnit" version="3.14.0" />\n'
+                    '  <package id="Moq" version="4.20.70" />\n'
+                    "</packages>\n"
+                )
+
+            pkgs = scan.parse_nuget(root)
+
+            self.assertEqual(
+                pkgs,
+                [
+                    {
+                        "ecosystem": "nuget",
+                        "name": "NUnit",
+                        "version": "3.14.0",
+                        "is_direct": True,
+                        "source": "packages.config",
+                    },
+                    {
+                        "ecosystem": "nuget",
+                        "name": "Moq",
+                        "version": "4.20.70",
+                        "is_direct": True,
+                        "source": "packages.config",
+                    },
+                ],
+            )
+
+    def test_skips_missing_versions(self):
+        with tempfile.TemporaryDirectory(prefix="butian-nuget-missing-") as root:
+            with open(
+                os.path.join(root, "packages.lock.json"), "w", encoding="utf-8"
+            ) as f:
+                json.dump(
+                    {
+                        "dependencies": {
+                            "net8.0": {
+                                "Missing.Version": {"type": "Direct"},
+                                "Present.Version": {
+                                    "type": "Transitive",
+                                    "resolved": "1.2.3",
+                                },
+                            }
+                        }
+                    },
+                    f,
+                )
+            with open(os.path.join(root, "packages.config"), "w", encoding="utf-8") as f:
+                f.write(
+                    "<packages>\n"
+                    '  <package id="Also.Missing" />\n'
+                    '  <package id="Config.Present" version="4.5.6" />\n'
+                    "</packages>\n"
+                )
+
+            pkgs = scan.parse_nuget(root)
+
+            self.assertEqual(
+                [(pkg["name"], pkg["version"]) for pkg in pkgs],
+                [("Present.Version", "1.2.3"), ("Config.Present", "4.5.6")],
+            )
+
+
 class YarnV1DescriptorNameTests(unittest.TestCase):
     def test_simple(self):
         self.assertEqual(scan._yarn_v1_descriptor_name("lodash@^4"), "lodash")
@@ -1034,6 +1149,32 @@ class ExtractPackagesTests(unittest.TestCase):
                     ("pub", "collection", "1.18.0"),
                     ("hex", "plug", "1.11.0"),
                 ],
+            )
+
+    def test_extracts_nuget_packages(self):
+        with tempfile.TemporaryDirectory(prefix="butian-extract-") as root:
+            with open(
+                os.path.join(root, "packages.lock.json"), "w", encoding="utf-8"
+            ) as f:
+                json.dump(
+                    {
+                        "dependencies": {
+                            "net8.0": {
+                                "Newtonsoft.Json": {
+                                    "type": "Direct",
+                                    "resolved": "13.0.3",
+                                }
+                            }
+                        }
+                    },
+                    f,
+                )
+
+            pkgs = scan.extract_packages(root, ["nuget"])
+
+            self.assertEqual(
+                [(pkg["ecosystem"], pkg["name"], pkg["version"]) for pkg in pkgs],
+                [("nuget", "Newtonsoft.Json", "13.0.3")],
             )
 
 
@@ -1385,6 +1526,7 @@ class OsvQueryForPackageTests(unittest.TestCase):
             "rubygems": "RubyGems",
             "pub": "Pub",
             "hex": "Hex",
+            "nuget": "NuGet",
         }
         for ecosystem, osv_ecosystem in cases.items():
             with self.subTest(ecosystem=ecosystem):

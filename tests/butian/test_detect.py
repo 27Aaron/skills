@@ -148,6 +148,7 @@ class DetectLanguageSupportTests(unittest.TestCase):
             "rubygems": ["Gemfile.lock"],
             "pub": ["pubspec.lock"],
             "hex": ["mix.lock"],
+            "nuget": ["packages.lock.json", "packages.config"],
         }
         for ecosystem, file_names in cases.items():
             for file_name in file_names:
