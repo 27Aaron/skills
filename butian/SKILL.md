@@ -187,8 +187,7 @@ py -3 scripts/visualize.py .butian/<timestamp>/assets/analysis.json
 python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy dependabot
 ```
 
-该策略只创建 `.github/dependabot.yml`，不会覆盖已有文件；推送到 GitHub 后 Dependabot 才会按 schedule 创建版本更新 PR。
-3. **更新过期依赖**：如果 analysis 或 HTML 报告中 `outdated` / `过期依赖` 数量大于 0，且本轮尚未执行过 `--strategy latest`，把 `更新过期依赖` 放入多选 AskUserQuestion。选项说明：`建议按维护窗口处理。升级过期依赖属于版本维护动作，不等同于修复已确认风险，可能带来兼容性变化，升级后需要验证。` 用户确认后运行：
+该策略只创建 `.github/dependabot.yml`，不会覆盖已有文件；推送到 GitHub 后 Dependabot 才会按 schedule 创建版本更新 PR。3. **更新过期依赖**：如果 analysis 或 HTML 报告中 `outdated` / `过期依赖` 数量大于 0，且本轮尚未执行过 `--strategy latest`，把 `更新过期依赖` 放入多选 AskUserQuestion。选项说明：`建议按维护窗口处理。升级过期依赖属于版本维护动作，不等同于修复已确认风险，可能带来兼容性变化，升级后需要验证。` 用户确认后运行：
 
 ```bash
 python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy latest
@@ -300,18 +299,18 @@ python3 scripts/run_audit.py --final-report
 
 ### run_audit.py
 
-| 参数                     | 说明                             |
-| ------------------------ | -------------------------------- |
-| `--no-open`              | 不自动打开 HTML 报告             |
+| 参数                     | 说明                               |
+| ------------------------ | ---------------------------------- |
+| `--no-open`              | 不自动打开 HTML 报告               |
 | `--no-root-discovery`    | 使用传入路径本身，不向上寻找项目根 |
-| `--final-report`         | 最终复扫时强制生成 Markdown 报告 |
-| `--verbose`              | 输出详细日志到 stderr            |
-| `--debug`                | 输出调试级别日志                 |
-| `--follow-symlinks`      | 跟随符号链接扫描（默认跳过）     |
-| `--skip-outdated`        | 跳过过期依赖检查                 |
-| `--skip-hygiene`         | 跳过仓库安检                     |
-| `--include-packages`     | 在输出中包含完整包列表           |
-| `--max-secret-files <n>` | 密钥扫描最大文件数               |
+| `--final-report`         | 最终复扫时强制生成 Markdown 报告   |
+| `--verbose`              | 输出详细日志到 stderr              |
+| `--debug`                | 输出调试级别日志                   |
+| `--follow-symlinks`      | 跟随符号链接扫描（默认跳过）       |
+| `--skip-outdated`        | 跳过过期依赖检查                   |
+| `--skip-hygiene`         | 跳过仓库安检                       |
+| `--include-packages`     | 在输出中包含完整包列表             |
+| `--max-secret-files <n>` | 密钥扫描最大文件数                 |
 
 ## 日志与缓存
 

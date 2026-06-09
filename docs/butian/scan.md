@@ -17,24 +17,24 @@
 
 ## 支持的生态
 
-| 语言                    | 包管理器   | 依赖文件            |
-| ----------------------- | ---------- | ------------------- |
-| JavaScript / TypeScript | npm        | `package-lock.json` |
-| JavaScript / TypeScript | pnpm       | `pnpm-lock.yaml`    |
-| JavaScript / TypeScript | yarn       | `yarn.lock`         |
-| Python                  | pip        | `requirements.txt`  |
-| Python                  | pipenv     | `Pipfile.lock`      |
-| Python                  | poetry     | `poetry.lock`       |
-| Python                  | uv         | `uv.lock`           |
-| Go                      | go modules | `go.sum`            |
-| Rust                    | cargo      | `Cargo.lock`        |
-| PHP / Packagist         | Composer   | `composer.lock`     |
-| Ruby / RubyGems         | Bundler    | `Gemfile.lock`      |
-| Dart / Flutter Pub      | pub        | `pubspec.lock`      |
-| Elixir / Erlang Hex     | mix        | `mix.lock`          |
+| 语言                    | 包管理器   | 依赖文件             |
+| ----------------------- | ---------- | -------------------- |
+| JavaScript / TypeScript | npm        | `package-lock.json`  |
+| JavaScript / TypeScript | pnpm       | `pnpm-lock.yaml`     |
+| JavaScript / TypeScript | yarn       | `yarn.lock`          |
+| Python                  | pip        | `requirements.txt`   |
+| Python                  | pipenv     | `Pipfile.lock`       |
+| Python                  | poetry     | `poetry.lock`        |
+| Python                  | uv         | `uv.lock`            |
+| Go                      | go modules | `go.sum`             |
+| Rust                    | cargo      | `Cargo.lock`         |
+| PHP / Packagist         | Composer   | `composer.lock`      |
+| Ruby / RubyGems         | Bundler    | `Gemfile.lock`       |
+| Dart / Flutter Pub      | pub        | `pubspec.lock`       |
+| Elixir / Erlang Hex     | mix        | `mix.lock`           |
 | .NET / NuGet            | NuGet      | `packages.lock.json` |
-| .NET / NuGet            | NuGet      | `packages.config`   |
-| Maven/JVM               | Maven      | `pom.xml`           |
+| .NET / NuGet            | NuGet      | `packages.config`    |
+| Maven/JVM               | Maven      | `pom.xml`            |
 
 依赖漏洞查询只处理能从本地文件提取出**精确包名 + 精确版本**的应用依赖坐标。Maven/JVM 第一版只解析本地 `pom.xml` 中直接写明版本的依赖；`${...}` 属性、父 POM、BOM、profile 或版本范围无法本地确认时跳过，不做漏洞查询。
 
@@ -73,18 +73,18 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 
 ## 核心常量
 
-| 常量                             | 值                                                              | 用途                           |
-| -------------------------------- | --------------------------------------------------------------- | ------------------------------ |
-| `OSV_QUERYBATCH_URL`             | `https://api.osv.dev/v1/querybatch`                             | OSV 批量查询端点               |
-| `OSV_VULN_URL_PREFIX`            | `https://api.osv.dev/v1/vulns/`                                 | OSV 单条漏洞端点               |
-| `NVD_CVE_API_URL`                | `https://services.nvd.nist.gov/rest/json/cves/2.0`              | NVD CVE 查询端点               |
-| `CISA_KEV_JSON_URL`              | `https://www.cisa.gov/.../known_exploited_vulnerabilities.json` | CISA 已知被利用漏洞目录        |
-| `EPSS_API_URL`                   | `https://api.first.org/data/v1/epss`                            | EPSS 漏洞利用预测评分          |
-| `BUTIAN_DIR`                     | `.butian`                                                       | 工作区目录名                   |
-| `BUTIAN_ASSETS_DIR`              | `assets`                                                        | 工作区内的资产子目录           |
-| `BUTIAN_CONTENT_DIR`             | `content`                                                       | 工作区内的内容子目录           |
+| 常量                             | 值                                                              | 用途                               |
+| -------------------------------- | --------------------------------------------------------------- | ---------------------------------- |
+| `OSV_QUERYBATCH_URL`             | `https://api.osv.dev/v1/querybatch`                             | OSV 批量查询端点                   |
+| `OSV_VULN_URL_PREFIX`            | `https://api.osv.dev/v1/vulns/`                                 | OSV 单条漏洞端点                   |
+| `NVD_CVE_API_URL`                | `https://services.nvd.nist.gov/rest/json/cves/2.0`              | NVD CVE 查询端点                   |
+| `CISA_KEV_JSON_URL`              | `https://www.cisa.gov/.../known_exploited_vulnerabilities.json` | CISA 已知被利用漏洞目录            |
+| `EPSS_API_URL`                   | `https://api.first.org/data/v1/epss`                            | EPSS 漏洞利用预测评分              |
+| `BUTIAN_DIR`                     | `.butian`                                                       | 工作区目录名                       |
+| `BUTIAN_ASSETS_DIR`              | `assets`                                                        | 工作区内的资产子目录               |
+| `BUTIAN_CONTENT_DIR`             | `content`                                                       | 工作区内的内容子目录               |
 | `BUTIAN_GITIGNORE_EXTRA_ENTRIES` | `("docs/butian/security-report-*.md",)`                         | 除 `.butian/` 外额外忽略的生成报告 |
-| `CACHE_DIR_NAME`                 | `cache`                                                         | 缓存子目录名                   |
+| `CACHE_DIR_NAME`                 | `cache`                                                         | 缓存子目录名                       |
 
 ## 关键函数
 
@@ -195,29 +195,29 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 
 新增本地规则覆盖矩阵：
 
-| 分组                      | 字段                | 重点规则                                                                                                                                                                                                                                                 | 严重度倾向                |
-| ------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| GitHub Actions 工作流安全 | `workflow_checks`   | `permissions: write-all`、建议声明显式最小 permissions、高风险 trigger + checkout、未关闭 `persist-credentials`、不可信上下文进入 `run:`、`curl/wget \| sh`、PR 使用 self-hosted runner                                                                  | `high` / `medium` / `low` |
+| 分组                      | 字段                | 重点规则                                                                                                                                                                                                                                          | 严重度倾向                |
+| ------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| GitHub Actions 工作流安全 | `workflow_checks`   | `permissions: write-all`、建议声明显式最小 permissions、高风险 trigger + checkout、未关闭 `persist-credentials`、不可信上下文进入 `run:`、`curl/wget \| sh`、PR 使用 self-hosted runner                                                           | `high` / `medium` / `low` |
 | 依赖配置与维护            | `repository_checks` | 项目 remote 指向 GitHub 且检测到 Dependabot 官方支持的 manifest、lockfile、workflow 或工具配置时，缺少 Dependabot 会提示创建 `.github/dependabot.yml`；已有配置时检查 GitHub Actions 和当前支持生态是否覆盖。以建议形式展示，便于团队纳入维护流程 | `info`                    |
-| 供应链配置                | `repository_checks` | manifest 缺 lockfile、安装脚本下载远程脚本或 base64 解码执行、registry 配置中出现 token/password/secret、仓库包含 registry 来源配置需确认、registry TLS 校验被降低                                                                                       | `high` / `medium` / `low` |
-| IaC / 容器 / 部署配置     | `iac_checks`        | Dockerfile 使用 `latest`、缺非 root `USER`、远程脚本管道执行、`ADD` 远程 URL、明文 `ENV` secret、Compose privileged / Docker socket / 敏感端口、Kubernetes Secret/privileged/hostPath/hostNetwork/root、Terraform state/tfvars 和公网敏感端口            | `high` / `medium` / `low` |
+| 供应链配置                | `repository_checks` | manifest 缺 lockfile、安装脚本下载远程脚本或 base64 解码执行、registry 配置中出现 token/password/secret、仓库包含 registry 来源配置需确认、registry TLS 校验被降低                                                                                | `high` / `medium` / `low` |
+| IaC / 容器 / 部署配置     | `iac_checks`        | Dockerfile 使用 `latest`、缺非 root `USER`、远程脚本管道执行、`ADD` 远程 URL、明文 `ENV` secret、Compose privileged / Docker socket / 敏感端口、Kubernetes Secret/privileged/hostPath/hostNetwork/root、Terraform state/tfvars 和公网敏感端口     | `high` / `medium` / `low` |
 
 ### 依赖解析
 
-| 函数                                                                                    | 作用                                   |
-| --------------------------------------------------------------------------------------- | -------------------------------------- |
-| `detect_ecosystems(project_path)`                                                       | 检测项目中存在的包管理器生态           |
-| `extract_packages(project_path, ecosystems)`                                            | 从支持的依赖文件中提取本地可确认的包名和版本 |
-| `parse_npm_lock` / `parse_pnpm_lock` / `parse_yarn_lock`                                | 各自解析对应的 JS lockfile             |
-| `parse_requirements_txt` / `parse_pipfile_lock` / `parse_poetry_lock` / `parse_uv_lock` | 各自解析对应的 Python lockfile         |
-| `parse_go_sum`                                                                          | 解析 `go.sum`                          |
-| `parse_cargo_lock`                                                                      | 解析 `Cargo.lock`                      |
-| `parse_composer_lock`                                                                   | 解析 PHP / Packagist 的 `composer.lock` |
-| `parse_gemfile_lock`                                                                    | 解析 Ruby / RubyGems 的 `Gemfile.lock` |
-| `parse_pubspec_lock`                                                                    | 解析 Dart / Flutter Pub 的 `pubspec.lock` |
-| `parse_mix_lock`                                                                        | 解析 Elixir / Erlang Hex 的 `mix.lock` |
+| 函数                                                                                    | 作用                                                          |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `detect_ecosystems(project_path)`                                                       | 检测项目中存在的包管理器生态                                  |
+| `extract_packages(project_path, ecosystems)`                                            | 从支持的依赖文件中提取本地可确认的包名和版本                  |
+| `parse_npm_lock` / `parse_pnpm_lock` / `parse_yarn_lock`                                | 各自解析对应的 JS lockfile                                    |
+| `parse_requirements_txt` / `parse_pipfile_lock` / `parse_poetry_lock` / `parse_uv_lock` | 各自解析对应的 Python lockfile                                |
+| `parse_go_sum`                                                                          | 解析 `go.sum`                                                 |
+| `parse_cargo_lock`                                                                      | 解析 `Cargo.lock`                                             |
+| `parse_composer_lock`                                                                   | 解析 PHP / Packagist 的 `composer.lock`                       |
+| `parse_gemfile_lock`                                                                    | 解析 Ruby / RubyGems 的 `Gemfile.lock`                        |
+| `parse_pubspec_lock`                                                                    | 解析 Dart / Flutter Pub 的 `pubspec.lock`                     |
+| `parse_mix_lock`                                                                        | 解析 Elixir / Erlang Hex 的 `mix.lock`                        |
 | `parse_packages_lock_json` / `parse_packages_config` / `parse_nuget`                    | 解析 .NET / NuGet 的 `packages.lock.json` / `packages.config` |
-| `parse_maven_pom`                                                                       | 解析 Maven/JVM 的 `pom.xml` 中直接写明版本的依赖 |
+| `parse_maven_pom`                                                                       | 解析 Maven/JVM 的 `pom.xml` 中直接写明版本的依赖              |
 
 解析器只返回本地可确认的精确坐标。`requirements.txt` 只使用 `==` / `===` 精确版本；Maven/JVM 遇到 `${...}` 属性、父 POM、BOM、profile 或版本范围时会跳过对应依赖。
 
@@ -235,9 +235,9 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 
 ### 过期依赖
 
-| 函数                                                                      | 作用                               |
-| ------------------------------------------------------------------------- | ---------------------------------- |
-| `check_outdated(project_path, ecosystems, errors, concurrency, packages)` | 调用各语言包管理器获取过期依赖信息 |
+| 函数                                                                      | 作用                                                       |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `check_outdated(project_path, ecosystems, errors, concurrency, packages)` | 调用各语言包管理器获取过期依赖信息                         |
 | `_pip_outdated` / `_go_outdated` / `_cargo_outdated` / `_yarn_outdated`   | 已实现生态的过期检查逻辑；未实现过期检查的生态只做漏洞查询 |
 
 ## 扫描流程

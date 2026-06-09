@@ -28,9 +28,9 @@ python3 fix.py <analysis.json> --strategy dependabot        # 创建 Dependabot 
 
 ## CLI 参数
 
-| 参数            | 类型     | 必需 | 说明                                                                            |
-| --------------- | -------- | ---- | ------------------------------------------------------------------------------- |
-| `analysis_json` | 位置参数 | ✅   | `analyze.py` 输出的 JSON 路径                                                   |
+| 参数            | 类型     | 必需 | 说明                                                                                          |
+| --------------- | -------- | ---- | --------------------------------------------------------------------------------------------- |
+| `analysis_json` | 位置参数 | ✅   | `analyze.py` 输出的 JSON 路径                                                                 |
 | `--strategy`    | 选项     | ✅   | 修复策略，可选 `fixed`、`minimal`、`latest`、`parent-upgrade`、`force-residual`、`dependabot` |
 
 ## 修复策略
@@ -41,7 +41,7 @@ python3 fix.py <analysis.json> --strategy dependabot        # 创建 Dependabot 
 | `latest`         | —         | 升级**全部**依赖到最新版本（不限于漏洞包）                       | 大版本维护窗口，一次性拉新     |
 | `parent-upgrade` | —         | 升级嵌套依赖的根父包到 latest，再升级子包到目标版本              | npm 嵌套依赖被旧版父包锁定     |
 | `force-residual` | —         | 向 `package.json` 写入 `overrides`，强制所有嵌套实例使用指定版本 | 无法追溯到根依赖的深层嵌套残留 |
-| `dependabot`     | —         | 创建 analysis 中生成的 `.github/dependabot.yml`，不覆盖已有文件 | GitHub 仓库缺少依赖维护配置    |
+| `dependabot`     | —         | 创建 analysis 中生成的 `.github/dependabot.yml`，不覆盖已有文件  | GitHub 仓库缺少依赖维护配置    |
 
 > `fixed` 和 `minimal` 是同义词，`normalize_strategy()` 会统一为 `minimal`。
 
@@ -52,7 +52,7 @@ python3 fix.py <analysis.json> --strategy dependabot        # 创建 Dependabot 
 | 没有可执行命令且无失败 | `0`    | 没有可修复项、策略不适用或仅生成空计划      |
 | 所有命令执行成功       | `0`    | 包管理器命令均返回成功                      |
 | 任一命令失败           | `1`    | 保留成功/失败明细，提示用户复核包管理器输出 |
-| Dependabot 文件已存在  | `1`    | 不覆盖用户已有配置，提示人工合并             |
+| Dependabot 文件已存在  | `1`    | 不覆盖用户已有配置，提示人工合并            |
 
 `fix.py` 不会吞掉部分失败。即使前面的升级命令成功，只要后续任一命令失败，最终也会退出 `1`，避免自动化调用误判修复完成。
 
@@ -78,7 +78,7 @@ _UPGRADE_BUILDERS = {
 | 函数                                               | 作用                                         |
 | -------------------------------------------------- | -------------------------------------------- |
 | `extract_fixable_items(analysis)`                  | 从分析结果中提取所有可修复的依赖升级项       |
-| `extract_dependabot_config_items(analysis)`         | 从分析结果中提取可创建的 Dependabot 配置      |
+| `extract_dependabot_config_items(analysis)`        | 从分析结果中提取可创建的 Dependabot 配置     |
 | `build_upgrade_commands(fix_items, strategy, ...)` | 按策略生成升级命令列表                       |
 | `build_all_latest_commands(project_path)`          | 检测所有生态，生成全部依赖的 latest 升级命令 |
 | `_latest_commands(ecosystem, package, ...)`        | 为单个包生成 latest 升级命令                 |
@@ -113,13 +113,13 @@ _UPGRADE_BUILDERS = {
 
 ### 执行与输出
 
-| 函数                                           | 作用                                |
-| ---------------------------------------------- | ----------------------------------- |
-| `execute_fixes(commands, project_path)`        | 顺序执行升级命令，返回成功/失败列表 |
-| `execute_parent_upgrade_fixes(analysis, path)` | 执行 parent-upgrade 策略的完整流程  |
-| `execute_force_residual_fixes(analysis, path)` | 执行 force-residual 策略的完整流程  |
+| 函数                                              | 作用                                              |
+| ------------------------------------------------- | ------------------------------------------------- |
+| `execute_fixes(commands, project_path)`           | 顺序执行升级命令，返回成功/失败列表               |
+| `execute_parent_upgrade_fixes(analysis, path)`    | 执行 parent-upgrade 策略的完整流程                |
+| `execute_force_residual_fixes(analysis, path)`    | 执行 force-residual 策略的完整流程                |
 | `execute_dependabot_config_fixes(analysis, path)` | 创建 `.github/dependabot.yml`，并拒绝覆盖已有文件 |
-| `post_fix_guidance(strategy)`                  | 返回修复后的验证指引文本            |
+| `post_fix_guidance(strategy)`                     | 返回修复后的验证指引文本                          |
 
 ### 工具函数
 

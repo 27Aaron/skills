@@ -6,25 +6,25 @@
 
 ## 脚本到测试映射
 
-| 脚本                 | 测试文件                                                | 核心覆盖                                                                           |
-| -------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `__init__.py`        | `test_scripts_inventory.py`                             | 包初始化文件纳入脚本清单，避免新增脚本漏登记                                       |
-| `analyze.py`         | `test_analyze.py`                                       | 严重度标准化、风险排序、红黄绿分组、摘要、修复项、嵌套依赖上下文                   |
-| `detect.py`          | `test_detect.py`                                        | lockfile 识别、项目根发现、preflight 输出、自定义 output、工作区准备               |
-| `finding_utils.py`   | `test_finding_utils.py`, `test_repo_checks.py`          | 文件遍历、排除目录、读取容错、行号定位、证据截断、finding 规范化、去重             |
-| `fix.py`             | `test_fix.py`                                           | 修复项提取、包管理器命令生成、npm 父依赖计划、overrides、Dependabot 配置创建、失败退出码 |
-| `iac_checks.py`      | `test_iac_checks.py`                                    | Dockerfile、Compose、Kubernetes、Terraform 规则和证据行号                          |
-| `labels.py`          | `test_labels.py`                                        | 标签覆盖扫描器类型、中文展示名、report/analyze 共享同一字典                        |
-| `repo_checks.py`     | `test_repo_checks.py`                                   | GitHub remote 判定、Dependabot 全生态建议、lockfile 缺失、安装脚本风险、registry token/TLS/source 检查 |
-| `report.py`          | `test_report.py`, `test_report_assets.py`               | Markdown 表格转义、CVE/GHSA 链接、hygiene 渲染、空状态、模板资产一致性             |
-| `run_audit.py`       | `test_run_audit.py`                                     | 子命令编排、首次扫描 Markdown、最终报告、跳过逻辑、失败传播                        |
-| `scan.py`            | `test_scan.py`, `test_scan_helpers.py`, `test_cache.py` | 生态解析、lockfile 解析、密钥扫描、敏感文件、缓存、API 合并、CLI 行为              |
-| `server_analyze.py`  | `test_server_analyze.py`                                | 服务器已确认风险、Docker 旧标签维护建议、敏感公网端口、错误合并                    |
-| `server_collect.py`  | `test_server_collect.py`                                | 只读 SSH 命令白名单、可选 Docker 元数据、命令失败保留、离线 inventory              |
-| `server_inventory.py` | `test_server_inventory.py`                             | Linux 发行版识别、包清单解析、内核包匹配、监听端口、Docker 标签解析                |
-| `server_match.py`   | `test_server_match.py`                                  | OSV 发行版包查询、source package 查询、详情公告、CVE 富化、不支持 ecosystem 说明   |
-| `visualize.py`       | `test_visualize.py`, `test_report_assets.py`            | JSON/HTML 转义、资产内联、标签注入、占位符校验、HTML 报告交互、浏览器打开策略      |
-| `workflow_checks.py` | `test_workflow_checks.py`                               | GitHub Actions permissions、trigger、checkout、远程脚本、不可信上下文、runner 风险 |
+| 脚本                  | 测试文件                                                | 核心覆盖                                                                                               |
+| --------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `__init__.py`         | `test_scripts_inventory.py`                             | 包初始化文件纳入脚本清单，避免新增脚本漏登记                                                           |
+| `analyze.py`          | `test_analyze.py`                                       | 严重度标准化、风险排序、红黄绿分组、摘要、修复项、嵌套依赖上下文                                       |
+| `detect.py`           | `test_detect.py`                                        | lockfile 识别、项目根发现、preflight 输出、自定义 output、工作区准备                                   |
+| `finding_utils.py`    | `test_finding_utils.py`, `test_repo_checks.py`          | 文件遍历、排除目录、读取容错、行号定位、证据截断、finding 规范化、去重                                 |
+| `fix.py`              | `test_fix.py`                                           | 修复项提取、包管理器命令生成、npm 父依赖计划、overrides、Dependabot 配置创建、失败退出码               |
+| `iac_checks.py`       | `test_iac_checks.py`                                    | Dockerfile、Compose、Kubernetes、Terraform 规则和证据行号                                              |
+| `labels.py`           | `test_labels.py`                                        | 标签覆盖扫描器类型、中文展示名、report/analyze 共享同一字典                                            |
+| `repo_checks.py`      | `test_repo_checks.py`                                   | GitHub remote 判定、Dependabot 全生态建议、lockfile 缺失、安装脚本风险、registry token/TLS/source 检查 |
+| `report.py`           | `test_report.py`, `test_report_assets.py`               | Markdown 表格转义、CVE/GHSA 链接、hygiene 渲染、空状态、模板资产一致性                                 |
+| `run_audit.py`        | `test_run_audit.py`                                     | 子命令编排、首次扫描 Markdown、最终报告、跳过逻辑、失败传播                                            |
+| `scan.py`             | `test_scan.py`, `test_scan_helpers.py`, `test_cache.py` | 生态解析、lockfile 解析、密钥扫描、敏感文件、缓存、API 合并、CLI 行为                                  |
+| `server_analyze.py`   | `test_server_analyze.py`                                | 服务器已确认风险、Docker 旧标签维护建议、敏感公网端口、错误合并                                        |
+| `server_collect.py`   | `test_server_collect.py`                                | 只读 SSH 命令白名单、可选 Docker 元数据、命令失败保留、离线 inventory                                  |
+| `server_inventory.py` | `test_server_inventory.py`                              | Linux 发行版识别、包清单解析、内核包匹配、监听端口、Docker 标签解析                                    |
+| `server_match.py`     | `test_server_match.py`                                  | OSV 发行版包查询、source package 查询、详情公告、CVE 富化、不支持 ecosystem 说明                       |
+| `visualize.py`        | `test_visualize.py`, `test_report_assets.py`            | JSON/HTML 转义、资产内联、标签注入、占位符校验、HTML 报告交互、浏览器打开策略                          |
+| `workflow_checks.py`  | `test_workflow_checks.py`                               | GitHub Actions permissions、trigger、checkout、远程脚本、不可信上下文、runner 风险                     |
 
 ## 详细覆盖说明
 

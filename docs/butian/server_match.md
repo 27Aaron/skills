@@ -8,12 +8,12 @@
 
 ## 职责
 
-| # | 职责 | 说明 |
-| --- | --- | --- |
-| 1 | 可查询资产筛选 | 只查询带有 OSV 支持的发行版 ecosystem、包名和版本的系统包或已匹配内核包 |
-| 2 | OSV 批量查询 | 复用 `scan.py` 的 `fetch_osv_querybatch` 获取漏洞 ID，再通过 `fetch_osv_vulnerability` 获取完整公告 |
-| 3 | 漏洞富化 | 使用 NVD、CISA KEV、FIRST EPSS 对完整公告中的已确认 CVE 做补充信息 |
-| 4 | 低证据过滤 | 仅 `confidence=confirmed` 的结果进入报告风险项 |
+| #   | 职责           | 说明                                                                                                |
+| --- | -------------- | --------------------------------------------------------------------------------------------------- |
+| 1   | 可查询资产筛选 | 只查询带有 OSV 支持的发行版 ecosystem、包名和版本的系统包或已匹配内核包                             |
+| 2   | OSV 批量查询   | 复用 `scan.py` 的 `fetch_osv_querybatch` 获取漏洞 ID，再通过 `fetch_osv_vulnerability` 获取完整公告 |
+| 3   | 漏洞富化       | 使用 NVD、CISA KEV、FIRST EPSS 对完整公告中的已确认 CVE 做补充信息                                  |
+| 4   | 低证据过滤     | 仅 `confidence=confirmed` 的结果进入报告风险项                                                      |
 
 ## 查询范围
 
