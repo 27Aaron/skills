@@ -209,9 +209,7 @@ class BuildUpgradeCommandsTests(unittest.TestCase):
             ]
 
             self.assertEqual(
-                fix_mod.build_upgrade_commands(
-                    items, "minimal", project_path=root
-                ),
+                fix_mod.build_upgrade_commands(items, "minimal", project_path=root),
                 [],
             )
             self.assertEqual(

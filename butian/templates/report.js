@@ -2030,9 +2030,7 @@ function normalizedCweIds(r) {
 }
 
 function normalizeIssueText(parts) {
-  return [
-    ...parts,
-  ]
+  return [...parts]
     .map((x) => String(x || "").trim())
     .filter(Boolean)
     .join(" ")
@@ -2054,13 +2052,12 @@ function rawPrimaryIssueText(r) {
 function rawIssueText(r) {
   const enrichmentText = Array.isArray(r.cve_enrichments)
     ? r.cve_enrichments
-        .map((e) => [e.description, e.title, e.summary].filter(Boolean).join(" "))
+        .map((e) =>
+          [e.description, e.title, e.summary].filter(Boolean).join(" "),
+        )
         .join(" ")
     : "";
-  return normalizeIssueText([
-    rawPrimaryIssueText(r),
-    enrichmentText,
-  ]);
+  return normalizeIssueText([rawPrimaryIssueText(r), enrichmentText]);
 }
 
 function hasAnyCwe(cwes, ids) {
@@ -2106,7 +2103,10 @@ function plainRiskStory(r) {
   ) {
     return "当前版本在缓存响应时可能没有正确区分 Authorization 或 Cookie。不同用户之间可能看到不该共享的缓存内容。";
   }
-  if (primaryText.includes("redirect") && primaryText.includes("cache-poison")) {
+  if (
+    primaryText.includes("redirect") &&
+    primaryText.includes("cache-poison")
+  ) {
     return "当前版本在缓存跳转响应时可能没有正确区分请求上下文。攻击者可能让后续用户命中被污染的跳转结果。";
   }
   if (
@@ -2125,7 +2125,9 @@ function plainRiskStory(r) {
   }
   if (
     primaryText.includes("numericdate") ||
-    (primaryText.includes("jwt") && primaryText.includes("exp") && primaryText.includes("nbf"))
+    (primaryText.includes("jwt") &&
+      primaryText.includes("exp") &&
+      primaryText.includes("nbf"))
   ) {
     return "当前版本在校验 JWT 时间声明（exp、nbf、iat）时可能不够严格。过期或尚未生效的令牌可能被错误接受，需要结合使用方式复核影响。";
   }
@@ -2155,7 +2157,8 @@ function plainRiskStory(r) {
   if (
     primaryText.includes("app.mount") ||
     primaryText.includes("mount prefix") ||
-    (primaryText.includes("incorrect routing") && primaryText.includes("percent-encoded"))
+    (primaryText.includes("incorrect routing") &&
+      primaryText.includes("percent-encoded"))
   ) {
     return "当前版本在挂载子应用时可能对编码后的路径处理不一致。如果项目依赖 mount 前缀做路由隔离，请求可能进入非预期路由。";
   }
@@ -2350,7 +2353,8 @@ function securityIds(r) {
       .map((x) => x.trim())
       .filter(Boolean)
       .forEach((id) => {
-        if (!ids.some((x) => x.toLowerCase() === id.toLowerCase())) ids.push(id);
+        if (!ids.some((x) => x.toLowerCase() === id.toLowerCase()))
+          ids.push(id);
       });
   };
 
@@ -2611,7 +2615,13 @@ function epssDetailText(prob, pct) {
 
 function cvssScoreTooltip(score) {
   const level =
-    score >= 9 ? "紧急" : score >= 7 ? "高风险" : score >= 4 ? "中风险" : "低风险";
+    score >= 9
+      ? "紧急"
+      : score >= 7
+        ? "高风险"
+        : score >= 4
+          ? "中风险"
+          : "低风险";
   return `CVSS 是漏洞严重度评分，${score.toFixed(1)} 属于${level}；分数越高，影响通常越大`;
 }
 
@@ -2756,11 +2766,7 @@ function vulnDetailPanel(r) {
   const badges = riskBadgeRow(a);
 
   if (a.description) {
-    story = detailStory(
-      "漏洞描述",
-      esc(a.description),
-      badges,
-    );
+    story = detailStory("漏洞描述", esc(a.description), badges);
   } else if (badges) {
     story = detailStory("关键信号", "", badges);
   }
@@ -2793,7 +2799,9 @@ function vulnDetailPanel(r) {
     const prob = (a.maxEpss * 100).toFixed(2);
     const pct = (a.maxEpssPercentile * 100).toFixed(1);
     const dateStr = shortDate(a.epssDate);
-    const label = dateStr ? `EPSS 利用预测（评分日期 ${dateStr}）` : "EPSS 利用预测";
+    const label = dateStr
+      ? `EPSS 利用预测（评分日期 ${dateStr}）`
+      : "EPSS 利用预测";
     const epssField = detailField(
       label,
       epssDetailText(prob, pct),
@@ -2817,9 +2825,13 @@ function vulnDetailPanel(r) {
     ? `<div class="detail-facts">${fields.join("")}</div>`
     : "";
   const action = story ? detailAction(r) : "";
-  const bottom = bottomFact ? `<div class="detail-facts-bottom">${bottomFact}</div>` : "";
+  const bottom = bottomFact
+    ? `<div class="detail-facts-bottom">${bottomFact}</div>`
+    : "";
   const layoutClass =
-    story && (facts || bottom) ? "detail-dossier-split" : "detail-dossier-compact";
+    story && (facts || bottom)
+      ? "detail-dossier-split"
+      : "detail-dossier-compact";
   const body =
     story || facts || action || bottom
       ? `<div class="detail-dossier ${layoutClass}">${story}${facts}${action}${bottom}</div>`
@@ -3268,21 +3280,35 @@ function renderServerEnvironment() {
   const summary = server.summary || {};
   const fields = miniFields([
     { label: "系统包", value: String(summary.package_count || 0) },
-    { label: "已确认风险", value: String(summary.confirmed_count || issues.length || 0) },
-    { label: "维护建议", value: String(summary.maintenance_count || maintenance.length || 0) },
+    {
+      label: "已确认风险",
+      value: String(summary.confirmed_count || issues.length || 0),
+    },
+    {
+      label: "维护建议",
+      value: String(summary.maintenance_count || maintenance.length || 0),
+    },
     { label: "对外端口", value: String(summary.public_port_count || 0) },
     { label: "运行服务", value: String(summary.service_count || 0) },
     { label: "软件版本", value: String(summary.software_version_count || 0) },
-    { label: "安全更新", value: String(summary.native_security_update_count || 0) },
+    {
+      label: "安全更新",
+      value: String(summary.native_security_update_count || 0),
+    },
   ]);
 
   const issueCards = issues
     .map((item) => {
-      const title = [item.package || item.name || "服务器软件", item.version || ""]
+      const title = [
+        item.package || item.name || "服务器软件",
+        item.version || "",
+      ]
         .filter(Boolean)
         .join(" ");
       const body = esc(
-        item.summary || item.advisory_summary || "服务器运行环境命中已确认风险。",
+        item.summary ||
+          item.advisory_summary ||
+          "服务器运行环境命中已确认风险。",
       );
       const ids = securityIds(item);
       const idsHtml = ids.length
@@ -3305,9 +3331,10 @@ function renderServerEnvironment() {
     })
     .join("");
 
-  const cards = issueCards || maintenanceCards
-    ? `<div class="server-grid">${issueCards}${maintenanceCards}</div>`
-    : "";
+  const cards =
+    issueCards || maintenanceCards
+      ? `<div class="server-grid">${issueCards}${maintenanceCards}</div>`
+      : "";
   const count =
     Number(summary.confirmed_count || issues.length || 0) +
     Number(summary.maintenance_count || maintenance.length || 0);
@@ -3372,7 +3399,8 @@ function secretEvidenceLanguage(item) {
   const file = String((item && (item.file || item.path)) || "").toLowerCase();
   const name = file.split(/[\\/]/).pop() || "";
   if (name === ".env" || name.startsWith(".env.")) return "ENV";
-  if (name === "dockerfile" || name.startsWith("dockerfile.")) return "Dockerfile";
+  if (name === "dockerfile" || name.startsWith("dockerfile."))
+    return "Dockerfile";
   const ext = (name.match(/\.([a-z0-9]+)$/) || [])[1] || "";
   return (
     {

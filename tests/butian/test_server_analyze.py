@@ -163,7 +163,10 @@ class ServerAnalyzeTests(unittest.TestCase):
         self.assertIn("SSH 允许空密码登录", titles)
         self.assertEqual(result["confirmed_issues"], [])
         self.assertTrue(
-            all(item["confidence"] == "maintenance" for item in result["maintenance_items"])
+            all(
+                item["confidence"] == "maintenance"
+                for item in result["maintenance_items"]
+            )
         )
 
     def test_firewall_maintenance_item_when_public_ports_lack_firewall(self):
@@ -195,13 +198,14 @@ class ServerAnalyzeTests(unittest.TestCase):
 
         self.assertTrue(
             any(
-                item["category"] == "firewall_posture"
-                and "防火墙" in item["title"]
+                item["category"] == "firewall_posture" and "防火墙" in item["title"]
                 for item in result["maintenance_items"]
             )
         )
 
-    def test_native_security_updates_and_unlinked_service_versions_are_maintenance(self):
+    def test_native_security_updates_and_unlinked_service_versions_are_maintenance(
+        self,
+    ):
         assets = {
             "distro": {},
             "packages": [],

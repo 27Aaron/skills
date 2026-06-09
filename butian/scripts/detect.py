@@ -20,8 +20,8 @@ try:
         LOCKFILE_MAP,
         butian_gitignore_status,
         default_asset_path,
-        ensure_safe_project_path,
         ensure_butian_run,
+        ensure_safe_project_path,
         find_project_root,
         run_dir_from_output_file,
     )
@@ -30,8 +30,8 @@ except ImportError:
         LOCKFILE_MAP,
         butian_gitignore_status,
         default_asset_path,
-        ensure_safe_project_path,
         ensure_butian_run,
+        ensure_safe_project_path,
         find_project_root,
         run_dir_from_output_file,
     )

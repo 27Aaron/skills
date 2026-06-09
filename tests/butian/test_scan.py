@@ -13,8 +13,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from unittest import mock
 from types import SimpleNamespace
+from unittest import mock
 
 # Import scan module
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "butian", "scripts"))
@@ -69,7 +69,6 @@ class DependencyParsersModuleCompatibilityTests(unittest.TestCase):
         self.assertIs(
             scan.parse_requirements_txt, dependency_parsers.parse_requirements_txt
         )
-
 
     def test_npm_lock_nested_node_modules_uses_real_package_names(self):
         with tempfile.TemporaryDirectory(prefix="butian-npm-nested-") as root:
@@ -643,9 +642,7 @@ class ParseNpmLockV2Tests(unittest.TestCase):
                         "dependencies": {
                             "next": {
                                 "version": "16.2.6",
-                                "dependencies": {
-                                    "postcss": {"version": "8.4.31"}
-                                },
+                                "dependencies": {"postcss": {"version": "8.4.31"}},
                             }
                         },
                     },
@@ -2040,13 +2037,9 @@ class ExtractOsvFixedVersionsTests(unittest.TestCase):
                             "events": [
                                 {"introduced": "0"},
                                 {"fixed": "1.15.4"},
-                                {
-                                    "fixed": "2cb7958d33030aa826b0c7404375844d4593d43a"
-                                },
+                                {"fixed": "2cb7958d33030aa826b0c7404375844d4593d43a"},
                                 {"fixed": "1.19.2"},
-                                {
-                                    "fixed": "aa69c5ece99c40ded88b8c6581ecc86664b0b734"
-                                },
+                                {"fixed": "aa69c5ece99c40ded88b8c6581ecc86664b0b734"},
                             ]
                         }
                     ],
@@ -3326,7 +3319,7 @@ class EntropyEngineTests(unittest.TestCase):
     def test_entropy_scan_skips_code_identifier_lookup(self):
         with tempfile.TemporaryDirectory(prefix="butian-ent-") as root:
             with open(os.path.join(root, "server_inventory.py"), "w") as f:
-                f.write('key = SSHD_OPTION_KEYS.get(parts[0].lower())\n')
+                f.write("key = SSHD_OPTION_KEYS.get(parts[0].lower())\n")
             findings = scan.scan_secrets(root)
             self.assertEqual(findings, [])
 

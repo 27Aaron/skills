@@ -377,7 +377,9 @@ def _output_result(inventory: dict[str, Any], key: str) -> dict[str, Any]:
     return dict(((inventory.get("outputs") or {}).get(key) or {}))
 
 
-def _firewall_tool(raw: str, *, active: bool = False, has_rules: bool = False) -> dict[str, Any]:
+def _firewall_tool(
+    raw: str, *, active: bool = False, has_rules: bool = False
+) -> dict[str, Any]:
     text = str(raw or "").strip()
     return {
         "available": bool(text),
@@ -664,13 +666,22 @@ def parse_zypper_security_patches(raw: str) -> list[dict[str, Any]]:
 def parse_native_security_updates(inventory: dict[str, Any]) -> list[dict[str, Any]]:
     updates = []
     updates.extend(parse_apt_upgradable(_stdout(inventory, "apt_upgradable")))
-    updates.extend(_parse_rpm_security_updates(_stdout(inventory, "dnf_updateinfo"), "dnf"))
-    updates.extend(_parse_rpm_security_updates(_stdout(inventory, "yum_updateinfo"), "yum"))
+    updates.extend(
+        _parse_rpm_security_updates(_stdout(inventory, "dnf_updateinfo"), "dnf")
+    )
+    updates.extend(
+        _parse_rpm_security_updates(_stdout(inventory, "yum_updateinfo"), "yum")
+    )
     updates.extend(parse_zypper_security_patches(_stdout(inventory, "zypper_patches")))
     seen = set()
     deduped = []
     for item in updates:
-        key = (item.get("manager"), item.get("name"), item.get("fixed_version"), item.get("raw"))
+        key = (
+            item.get("manager"),
+            item.get("name"),
+            item.get("fixed_version"),
+            item.get("raw"),
+        )
         if key in seen:
             continue
         seen.add(key)

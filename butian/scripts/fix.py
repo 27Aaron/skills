@@ -830,12 +830,8 @@ def execute_fixes(commands, project_path):
 
 
 def parse_args(argv):
-    parser = argparse.ArgumentParser(
-        description="执行选定的依赖修复"
-    )
-    parser.add_argument(
-        "analysis_json", help=".butian/<run>/assets/analysis.json 路径"
-    )
+    parser = argparse.ArgumentParser(description="执行选定的依赖修复")
+    parser.add_argument("analysis_json", help=".butian/<run>/assets/analysis.json 路径")
     parser.add_argument(
         "--strategy",
         required=True,

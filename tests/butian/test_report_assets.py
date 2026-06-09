@@ -1009,13 +1009,9 @@ class ReportAssetTests(unittest.TestCase):
 
         ghsa_only_row = html.split('title="ghsa-only-lib"', 1)[1].split("</tr>", 1)[0]
         self.assertIn("GHSA-only-test-id", ghsa_only_row)
-        self.assertIn(
-            "https://osv.dev/vulnerability/GHSA-only-test-id", ghsa_only_row
-        )
+        self.assertIn("https://osv.dev/vulnerability/GHSA-only-test-id", ghsa_only_row)
 
-        pysec_only_row = html.split('title="pysec-only-lib"', 1)[1].split("</tr>", 1)[
-            0
-        ]
+        pysec_only_row = html.split('title="pysec-only-lib"', 1)[1].split("</tr>", 1)[0]
         self.assertIn("PYSEC-2026-1", pysec_only_row)
         self.assertIn("https://osv.dev/vulnerability/PYSEC-2026-1", pysec_only_row)
 
@@ -1079,7 +1075,7 @@ class ReportAssetTests(unittest.TestCase):
             js = handle.read()
         self.assertIn("function initVersionScroll", js)
         self.assertIn('classList.add("is-overflowing")', js)
-        self.assertIn('--version-scroll-distance', js)
+        self.assertIn("--version-scroll-distance", js)
         self.assertIn("initVersionScroll(app)", js)
         self.assertIn("initVersionScroll(table)", js)
 

@@ -1,8 +1,8 @@
 """Repository-level coverage guardrails for scripts, tests, and docs."""
 
+import glob
 import os
 import re
-import glob
 import subprocess
 import unittest
 
@@ -104,7 +104,9 @@ class ScriptInventoryTests(unittest.TestCase):
                 self.assertIn("butian", text.lower())
 
     def test_run_audit_docs_explain_explicit_server_scan_args(self):
-        with open(os.path.join(DOC_DIR, "run_audit.md"), "r", encoding="utf-8") as handle:
+        with open(
+            os.path.join(DOC_DIR, "run_audit.md"), "r", encoding="utf-8"
+        ) as handle:
             text = handle.read()
 
         self.assertIn("服务器扫描入口", text)
@@ -173,10 +175,14 @@ class ScriptInventoryTests(unittest.TestCase):
         self.assertIn("不弹出待确认动作队列", project_text)
 
     def test_run_audit_docs_delegate_repair_contract_to_reference(self):
-        with open(os.path.join(DOC_DIR, "run_audit.md"), "r", encoding="utf-8") as handle:
+        with open(
+            os.path.join(DOC_DIR, "run_audit.md"), "r", encoding="utf-8"
+        ) as handle:
             text = handle.read()
 
-        self.assertIn("完整修复交互契约以 `butian/references/project-scan.md` 为准", text)
+        self.assertIn(
+            "完整修复交互契约以 `butian/references/project-scan.md` 为准", text
+        )
         self.assertNotIn("建议顺手处理下面这些维护动作", text)
         self.assertNotIn("Dependabot 是 GitHub 的依赖更新助手", text)
 
@@ -393,7 +399,9 @@ class ScriptInventoryTests(unittest.TestCase):
         self.assertIn("正则命中优先于熵值命中", scan_text)
 
     def test_run_audit_comments_use_pipeline_contract_names(self):
-        with open(os.path.join(SCRIPT_DIR, "run_audit.py"), "r", encoding="utf-8") as handle:
+        with open(
+            os.path.join(SCRIPT_DIR, "run_audit.py"), "r", encoding="utf-8"
+        ) as handle:
             text = handle.read()
 
         self.assertIsNone(
@@ -425,7 +433,9 @@ class ScriptInventoryTests(unittest.TestCase):
                 self.assertIn(phrase, text)
 
     def test_analyze_comments_preserve_report_contract_boundaries(self):
-        with open(os.path.join(SCRIPT_DIR, "analyze.py"), "r", encoding="utf-8") as handle:
+        with open(
+            os.path.join(SCRIPT_DIR, "analyze.py"), "r", encoding="utf-8"
+        ) as handle:
             text = handle.read()
 
         for phrase in (
@@ -451,7 +461,9 @@ class ScriptInventoryTests(unittest.TestCase):
                 self.assertIn(phrase, text)
 
     def test_report_comments_preserve_rendering_contract_boundaries(self):
-        with open(os.path.join(SCRIPT_DIR, "report.py"), "r", encoding="utf-8") as handle:
+        with open(
+            os.path.join(SCRIPT_DIR, "report.py"), "r", encoding="utf-8"
+        ) as handle:
             text = handle.read()
 
         for phrase in (

@@ -254,7 +254,9 @@ class NativeSecurityUpdateParsingTests(unittest.TestCase):
 
         updates = server_inventory.parse_native_security_updates(inventory)
 
-        self.assertEqual([item["name"] for item in updates], ["kernel-core", "openssl-libs"])
+        self.assertEqual(
+            [item["name"] for item in updates], ["kernel-core", "openssl-libs"]
+        )
         self.assertEqual(updates[0]["fixed_version"], "0:5.14.0-427.18.1.el9_4")
         self.assertEqual(updates[1]["fixed_version"], "1:3.0.7-28.el9_4")
 
@@ -348,7 +350,9 @@ class ServerPostureParsingTests(unittest.TestCase):
                 "ufw_status": {"stdout": "Status: inactive\n"},
                 "firewalld_status": {"stdout": "running\npublic (active)\n"},
                 "nft_rules": {"stdout": "table inet filter { chain input { } }\n"},
-                "iptables_rules": {"stdout": "-P INPUT ACCEPT\n-A INPUT -p tcp --dport 22 -j ACCEPT\n"},
+                "iptables_rules": {
+                    "stdout": "-P INPUT ACCEPT\n-A INPUT -p tcp --dport 22 -j ACCEPT\n"
+                },
                 "ip6tables_rules": {"stdout": ""},
             }
         }
@@ -367,10 +371,16 @@ class ServerPostureParsingTests(unittest.TestCase):
             "collection_mode": "ssh",
             "outputs": {
                 "os_release": {"stdout": "ID=ubuntu\nVERSION_ID=24.04\n"},
-                "dpkg_packages": {"stdout": "openssh-server\t1:9.6p1-3ubuntu13\tamd64\topenssh\n"},
+                "dpkg_packages": {
+                    "stdout": "openssh-server\t1:9.6p1-3ubuntu13\tamd64\topenssh\n"
+                },
                 "uname_r": {"stdout": "6.8.0-53-generic\n"},
-                "ports": {"stdout": 'LISTEN 0 128 0.0.0.0:22 0.0.0.0:* users:(("sshd",pid=1,fd=3))\n'},
-                "sshd_config": {"stdout": "passwordauthentication yes\npubkeyauthentication yes\n"},
+                "ports": {
+                    "stdout": 'LISTEN 0 128 0.0.0.0:22 0.0.0.0:* users:(("sshd",pid=1,fd=3))\n'
+                },
+                "sshd_config": {
+                    "stdout": "passwordauthentication yes\npubkeyauthentication yes\n"
+                },
                 "ufw_status": {"stdout": "Status: inactive\n"},
                 "firewalld_status": {"stdout": ""},
                 "nft_rules": {"stdout": ""},
@@ -437,7 +447,9 @@ class ServerPostureParsingTests(unittest.TestCase):
                 },
                 "nginx_v": {"stdout": "nginx version: nginx/1.24.0 (Ubuntu)\n"},
                 "openssl_v": {"stdout": "OpenSSL 3.0.13 30 Jan 2024\n"},
-                "ssh_v": {"stdout": "OpenSSH_9.6p1 Ubuntu-3ubuntu13, OpenSSL 3.0.13 30 Jan 2024\n"},
+                "ssh_v": {
+                    "stdout": "OpenSSH_9.6p1 Ubuntu-3ubuntu13, OpenSSL 3.0.13 30 Jan 2024\n"
+                },
                 "services": {
                     "stdout": (
                         "UNIT LOAD ACTIVE SUB DESCRIPTION\n"
@@ -479,7 +491,9 @@ class ServerPostureParsingTests(unittest.TestCase):
             assets["software_versions"][0]["linked_package"]["name"], "nginx"
         )
         self.assertEqual(assets["native_security_updates"][0]["name"], "openssl")
-        self.assertEqual(assets["native_security_updates"][0]["fixed_version"], "3.0.13-0ubuntu3.6")
+        self.assertEqual(
+            assets["native_security_updates"][0]["fixed_version"], "3.0.13-0ubuntu3.6"
+        )
         self.assertEqual(assets["errors"], [])
 
     def test_unlinked_service_version_is_preserved_as_coverage_gap(self):

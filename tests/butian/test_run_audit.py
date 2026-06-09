@@ -985,7 +985,9 @@ class ServerOnlyPipelineTests(unittest.TestCase):
             command_names = [os.path.basename(cmd[1]) for cmd in captured["commands"]]
             self.assertIn("report.py", command_names)
             self.assertNotIn("visualize.py", command_names)
-            self.assertFalse(os.path.exists(os.path.join(content_dir, "security-report.html")))
+            self.assertFalse(
+                os.path.exists(os.path.join(content_dir, "security-report.html"))
+            )
             self.assertNotIn(
                 "/tmp/id_server_only", json.dumps(scan, ensure_ascii=False)
             )

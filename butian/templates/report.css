@@ -550,10 +550,7 @@ tbody tr:hover {
 .vuln-table {
     --risk-table-min-width: max(
         760px,
-        calc(
-            328px + var(--package-col, 150px) +
-                var(--advisory-col, 132px)
-        )
+        calc(328px + var(--package-col, 150px) + var(--advisory-col, 132px))
     );
     min-width: var(--risk-table-min-width);
     table-layout: fixed;
@@ -696,7 +693,8 @@ td.fixed-cell {
     overflow-y: hidden;
     white-space: nowrap;
     scrollbar-width: thin;
-    scrollbar-color: color-mix(in srgb, var(--accent) 48%, transparent) transparent;
+    scrollbar-color: color-mix(in srgb, var(--accent) 48%, transparent)
+        transparent;
 }
 .version-scroll::-webkit-scrollbar {
     height: 4px;
@@ -713,8 +711,20 @@ td.fixed-cell {
 }
 .version-scroll.is-overflowing {
     padding-bottom: 6px;
-    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 10px, #000 calc(100% - 10px), transparent 100%);
-    mask-image: linear-gradient(90deg, transparent 0, #000 10px, #000 calc(100% - 10px), transparent 100%);
+    -webkit-mask-image: linear-gradient(
+        90deg,
+        transparent 0,
+        #000 10px,
+        #000 calc(100% - 10px),
+        transparent 100%
+    );
+    mask-image: linear-gradient(
+        90deg,
+        transparent 0,
+        #000 10px,
+        #000 calc(100% - 10px),
+        transparent 100%
+    );
 }
 .version-scroll.is-overflowing::after {
     content: "";
@@ -728,7 +738,8 @@ td.fixed-cell {
     pointer-events: none;
 }
 .version-scroll.is-overflowing .version-scroll-inner {
-    animation: version-scroll-marquee var(--version-scroll-duration) ease-in-out 0.8s infinite alternate;
+    animation: version-scroll-marquee var(--version-scroll-duration) ease-in-out
+        0.8s infinite alternate;
 }
 .version-scroll.is-overflowing:hover .version-scroll-inner,
 .version-scroll.is-overflowing:focus .version-scroll-inner,
@@ -960,9 +971,7 @@ td.summary-cell {
     overflow: hidden;
     border: 1px solid var(--field-border);
     border-radius: var(--radius-field);
-    background:
-        var(--code-block-highlight),
-        var(--code-block-bg);
+    background: var(--code-block-highlight), var(--code-block-bg);
     box-shadow: var(--code-block-shadow);
 }
 .secret-evidence-head {

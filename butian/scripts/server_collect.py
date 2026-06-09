@@ -276,9 +276,7 @@ def run_ssh_command(
 ) -> dict[str, Any]:
     result = subprocess.run(
         [
-            *_ssh_base(
-                target, port=port, identity=identity, ssh_config=ssh_config
-            ),
+            *_ssh_base(target, port=port, identity=identity, ssh_config=ssh_config),
             remote_command,
         ],
         capture_output=True,
@@ -357,7 +355,10 @@ def write_inventory(path: str, data: dict[str, Any]) -> None:
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "target", nargs="?", default="", help="SSH target, e.g. user@203.0.113.10 or prod-web"
+        "target",
+        nargs="?",
+        default="",
+        help="SSH target, e.g. user@203.0.113.10 or prod-web",
     )
     parser.add_argument(
         "--output", default="", help="Write collected inventory JSON here"

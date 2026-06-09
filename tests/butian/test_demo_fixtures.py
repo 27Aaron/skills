@@ -75,7 +75,7 @@ class DemoFixtureTests(unittest.TestCase):
         self.assertIn("--no-open", text)
         self.assertIn("--no-root-discovery", text)
         self.assertNotIn("docs/analysis.json", text)
-        self.assertNotIn("analysis.json\")", text)
+        self.assertNotIn('analysis.json")', text)
 
     def test_runner_removes_previous_stable_reports_before_scan(self):
         runner = load_demo_runner()

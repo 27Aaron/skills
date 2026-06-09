@@ -54,9 +54,7 @@ TRANSITIVE_RESIDUAL_GUIDANCE = (
     "或在用户确认后把锁住旧子依赖的父依赖升级到 latest。"
 )
 
-INCOMPLETE_SCAN_TLDR_NOTICE = (
-    "注意：本次检查不完整，部分官方漏洞源、包管理器或工具链检查失败，需复核后再判断剩余风险。"
-)
+INCOMPLETE_SCAN_TLDR_NOTICE = "注意：本次检查不完整，部分官方漏洞源、包管理器或工具链检查失败，需复核后再判断剩余风险。"
 
 INCOMPLETE_SCAN_DETAIL_NOTICE = (
     "另外，本次有部分官方漏洞源、包管理器或工具链检查失败；失败项补齐前，"

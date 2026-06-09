@@ -46,9 +46,7 @@ CVE_ID_RE = re.compile(r"^CVE-\d{4}-\d+$", flags=re.IGNORECASE)
 GHSA_ID_RE = re.compile(
     r"^GHSA-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$", flags=re.IGNORECASE
 )
-OSV_ID_RE = re.compile(
-    r"^[A-Z][A-Z0-9]+-[A-Z0-9][A-Z0-9_.-]*$", flags=re.IGNORECASE
-)
+OSV_ID_RE = re.compile(r"^[A-Z][A-Z0-9]+-[A-Z0-9][A-Z0-9_.-]*$", flags=re.IGNORECASE)
 
 
 def to_list(value):

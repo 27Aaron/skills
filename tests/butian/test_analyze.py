@@ -673,9 +673,7 @@ class TestBuildTopIssues(unittest.TestCase):
         issues = analyze.build_top_issues(scan)
 
         self.assertEqual(len(issues), 1)
-        self.assertEqual(
-            issues[0]["fixed_versions"], ["1.15.4", "1.19.2", "1.16.3"]
-        )
+        self.assertEqual(issues[0]["fixed_versions"], ["1.15.4", "1.19.2", "1.16.3"])
         self.assertEqual(
             issues[0]["advisory_ids"],
             ["EEF-CVE-2026-8468", "GHSA-468c-vq7p-gh64"],

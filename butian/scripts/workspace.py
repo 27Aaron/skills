@@ -139,7 +139,9 @@ def ensure_butian_gitignore(project_path):
 
     with open(gitignore_path, "a", encoding="utf-8") as handle:
         header = (
-            "" if "Local security scan workspace" in content else "# Local security scan workspace\n"
+            ""
+            if "Local security scan workspace" in content
+            else "# Local security scan workspace\n"
         )
         entries = "\n".join(missing_entries)
         handle.write(f"{prefix}{header}{entries}\n")

@@ -851,7 +851,9 @@ def main():
     butian_dir = os.path.join(analysis["project"]["path"], ".butian")
     first_scan_marker = os.path.join(butian_dir, ".first-scan-done")
     skip_markdown = (
-        not args.server_only and os.path.exists(first_scan_marker) and not args.final_report
+        not args.server_only
+        and os.path.exists(first_scan_marker)
+        and not args.final_report
     )
 
     if skip_markdown:
