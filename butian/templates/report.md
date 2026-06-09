@@ -9,10 +9,6 @@
 
 $summary
 
-## 服务器运行环境
-
-$server_environment
-
 ## 当前风险
 
 $vulnerabilities
