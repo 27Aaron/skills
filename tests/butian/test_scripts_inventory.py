@@ -176,6 +176,14 @@ class ButianScriptInventoryTests(unittest.TestCase):
                 self.assertNotIn("最终Markdown", text)
                 self.assertNotIn("HTML报告", text)
 
+    def test_fix_docs_do_not_claim_system_pip_fallback(self):
+        with open(os.path.join(DOC_DIR, "fix.md"), "r", encoding="utf-8") as handle:
+            text = handle.read()
+
+        self.assertIn("不回退到系统 pip", text)
+        self.assertNotIn('"pypi":      lambda pkg, ver', text)
+        self.assertNotIn("| pip    | 默认", text)
+
     def test_skill_links_scenario_references(self):
         with open(SKILL_PATH, "r", encoding="utf-8") as handle:
             text = handle.read()

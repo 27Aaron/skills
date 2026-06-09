@@ -65,7 +65,6 @@ _UPGRADE_BUILDERS = {
     "npm":       lambda pkg, ver: ["npm", "install", f"{pkg}@{ver}"],
     "pnpm":      lambda pkg, ver: ["pnpm", "add", f"{pkg}@{ver}"],
     "yarn":      lambda pkg, ver: ["yarn", "add", f"{pkg}@{ver}"],
-    "pypi":      lambda pkg, ver: [sys.executable, "-m", "pip", "install", f"{pkg}=={ver}"],
     "go":        lambda pkg, ver: ["go", "get", f"{pkg}@v{ver}"],
     "crates-io": lambda pkg, ver: ["cargo", "update", "-p", pkg, "--precise", ver],
 }
@@ -87,7 +86,7 @@ _UPGRADE_BUILDERS = {
 
 | 函数                             | 作用                                                       |
 | -------------------------------- | ---------------------------------------------------------- |
-| `_pypi_manager(project_path)`    | 根据 lockfile 检测 Python 包管理器（uv/poetry/pipenv/pip） |
+| `_pypi_manager(project_path)`    | 根据 lockfile 检测 Python 项目级管理器（uv/poetry/pipenv） |
 | `_pypi_fixed_cmd(pkg, ver, ...)` | 为检测到的包管理器生成 fixed 版本安装命令                  |
 | `_pypi_latest_cmd(pkg, ...)`     | 为检测到的包管理器生成 latest 升级命令                     |
 
@@ -186,18 +185,20 @@ execute_force_residual_fixes()
 
 ## Python 包管理器适配
 
-| 管理器 | 检测方式            | fixed 命令                | latest 命令                    |
-| ------ | ------------------- | ------------------------- | ------------------------------ |
-| uv     | `uv.lock` 存在      | `uv pip install pkg==ver` | `uv pip install --upgrade pkg` |
-| poetry | `poetry.lock` 存在  | `poetry add pkg@ver`      | `poetry add pkg@latest`        |
-| pipenv | `Pipfile.lock` 存在 | `pipenv install pkg==ver` | `pipenv install pkg`           |
-| pip    | 默认                | `pip install pkg==ver`    | `pip install --upgrade pkg`    |
+`fix.py` 只在检测到项目级 Python 管理器时生成 PyPI 修复命令，不回退到系统 pip。
+
+| 管理器                          | 检测方式            | fixed 命令                | latest 命令             |
+| -------------------------------- | ------------------- | ------------------------- | ----------------------- |
+| uv                               | `uv.lock` 存在      | `uv add pkg==ver`         | `uv add pkg`            |
+| poetry                           | `poetry.lock` 存在  | `poetry add pkg@ver`      | `poetry add pkg@latest` |
+| pipenv                           | `Pipfile.lock` 存在 | `pipenv install pkg==ver` | `pipenv install pkg`    |
+| requirements.txt / 无项目级管理器 | —                   | 不自动生成命令            | 不自动生成命令          |
 
 ## 设计要点
 
 - **独立于管线**：不被 `run_audit.py` 自动调用，由 SKILL.md 引导用户按需使用
 - **策略分层**：从最小影响（minimal）到最强力（force-residual），逐步升级修复力度
 - **npm 深度分析**：专门处理 npm 嵌套依赖问题，支持追溯父依赖链和 overrides 强制覆盖
-- **Python 多管理器**：自动检测 uv/poetry/pipenv/pip，生成对应命令
+- **Python 项目管理器**：只检测 uv/poetry/pipenv，避免在不明确的环境中调用系统 pip
 - **安全性**：force-residual 对根依赖使用 `"$pkg"` 引用而非硬编码版本，避免版本冲突
 - **修复后指引**：`post_fix_guidance()` 为每种策略生成相应的验证建议

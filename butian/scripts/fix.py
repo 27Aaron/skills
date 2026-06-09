@@ -313,7 +313,7 @@ def build_upgrade_commands(fix_items, strategy, ecosystem=None, project_path=Non
         fix_items: list from extract_fixable_items()
         strategy: "minimal" | "latest"
         ecosystem: if set, filter to this ecosystem only
-        project_path: project root (used to detect uv vs pip)
+        project_path: project root (used to detect uv/poetry/pipenv)
 
     Returns:
         list of (package, command_list) tuples
