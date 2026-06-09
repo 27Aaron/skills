@@ -313,7 +313,9 @@ class BuildPreflightTests(unittest.TestCase):
             self.assertIn("docs/butian/security-report-*.md", lines)
             self.assertNotIn("docs/butian", lines)
             self.assertTrue(result["butian_workspace"]["gitignore"]["exists_after"])
-            self.assertTrue(result["butian_workspace"]["gitignore"]["added_butian_entry"])
+            self.assertTrue(
+                result["butian_workspace"]["gitignore"]["added_butian_entry"]
+            )
 
     def test_preflight_appends_workspace_gitignore_rules(self):
         with tempfile.TemporaryDirectory(prefix="butian-detect-") as root:
@@ -330,8 +332,12 @@ class BuildPreflightTests(unittest.TestCase):
             self.assertIn(".butian/", lines)
             self.assertIn("docs/butian/security-report-*.md", lines)
             self.assertNotIn("docs/butian", lines)
-            self.assertFalse(result["butian_workspace"]["gitignore"]["had_butian_entry"])
-            self.assertEqual(result["butian_workspace"]["gitignore"]["missing_entries"], [])
+            self.assertFalse(
+                result["butian_workspace"]["gitignore"]["had_butian_entry"]
+            )
+            self.assertEqual(
+                result["butian_workspace"]["gitignore"]["missing_entries"], []
+            )
 
 
 # ---------------------------------------------------------------------------

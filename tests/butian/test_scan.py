@@ -204,7 +204,9 @@ class ButianScanTests(unittest.TestCase):
 
             self.assertEqual(preflight["output_file"], output)
             self.assertTrue(os.path.isdir(os.path.join(root, ".butian")))
-            with open(os.path.join(root, ".gitignore"), "r", encoding="utf-8") as handle:
+            with open(
+                os.path.join(root, ".gitignore"), "r", encoding="utf-8"
+            ) as handle:
                 content = handle.read()
             lines = content.splitlines()
             self.assertIn(".butian/", lines)
@@ -727,9 +729,7 @@ class ParseGemfileLockTests(unittest.TestCase):
 
             pkgs = scan.parse_gemfile_lock(root)
 
-            versions = [
-                pkg["version"] for pkg in pkgs if pkg["name"] == "nokogiri"
-            ]
+            versions = [pkg["version"] for pkg in pkgs if pkg["name"] == "nokogiri"]
             self.assertEqual(versions, ["1.13.10"])
             self.assertEqual(
                 next(pkg["version"] for pkg in pkgs if pkg["name"] == "rails"),
@@ -747,14 +747,14 @@ class ParsePubspecLockTests(unittest.TestCase):
                     "    dependency: transitive\n"
                     "    description:\n"
                     "      name: collection\n"
-                    "      url: \"https://pub.dev\"\n"
+                    '      url: "https://pub.dev"\n'
                     "    source: hosted\n"
-                    "    version: \"1.18.0\"\n"
+                    '    version: "1.18.0"\n'
                     "  path:\n"
                     "    dependency: transitive\n"
                     "    description:\n"
                     "      name: path\n"
-                    "      url: \"https://pub.dev\"\n"
+                    '      url: "https://pub.dev"\n'
                     "    source: hosted\n"
                     "    version: 1.9.0\n"
                 )
@@ -790,7 +790,7 @@ class ParsePubspecLockTests(unittest.TestCase):
                     "    source: hosted\n"
                     "  path:\n"
                     "    source: hosted\n"
-                    "    version: \"1.9.0\"\n"
+                    '    version: "1.9.0"\n'
                 )
 
             pkgs = scan.parse_pubspec_lock(root)
@@ -807,13 +807,13 @@ class ParsePubspecLockTests(unittest.TestCase):
                     "packages:\n"
                     "  local_pkg:\n"
                     "    source: path\n"
-                    "    version: \"1.0.0\"\n"
+                    '    version: "1.0.0"\n'
                     "  sdk_pkg:\n"
                     "    source: sdk\n"
-                    "    version: \"0.0.0\"\n"
+                    '    version: "0.0.0"\n'
                     "  hosted_pkg:\n"
                     "    source: hosted\n"
-                    "    version: \"2.0.0\"\n"
+                    '    version: "2.0.0"\n'
                 )
 
             pkgs = scan.parse_pubspec_lock(root)
@@ -920,7 +920,9 @@ class ParseNugetTests(unittest.TestCase):
 
     def test_packages_config_parses_packages(self):
         with tempfile.TemporaryDirectory(prefix="butian-nuget-config-") as root:
-            with open(os.path.join(root, "packages.config"), "w", encoding="utf-8") as f:
+            with open(
+                os.path.join(root, "packages.config"), "w", encoding="utf-8"
+            ) as f:
                 f.write(
                     '<?xml version="1.0" encoding="utf-8"?>\n'
                     "<packages>\n"
@@ -970,7 +972,9 @@ class ParseNugetTests(unittest.TestCase):
                     },
                     f,
                 )
-            with open(os.path.join(root, "packages.config"), "w", encoding="utf-8") as f:
+            with open(
+                os.path.join(root, "packages.config"), "w", encoding="utf-8"
+            ) as f:
                 f.write(
                     "<packages>\n"
                     '  <package id="Also.Missing" />\n'
@@ -1349,7 +1353,7 @@ class ExtractPackagesTests(unittest.TestCase):
                     "packages:\n"
                     "  collection:\n"
                     "    source: hosted\n"
-                    "    version: \"1.18.0\"\n"
+                    '    version: "1.18.0"\n'
                 )
             with open(os.path.join(root, "mix.lock"), "w", encoding="utf-8") as f:
                 f.write(
@@ -1428,7 +1432,7 @@ class ExtractPackagesTests(unittest.TestCase):
                     "packages:\n"
                     "  collection:\n"
                     "    source: hosted\n"
-                    "    version: \"1.18.0\"\n"
+                    '    version: "1.18.0"\n'
                 )
             with open(os.path.join(root, "mix.lock"), "w", encoding="utf-8") as f:
                 f.write(
@@ -1437,7 +1441,9 @@ class ExtractPackagesTests(unittest.TestCase):
             with open(
                 os.path.join(root, "packages.config"), "w", encoding="utf-8"
             ) as f:
-                f.write('<packages><package id="NUnit" version="3.14.0" /></packages>\n')
+                f.write(
+                    '<packages><package id="NUnit" version="3.14.0" /></packages>\n'
+                )
             with open(os.path.join(root, "pom.xml"), "w", encoding="utf-8") as f:
                 f.write(
                     "<project><dependencies><dependency>"

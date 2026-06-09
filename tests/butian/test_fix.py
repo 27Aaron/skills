@@ -461,7 +461,9 @@ class CliHelperTests(unittest.TestCase):
     def test_main_returns_nonzero_when_latest_fix_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
             analysis_path = os.path.join(tmp, "analysis.json")
-            with open(os.path.join(tmp, "package.json"), "w", encoding="utf-8") as handle:
+            with open(
+                os.path.join(tmp, "package.json"), "w", encoding="utf-8"
+            ) as handle:
                 json.dump({"dependencies": {"left-pad": "1.0.0"}}, handle)
             with open(analysis_path, "w", encoding="utf-8") as handle:
                 json.dump({"project": {"path": tmp}, "green": []}, handle)

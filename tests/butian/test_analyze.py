@@ -5,7 +5,8 @@ import os
 import tempfile
 import unittest
 
-from butian.scripts import analyze, scan as scan_mod
+from butian.scripts import analyze
+from butian.scripts import scan as scan_mod
 
 # ---------------------------------------------------------------------------
 # Minimal scan output factory
@@ -720,7 +721,9 @@ class TestBuildTopIssues(unittest.TestCase):
         scan_sensitive_types = {
             file_type for file_type, _ in scan_mod.SENSITIVE_FILE_PATTERNS
         }
-        self.assertEqual(scan_sensitive_types - set(analyze.SENSITIVE_TYPE_LABELS), set())
+        self.assertEqual(
+            scan_sensitive_types - set(analyze.SENSITIVE_TYPE_LABELS), set()
+        )
 
 
 # ===========================================================================
@@ -737,9 +740,7 @@ class TestBuildHygieneItems(unittest.TestCase):
         self.assertEqual(green, [])
 
     def test_secret_high_confidence(self):
-        context = [
-            {"line": 3, "content": "OPENAI_API_KEY=sk-proj-demo", "match": True}
-        ]
+        context = [{"line": 3, "content": "OPENAI_API_KEY=sk-proj-demo", "match": True}]
         scan = _make_scan(
             hygiene={
                 "tracked_secrets": [
@@ -1142,7 +1143,7 @@ class ServerAnalysisMergeTests(unittest.TestCase):
                             "title": "docker unclear",
                             "severity": "low",
                             "confidence": "low_evidence",
-                        }
+                        },
                     ],
                 }
             }

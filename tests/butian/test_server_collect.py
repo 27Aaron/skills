@@ -33,7 +33,9 @@ class CommandPlanTests(unittest.TestCase):
         self.assertIn("apt list --upgradable", joined)
         self.assertIn("dnf updateinfo list security", joined)
         self.assertIn("yum updateinfo list security", joined)
-        self.assertIn("zypper --non-interactive list-patches --category security", joined)
+        self.assertIn(
+            "zypper --non-interactive list-patches --category security", joined
+        )
 
     def test_docker_commands_are_optional(self):
         without_docker_ids = "\n".join(
@@ -79,7 +81,12 @@ class CollectServerInventoryTests(unittest.TestCase):
 
     def test_collect_keeps_command_errors(self):
         def fake_run(target, command, **kwargs):
-            return {"command": command, "returncode": 1, "stdout": "", "stderr": "denied"}
+            return {
+                "command": command,
+                "returncode": 1,
+                "stdout": "",
+                "stderr": "denied",
+            }
 
         with mock.patch.object(server_collect, "run_ssh_command", side_effect=fake_run):
             inventory = server_collect.collect_server_inventory("root@example.test")

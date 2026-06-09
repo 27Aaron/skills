@@ -70,7 +70,9 @@ class RepositoryChecksTests(unittest.TestCase):
                 any(f["id"] == "repo.missing_dependabot" for f in findings)
             )
 
-    def test_dependabot_advice_is_skipped_for_github_directory_without_github_remote(self):
+    def test_dependabot_advice_is_skipped_for_github_directory_without_github_remote(
+        self,
+    ):
         with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
             os.makedirs(os.path.join(root, ".github"), exist_ok=True)
 
@@ -82,7 +84,9 @@ class RepositoryChecksTests(unittest.TestCase):
 
     def test_dependabot_advice_is_reported_for_github_remote(self):
         with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
-            subprocess.run(["git", "init"], cwd=root, check=True, stdout=subprocess.DEVNULL)
+            subprocess.run(
+                ["git", "init"], cwd=root, check=True, stdout=subprocess.DEVNULL
+            )
             subprocess.run(
                 ["git", "remote", "add", "origin", "git@github.com:acme/demo.git"],
                 cwd=root,
@@ -102,9 +106,17 @@ class RepositoryChecksTests(unittest.TestCase):
 
     def test_dependabot_config_covers_multiple_ecosystems_and_actions(self):
         with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
-            subprocess.run(["git", "init"], cwd=root, check=True, stdout=subprocess.DEVNULL)
             subprocess.run(
-                ["git", "remote", "add", "origin", "https://github.com/acme/polyrepo.git"],
+                ["git", "init"], cwd=root, check=True, stdout=subprocess.DEVNULL
+            )
+            subprocess.run(
+                [
+                    "git",
+                    "remote",
+                    "add",
+                    "origin",
+                    "https://github.com/acme/polyrepo.git",
+                ],
                 cwd=root,
                 check=True,
             )
@@ -140,7 +152,7 @@ class RepositoryChecksTests(unittest.TestCase):
                 "elixir/mix.exs": "defmodule Demo.MixProject do\nend\n",
                 "julia/Project.toml": "[deps]\n",
                 "elm/elm.json": "{}\n",
-                ".gitmodules": "[submodule \"lib\"]\n",
+                ".gitmodules": '[submodule "lib"]\n',
                 ".github/workflows/ci.yml": "name: ci\n",
                 "go/go.mod": "module example.com/demo\n",
                 "gradle/build.gradle": "plugins {}\n",

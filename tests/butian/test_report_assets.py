@@ -382,10 +382,14 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("opacity: 0.48;", risk_pulse_css)
         self.assertIn(".outdated-list", css)
         outdated_list_css = css.split(".outdated-list {", 1)[1].split("}", 1)[0]
-        self.assertIn("grid-template-columns: repeat(2, minmax(0, 1fr));", outdated_list_css)
+        self.assertIn(
+            "grid-template-columns: repeat(2, minmax(0, 1fr));", outdated_list_css
+        )
         self.assertIn(".outdated-row", css)
         self.assertIn(".outdated-version-flow", css)
-        outdated_code_css = css.split(".outdated-version-flow code {", 1)[1].split("}", 1)[0]
+        outdated_code_css = css.split(".outdated-version-flow code {", 1)[1].split(
+            "}", 1
+        )[0]
         self.assertIn("overflow-wrap: anywhere;", outdated_code_css)
         self.assertIn("white-space: normal;", outdated_code_css)
         self.assertNotIn("text-overflow: ellipsis;", outdated_code_css)
@@ -485,7 +489,10 @@ class ButianReportAssetTests(unittest.TestCase):
             '<section class="detail-field detail-field-bottom"><div class="detail-label">EPSS 利用预测（评分日期 2026-06）</div><div class="detail-value">近 30 天被利用概率约 <b>0.04%</b>，利用可能性高于 12.8% 的漏洞。</div></section>',
             html,
         )
-        self.assertLess(html.index('class="detail-action"'), html.index('class="detail-facts-bottom"'))
+        self.assertLess(
+            html.index('class="detail-action"'),
+            html.index('class="detail-facts-bottom"'),
+        )
         self.assertNotIn("EPSS 是公开数据给出的利用预测", html)
         self.assertNotIn("EPSS 百分位", html)
         self.assertNotIn('class="sig-tag sig-epss" title=', html)
@@ -515,9 +522,11 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("border-color: #c4b5fd;", epss_css)
         self.assertIn("background: #f5f3ff;", epss_css)
         self.assertIn("color: #4c1d95;", epss_css)
-        cvss_tag_css = css.split("/* ---- CVSS attack condition", 1)[1].split(
-            ".cvss-tag {", 1
-        )[1].split("}", 1)[0]
+        cvss_tag_css = (
+            css.split("/* ---- CVSS attack condition", 1)[1]
+            .split(".cvss-tag {", 1)[1]
+            .split("}", 1)[0]
+        )
         self.assertIn("border-color: #bfdbfe;", cvss_tag_css)
         self.assertIn("background: #eff6ff;", cvss_tag_css)
         self.assertIn("color: #1d4ed8;", cvss_tag_css)
@@ -634,7 +643,9 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn(".vuln-table .col-detail", css)
         detail_col_css = css.split(".vuln-table .col-detail {", 1)[1].split("}", 1)[0]
         self.assertIn("width: auto;", detail_col_css)
-        advisory_col_css = css.split(".vuln-table .col-advisory {", 1)[1].split("}", 1)[0]
+        advisory_col_css = css.split(".vuln-table .col-advisory {", 1)[1].split("}", 1)[
+            0
+        ]
         self.assertIn("width: 132px;", advisory_col_css)
         fixed_col_css = css.split(".vuln-table .col-fixed {", 1)[1].split("}", 1)[0]
         self.assertIn("width: 112px;", fixed_col_css)
@@ -983,7 +994,9 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("border-color: rgba(96, 165, 250, 0.58);", dark_cvss_tag_css)
         self.assertIn("background: rgba(37, 99, 235, 0.32);", dark_cvss_tag_css)
         self.assertIn("color: #eff6ff;", dark_cvss_tag_css)
-        dark_neutral_css = dark_css.split("    .sig-cwe,\n    .sig-age,\n    .sig-old {", 1)[1].split("}", 1)[0]
+        dark_neutral_css = dark_css.split(
+            "    .sig-cwe,\n    .sig-age,\n    .sig-old {", 1
+        )[1].split("}", 1)[0]
         self.assertIn("background: rgba(71, 85, 105, 0.42);", dark_neutral_css)
         self.assertIn("color: #f8fafc;", dark_neutral_css)
         tooltip_visible_css = css.split(".report-tooltip.is-visible {", 1)[1].split(
@@ -999,7 +1012,7 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("grid-template-columns: 1fr;", compact_css)
         self.assertIn("padding: 0 18px;", compact_css)
         split_css = css.split(".detail-dossier-split {", 1)[1].split("}", 1)[0]
-        self.assertIn('grid-template-areas:', split_css)
+        self.assertIn("grid-template-areas:", split_css)
         self.assertIn('"story facts"', split_css)
         self.assertIn('"action bottom"', split_css)
         self.assertIn("row-gap: 0;", split_css)
@@ -1129,9 +1142,9 @@ class ButianReportAssetTests(unittest.TestCase):
             '<button type="button" class="fix-btn open outdated-toggle-btn" aria-expanded="false" onclick="toggleOutdated(this)"><span class="outdated-toggle-label outdated-toggle-label-desktop">余下 1 项</span><span class="outdated-toggle-label outdated-toggle-label-mobile">余下 8 项</span><span class="outdated-toggle-label outdated-toggle-label-expanded">收起</span></button>',
             html,
         )
-        self.assertNotIn("onmouseenter=\"scheduleVulnTableToggleScan", html)
-        self.assertNotIn("onmouseenter=\"scheduleOutdatedTableToggleScan", html)
-        self.assertNotIn("onmouseleave=\"cancelTableToggleScan", html)
+        self.assertNotIn('onmouseenter="scheduleVulnTableToggleScan', html)
+        self.assertNotIn('onmouseenter="scheduleOutdatedTableToggleScan', html)
+        self.assertNotIn('onmouseleave="cancelTableToggleScan', html)
 
         with open(REPORT_JS, "r", encoding="utf-8") as handle:
             js = handle.read()
@@ -1405,10 +1418,18 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("nginx 1.24.0-2ubuntu7", html)
         self.assertIn("发行版安全公告确认当前 nginx 包仍受影响。", html)
         self.assertIn("Docker 容器 web 使用旧镜像标签 nginx:1.18", html)
-        self.assertIn("Docker 只基于宿主机元数据展示维护建议，不作为 CVE 风险项。", html)
+        self.assertIn(
+            "Docker 只基于宿主机元数据展示维护建议，不作为 CVE 风险项。", html
+        )
         self.assertNotIn("CVE-2026-9999", html)
-        self.assertLess(html.index('section-title">报告总结'), html.index('section-title">服务器运行环境'))
-        self.assertLess(html.index('section-title">服务器运行环境'), html.index('section-title">仓库安检'))
+        self.assertLess(
+            html.index('section-title">报告总结'),
+            html.index('section-title">服务器运行环境'),
+        )
+        self.assertLess(
+            html.index('section-title">服务器运行环境'),
+            html.index('section-title">仓库安检'),
+        )
 
         with open(REPORT_CSS, "r", encoding="utf-8") as handle:
             css = handle.read()
@@ -1589,7 +1610,7 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn('class="secret-code-line is-hit"', html)
         self.assertIn('<span class="secret-code-no">15</span>', html)
         self.assertIn('<span class="secret-code-no">19</span>', html)
-        self.assertIn(f'OPENAI_API_KEY=&quot;{key}&quot;', html)
+        self.assertIn(f"OPENAI_API_KEY=&quot;{key}&quot;", html)
         self.assertNotIn("<span>代码位置</span>", html)
 
     def test_html_renders_secret_code_context_in_yellow_card(self):
@@ -1647,7 +1668,7 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn('<span class="secret-code-lang">ENV</span>', html[evidence_pos:])
         self.assertIn('class="secret-copy-btn"', html[evidence_pos:])
         self.assertIn('class="secret-code-line is-hit"', html[evidence_pos:])
-        self.assertIn(f'OPENAI_API_KEY=&quot;{key}&quot;', html[evidence_pos:])
+        self.assertIn(f"OPENAI_API_KEY=&quot;{key}&quot;", html[evidence_pos:])
         self.assertNotIn('<div class="label">为什么要关注</div>', html)
         self.assertNotIn('<div class="label">可能影响</div>', html)
         self.assertNotIn('<div class="label">建议动作</div>', html)
@@ -1720,9 +1741,11 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertNotIn('class="hygiene-secret-review item yellow open"', html)
         self.assertNotIn('<span class="chev">▶</span>', html)
         self.assertIn('<span class="secret-code-lang">ENV</span>', html[evidence_pos:])
-        self.assertIn(f'OPENAI_API_KEY=&quot;{key}&quot;', html[evidence_pos:])
+        self.assertIn(f"OPENAI_API_KEY=&quot;{key}&quot;", html[evidence_pos:])
         self.assertNotIn('<span class="mini-label">硬编码密钥</span>', html)
-        self.assertNotIn("发现 1 处疑似明文凭证，需要研发确认是否是真实可用的密钥。", html)
+        self.assertNotIn(
+            "发现 1 处疑似明文凭证，需要研发确认是否是真实可用的密钥。", html
+        )
         self.assertNotIn('section-title">待确认事项', html)
 
     def test_html_keeps_non_secret_yellow_items_in_review_section(self):
@@ -2002,7 +2025,10 @@ class ButianReportAssetTests(unittest.TestCase):
     def test_html_omits_outdated_section_without_outdated_items(self):
         cases = [
             ("full scan", {"scan_mode": "full_dependency_scan"}),
-            ("skipped outdated", {"scan_mode": "full_dependency_scan", "skip_outdated": True}),
+            (
+                "skipped outdated",
+                {"scan_mode": "full_dependency_scan", "skip_outdated": True},
+            ),
             ("hygiene only", {"scan_mode": "hygiene_only"}),
         ]
         for _label, scan_config in cases:

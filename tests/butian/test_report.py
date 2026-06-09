@@ -6,7 +6,8 @@ import sys
 import tempfile
 import unittest
 
-from butian.scripts import report, scan as scan_mod
+from butian.scripts import report
+from butian.scripts import scan as scan_mod
 
 
 # ---------------------------------------------------------------------------
@@ -289,10 +290,20 @@ class RenderVulnerabilitiesTests(unittest.TestCase):
         self.assertIn("lodash", result)
         self.assertIn("4.17.21", result)
         self.assertIn("高风险", result)
-        self.assertIn("[GHSA-aaaa-bbbb-cccc](https://osv.dev/vulnerability/GHSA-aaaa-bbbb-cccc)", result)
-        self.assertIn("[CVE-2024-0001](https://www.cve.org/CVERecord?id=CVE-2024-0001)", result)
-        self.assertIn("| 影响程度 | 依赖名称 | 当前版本 | 安全编号 | 修复版本 | 说明 |", result)
-        self.assertIn("Prototype pollution；EPSS 12.8%；CVSS 8.8；CWE-400；CISA KEV；NVD 2024-05-01", result)
+        self.assertIn(
+            "[GHSA-aaaa-bbbb-cccc](https://osv.dev/vulnerability/GHSA-aaaa-bbbb-cccc)",
+            result,
+        )
+        self.assertIn(
+            "[CVE-2024-0001](https://www.cve.org/CVERecord?id=CVE-2024-0001)", result
+        )
+        self.assertIn(
+            "| 影响程度 | 依赖名称 | 当前版本 | 安全编号 | 修复版本 | 说明 |", result
+        )
+        self.assertIn(
+            "Prototype pollution；EPSS 12.8%；CVSS 8.8；CWE-400；CISA KEV；NVD 2024-05-01",
+            result,
+        )
 
     def test_no_issues_full_scan(self):
         result = report.render_vulnerabilities(
@@ -355,7 +366,9 @@ class RenderHygieneTests(unittest.TestCase):
         scan_sensitive_types = {
             file_type for file_type, _ in scan_mod.SENSITIVE_FILE_PATTERNS
         }
-        self.assertEqual(scan_sensitive_types - set(report.SENSITIVE_TYPE_LABELS), set())
+        self.assertEqual(
+            scan_sensitive_types - set(report.SENSITIVE_TYPE_LABELS), set()
+        )
 
     def test_with_gitignore_missing(self):
         analysis = {
@@ -524,10 +537,14 @@ class RenderServerEnvironmentTests(unittest.TestCase):
         )
         self.assertIn("### 维护建议", result)
         self.assertIn("Docker 容器 web 使用旧镜像标签", result)
-        self.assertLess(result.index("### 已确认服务器风险"), result.index("### 维护建议"))
+        self.assertLess(
+            result.index("### 已确认服务器风险"), result.index("### 维护建议")
+        )
 
     def test_render_server_environment_empty(self):
-        self.assertEqual(report.render_server_environment({}), "未启用服务器运行环境扫描。")
+        self.assertEqual(
+            report.render_server_environment({}), "未启用服务器运行环境扫描。"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -564,8 +581,12 @@ class RenderMarkdownStructureTests(unittest.TestCase):
         self.assertIn("## 服务器运行环境", markdown)
         self.assertIn("## 覆盖说明", markdown)
         self.assertNotIn("## 需要人工确认的事项", markdown)
-        self.assertLess(markdown.index("## 报告总结"), markdown.index("## 服务器运行环境"))
-        self.assertLess(markdown.index("## 服务器运行环境"), markdown.index("## 命中风险项"))
+        self.assertLess(
+            markdown.index("## 报告总结"), markdown.index("## 服务器运行环境")
+        )
+        self.assertLess(
+            markdown.index("## 服务器运行环境"), markdown.index("## 命中风险项")
+        )
         self.assertIn("[server_collect] SSH timeout", markdown)
 
     def test_render_markdown_omits_llm_fix_context_section(self):

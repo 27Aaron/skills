@@ -3,7 +3,6 @@
 import os
 import unittest
 
-
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SCRIPT_DIR = os.path.join(ROOT, "butian", "scripts")
 TEST_DIR = os.path.join(ROOT, "tests", "butian")
@@ -52,7 +51,9 @@ SCRIPT_DOC_FILES = {
 
 class ButianScriptInventoryTests(unittest.TestCase):
     def test_every_python_script_has_declared_test_files(self):
-        scripts = sorted(name for name in os.listdir(SCRIPT_DIR) if name.endswith(".py"))
+        scripts = sorted(
+            name for name in os.listdir(SCRIPT_DIR) if name.endswith(".py")
+        )
         self.assertEqual(set(scripts), set(SCRIPT_TEST_FILES))
         for script, test_files in SCRIPT_TEST_FILES.items():
             with self.subTest(script=script):
@@ -73,7 +74,9 @@ class ButianScriptInventoryTests(unittest.TestCase):
         for script, doc_file in SCRIPT_DOC_FILES.items():
             with self.subTest(script=script):
                 doc_path = os.path.join(DOC_DIR, doc_file)
-                self.assertTrue(os.path.isfile(doc_path), f"missing docs page {doc_file}")
+                self.assertTrue(
+                    os.path.isfile(doc_path), f"missing docs page {doc_file}"
+                )
                 with open(doc_path, "r", encoding="utf-8") as handle:
                     text = handle.read()
                 self.assertIn(script, text)

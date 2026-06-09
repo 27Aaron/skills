@@ -20,15 +20,19 @@ class RelpathTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="butian-findings-") as root:
             path = os.path.join(root, "src", "app.py")
             os.makedirs(os.path.dirname(path))
-            self.assertEqual(finding_utils.relpath(path, root), os.path.join("src", "app.py"))
+            self.assertEqual(
+                finding_utils.relpath(path, root), os.path.join("src", "app.py")
+            )
 
     def test_returns_original_path_when_relpath_raises_value_error(self):
         original_relpath = finding_utils.os.path.relpath
         try:
-            finding_utils.os.path.relpath = lambda *_args, **_kwargs: (_ for _ in ()).throw(
-                ValueError("different drives")
+            finding_utils.os.path.relpath = lambda *_args, **_kwargs: (
+                _ for _ in ()
+            ).throw(ValueError("different drives"))
+            self.assertEqual(
+                finding_utils.relpath("C:\\repo\\a.py", "D:\\repo"), "C:\\repo\\a.py"
             )
-            self.assertEqual(finding_utils.relpath("C:\\repo\\a.py", "D:\\repo"), "C:\\repo\\a.py")
         finally:
             finding_utils.os.path.relpath = original_relpath
 
@@ -63,7 +67,10 @@ class IterFilesTests(unittest.TestCase):
             write(os.path.join(root, "b.txt"), "b")
             write(os.path.join(root, "nested", "c.PY"), "c")
 
-            result = sorted(os.path.relpath(p, root) for p in finding_utils.iter_files(root, suffixes=[".py"]))
+            result = sorted(
+                os.path.relpath(p, root)
+                for p in finding_utils.iter_files(root, suffixes=[".py"])
+            )
 
             self.assertEqual(result, ["a.py", os.path.join("nested", "c.PY")])
 
@@ -73,7 +80,10 @@ class IterFilesTests(unittest.TestCase):
             write(os.path.join(root, "dockerfile.prod"), "FROM python\n")
             write(os.path.join(root, "README.md"), "doc\n")
 
-            result = sorted(os.path.basename(p) for p in finding_utils.iter_files(root, names=["dockerfile"]))
+            result = sorted(
+                os.path.basename(p)
+                for p in finding_utils.iter_files(root, names=["dockerfile"])
+            )
 
             self.assertEqual(result, ["Dockerfile"])
 
@@ -85,7 +95,9 @@ class IterFilesTests(unittest.TestCase):
 
             result = sorted(
                 os.path.basename(p)
-                for p in finding_utils.iter_files(root, suffixes=[".yml"], names=["dockerfile"])
+                for p in finding_utils.iter_files(
+                    root, suffixes=[".yml"], names=["dockerfile"]
+                )
             )
 
             self.assertEqual(result, ["Dockerfile", "app.yml"])
@@ -95,7 +107,10 @@ class IterFilesTests(unittest.TestCase):
             write(os.path.join(root, "node_modules", "pkg", "index.js"), "x")
             write(os.path.join(root, "src", "index.js"), "x")
 
-            result = [os.path.relpath(p, root) for p in finding_utils.iter_files(root, suffixes=[".js"])]
+            result = [
+                os.path.relpath(p, root)
+                for p in finding_utils.iter_files(root, suffixes=[".js"])
+            ]
 
             self.assertEqual(result, [os.path.join("src", "index.js")])
 
@@ -103,7 +118,12 @@ class IterFilesTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="butian-findings-") as root:
             write(os.path.join(root, "node_modules", "pkg", "index.js"), "x")
 
-            result = [os.path.relpath(p, root) for p in finding_utils.iter_files(root, suffixes=[".js"], exclude_dirs=[])]
+            result = [
+                os.path.relpath(p, root)
+                for p in finding_utils.iter_files(
+                    root, suffixes=[".js"], exclude_dirs=[]
+                )
+            ]
 
             self.assertEqual(result, [os.path.join("node_modules", "pkg", "index.js")])
 
@@ -112,7 +132,9 @@ class IterFilesTests(unittest.TestCase):
             for index in range(5):
                 write(os.path.join(root, f"{index}.txt"), str(index))
 
-            result = list(finding_utils.iter_files(root, suffixes=[".txt"], max_files=2))
+            result = list(
+                finding_utils.iter_files(root, suffixes=[".txt"], max_files=2)
+            )
 
             self.assertEqual(len(result), 2)
 
@@ -131,7 +153,9 @@ class LineForTextTests(unittest.TestCase):
             write(path, "one\n")
             self.assertIsNone(finding_utils.line_for_text(path, ""))
             self.assertIsNone(finding_utils.line_for_text(path, "missing"))
-            self.assertIsNone(finding_utils.line_for_text(os.path.join(root, "missing.txt"), "one"))
+            self.assertIsNone(
+                finding_utils.line_for_text(os.path.join(root, "missing.txt"), "one")
+            )
 
 
 class EvidenceSnippetTests(unittest.TestCase):
@@ -207,7 +231,13 @@ class MakeFindingTests(unittest.TestCase):
 class DedupeFindingsTests(unittest.TestCase):
     def test_dedupes_by_id_file_line_and_evidence_preserving_order(self):
         first = {"id": "a", "file": "f", "line": 1, "evidence": "x", "title": "first"}
-        duplicate = {"id": "a", "file": "f", "line": 1, "evidence": "x", "title": "duplicate"}
+        duplicate = {
+            "id": "a",
+            "file": "f",
+            "line": 1,
+            "evidence": "x",
+            "title": "duplicate",
+        }
         second = {"id": "a", "file": "f", "line": 2, "evidence": "x", "title": "second"}
 
         result = finding_utils.dedupe_findings([first, duplicate, second])

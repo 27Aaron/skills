@@ -51,7 +51,10 @@ class ServerAnalyzeTests(unittest.TestCase):
         self.assertIn("Docker 容器", result["maintenance_items"][0]["title"])
         self.assertIn("不扫描容器内部", result["maintenance_items"][0]["summary"])
         self.assertTrue(
-            all(item["confidence"] == "maintenance" for item in result["maintenance_items"])
+            all(
+                item["confidence"] == "maintenance"
+                for item in result["maintenance_items"]
+            )
         )
 
     def test_docker_latest_custom_and_unparseable_are_filtered(self):
@@ -96,9 +99,19 @@ class ServerAnalyzeTests(unittest.TestCase):
 
     def test_public_sensitive_process_names_are_normalized(self):
         ports = [
-            {"address": "0.0.0.0", "port": 6379, "process": "redis-server", "public": True},
+            {
+                "address": "0.0.0.0",
+                "port": 6379,
+                "process": "redis-server",
+                "public": True,
+            },
             {"address": "0.0.0.0", "port": 3306, "process": "mysqld", "public": True},
-            {"address": "127.0.0.1", "port": 5432, "process": "postgres", "public": False},
+            {
+                "address": "127.0.0.1",
+                "port": 5432,
+                "process": "postgres",
+                "public": False,
+            },
             {"address": "0.0.0.0", "port": 80, "process": "nginx", "public": True},
         ]
 
@@ -118,7 +131,10 @@ class ServerAnalyzeTests(unittest.TestCase):
                 "docker": {"containers": []},
                 "errors": [{"step": "server_inventory", "message": "unsupported"}],
             },
-            {"confirmed_issues": [], "errors": [{"step": "vulnerability_check", "message": "OSV"}]},
+            {
+                "confirmed_issues": [],
+                "errors": [{"step": "vulnerability_check", "message": "OSV"}],
+            },
         )
 
         self.assertEqual(len(result["errors"]), 2)

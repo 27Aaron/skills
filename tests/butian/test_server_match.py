@@ -96,7 +96,11 @@ class ServerMatchTests(unittest.TestCase):
         issue = server_match.build_confirmed_issue(
             asset,
             osv_record,
-            {"CVE-2026-0001": [{"cvssScore": 8.2, "cwes": ["CWE-400"], "source": "nvd"}]},
+            {
+                "CVE-2026-0001": [
+                    {"cvssScore": 8.2, "cwes": ["CWE-400"], "source": "nvd"}
+                ]
+            },
         )
 
         self.assertEqual(issue["scope"], "server")
@@ -234,8 +238,12 @@ class ServerBatchQueryTests(unittest.TestCase):
                 "fetch_nvd_enrichments",
                 return_value={"CVE-2026-0002": [{"cvssScore": 7.1}]},
             ),
-            mock.patch.object(server_match.scan, "fetch_cisa_kev_enrichments", return_value={}),
-            mock.patch.object(server_match.scan, "fetch_epss_enrichments", return_value={}),
+            mock.patch.object(
+                server_match.scan, "fetch_cisa_kev_enrichments", return_value={}
+            ),
+            mock.patch.object(
+                server_match.scan, "fetch_epss_enrichments", return_value={}
+            ),
         ):
             result = server_match.match_server_vulnerabilities(
                 assets, project_path="/tmp/demo"
@@ -274,7 +282,9 @@ class ServerBatchQueryTests(unittest.TestCase):
             mock.patch.object(
                 server_match.scan, "fetch_cisa_kev_enrichments"
             ) as fetch_kev,
-            mock.patch.object(server_match.scan, "fetch_epss_enrichments") as fetch_epss,
+            mock.patch.object(
+                server_match.scan, "fetch_epss_enrichments"
+            ) as fetch_epss,
         ):
             result = server_match.match_server_vulnerabilities(
                 assets, project_path="/tmp/demo"
@@ -332,7 +342,9 @@ class ServerBatchQueryTests(unittest.TestCase):
         self.assertEqual(result["confirmed_issues"], [])
         self.assertEqual(result["asset_count"], 0)
         self.assertTrue(result["errors"])
-        self.assertIn("暂不支持服务器 ecosystem Amazon Linux:2023", result["errors"][0]["message"])
+        self.assertIn(
+            "暂不支持服务器 ecosystem Amazon Linux:2023", result["errors"][0]["message"]
+        )
 
 
 if __name__ == "__main__":

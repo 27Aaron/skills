@@ -5,10 +5,7 @@ from butian.scripts import server_inventory
 
 class OsReleaseParsingTests(unittest.TestCase):
     def test_parse_ubuntu_os_release(self):
-        raw = (
-            'NAME="Ubuntu"\nID=ubuntu\nVERSION_ID="24.04"\n'
-            "VERSION_CODENAME=noble\n"
-        )
+        raw = 'NAME="Ubuntu"\nID=ubuntu\nVERSION_ID="24.04"\nVERSION_CODENAME=noble\n'
 
         result = server_inventory.parse_os_release(raw)
 
@@ -23,7 +20,7 @@ class OsReleaseParsingTests(unittest.TestCase):
     def test_parse_debian_os_release(self):
         raw = (
             'PRETTY_NAME="Debian GNU/Linux 12 (bookworm)"\n'
-            "ID=debian\nVERSION_ID=\"12\"\nVERSION_CODENAME=bookworm\n"
+            'ID=debian\nVERSION_ID="12"\nVERSION_CODENAME=bookworm\n'
         )
 
         result = server_inventory.parse_os_release(raw)
@@ -109,10 +106,7 @@ class OsReleaseParsingTests(unittest.TestCase):
                 self.assertEqual(result["ecosystem"], ecosystem)
 
     def test_parse_amazon_linux_os_release(self):
-        raw = (
-            'NAME="Amazon Linux"\nID="amzn"\n'
-            'VERSION_ID="2023"\nID_LIKE="fedora"\n'
-        )
+        raw = 'NAME="Amazon Linux"\nID="amzn"\nVERSION_ID="2023"\nID_LIKE="fedora"\n'
 
         result = server_inventory.parse_os_release(raw)
 
@@ -135,10 +129,7 @@ class OsReleaseParsingTests(unittest.TestCase):
         self.assertEqual(result["ecosystem"], "Oracle Linux:9")
 
     def test_rhel_like_unlisted_distro_is_not_supported(self):
-        raw = (
-            'NAME="Anolis OS"\nID="anolis"\n'
-            'VERSION_ID="8.9"\nID_LIKE="rhel fedora"\n'
-        )
+        raw = 'NAME="Anolis OS"\nID="anolis"\nVERSION_ID="8.9"\nID_LIKE="rhel fedora"\n'
 
         result = server_inventory.parse_os_release(raw)
 
@@ -171,7 +162,9 @@ class PackageParsingTests(unittest.TestCase):
         self.assertIn("pkg:deb/ubuntu/nginx@1.24.0-2ubuntu7.3", packages[0]["purl"])
 
     def test_parse_rpm_output(self):
-        raw = "nginx\t1.24.0-1.el9\tx86_64\nkernel-core\t5.14.0-427.13.1.el9_4\tx86_64\n"
+        raw = (
+            "nginx\t1.24.0-1.el9\tx86_64\nkernel-core\t5.14.0-427.13.1.el9_4\tx86_64\n"
+        )
         distro = {
             "id": "rocky",
             "ecosystem": "Rocky Linux:9",
@@ -314,7 +307,9 @@ class ExposureAndDockerTests(unittest.TestCase):
 
         containers = server_inventory.parse_docker_ps(raw)
 
-        self.assertEqual([item["explicit_old_tag"] for item in containers], [False, False, False])
+        self.assertEqual(
+            [item["explicit_old_tag"] for item in containers], [False, False, False]
+        )
 
     def test_build_server_assets_combines_packages_kernel_ports_and_docker(self):
         inventory = {
@@ -382,7 +377,10 @@ class ExposureAndDockerTests(unittest.TestCase):
 
         self.assertEqual(assets["packages"], [])
         self.assertTrue(
-            any(item.get("code") == "empty_package_inventory" for item in assets["errors"])
+            any(
+                item.get("code") == "empty_package_inventory"
+                for item in assets["errors"]
+            )
         )
 
 

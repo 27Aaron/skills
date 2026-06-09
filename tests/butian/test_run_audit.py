@@ -620,7 +620,9 @@ class ServerArgsTests(unittest.TestCase):
         self.assertTrue(args.include_docker_metadata)
 
     def test_parse_server_inventory_arg(self):
-        args = run_audit.parse_args(["--server-inventory", "/tmp/server-inventory.json"])
+        args = run_audit.parse_args(
+            ["--server-inventory", "/tmp/server-inventory.json"]
+        )
         self.assertEqual(args.server_inventory, "/tmp/server-inventory.json")
 
 
@@ -642,20 +644,19 @@ class ServerPipelineHelperTests(unittest.TestCase):
         }
         modules = {
             "butian.scripts.server_inventory": SimpleNamespace(
-                build_server_assets=lambda data: calls.append(("assets", data))
-                or fake_assets
+                build_server_assets=lambda data: (
+                    calls.append(("assets", data)) or fake_assets
+                )
             ),
             "butian.scripts.server_match": SimpleNamespace(
-                match_server_vulnerabilities=lambda assets, project_path: calls.append(
-                    ("match", assets, project_path)
+                match_server_vulnerabilities=lambda assets, project_path: (
+                    calls.append(("match", assets, project_path)) or fake_matches
                 )
-                or fake_matches
             ),
             "butian.scripts.server_analyze": SimpleNamespace(
-                build_server_analysis=lambda assets, matches: calls.append(
-                    ("analysis", assets, matches)
+                build_server_analysis=lambda assets, matches: (
+                    calls.append(("analysis", assets, matches)) or fake_analysis
                 )
-                or fake_analysis
             ),
         }
 
@@ -740,22 +741,26 @@ class ServerOnlyPipelineTests(unittest.TestCase):
 
             modules = {
                 "butian.scripts.server_collect": SimpleNamespace(
-                    collect_server_inventory=lambda target, port, identity, include_docker_metadata: collect_calls.append(
-                        {
-                            "target": target,
-                            "port": port,
-                            "identity": identity,
-                            "include_docker_metadata": include_docker_metadata,
-                        }
-                    )
-                    or server_inventory,
+                    collect_server_inventory=lambda target, port, identity, include_docker_metadata: (
+                        collect_calls.append(
+                            {
+                                "target": target,
+                                "port": port,
+                                "identity": identity,
+                                "include_docker_metadata": include_docker_metadata,
+                            }
+                        )
+                        or server_inventory
+                    ),
                     read_inventory_file=lambda path: server_inventory,
                 ),
                 "butian.scripts.server_inventory": SimpleNamespace(
                     build_server_assets=lambda inventory: server_assets
                 ),
                 "butian.scripts.server_match": SimpleNamespace(
-                    match_server_vulnerabilities=lambda assets, project_path: server_matched
+                    match_server_vulnerabilities=lambda assets, project_path: (
+                        server_matched
+                    )
                 ),
                 "butian.scripts.server_analyze": SimpleNamespace(
                     build_server_analysis=lambda assets, matched: server_analysis
@@ -880,7 +885,9 @@ class ServerOnlyPipelineTests(unittest.TestCase):
             self.assertEqual(assets_json, server_assets)
             self.assertEqual(server_analysis_json, server_analysis)
             self.assertEqual(server_vulns_json, server_matched)
-            self.assertNotIn("/tmp/id_server_only", json.dumps(scan, ensure_ascii=False))
+            self.assertNotIn(
+                "/tmp/id_server_only", json.dumps(scan, ensure_ascii=False)
+            )
             self.assertNotIn(
                 "/tmp/id_server_only",
                 json.dumps(inventory_json, ensure_ascii=False),
