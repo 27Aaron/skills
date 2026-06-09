@@ -526,11 +526,13 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertNotIn("border-left-width: 4px", css)
         self.assertNotIn("border-left-color: var(--warning-ink)", css)
 
-    def test_html_report_assets_do_not_ship_copy_command_handlers(self):
+    def test_html_report_assets_only_ship_secret_evidence_copy_handler(self):
         with open(REPORT_JS, "r", encoding="utf-8") as handle:
             js = handle.read()
 
-        self.assertNotIn("navigator.clipboard", js)
+        self.assertIn("function copySecretEvidence(button)", js)
+        self.assertIn("navigator.clipboard.writeText", js)
+        self.assertIn("secret-copy-btn", js)
         self.assertNotIn('class="copy"', js)
         self.assertNotIn("function copyBtn", js)
         self.assertNotIn("function cmdBlock", js)
@@ -1186,10 +1188,14 @@ class ButianReportAssetTests(unittest.TestCase):
         html = self._render_html(data)
 
         self.assertIn('class="secret-evidence"', html)
+        self.assertIn('<span class="secret-code-lang">ENV</span>', html)
+        self.assertIn('class="secret-copy-btn"', html)
+        self.assertIn('onclick="copySecretEvidence(this)"', html)
         self.assertIn('class="secret-code-line is-hit"', html)
         self.assertIn('<span class="secret-code-no">15</span>', html)
         self.assertIn('<span class="secret-code-no">19</span>', html)
         self.assertIn(f'OPENAI_API_KEY=&quot;{key}&quot;', html)
+        self.assertNotIn("<span>代码位置</span>", html)
 
     def test_html_renders_secret_code_context_in_yellow_card(self):
         key = "sk-proj-ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
@@ -1243,11 +1249,133 @@ class ButianReportAssetTests(unittest.TestCase):
         title_pos = html.index("疑似硬编码凭证：.env.example:17")
         evidence_pos = html.index('class="secret-evidence"', title_pos)
         self.assertGreater(evidence_pos, title_pos)
+        self.assertIn('<span class="secret-code-lang">ENV</span>', html[evidence_pos:])
+        self.assertIn('class="secret-copy-btn"', html[evidence_pos:])
         self.assertIn('class="secret-code-line is-hit"', html[evidence_pos:])
         self.assertIn(f'OPENAI_API_KEY=&quot;{key}&quot;', html[evidence_pos:])
         self.assertNotIn('<div class="label">为什么要关注</div>', html)
         self.assertNotIn('<div class="label">可能影响</div>', html)
         self.assertNotIn('<div class="label">建议动作</div>', html)
+
+    def test_html_moves_secret_yellow_items_into_hygiene_credentials(self):
+        key = "sk-proj-ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+        context = [
+            {"line": 15, "content": "APP_URL=http://localhost:3000"},
+            {"line": 16, "content": "FEATURE_FLAG=true"},
+            {
+                "line": 17,
+                "content": f'OPENAI_API_KEY="{key}"',
+                "match": True,
+            },
+            {"line": 18, "content": ""},
+            {"line": 19, "content": ""},
+        ]
+        data = {
+            "generated_at": "2026-06-05 09:05:50",
+            "project": {
+                "name": "demo",
+                "path": "/tmp/demo",
+                "ecosystems": [],
+                "total_packages": 0,
+            },
+            "scan_config": {"scan_mode": "hygiene_only"},
+            "risk_summary": {
+                "critical": 0,
+                "high": 0,
+                "medium": 1,
+                "low": 0,
+                "info": 0,
+            },
+            "summary": {"tldr": "demo", "detail": "demo", "priority": []},
+            "top_issues": [],
+            "hygiene": {
+                "tracked_secrets": [
+                    {
+                        "file": ".env.example",
+                        "line": 17,
+                        "type": "openai_key",
+                        "confidence": "high",
+                        "preview": key,
+                        "code_context": context,
+                    }
+                ]
+            },
+            "yellow": [
+                {
+                    "name": "疑似硬编码凭证：.env.example:17",
+                    "type": "secret_exposure",
+                    "severity": "medium",
+                    "path": ".env.example",
+                    "preview": key,
+                    "code_context": context,
+                }
+            ],
+            "outdated": [],
+        }
+
+        html = self._render_html(data)
+
+        hygiene_pos = html.index('section-title">仓库安检')
+        credentials_pos = html.index("凭证与敏感文件", hygiene_pos)
+        title_pos = html.index("疑似硬编码凭证：.env.example:17", credentials_pos)
+        evidence_pos = html.index('class="secret-evidence"', title_pos)
+        self.assertGreater(title_pos, credentials_pos)
+        self.assertGreater(evidence_pos, title_pos)
+        self.assertIn('class="hygiene-secret-review item yellow"', html)
+        self.assertNotIn('class="hygiene-secret-review item yellow open"', html)
+        self.assertIn('<span class="secret-code-lang">ENV</span>', html[evidence_pos:])
+        self.assertIn(f'OPENAI_API_KEY=&quot;{key}&quot;', html[evidence_pos:])
+        self.assertNotIn('<span class="mini-label">硬编码密钥</span>', html)
+        self.assertNotIn("发现 1 处疑似明文凭证，需要研发确认是否是真实可用的密钥。", html)
+        self.assertNotIn('section-title">待确认事项', html)
+
+    def test_html_keeps_non_secret_yellow_items_in_review_section(self):
+        data = {
+            "generated_at": "2026-06-05 09:05:50",
+            "project": {
+                "name": "demo",
+                "path": "/tmp/demo",
+                "ecosystems": [],
+                "total_packages": 0,
+            },
+            "scan_config": {"scan_mode": "hygiene_only"},
+            "risk_summary": {
+                "critical": 0,
+                "high": 0,
+                "medium": 1,
+                "low": 0,
+                "info": 0,
+            },
+            "summary": {"tldr": "demo", "detail": "demo", "priority": []},
+            "top_issues": [],
+            "hygiene": {
+                "tracked_secrets": [
+                    {
+                        "file": ".env.example",
+                        "line": 17,
+                        "type": "openai_key",
+                        "confidence": "high",
+                    }
+                ]
+            },
+            "yellow": [
+                {
+                    "name": ".gitignore 缺少敏感规则",
+                    "type": "gitignore_missing",
+                    "severity": "low",
+                    "path": ".gitignore",
+                    "why_manual": ".env 未加入忽略规则。",
+                    "risk": "后续可能误提交本地密钥文件。",
+                    "disposal": "补充 .env* 等忽略规则。",
+                }
+            ],
+            "outdated": [],
+        }
+
+        html = self._render_html(data)
+
+        self.assertIn('section-title">待确认事项', html)
+        self.assertIn(".gitignore 缺少敏感规则", html)
 
     def test_html_renders_dependabot_as_maintenance_advice(self):
         data = {
@@ -1475,26 +1603,40 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("已确认依赖风险项", html)
         self.assertIn("已确认风险项", html)
 
-    def test_outdated_section_uses_risk_item_term(self):
-        data = {
-            "generated_at": "2026-06-05 09:05:50",
-            "project": {"name": "demo", "path": "/tmp/demo", "ecosystems": ["npm"]},
-            "scan_config": {"scan_mode": "full_dependency_scan"},
-            "risk_summary": {
-                "critical": 0,
-                "high": 0,
-                "medium": 0,
-                "low": 0,
-                "info": 0,
-            },
-            "summary": {"tldr": "demo", "detail": "demo", "priority": ["demo"]},
-            "top_issues": [],
-            "hygiene": {},
-            "outdated": [],
-        }
-        html = self._render_html(data)
-        self.assertIn("版本维护规划", html)
-        self.assertIn("发布窗口", html)
+    def test_html_omits_outdated_section_without_outdated_items(self):
+        cases = [
+            ("full scan", {"scan_mode": "full_dependency_scan"}),
+            ("skipped outdated", {"scan_mode": "full_dependency_scan", "skip_outdated": True}),
+            ("hygiene only", {"scan_mode": "hygiene_only"}),
+        ]
+        for _label, scan_config in cases:
+            with self.subTest(_label):
+                data = {
+                    "generated_at": "2026-06-05 09:05:50",
+                    "project": {
+                        "name": "demo",
+                        "path": "/tmp/demo",
+                        "ecosystems": ["npm"],
+                    },
+                    "scan_config": scan_config,
+                    "risk_summary": {
+                        "critical": 0,
+                        "high": 0,
+                        "medium": 0,
+                        "low": 0,
+                        "info": 0,
+                    },
+                    "summary": {"tldr": "demo", "detail": "demo", "priority": ["demo"]},
+                    "top_issues": [],
+                    "hygiene": {},
+                    "outdated": [],
+                }
+                html = self._render_html(data)
+
+                self.assertNotIn('section-title">过期依赖', html)
+                self.assertNotIn("本次为了提速跳过了过期依赖检查", html)
+                self.assertNotIn("没有检测到明确的过期依赖", html)
+                self.assertNotIn("本次未执行依赖版本维护检查", html)
 
 
 if __name__ == "__main__":

@@ -3035,8 +3035,7 @@ function renderSecretEvidence(item) {
     : [];
   if (!context.length) return "";
 
-  const firstLine = context[0].line;
-  const lastLine = context[context.length - 1].line;
+  const language = secretEvidenceLanguage(item);
   const rows = context
     .map((line) => {
       const hitClass = line.match ? " is-hit" : "";
@@ -3044,7 +3043,62 @@ function renderSecretEvidence(item) {
     })
     .join("");
 
-  return `<div class="secret-evidence"><div class="secret-evidence-head"><span>代码位置</span><b>${esc(firstLine)}-${esc(lastLine)}</b></div><pre class="secret-code"><code>${rows}</code></pre></div>`;
+  return `<div class="secret-evidence"><div class="secret-evidence-head"><span class="secret-code-lang">${esc(language)}</span><button type="button" class="secret-copy-btn" onclick="copySecretEvidence(this)">复制</button></div><pre class="secret-code"><code>${rows}</code></pre></div>`;
+}
+
+function secretEvidenceLanguage(item) {
+  const file = String((item && (item.file || item.path)) || "").toLowerCase();
+  const name = file.split(/[\\/]/).pop() || "";
+  if (name === ".env" || name.startsWith(".env.")) return "ENV";
+  if (name === "dockerfile" || name.startsWith("dockerfile.")) return "Dockerfile";
+  const ext = (name.match(/\.([a-z0-9]+)$/) || [])[1] || "";
+  return (
+    {
+      bash: "Shell",
+      cfg: "Config",
+      conf: "Config",
+      env: "ENV",
+      fish: "Shell",
+      go: "Go",
+      ini: "INI",
+      js: "JavaScript",
+      json: "JSON",
+      py: "Python",
+      rs: "Rust",
+      sh: "Shell",
+      toml: "TOML",
+      ts: "TypeScript",
+      yaml: "YAML",
+      yml: "YAML",
+      zsh: "Shell",
+    }[ext] || (ext ? ext.toUpperCase() : "TEXT")
+  );
+}
+
+function copySecretEvidence(button) {
+  const root =
+    button && button.closest ? button.closest(".secret-evidence") : null;
+  if (
+    !root ||
+    typeof navigator === "undefined" ||
+    !navigator.clipboard ||
+    typeof navigator.clipboard.writeText !== "function"
+  ) {
+    return;
+  }
+  const text = Array.from(root.querySelectorAll(".secret-code-text"))
+    .map((node) => node.textContent || "")
+    .join("\n");
+  const label = button.textContent || "复制";
+  navigator.clipboard
+    .writeText(text)
+    .then(() => {
+      button.textContent = "已复制";
+      setTimeout(() => {
+        button.textContent = label;
+      }, 1200);
+    })
+    .catch(() => {});
 }
 
 function renderHygiene(h) {
@@ -3073,6 +3127,14 @@ function renderHygiene(h) {
   const secrets = toList(h.tracked_secrets);
   const sensitive = toList(h.sensitive_tracked);
   const missing = toList(h.gitignore_missing);
+  const credentialReviews = secretYellowItems(DATA.yellow);
+  const reviewBySecretLocation = new Map();
+  credentialReviews.forEach((item) => {
+    const key = secretLocationKey(item);
+    if (key && !reviewBySecretLocation.has(key)) {
+      reviewBySecretLocation.set(key, item);
+    }
+  });
   const localGroups = [
     ["GitHub Actions 工作流安全", toList(h.workflow_checks)],
     ["依赖配置与维护", toList(h.repository_checks)],
@@ -3082,14 +3144,14 @@ function renderHygiene(h) {
     (sum, [, items]) => sum + items.length,
     0,
   );
-  const count = secrets.length + sensitive.length + missing.length + localCount;
+  const reviewOnlyCredentials = credentialReviews.filter((item) => {
+    const key = secretLocationKey(item);
+    return !key || !secrets.some((secret) => secretLocationKey(secret) === key);
+  });
+  const credentialCount =
+    secrets.length + reviewOnlyCredentials.length + sensitive.length;
+  const count = credentialCount + missing.length + localCount;
   const rows = [];
-  if (secrets.length) {
-    rows.push({
-      label: "硬编码密钥",
-      value: `发现 ${secrets.length} 处疑似明文凭证，需要研发确认是否是真实可用的密钥。`,
-    });
-  }
   if (sensitive.length) {
     rows.push({
       label: "敏感文件",
@@ -3102,12 +3164,17 @@ function renderHygiene(h) {
       value: `.gitignore 建议补充 ${missing.slice(0, 8).join("、")}${missing.length > 8 ? " 等规则" : ""}，避免后续误提交敏感文件。`,
     });
   }
-  if (!rows.length && !localCount) {
+  if (!count) {
     return "";
   }
 
   const basicFindingItems = [
     ...secrets.slice(0, 5).map((x) => {
+      const reviewKey = secretLocationKey(x);
+      const review = reviewKey ? reviewBySecretLocation.get(reviewKey) : null;
+      if (review) {
+        return renderCredentialReview(review, x);
+      }
       const loc = `${x.file || "-"}${x.line ? ":" + x.line : ""}`;
       const label = SECRET_TYPE_LABELS[x.type] || x.type || "密钥";
       const preview = x.preview
@@ -3115,15 +3182,18 @@ function renderHygiene(h) {
         : "";
       return `<div class="finding-item finding-item-secret"><span class="finding-loc">${esc(loc)}</span><span class="finding-type">${esc(label)}</span>${preview}${renderSecretEvidence(x)}</div>`;
     }),
+    ...reviewOnlyCredentials.slice(0, 5).map((x) => renderCredentialReview(x)),
     ...sensitive.slice(0, 5).map((x) => {
       const loc = `${x.file || "-"}`;
       const label = SENSITIVE_TYPE_LABELS[x.type] || x.type || "敏感文件";
       return `<div class="finding-item"><span class="finding-loc">${esc(loc)}</span><span class="finding-type">${esc(label)}</span></div>`;
     }),
   ];
-  const basicTotal = secrets.length + sensitive.length;
+  const basicTotal = credentialCount;
   const basicShown =
-    Math.min(secrets.length, 5) + Math.min(sensitive.length, 5);
+    Math.min(secrets.length, 5) +
+    Math.min(reviewOnlyCredentials.length, 5) +
+    Math.min(sensitive.length, 5);
   const basicExtra =
     basicTotal > basicShown
       ? `<div class="finding-more">…及其他 ${basicTotal - basicShown} 处</div>`
@@ -3175,59 +3245,8 @@ function renderHygiene(h) {
 // ---- Outdated dependencies ----
 function renderOutdated(items) {
   items = toList(items);
-  if (DATA.scan_config && DATA.scan_config.scan_mode === "hygiene_only") {
-    return section(
-      "过期依赖",
-      null,
-      `<div class="summary outdated-empty">${miniFields([
-        { label: "扫描范围", value: HYGIENE_ONLY_NOTICE },
-        {
-          label: "提醒",
-          value:
-            "本次未执行依赖版本维护检查；需要完整维护视图时，重新扫描并开启过期依赖检查。",
-        },
-      ])}</div>`,
-      "",
-      "long",
-    );
-  }
-  if (DATA.scan_config && DATA.scan_config.skip_outdated) {
-    return section(
-      "过期依赖",
-      null,
-      `<div class="summary outdated-empty">${miniFields([
-        { label: "事实", value: "本次为了提速跳过了过期依赖检查。" },
-        {
-          label: "为什么要关注",
-          value: "版本长期落后会让未来升级、修复和兼容性验证变得更难。",
-        },
-        {
-          label: "建议动作",
-          value: "需要完整维护视图时，重新扫描并不要使用 --skip-outdated。",
-        },
-      ])}</div>`,
-      "",
-      "long",
-    );
-  }
   if (!items.length) {
-    return section(
-      "过期依赖",
-      0,
-      `<div class="summary outdated-empty">${miniFields([
-        {
-          label: "结论",
-          value: "没有检测到明确的过期依赖，或当前包管理器没有返回可用结果。",
-        },
-        {
-          label: "提醒",
-          value:
-            "过期依赖用于版本维护规划；处理顺序仍以当前风险项和发布窗口为准。",
-        },
-      ])}</div>`,
-      "",
-      "long",
-    );
+    return "";
   }
   const needToggle = items.length > OUTDATED_SHOW;
   const rows = items
@@ -3270,7 +3289,8 @@ function toggleOutdated(btn) {
 
 // ---- Yellow: manual review ----
 function renderYellow(items) {
-  if (!items || !items.length) return "";
+  items = reviewYellowItems(items);
+  if (!items.length) return "";
   const cards = sortBySeverity(items)
     .map((it) => {
       let inner = "";
@@ -3286,6 +3306,65 @@ function renderYellow(items) {
     })
     .join("");
   return section("待确认事项", items.length, cards, "", "review");
+}
+
+function isSecretYellowItem(item) {
+  return item && item.type === "secret_exposure";
+}
+
+function secretYellowItems(items) {
+  return toList(items).filter(isSecretYellowItem);
+}
+
+function reviewYellowItems(items) {
+  return toList(items).filter((item) => !isSecretYellowItem(item));
+}
+
+function secretContextLine(item) {
+  const context = toList(item && item.code_context);
+  const hit = context.find((line) => line && line.match && line.line);
+  if (hit) return hit.line;
+  const first = context.find((line) => line && line.line);
+  if (first) return first.line;
+  const nameMatch = String((item && item.name) || "").match(/:(\d+)\b/);
+  return nameMatch ? nameMatch[1] : "";
+}
+
+function secretLocationKey(item) {
+  const file = String((item && (item.file || item.path)) || "").trim();
+  if (!file) return "";
+  const line = item && item.line ? item.line : secretContextLine(item);
+  return `${file}:${line || ""}`;
+}
+
+function renderCredentialReview(item, fallback) {
+  const merged = Object.assign({}, fallback || {}, item || {});
+  const path = merged.path || merged.file || "";
+  const name =
+    merged.name ||
+    `疑似硬编码凭证：${path || "未知位置"}${merged.line ? ":" + merged.line : ""}`;
+  const sevHtml = merged.severity
+    ? `<span class="item-sev">${sevBadge(merged.severity)}</span>`
+    : "";
+  const route = path
+    ? `<span class="item-route" title="${esc(path)}">${esc(path)}</span>`
+    : "";
+  const evidence = renderSecretEvidence(merged);
+  const fallbackPreview = merged.preview
+    ? `<code class="secret-preview">${esc(merged.preview)}</code>`
+    : "";
+  return `<div class="hygiene-secret-review item yellow">
+  <div class="item-head" onclick="this.parentNode.classList.toggle('open')">
+    <div class="item-main">
+      <div class="item-kicker">${tierBadge("yellow")}${sevHtml}${route}</div>
+      <div class="item-name">${esc(normalizeSecurityLanguage(name))}</div>
+    </div>
+    <span class="item-badge"></span>
+    <span class="chev">▶</span>
+  </div>
+  <div class="item-body">
+    ${evidence || fallbackPreview}
+  </div></div>`;
 }
 
 // ---- Red: high-risk ----

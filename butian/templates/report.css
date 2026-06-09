@@ -30,6 +30,8 @@
     --bg-code: rgba(15, 23, 42, 0.045);
     --code-block-bg: rgba(255, 255, 255, 0.7);
     --code-block-hit: rgba(16, 185, 129, 0.12);
+    --code-button-bg: rgba(255, 255, 255, 0.62);
+    --code-button-hover-bg: rgba(236, 253, 245, 0.7);
     --warning-border: rgba(217, 119, 6, 0.22);
     --warning-bg: rgba(255, 251, 235, 0.74);
     --warning-ink: #92400e;
@@ -706,6 +708,16 @@ td.summary-cell {
 .finding-item-secret {
     width: 100%;
 }
+.hygiene-secret-review.item {
+    width: 100%;
+    margin: 0;
+}
+.hygiene-secret-review .item-head {
+    padding: 13px 14px;
+}
+.hygiene-secret-review .item-body {
+    padding: 12px 14px 14px;
+}
 .finding-loc {
     color: var(--ink);
     font-weight: 600;
@@ -756,11 +768,31 @@ td.summary-cell {
     font-size: 12px;
     font-weight: 720;
 }
-.secret-evidence-head b {
-    color: var(--sub);
+.secret-code-lang {
+    color: var(--accent);
     font-family: var(--mono);
-    font-size: 11px;
-    font-weight: 650;
+    font-size: 12px;
+    font-weight: 720;
+    letter-spacing: 0;
+}
+.secret-copy-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 26px;
+    border: 1px solid var(--field-border);
+    border-radius: 8px;
+    background: var(--code-button-bg);
+    color: var(--accent);
+    padding: 3px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+}
+.secret-copy-btn:hover {
+    border-color: color-mix(in srgb, var(--accent) 28%, var(--field-border));
+    background: var(--code-button-hover-bg);
 }
 .secret-code {
     margin: 0;
@@ -1419,6 +1451,8 @@ footer {
         --bg-code: rgba(255, 255, 255, 0.07);
         --code-block-bg: rgba(255, 255, 255, 0.045);
         --code-block-hit: rgba(16, 185, 129, 0.16);
+        --code-button-bg: rgba(255, 255, 255, 0.06);
+        --code-button-hover-bg: rgba(16, 185, 129, 0.12);
         --warning-border: rgba(251, 191, 36, 0.24);
         --warning-bg: rgba(251, 191, 36, 0.09);
         --warning-ink: #facc15;

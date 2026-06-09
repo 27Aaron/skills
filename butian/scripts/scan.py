@@ -1606,11 +1606,11 @@ def build_secret_code_context(
         return []
 
     start = max(1, line_num - radius)
-    end = min(len(lines), line_num + radius)
+    end = line_num + radius
     context = []
     for idx in range(start, end + 1):
-        content = lines[idx - 1].rstrip("\n").rstrip("\r")
-        if not reveal:
+        content = lines[idx - 1].rstrip("\n").rstrip("\r") if idx <= len(lines) else ""
+        if content and not reveal:
             content = mask_secret_context_line(content)
             if idx == line_num and match_text and preview:
                 content = content.replace(match_text, preview, 1)

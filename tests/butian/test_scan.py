@@ -462,7 +462,7 @@ class IsEnvSecretScanFileTests(unittest.TestCase):
     def test_env_example_secret_keeps_full_preview_and_five_line_context(self):
         with tempfile.TemporaryDirectory(prefix="butian-env-example-secret-") as root:
             key = "sk-proj-" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
-            lines = [f"SETTING_{i}=value{i}" for i in range(1, 20)]
+            lines = [f"SETTING_{i}=value{i}" for i in range(1, 18)]
             lines[16] = f'OPENAI_API_KEY="{key}"'
             with open(os.path.join(root, ".env.example"), "w", encoding="utf-8") as f:
                 f.write("\n".join(lines) + "\n")
@@ -476,6 +476,8 @@ class IsEnvSecretScanFileTests(unittest.TestCase):
             self.assertEqual([item["line"] for item in context], [15, 16, 17, 18, 19])
             self.assertEqual(context[2]["content"], f'OPENAI_API_KEY="{key}"')
             self.assertTrue(context[2]["match"])
+            self.assertEqual(context[3]["content"], "")
+            self.assertEqual(context[4]["content"], "")
 
 
 class NpmLockPackageNameTests(unittest.TestCase):
