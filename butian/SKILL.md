@@ -16,35 +16,32 @@ description: >
 
 # 补天
 
-本地项目安全扫描 Skill。默认面向代码项目：生成 Markdown 审计报告和只读 HTML 报告，帮助非安全背景读者理解依赖漏洞、硬编码凭证、敏感文件跟踪、`.gitignore`、GitHub Actions、依赖维护和 IaC/容器本地配置风险。
+本地安全扫描 Skill。默认面向代码项目，生成 Markdown 审计报告和只读 HTML 报告，帮助非安全背景读者理解依赖漏洞、硬编码凭证、敏感文件跟踪、`.gitignore`、GitHub Actions、依赖维护和 IaC/容器本地配置风险。
 
-硬编码凭证默认脱敏；`.env.example`、`.env.sample`、`.env.template`、`.env.dist` 这类模板文件也只展示脱敏命中值和前后代码上下文，方便定位但不二次泄密。
+服务器扫描是另一个显式能力：只有用户明确要求 Linux 服务器安全扫描，并提供 SSH 目标或离线 inventory 时才启用。服务器扫描只生成 Markdown 报告，不生成 HTML 展示页。
 
 ## 新手快速路径
 
-1. **第一次扫描报告**：在目标项目目录中，让 Agent 调用补天脚本；手动运行时使用脚本绝对路径，例如 `python3 /path/to/butian/scripts/run_audit.py /path/to/project`。它会生成 `.butian/<run-id>/content/security-report.html` 和 `docs/butian/security-report-<run-id>.md`，并尝试自动打开 HTML。先让用户看报告，再问是否修复。
+1. **第一次项目扫描报告**：在目标项目目录中，让 Agent 调用补天脚本；手动运行时使用脚本绝对路径，例如 `python3 /path/to/butian/scripts/run_audit.py /path/to/project`。项目扫描会生成 `.butian/<run-id>/content/security-report.html` 和 `docs/butian/security-report-<run-id>.md`，并尝试自动打开 HTML。先让用户看报告，再问是否修复。
 2. **修复前先确认**：用户明确选择开始修复后，才运行 `fix.py` 或包管理器命令。默认优先升级到已知修复版本；升级到 latest、Dependabot、凭证占位符替换、过期依赖维护都需要用户点头。
-3. **修复完成后的最终报告**：修复和复扫结束后运行 `python3 scripts/run_audit.py --final-report`。最终复扫会再次生成 HTML 和 Markdown，并强制尝试打开最终 HTML；如果用户显式传了 `--no-open`，仍尊重不打开。
+3. **修复完成后的最终报告**：修复和复扫结束后运行 `python3 /path/to/butian/scripts/run_audit.py --final-report /path/to/project`。项目最终复扫会再次生成 HTML 和 Markdown，并尝试打开最终 HTML；如果用户显式传了 `--no-open`，仍尊重不打开。
 4. **默认只处理项目**：不要加 `--server`、`--server-only` 或 `--server-inventory`，除非用户明确要求服务器扫描。普通项目扫描不扫描系统 Python、全局 npm、全局 pnpm 或操作系统包，也不会碰系统升级、系统服务、数据库或日志。
 
 ## 什么时候读哪个 reference
 
-- 项目扫描细节：读 `references/project-scan.md`。
-- Linux 服务器扫描：只有用户明确要求服务器扫描时，读 `references/server-scan.md`。
-- 修复交互和 AskUserQuestion：读 `references/repair-flow.md`。
-- 数据源、缓存、能力边界：读 `references/sources-and-limits.md`。
-- 报告 schema、Markdown/HTML 展示契约：读 `references/report-contract.md`。
+- 项目的安全扫描、报告契约、数据源边界、修复交互和 AskUserQuestion：读 `references/project-scan.md`。
+- Linux 服务器安全扫描、只读 SSH、服务器维护建议和 Markdown 报告契约：只有用户明确要求服务器扫描时，读 `references/server-scan.md`。
 
 ## 铁律
 
-- **扫描阶段不改业务源码和依赖。** 扫描对业务代码、依赖和系统环境只读，不会修改业务源码、依赖、数据库或日志；它会创建/更新 `.butian/` 本地报告工作区、缓存、`docs/butian/security-report-*.md`，以及必要的报告忽略规则，并会确保 `.gitignore` 忽略 `.butian/` 和生成的安全报告文件。
+- **扫描阶段不改业务源码和依赖。** 项目扫描对业务代码和依赖只读；它会创建/更新 `.butian/` 本地报告工作区、缓存、`docs/butian/security-report-*.md`，以及必要的报告忽略规则，并会确保 `.gitignore` 忽略 `.butian/` 和生成的安全报告文件。
 - **默认是项目扫描。** 不主动扫描系统目录、用户主目录、系统 Python、全局 npm、全局 pnpm、操作系统包、系统服务、数据库或日志。
 - **服务器扫描必须由用户明确要求。** 只有用户提供 `--server`、`--server-only --server` 或 `--server-inventory` 时，才进入服务器运行环境扫描。
-- **修复必须先问用户。** 报告生成后，先用 AskUserQuestion 询问是否修复；升级方式、Dependabot、凭证占位符和过期依赖维护都需要确认。
+- **修复必须先问用户。** 项目报告生成后，先用 AskUserQuestion 询问是否修复；升级方式、Dependabot、凭证占位符和过期依赖维护都需要确认。收尾维护动作使用多选 AskUserQuestion 统一确认。
 - **风险项和建议分开呈现。** 已确认风险、仓库安检、过期依赖、服务器维护建议不能混成一种风险。
 - **不制造恐慌。** 没有证据时说“不确定”；任何跳过、API 失败或采集失败都必须保留为不完整检查。
 
-## 默认执行流程
+## 默认项目流程
 
 Agent 优先直接调用本 skill 里的 `run_audit.py`。如果用户手动运行，先确认 shell 位于本 skill 目录；否则使用脚本绝对路径。
 
@@ -56,27 +53,21 @@ python3 scripts/run_audit.py /path/to/project
 python3 /path/to/butian/scripts/run_audit.py /path/to/project
 ```
 
-`scripts/run_audit.py` 默认扫描当前目录并自动向上识别最近的项目根目录。在 monorepo 子项目中运行时，优先使用当前子项目的 manifest/lockfile，不要跳到上层 git repo。需要扫描其他目录时，把路径作为最后一个参数传入。
-
-如果当前 shell 不在本 skill 目录，使用脚本绝对路径：
-
-```bash
-python3 /path/to/butian/scripts/run_audit.py /path/to/project
-```
-
 流水线顺序是：
 
 1. `detect.py`：识别项目根、依赖生态和扫描模式。
 2. `scan.py`：执行仓库安检、依赖解析、官方漏洞源查询和过期依赖检查。
 3. `analyze.py`：生成确定性 `analysis.json`。
 4. `report.py`：生成 Markdown 审计报告。
-5. `visualize.py`：生成自包含 HTML 报告并按打开策略尝试打开。
+5. `visualize.py`：项目扫描生成自包含 HTML 报告并按打开策略尝试打开。
 
 如果输出模式是 `hygiene_only`，必须告诉用户：
 
 ```text
 当前项目未发现支持的应用依赖文件，暂无法执行依赖漏洞扫描；本次仅做仓库安检，检查硬编码密钥、敏感文件跟踪、.gitignore、GitHub Actions、依赖配置与维护和 IaC/容器配置风险。
 ```
+
+完整项目规则见 `references/project-scan.md`。
 
 ## 能力边界
 
@@ -90,20 +81,17 @@ python3 /path/to/butian/scripts/run_audit.py /path/to/project
 > 安全往往不是最显眼的需求，却是产品长期稳定运行的底线。此 Skill 会帮助你发现应用依赖漏洞、过期依赖和仓库暴露风险，帮助团队更早暴露容易被忽视的供应链问题。但依赖漏洞查询只处理本地可确认精确包名和精确版本的应用依赖坐标，不把 Dockerfile、compose、Kubernetes、devcontainer、镜像/SBOM、OS/发行版包、系统包或系统安全公告生态混入 lockfile 扫描，也不能替代代码审计、渗透测试或部署安全评估；业务逻辑、权限控制、SQL 注入、XSS 等代码层风险仍需单独复核。
 ```
 
-更完整的数据源和能力边界见 `references/sources-and-limits.md`。
+## 服务器扫描入口
 
-## 修复交互总览
+服务器扫描只在用户明确要求时使用：
 
-扫描脚本只生成报告，不自动修复。用户看完报告后，Agent 按 `references/repair-flow.md` 进行 AskUserQuestion：
+```bash
+python3 scripts/run_audit.py --server user@example.com /path/to/project
+python3 scripts/run_audit.py --server-only --server user@example.com /path/to/project
+python3 scripts/run_audit.py --server-inventory server-inventory.json /path/to/project
+```
 
-- 是否开始修复：`开始修复` / `先不修复`。
-- 修复方式：`升级到修复版本` / `全部升级到最新版`。
-- 收尾维护：使用多选 AskUserQuestion，选项包含 `处理凭证占位符`、`创建 Dependabot 配置`、`更新过期依赖`、`取消/暂不处理`。
-- 嵌套残留：`继续处理` / `暂不处理`。
-- overrides 场景：`强制覆盖` / `暂不处理`。
-- 最终验证：`运行验证` / `暂不验证`。
-
-如果当前环境不支持 AskUserQuestion，就用普通对话提问，但选项和触发时机不能缩水。
+服务器扫描只做只读 SSH 或离线 inventory 分析，不使用 `sudo`，不修改配置，不重启服务，不安装工具，不读取业务数据库和日志。详细规则见 `references/server-scan.md`。
 
 ## 分步调试入口
 
@@ -117,14 +105,4 @@ python3 scripts/report.py .butian/<run-id>/assets/analysis.json
 python3 scripts/visualize.py .butian/<run-id>/assets/analysis.json
 ```
 
-各脚本参数以 `python3 scripts/<script>.py --help` 为准；维护报告结构前先读 `references/report-contract.md`。
-
-## 最终报告
-
-所有修复轮次结束后，Agent 运行本 skill 的 `run_audit.py --final-report`；手动运行仍使用脚本绝对路径：
-
-```bash
-python3 /path/to/butian/scripts/run_audit.py --final-report /path/to/project
-```
-
-`--final-report` 会重新生成 Markdown 和 HTML，并尝试打开最终 HTML；只有显式传入 `--no-open` 时才跳过自动打开。
+各脚本参数以 `python3 scripts/<script>.py --help` 为准；维护项目扫描、报告或修复流程前先读 `references/project-scan.md`，维护服务器扫描前先读 `references/server-scan.md`。

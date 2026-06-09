@@ -132,38 +132,43 @@ class ButianScriptInventoryTests(unittest.TestCase):
         with open(SKILL_PATH, "r", encoding="utf-8") as handle:
             text = handle.read()
 
-        repair_path = os.path.join(REFERENCE_DIR, "repair-flow.md")
-        with open(repair_path, "r", encoding="utf-8") as handle:
-            repair_text = handle.read()
+        project_path = os.path.join(REFERENCE_DIR, "project-scan.md")
+        with open(project_path, "r", encoding="utf-8") as handle:
+            project_text = handle.read()
 
-        self.assertIn("references/repair-flow.md", text)
-        self.assertIn("待确认动作队列", repair_text)
-        self.assertIn("硬编码凭证占位符", repair_text)
-        self.assertIn("创建 Dependabot 配置", repair_text)
-        self.assertIn("更新过期依赖", repair_text)
-        self.assertIn("处理凭证占位符", repair_text)
+        self.assertIn("references/project-scan.md", text)
+        self.assertNotIn("references/repair-flow.md", text)
+        self.assertFalse(
+            os.path.exists(os.path.join(REFERENCE_DIR, "repair-flow.md")),
+            "AskUserQuestion 契约应合并回项目扫描 reference，避免拆分过碎",
+        )
+        self.assertIn("待确认动作队列", project_text)
+        self.assertIn("硬编码凭证占位符", project_text)
+        self.assertIn("创建 Dependabot 配置", project_text)
+        self.assertIn("更新过期依赖", project_text)
+        self.assertIn("处理凭证占位符", project_text)
         self.assertIn("多选 AskUserQuestion", text)
-        self.assertIn("取消/暂不处理", repair_text)
-        self.assertIn("建议优先处理本次发现的已确认风险项", repair_text)
-        self.assertIn("建议优先选择改动较小的修复方式", repair_text)
-        self.assertIn("建议顺手处理下面这些维护动作", repair_text)
-        self.assertIn("Dependabot 是 GitHub 的依赖更新助手", repair_text)
-        self.assertIn("建议现在运行项目构建或测试", repair_text)
-        self.assertIn("开始修复", repair_text)
-        self.assertIn("先不修复", repair_text)
-        self.assertIn("升级到修复版本", repair_text)
-        self.assertIn("全部升级到最新版", repair_text)
-        self.assertIn("运行验证", repair_text)
-        self.assertNotIn("AskUserQuestion 单独确认", repair_text)
-        self.assertIn("用户选择暂不处理", repair_text)
-        self.assertIn("升级父依赖并重新扫描", repair_text)
-        self.assertIn("不弹出待确认动作队列", repair_text)
+        self.assertIn("取消/暂不处理", project_text)
+        self.assertIn("建议优先处理本次发现的已确认风险项", project_text)
+        self.assertIn("建议优先选择改动较小的修复方式", project_text)
+        self.assertIn("建议顺手处理下面这些维护动作", project_text)
+        self.assertIn("Dependabot 是 GitHub 的依赖更新助手", project_text)
+        self.assertIn("建议现在运行项目构建或测试", project_text)
+        self.assertIn("开始修复", project_text)
+        self.assertIn("先不修复", project_text)
+        self.assertIn("升级到修复版本", project_text)
+        self.assertIn("全部升级到最新版", project_text)
+        self.assertIn("运行验证", project_text)
+        self.assertNotIn("AskUserQuestion 单独确认", project_text)
+        self.assertIn("用户选择暂不处理", project_text)
+        self.assertIn("升级父依赖并重新扫描", project_text)
+        self.assertIn("不弹出待确认动作队列", project_text)
 
     def test_run_audit_docs_delegate_repair_contract_to_reference(self):
         with open(os.path.join(DOC_DIR, "run_audit.md"), "r", encoding="utf-8") as handle:
             text = handle.read()
 
-        self.assertIn("完整修复交互契约以 `butian/references/repair-flow.md` 为准", text)
+        self.assertIn("完整修复交互契约以 `butian/references/project-scan.md` 为准", text)
         self.assertNotIn("建议顺手处理下面这些维护动作", text)
         self.assertNotIn("Dependabot 是 GitHub 的依赖更新助手", text)
 
@@ -203,15 +208,23 @@ class ButianScriptInventoryTests(unittest.TestCase):
         for reference in (
             "references/project-scan.md",
             "references/server-scan.md",
-            "references/repair-flow.md",
-            "references/sources-and-limits.md",
-            "references/report-contract.md",
         ):
             with self.subTest(reference=reference):
                 self.assertIn(reference, text)
                 self.assertTrue(
                     os.path.isfile(os.path.join(ROOT, "butian", reference)),
                     f"missing {reference}",
+                )
+        for reference in (
+            "references/repair-flow.md",
+            "references/sources-and-limits.md",
+            "references/report-contract.md",
+        ):
+            with self.subTest(reference=reference):
+                self.assertNotIn(reference, text)
+                self.assertFalse(
+                    os.path.exists(os.path.join(ROOT, "butian", reference)),
+                    f"{reference} should be merged into project/server references",
                 )
 
     def test_project_and_server_reference_boundaries(self):

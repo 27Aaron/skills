@@ -95,7 +95,7 @@ run_audit.py
 └─ 输出终端摘要
 ```
 
-`run_audit.py` 不执行依赖升级，也不询问用户是否修复。完整修复交互契约以 `butian/references/repair-flow.md` 为准；本页只说明脚本编排和输出边界。
+`run_audit.py` 不执行依赖升级，也不询问用户是否修复。完整修复交互契约以 `butian/references/project-scan.md` 为准；本页只说明脚本编排和输出边界。
 
 Agent 工作流在用户看完报告后再进入 AskUserQuestion：先确认是否修复，再选择升级策略；修复后重新运行 `run_audit.py` 复扫。复扫确认仍有 npm 嵌套残留时，才进入 `parent-upgrade` 或 `force-residual` 后续轮次。Dependabot、凭证占位符和过期依赖维护属于收尾维护动作，不由 `run_audit.py` 自动执行。
 

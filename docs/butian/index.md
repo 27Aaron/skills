@@ -8,15 +8,12 @@
 
 ## Skill 场景化参考
 
-公开发布后的 `butian/SKILL.md` 是轻量入口。详细内容按使用场景下沉到 `butian/references/`，减少普通扫描时的阅读负担。
+公开发布后的 `butian/SKILL.md` 是轻量入口。详细内容按两类核心场景下沉到 `butian/references/`，减少普通扫描时的阅读负担。
 
 | 场景 | 参考文件 | 说明 |
 | ---- | -------- | ---- |
-| 默认项目扫描 | `butian/references/project-scan.md` | 项目扫描范围、hygiene-only 口径、报告路径和分步调试 |
-| Linux 服务器扫描 | `butian/references/server-scan.md` | 只读 SSH 边界、启用方式、Docker 元数据和服务器风险证据标准 |
-| 修复交互 | `butian/references/repair-flow.md` | AskUserQuestion 选项、待确认动作队列、嵌套残留和最终验证 |
-| 数据源和边界 | `butian/references/sources-and-limits.md` | OSV/NVD/CISA/EPSS、缓存、错误处理和非覆盖范围 |
-| 报告契约 | `butian/references/report-contract.md` | analysis JSON、Markdown 和 HTML 报告输出契约 |
+| 项目的安全扫描 | `butian/references/project-scan.md` | 项目扫描范围、数据源边界、报告契约、AskUserQuestion 修复交互和分步调试 |
+| 服务器的安全扫描 | `butian/references/server-scan.md` | 只读 SSH 边界、启用方式、OpenSSH/防火墙维护建议、Docker 元数据和服务器风险证据标准 |
 
 ## 管线总览
 
