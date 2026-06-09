@@ -6,6 +6,18 @@
 
 这组文档覆盖 `butian/scripts` 下每个行为脚本，并说明测试入口、输入输出、边界和维护注意事项。新增脚本时需要同步补测试和文档，否则 `tests/butian/test_scripts_inventory.py` 会失败。
 
+## Skill 场景化参考
+
+公开发布后的 `butian/SKILL.md` 是轻量入口。详细内容按使用场景下沉到 `butian/references/`，减少普通扫描时的阅读负担。
+
+| 场景 | 参考文件 | 说明 |
+| ---- | -------- | ---- |
+| 默认项目扫描 | `butian/references/project-scan.md` | 项目扫描范围、hygiene-only 口径、报告路径和分步调试 |
+| Linux 服务器扫描 | `butian/references/server-scan.md` | 只读 SSH 边界、启用方式、Docker 元数据和服务器风险证据标准 |
+| 修复交互 | `butian/references/repair-flow.md` | AskUserQuestion 选项、待确认动作队列、嵌套残留和最终验证 |
+| 数据源和边界 | `butian/references/sources-and-limits.md` | OSV/NVD/CISA/EPSS、缓存、错误处理和非覆盖范围 |
+| 报告契约 | `butian/references/report-contract.md` | analysis JSON、Markdown 和 HTML 报告输出契约 |
+
 ## 管线总览
 
 | 步骤 | 脚本                                                                                  | 主要输入                 | 主要输出                                     | 说明                                                         |
