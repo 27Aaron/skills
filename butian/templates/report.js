@@ -831,7 +831,7 @@ function shortFixedVersionText(r) {
 function versionScrollHtml(value, extraClass = "") {
   const text = String(value || "");
   const classes = [extraClass, "version-scroll"].filter(Boolean).join(" ");
-  return `<span class="${classes}" title="${esc(text)}">${esc(text)}</span>`;
+  return `<span class="${classes}" title="${esc(text)}"><span class="version-scroll-inner">${esc(text)}</span></span>`;
 }
 
 function fixedVersionHtml(r) {
@@ -3027,6 +3027,11 @@ function toggleVulns(btn) {
   const rows = table.querySelectorAll(".vuln-extra:not(.vuln-detail-row)");
   btn.setAttribute("aria-expanded", expanded ? "true" : "false");
   btn.textContent = expanded ? "收起" : `余下 ${rows.length} 项`;
+  if (typeof requestAnimationFrame === "function") {
+    requestAnimationFrame(() => initVersionScroll(table));
+  } else {
+    initVersionScroll(table);
+  }
 }
 
 const VULN_DETAIL_SCAN_DELAY_MS = 380;
@@ -3184,11 +3189,38 @@ function initCustomTooltips(root) {
   });
 }
 
+function initVersionScroll(root) {
+  if (!root || typeof root.querySelectorAll !== "function") return;
+  root.querySelectorAll(".version-scroll").forEach((target) => {
+    const inner = target.querySelector(".version-scroll-inner");
+    if (!inner) return;
+
+    target.classList.remove("is-overflowing");
+    target.style.removeProperty("--version-scroll-distance");
+    target.style.removeProperty("--version-scroll-duration");
+    target.removeAttribute("tabindex");
+    target.removeAttribute("aria-label");
+
+    const distance = Math.max(0, inner.scrollWidth - target.clientWidth);
+    if (distance <= 4) return;
+
+    target.classList.add("is-overflowing");
+    target.style.setProperty("--version-scroll-distance", `${distance}px`);
+    target.style.setProperty(
+      "--version-scroll-duration",
+      `${Math.max(6, Math.min(16, distance / 10 + 5)).toFixed(1)}s`,
+    );
+    target.setAttribute("tabindex", "0");
+    target.setAttribute("aria-label", inner.textContent || "");
+  });
+}
+
 if (
   typeof window !== "undefined" &&
   typeof window.addEventListener === "function"
 ) {
   window.addEventListener("resize", () => {
+    initVersionScroll(document.getElementById("app"));
     if (customTooltipTarget) positionCustomTooltip(customTooltipTarget);
   });
   window.addEventListener(
@@ -3757,4 +3789,5 @@ app.innerHTML =
   renderRed(DATA.red) +
   renderYellow(DATA.yellow) +
   renderErrors();
+initVersionScroll(app);
 initCustomTooltips(app);

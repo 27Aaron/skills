@@ -413,7 +413,7 @@ class ReportAssetTests(unittest.TestCase):
         self.assertIn('class="fixed-list"', html)
         self.assertEqual(html.count('class="fixed-chip version-scroll"'), 1)
         self.assertIn(
-            '<span class="fixed-chip version-scroll" title="13.0.1">13.0.1</span>',
+            '<span class="fixed-chip version-scroll" title="13.0.1"><span class="version-scroll-inner">13.0.1</span></span>',
             html,
         )
         self.assertNotIn('<span class="fixed-chip version-scroll">11.1.1</span>', html)
@@ -997,11 +997,11 @@ class ReportAssetTests(unittest.TestCase):
         self.assertIn("CVE-2026-44578", next_row)
         self.assertIn("GHSA-c4j6-fc7j-m34r", next_row)
         self.assertIn(
-            '<span class="version-scroll" title="16.2.4">16.2.4</span>',
+            '<span class="version-scroll" title="16.2.4"><span class="version-scroll-inner">16.2.4</span></span>',
             next_row,
         )
         self.assertIn(
-            '<span class="fixed-chip version-scroll" title="16.2.5">16.2.5</span>',
+            '<span class="fixed-chip version-scroll" title="16.2.5"><span class="version-scroll-inner">16.2.5</span></span>',
             next_row,
         )
         self.assertNotIn("17.0.0", next_row)
@@ -1056,11 +1056,11 @@ class ReportAssetTests(unittest.TestCase):
 
         row = html.split('title="golang.org/x/crypto"', 1)[1].split("</tr>", 1)[0]
         self.assertIn(
-            '<span class="version-scroll" title="v0.0.0-20200622213623-75b288015ac9">v0.0.0-20200622213623-75b288015ac9</span>',
+            '<span class="version-scroll" title="v0.0.0-20200622213623-75b288015ac9"><span class="version-scroll-inner">v0.0.0-20200622213623-75b288015ac9</span></span>',
             row,
         )
         self.assertIn(
-            '<span class="fixed-chip version-scroll" title="v0.0.0-20260622213623-75b288015ac9">v0.0.0-20260622213623-75b288015ac9</span>',
+            '<span class="fixed-chip version-scroll" title="v0.0.0-20260622213623-75b288015ac9"><span class="version-scroll-inner">v0.0.0-20260622213623-75b288015ac9</span></span>',
             row,
         )
 
@@ -1071,6 +1071,17 @@ class ReportAssetTests(unittest.TestCase):
         self.assertIn("max-width: 100%;", version_scroll_css)
         self.assertIn("overflow-x: auto;", version_scroll_css)
         self.assertIn("white-space: nowrap;", version_scroll_css)
+        self.assertIn(".version-scroll-inner", css)
+        self.assertIn(".version-scroll.is-overflowing .version-scroll-inner", css)
+        self.assertIn("@keyframes version-scroll-marquee", css)
+
+        with open(REPORT_JS, "r", encoding="utf-8") as handle:
+            js = handle.read()
+        self.assertIn("function initVersionScroll", js)
+        self.assertIn('classList.add("is-overflowing")', js)
+        self.assertIn('--version-scroll-distance', js)
+        self.assertIn("initVersionScroll(app)", js)
+        self.assertIn("initVersionScroll(table)", js)
 
     def test_html_report_assets_only_ship_secret_evidence_copy_handler(self):
         with open(REPORT_JS, "r", encoding="utf-8") as handle:
