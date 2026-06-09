@@ -143,12 +143,15 @@ def _latest_commands(ecosystem, package, project_path=None):
 
 
 # ---------------------------------------------------------------------------
-# Upgrade ALL dependencies to latest (not just vulnerable ones)
+# Bulk latest upgrades
 # ---------------------------------------------------------------------------
 
 
 def build_all_latest_commands(project_path):
     """Build commands to upgrade ALL project dependencies to latest versions.
+
+    The latest strategy is intentionally broad: it upgrades every detected
+    dependency in a supported ecosystem, not only packages tied to advisories.
 
     Detects ecosystems from project files and generates bulk-upgrade
     commands for each detected ecosystem.
@@ -471,7 +474,12 @@ def _load_json_file(path):
 
 
 def build_npm_parent_upgrade_plan(analysis, project_path=None):
-    """Build npm parent-upgrade actions for vulnerable nested lockfile entries."""
+    """Build npm parent-upgrade actions for vulnerable nested lockfile entries.
+
+    Parent-upgrade is a second-round repair. It should be used after a normal
+    upgrade plus rescan proves that an old nested npm copy is still locked by a
+    parent package.
+    """
     project_path = project_path or (analysis.get("project") or {}).get("path") or "."
     lock_path = os.path.join(project_path, "package-lock.json")
     package_json_path = os.path.join(project_path, "package.json")
@@ -551,6 +559,9 @@ def build_npm_parent_upgrade_plan(analysis, project_path=None):
 def build_force_residual_overrides(analysis, project_path=None):
     """Build npm overrides map for unfixable nested residuals.
 
+    force-residual writes a durable npm policy into package.json. Use it only
+    after parent-upgrade cannot trace a safer root dependency update.
+
     Returns a dict with:
       - overrides: {package_name: target_version_or_ref, ...}
       - items: list of dicts with package, current_version, target_version, note
@@ -565,7 +576,8 @@ def build_force_residual_overrides(analysis, project_path=None):
         result["skipped"].append("未找到 package.json，无法写入 overrides。")
         return result
 
-    # Get the parent upgrade plan to find unfixable items
+    # Reuse parent-upgrade analysis so overrides only target entries that cannot
+    # be traced back to a safer root dependency update.
     plan = build_npm_parent_upgrade_plan(analysis, project_path)
     unfixable = list(plan.get("unfixable") or [])
 
@@ -589,7 +601,8 @@ def build_force_residual_overrides(analysis, project_path=None):
         result["skipped"].append("没有需要强制覆盖的残留依赖。")
         return result
 
-    # Determine which packages are direct root dependencies
+    # Root dependencies need the "$pkg" self-reference form; hardcoding their
+    # versions can trigger npm override conflicts.
     pkg_json = (
         _load_json_file(package_json_path) if os.path.isfile(package_json_path) else {}
     )
@@ -601,8 +614,6 @@ def build_force_residual_overrides(analysis, project_path=None):
         pkg = entry["package"]
         target = entry["target_version"]
         if pkg and target:
-            # For root deps, use "$pkg" ref to avoid Override conflict;
-            # for pure transitive deps, use explicit version.
             if pkg in root_deps:
                 result["overrides"][pkg] = f"${pkg}"
             else:
@@ -622,17 +633,16 @@ def execute_force_residual_fixes(analysis, project_path):
 
     package_json_path = os.path.join(project_path, "package.json")
 
-    # Read current package.json
     with open(package_json_path, "r", encoding="utf-8") as f:
         pkg_data = json.load(f)
 
-    # Merge overrides (preserve existing user overrides)
+    # Preserve existing user overrides; this strategy may only add or replace
+    # the generated keys needed for the confirmed residual items.
     existing_overrides = pkg_data.get("overrides") or {}
     new_overrides = result["overrides"]
     merged = {**existing_overrides, **new_overrides}
     pkg_data["overrides"] = merged
 
-    # Write back
     with open(package_json_path, "w", encoding="utf-8") as f:
         json.dump(pkg_data, f, indent=2, ensure_ascii=False)
         f.write("\n")
@@ -641,7 +651,8 @@ def execute_force_residual_fixes(analysis, project_path):
     for pkg, ver in sorted(new_overrides.items()):
         print(f'    - "{pkg}": "{ver}"')
 
-    # Run npm install to apply overrides
+    # Materialize overrides into package-lock.json so the follow-up scan sees
+    # the enforced dependency graph.
     print("  正在运行 npm install...")
     ok, err = _run_npm_install(project_path)
     if ok:
@@ -736,7 +747,8 @@ def _cleanup_stale_nested(lock_path, project_path, plan):
             continue
         del packages[lock_key]
         removed.append(lock_key)
-        # Also delete the physical nested directory
+        # Remove the cached nested copy as well; otherwise npm can keep stale
+        # node_modules content even after the lockfile path is removed.
         if os.path.exists(target):
             shutil.rmtree(target, ignore_errors=True)
     if removed:
@@ -880,6 +892,11 @@ def normalize_strategy(strategy):
 
 
 def should_execute(args):
+    """Return True only when the user explicitly opted into mutation.
+
+    Dry-run is the safety boundary for the standalone CLI; AskUserQuestion
+    confirmation happens before callers pass --yes.
+    """
     return bool(getattr(args, "yes", False)) and not bool(
         getattr(args, "dry_run", False)
     )
@@ -950,7 +967,7 @@ def main(argv=None):
     strategy = normalize_strategy(args.strategy)
     project_path = analysis.get("project", {}).get("path") or "."
 
-    # --- Strategy: latest - upgrade ALL deps, not just vulnerable ones ---
+    # latest upgrades all detected dependencies and is not a targeted advisory fix.
     if strategy == "latest":
         commands = build_all_latest_commands(project_path)
         if not commands:
@@ -978,7 +995,7 @@ def main(argv=None):
             print(f"  {line}")
         return 1 if failures else 0
 
-    # --- Strategy: parent-upgrade ---
+    # parent-upgrade follows a rescan-confirmed npm nested residual.
     if strategy == "parent-upgrade":
         if not should_execute(args):
             print_execution_plan(
@@ -1002,7 +1019,7 @@ def main(argv=None):
             print(f"  {line}")
         return 1 if failures else 0
 
-    # --- Strategy: force-residual ---
+    # force-residual leaves package.json policy behind and must stay explicit.
     if strategy == "force-residual":
         if not should_execute(args):
             print_execution_plan(
@@ -1026,7 +1043,7 @@ def main(argv=None):
             print(f"  {line}")
         return 1 if failures else 0
 
-    # --- Strategy: dependabot ---
+    # dependabot writes governance configuration, not dependency upgrade output.
     if strategy == "dependabot":
         if not should_execute(args):
             items = extract_dependabot_config_items(analysis)
@@ -1059,7 +1076,7 @@ def main(argv=None):
             print("  未创建 Dependabot 配置，请先处理上面的失败原因。")
         return 1 if failures else 0
 
-    # --- Strategy: minimal/fixed - only upgrade vulnerable packages ---
+    # minimal/fixed is the targeted path generated from analysis fix_config.
     fix_items = extract_fixable_items(analysis)
     if not fix_items:
         logger.info("未发现可修复的漏洞")

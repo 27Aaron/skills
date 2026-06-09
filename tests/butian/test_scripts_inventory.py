@@ -253,6 +253,19 @@ class ButianScriptInventoryTests(unittest.TestCase):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, text)
 
+    def test_fix_comments_preserve_repair_safety_boundaries(self):
+        with open(os.path.join(SCRIPT_DIR, "fix.py"), "r", encoding="utf-8") as handle:
+            text = handle.read()
+
+        for phrase in (
+            "The latest strategy is intentionally broad",
+            "Parent-upgrade is a second-round repair",
+            "force-residual writes a durable npm policy",
+            "Dry-run is the safety boundary",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, text)
+
 
 if __name__ == "__main__":
     unittest.main()
