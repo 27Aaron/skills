@@ -823,8 +823,13 @@ function fixedVersionHtml(r) {
   const versions = toList(
     r.fixed_versions || r.fix_versions || r.patched_versions,
   );
-  if (!versions.length) return '<span class="fixed-empty">待确认</span>';
-  return `<div class="fixed-list">${versions
+  const currentVersion = r && r.version;
+  const higherVersions = currentVersion
+    ? versions.filter((version) => compareVersions(version, currentVersion) > 0)
+    : versions;
+  const displayVersions = higherVersions.length ? higherVersions : versions;
+  if (!displayVersions.length) return '<span class="fixed-empty">待确认</span>';
+  return `<div class="fixed-list">${displayVersions
     .map((version) => `<span class="fixed-chip">${esc(version)}</span>`)
     .join("")}</div>`;
 }
@@ -2325,7 +2330,6 @@ function isRenderableOutdated(it) {
 
 function securityIds(r) {
   const cves = [];
-  const ghsas = [];
   const push = (v) => {
     if (Array.isArray(v)) {
       v.forEach(push);
@@ -2340,9 +2344,6 @@ function securityIds(r) {
         if (/^CVE-/i.test(id)) {
           if (!cves.some((x) => x.toLowerCase() === id.toLowerCase()))
             cves.push(id);
-        } else if (/^GHSA-/i.test(id)) {
-          if (!ghsas.some((x) => x.toLowerCase() === id.toLowerCase()))
-            ghsas.push(id);
         }
       });
   };
@@ -2354,7 +2355,7 @@ function securityIds(r) {
   push(r.aliases);
   push(r.advisory_aliases);
 
-  return [...cves, ...ghsas];
+  return cves;
 }
 
 function securityIdUrl(id) {

@@ -341,7 +341,10 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertNotIn("有新版本 4.12.21 可用", html)
         self.assertNotIn("建议在近期迭代中安排升级", html)
         self.assertIn('class="fixed-list"', html)
-        self.assertEqual(html.count('class="fixed-chip"'), 3)
+        self.assertEqual(html.count('class="fixed-chip"'), 1)
+        self.assertIn('<span class="fixed-chip">13.0.1</span>', html)
+        self.assertNotIn('<span class="fixed-chip">11.1.1</span>', html)
+        self.assertNotIn('<span class="fixed-chip">12.0.1</span>', html)
         self.assertNotIn("11.1.1、12.0.1、13.0.1", html)
 
         with open(REPORT_CSS, "r", encoding="utf-8") as handle:
@@ -737,6 +740,59 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertNotIn("服务器上不该公开的文件", html)
         self.assertNotIn("关键数据被覆盖", html)
         self.assertNotIn("当前版本命中已公开安全公告", html)
+
+    def test_current_risk_table_shows_only_cve_and_higher_fixed_versions(self):
+        data = {
+            "generated_at": "2026-06-05 09:05:50",
+            "project": {
+                "name": "demo",
+                "path": "/tmp/demo",
+                "ecosystems": ["npm"],
+                "total_packages": 2,
+            },
+            "scan_config": {"scan_mode": "full_dependency_scan"},
+            "risk_summary": {
+                "critical": 0,
+                "high": 2,
+                "medium": 0,
+                "low": 0,
+                "info": 0,
+            },
+            "summary": {"tldr": "demo", "detail": "demo", "priority": []},
+            "top_issues": [
+                {
+                    "package": "next",
+                    "version": "16.2.4",
+                    "severity": "high",
+                    "fixed_versions": ["15.5.16", "16.2.5"],
+                    "advisory_id": "GHSA-c4j6-fc7j-m34r",
+                    "cve_id": "CVE-2026-44578",
+                    "summary": "Next.js vulnerable to server-side request forgery in applications using WebSocket upgrades",
+                },
+                {
+                    "package": "ghsa-only-lib",
+                    "version": "1.2.3",
+                    "severity": "high",
+                    "fixed_versions": ["1.2.4"],
+                    "advisory_id": "GHSA-only-test-id",
+                    "summary": "Package has an advisory without a CVE identifier",
+                },
+            ],
+            "hygiene": {},
+            "outdated": [],
+        }
+
+        html = self._render_html(data)
+
+        next_row = html.split('title="next"', 1)[1].split("</tr>", 1)[0]
+        self.assertIn("CVE-2026-44578", next_row)
+        self.assertNotIn("GHSA-c4j6-fc7j-m34r", next_row)
+        self.assertIn('<span class="fixed-chip">16.2.5</span>', next_row)
+        self.assertNotIn("15.5.16", next_row)
+
+        ghsa_only_row = html.split('title="ghsa-only-lib"', 1)[1].split("</tr>", 1)[0]
+        self.assertIn('<span style="color:var(--sub)">-</span>', ghsa_only_row)
+        self.assertNotIn("GHSA-only-test-id", ghsa_only_row)
 
     def test_html_report_assets_only_ship_secret_evidence_copy_handler(self):
         with open(REPORT_JS, "r", encoding="utf-8") as handle:
