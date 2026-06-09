@@ -55,6 +55,22 @@ class ScanPipelineTests(unittest.TestCase):
         self.assertEqual(scan.find_project_root(app), app)
 
 
+class WorkspaceSafetyTests(unittest.TestCase):
+    def test_rejects_symlink_to_protected_project_root(self):
+        home = os.path.expanduser("~")
+        if not home or home == "~":
+            self.skipTest("home directory is unavailable")
+        with tempfile.TemporaryDirectory(prefix="butian-safe-path-") as root:
+            link_path = os.path.join(root, "home-link")
+            try:
+                os.symlink(home, link_path)
+            except (AttributeError, OSError) as exc:
+                self.skipTest(f"symlink unavailable: {exc}")
+
+            with self.assertRaises(ValueError):
+                workspace.ensure_safe_project_path(link_path)
+
+
 # ---------------------------------------------------------------------------
 # dependency_parsers module compatibility
 # ---------------------------------------------------------------------------

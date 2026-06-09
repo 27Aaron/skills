@@ -72,6 +72,14 @@ def _is_filesystem_root(path):
     return os.path.dirname(absolute) == absolute
 
 
+def _protected_scan_roots():
+    roots = set()
+    for root in _PROTECTED_SCAN_ROOTS:
+        roots.add(os.path.abspath(root))
+        roots.add(os.path.realpath(root))
+    return roots
+
+
 def has_gitignore_entry(content, entry):
     normalized = str(entry or "").strip().rstrip("/")
     candidates = {normalized, f"{normalized}/"}
@@ -248,7 +256,12 @@ def default_asset_path(project_path, filename, preflight=None):
 
 
 def is_protected_project_path(path):
-    return _is_filesystem_root(path) or os.path.abspath(path) in _PROTECTED_SCAN_ROOTS
+    absolute = os.path.abspath(path)
+    real = os.path.realpath(path)
+    if _is_filesystem_root(absolute) or _is_filesystem_root(real):
+        return True
+    protected_roots = _protected_scan_roots()
+    return absolute in protected_roots or real in protected_roots
 
 
 def ensure_safe_project_path(project_path):
