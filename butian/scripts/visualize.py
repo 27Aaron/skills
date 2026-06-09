@@ -82,6 +82,11 @@ def parse_args(argv):
         action="store_true",
         help="do not open the generated HTML report in the default browser",
     )
+    parser.add_argument(
+        "--force-open",
+        action="store_true",
+        help="open the generated HTML report even when a previous scan already completed",
+    )
     return parser.parse_args(argv)
 
 
@@ -127,6 +132,8 @@ def open_decision(args, output_path=None):
     value = os.environ.get("BUTIAN_NO_OPEN", "")
     if value.strip().lower() in {"1", "true", "yes", "on"}:
         return False, "environment"
+    if getattr(args, "force_open", False):
+        return True, "open"
     # Only open the browser on the very first scan for this project.
     if output_path and _first_scan_done(output_path):
         return False, "first_scan_done"

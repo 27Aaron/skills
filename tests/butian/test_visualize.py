@@ -188,6 +188,27 @@ class ShouldOpenReportTests(unittest.TestCase):
         self.assertFalse(should_open)
         self.assertEqual(reason, "first_scan_done")
 
+    def test_force_open_ignores_first_scan_marker(self):
+        with tempfile.TemporaryDirectory(prefix="butian-viz-") as root:
+            output = os.path.join(
+                root, ".butian", "20260605-1200", "content", "security-report.html"
+            )
+            os.makedirs(os.path.dirname(output))
+            with open(os.path.join(root, ".butian", visualize.FIRST_SCAN_MARKER), "w"):
+                pass
+
+            args = SimpleNamespace(no_open=False, force_open=True)
+            should_open, reason = visualize.open_decision(args, output)
+
+        self.assertTrue(should_open)
+        self.assertEqual(reason, "open")
+
+    def test_no_open_still_overrides_force_open(self):
+        args = SimpleNamespace(no_open=True, force_open=True)
+        should_open, reason = visualize.open_decision(args)
+        self.assertFalse(should_open)
+        self.assertEqual(reason, "no_open")
+
 
 class FirstScanMarkerTests(unittest.TestCase):
     def test_marker_is_written_when_browser_open_fails_after_html_generation(self):
@@ -257,6 +278,10 @@ class ParseArgsTests(unittest.TestCase):
     def test_no_open_flag(self):
         args = visualize.parse_args(["--no-open", "analysis.json"])
         self.assertTrue(args.no_open)
+
+    def test_force_open_flag(self):
+        args = visualize.parse_args(["--force-open", "analysis.json"])
+        self.assertTrue(args.force_open)
 
 
 # ---------------------------------------------------------------------------

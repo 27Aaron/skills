@@ -598,6 +598,25 @@ class BuildScanCmdTests(unittest.TestCase):
         self.assertIn("100", cmd)
 
 
+class BuildVisualizeCmdTests(unittest.TestCase):
+    def test_final_report_forces_open(self):
+        args = SimpleNamespace(no_open=False, final_report=True)
+        cmd = run_audit.build_visualize_cmd(args, "analysis.json", "report.html")
+        self.assertIn("--force-open", cmd)
+        self.assertNotIn("--no-open", cmd)
+
+    def test_no_open_still_passed_for_final_report(self):
+        args = SimpleNamespace(no_open=True, final_report=True)
+        cmd = run_audit.build_visualize_cmd(args, "analysis.json", "report.html")
+        self.assertIn("--force-open", cmd)
+        self.assertIn("--no-open", cmd)
+
+    def test_normal_scan_does_not_force_open(self):
+        args = SimpleNamespace(no_open=False, final_report=False)
+        cmd = run_audit.build_visualize_cmd(args, "analysis.json", "report.html")
+        self.assertNotIn("--force-open", cmd)
+
+
 class ServerArgsTests(unittest.TestCase):
     def test_parse_server_args(self):
         args = run_audit.parse_args(

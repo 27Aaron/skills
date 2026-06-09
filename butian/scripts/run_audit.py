@@ -633,6 +633,20 @@ def build_scan_cmd(args, preflight_file):
     return cmd
 
 
+def build_visualize_cmd(args, analysis_path, html_path):
+    cmd = [
+        sys.executable,
+        script_path("visualize.py"),
+        analysis_path,
+        html_path,
+    ]
+    if args.final_report:
+        cmd.append("--force-open")
+    if args.no_open:
+        cmd.append("--no-open")
+    return cmd
+
+
 def build_server_scan_payload(inventory, project_path):
     server_inventory = import_server_module("server_inventory")
     server_match = import_server_module("server_match")
@@ -825,14 +839,7 @@ def main():
     # Step 5: HTML report
     html_path = html_report_path(run_dir)
     os.makedirs(os.path.dirname(html_path), exist_ok=True)
-    build_report_cmd = [
-        sys.executable,
-        script_path("visualize.py"),
-        analysis_path,
-        html_path,
-    ]
-    if args.no_open:
-        build_report_cmd.append("--no-open")
+    build_report_cmd = build_visualize_cmd(args, analysis_path, html_path)
     run_text(
         build_report_cmd,
         echo=True,

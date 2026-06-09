@@ -18,6 +18,13 @@ description: >
 
 本地项目安全扫描。产出 Markdown 审计报告 + 只读 HTML 报告，面向产品经理、项目负责人等非安全背景读者。扫描不会修改业务源码、依赖、数据库或日志；但会写入本地 `.butian/`、`docs/butian/security-report-*.md`，并会直接确保 `.gitignore` 忽略 `.butian/` 与生成的安全报告文件；修复需用户确认。
 
+## 新手快速路径
+
+1. **第一次扫描报告**：在项目目录运行 `python3 scripts/run_audit.py`。它会生成 `.butian/<run-id>/content/security-report.html` 和 `docs/butian/security-report-<run-id>.md`，并尝试自动打开 HTML。先让用户看报告，再问是否修复。
+2. **修复前先确认**：用户明确选择开始修复后，才运行 `fix.py` 或包管理器命令。默认优先升级到已知修复版本；升级到 latest、Dependabot、凭证占位符替换、过期依赖维护都需要用户点头。
+3. **修复完成后的最终报告**：修复和复扫结束后运行 `python3 scripts/run_audit.py --final-report`。最终复扫会再次生成 HTML 和 Markdown，并强制尝试打开最终 HTML；如果用户显式传了 `--no-open`，仍尊重不打开。
+4. **默认只处理项目**：不要加 `--server`、`--server-only` 或 `--server-inventory`，除非用户明确要求服务器扫描。普通项目扫描不扫描系统 Python、全局 npm、全局 pnpm 或操作系统包，也不会碰系统升级、系统服务、数据库或日志。
+
 ## 它会查什么
 
 - **依赖漏洞** — 从支持的依赖文件提取本地可确认的依赖坐标，逐个查已知漏洞（CVE / GHSA），按严重度排序
@@ -260,7 +267,7 @@ python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy force
 python3 scripts/run_audit.py --final-report
 ```
 
-终端摘要会以 `📁 最终报告路径` 标注最终 Markdown。
+终端摘要会以 `📁 最终报告路径` 标注最终 Markdown。`--final-report` 也会重新生成 HTML 并尝试打开最终 HTML，即使第一次扫描报告已经打开过；只有用户显式传入 `--no-open` 时才跳过自动打开。
 
 #### Step 6 修复后验证
 
