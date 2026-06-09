@@ -154,6 +154,73 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("仓库安检", html)
         self.assertNotIn("未命中已确认的依赖风险项", html)
 
+    def test_html_overview_warns_when_errors_exist_without_risks(self):
+        if not shutil.which("node"):
+            self.skipTest("node is required for report asset rendering tests")
+
+        data = {
+            "generated_at": "2026-06-05 09:05:50",
+            "project": {
+                "name": "demo",
+                "path": "/tmp/demo",
+                "ecosystems": ["npm"],
+                "total_packages": 1,
+            },
+            "risk_summary": {
+                "critical": 0,
+                "high": 0,
+                "medium": 0,
+                "low": 0,
+                "info": 0,
+            },
+            "summary": {"tldr": "demo", "detail": "demo", "priority": []},
+            "top_issues": [],
+            "hygiene": {},
+            "outdated": [],
+            "errors": [{"step": "vulnerability_check", "message": "OSV HTTP 403"}],
+        }
+        code = textwrap.dedent(
+            f"""
+            const fs = require("fs");
+            const vm = require("vm");
+            const elements = {{
+              meta: {{ textContent: "" }},
+              app: {{ innerHTML: "" }},
+            }};
+            const context = {{
+              window: {{
+                __BUTIAN_REPORT_DATA__: {json.dumps(data)},
+                location: {{ href: "file:///tmp/report.html" }},
+              }},
+              document: {{
+                getElementById: (id) => elements[id],
+                addEventListener: () => {{}},
+              }},
+              navigator: {{ clipboard: {{ writeText: () => Promise.resolve() }} }},
+              atob: (value) => Buffer.from(value, "base64").toString("binary"),
+              btoa: (value) => Buffer.from(value, "binary").toString("base64"),
+              setTimeout: () => {{}},
+              console,
+            }};
+            vm.createContext(context);
+            vm.runInContext(fs.readFileSync({json.dumps(REPORT_JS)}, "utf8"), context);
+            process.stdout.write(elements.app.innerHTML);
+            """
+        )
+
+        result = subprocess.run(
+            ["node", "-e", code],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        html = result.stdout
+
+        self.assertIn("检查未完成", html)
+        self.assertIn("需复核", html)
+        self.assertNotIn("未发现风险 <b>✓</b>", html)
+
     def test_fixed_versions_render_as_wrapping_chips(self):
         if not shutil.which("node"):
             self.skipTest("node is required for report asset rendering tests")
@@ -1671,7 +1738,11 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn('<span class="secret-code-lang">ENV</span>', html[evidence_pos:])
         self.assertIn('class="secret-copy-btn"', html[evidence_pos:])
         self.assertIn('class="secret-code-line is-hit"', html[evidence_pos:])
-        self.assertIn(f"OPENAI_API_KEY=&quot;{key}&quot;", html[evidence_pos:])
+        self.assertNotIn(f"OPENAI_API_KEY=&quot;{key}&quot;", html[evidence_pos:])
+        self.assertIn(
+            "OPENAI_API_KEY=&quot;sk-proj-ABCDEFGHIJKL****QRSTUVWXYZ1234567890&quot;",
+            html[evidence_pos:],
+        )
         self.assertNotIn('<div class="label">为什么要关注</div>', html)
         self.assertNotIn('<div class="label">可能影响</div>', html)
         self.assertNotIn('<div class="label">建议动作</div>', html)
@@ -1744,7 +1815,11 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertNotIn('class="hygiene-secret-review item yellow open"', html)
         self.assertNotIn('<span class="chev">▶</span>', html)
         self.assertIn('<span class="secret-code-lang">ENV</span>', html[evidence_pos:])
-        self.assertIn(f"OPENAI_API_KEY=&quot;{key}&quot;", html[evidence_pos:])
+        self.assertNotIn(f"OPENAI_API_KEY=&quot;{key}&quot;", html[evidence_pos:])
+        self.assertIn(
+            "OPENAI_API_KEY=&quot;sk-proj-ABCDEFGHIJKL****QRSTUVWXYZ1234567890&quot;",
+            html[evidence_pos:],
+        )
         self.assertNotIn('<span class="mini-label">硬编码密钥</span>', html)
         self.assertNotIn(
             "发现 1 处疑似明文凭证，需要研发确认是否是真实可用的密钥。", html

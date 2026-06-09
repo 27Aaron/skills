@@ -2853,6 +2853,8 @@ function renderOverview(proj, rs) {
   const med = (rs && rs.medium) || 0;
   const low = (rs && rs.low) || 0;
   const info = (rs && rs.info) || 0;
+  const errorCount = toList(DATA.errors).length;
+  const hasErrors = errorCount > 0;
 
   const seg = (v, cls) =>
     v > 0
@@ -2865,12 +2867,20 @@ function renderOverview(proj, rs) {
         seg(med, "medium") +
         seg(low, "low") +
         seg(info, "info")
-      : '<i class="seg-low" style="width:100%"></i>';
+      : hasErrors
+        ? '<i class="seg-medium" style="width:100%"></i>'
+        : '<i class="seg-low" style="width:100%"></i>';
 
   const hasAny = crit || high || med || low || info;
+  const riskLevel = topSeverity
+    ? sevBadge(topSeverity)
+    : hasErrors
+      ? '<span class="sev-badge sev-info">需复核</span>'
+      : '<span style="color:var(--sub)">无</span>';
   const pills = rs
     ? `<div class="pills">
-  ${!hasAny ? `<span class="pill"><span class="dot" style="background:var(--green)"></span>未发现风险 <b>✓</b></span>` : ""}
+  ${!hasAny && !hasErrors ? `<span class="pill"><span class="dot" style="background:var(--green)"></span>未发现风险 <b>✓</b></span>` : ""}
+  ${hasErrors ? `<span class="pill"><span class="dot" style="background:var(--medium)"></span>检查未完成 <b>${errorCount}</b></span>` : ""}
   ${crit ? `<span class="pill"><span class="dot" style="background:var(--critical)"></span>紧急 <b>${crit}</b></span>` : ""}
   ${high ? `<span class="pill"><span class="dot" style="background:var(--high)"></span>高风险 <b>${high}</b></span>` : ""}
   ${med ? `<span class="pill"><span class="dot" style="background:var(--medium)"></span>中风险 <b>${med}</b></span>` : ""}
@@ -2884,7 +2894,7 @@ function renderOverview(proj, rs) {
     <div class="stat"><div class="k">项目</div><div class="v">${esc(proj.name)}</div></div>
     <div class="stat"><div class="k">生态</div><div class="v">${(proj.ecosystems || []).map(esc).join(", ") || "未检测到"}</div></div>
     <div class="stat"><div class="k">依赖数</div><div class="v">${proj.total_packages || 0}</div></div>
-    <div class="stat"><div class="k">风险等级</div><div class="v">${topSeverity ? sevBadge(topSeverity) : '<span style="color:var(--sub)">无</span>'}</div></div>
+    <div class="stat"><div class="k">风险等级</div><div class="v">${riskLevel}</div></div>
   </div>
   <div class="bar-label">风险项分布</div>
   <div class="bar">${bar}</div>
