@@ -1806,16 +1806,27 @@ def build_secret_code_context(
 
 
 def scan_secrets(
-    project_path, max_files=500, max_bytes=1024 * 1024, follow_symlinks=False
+    project_path,
+    max_files=500,
+    max_bytes=1024 * 1024,
+    follow_symlinks=False,
+    stats=None,
 ):
     findings = []
     entropy_findings = []
     count = 0
+    limit = 500 if max_files is None else max(0, int(max_files))
+    secret_scan_stats = {
+        "max_files": limit,
+        "candidate_files": 0,
+        "scanned_files": 0,
+        "skipped_by_limit": 0,
+        "skipped_too_large": 0,
+        "skipped_unreadable": 0,
+    }
     for root, dirs, files in os.walk(project_path, followlinks=follow_symlinks):
         dirs[:] = [d for d in dirs if d not in EXCLUDE_DIRS]
         for fname in files:
-            if count >= max_files:
-                break
             fpath = os.path.join(root, fname)
             ext = os.path.splitext(fname)[1].lower()
             if not should_scan_secret_file(fpath, project_path):
@@ -1826,8 +1837,13 @@ def scan_secrets(
             # Skip binary files
             if is_binary_file(fpath):
                 continue
+            secret_scan_stats["candidate_files"] += 1
+            if count >= limit:
+                secret_scan_stats["skipped_by_limit"] += 1
+                continue
             try:
                 if os.path.getsize(fpath) > max_bytes:
+                    secret_scan_stats["skipped_too_large"] += 1
                     continue
                 with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
                     file_lines = f.readlines()
@@ -1918,8 +1934,10 @@ def scan_secrets(
                                     }
                                 )
             except (OSError, UnicodeDecodeError):
+                secret_scan_stats["skipped_unreadable"] += 1
                 continue
             count += 1
+            secret_scan_stats["scanned_files"] = count
 
     # Merge: deduplicate regex findings.
     # Same (file, line) already matched by a high-confidence pattern suppresses
@@ -1954,6 +1972,10 @@ def scan_secrets(
         entropy_seen.add(ekey)
         entropy_deduped.append(ef)
 
+    if stats is not None:
+        stats.clear()
+        stats.update(secret_scan_stats)
+
     return deduped + entropy_deduped
 
 
@@ -1963,9 +1985,25 @@ def scan_hygiene(
     errors = []
     # Scan sensitive files first, then use findings to drive gitignore recommendations
     sensitive_tracked = check_sensitive_tracked(project_path, errors=errors)
+    secret_scan_stats = {}
     tracked_secrets = scan_secrets(
-        project_path, max_files=max_secret_files, follow_symlinks=follow_symlinks
+        project_path,
+        max_files=max_secret_files,
+        follow_symlinks=follow_symlinks,
+        stats=secret_scan_stats,
     )
+    if secret_scan_stats.get("skipped_by_limit"):
+        errors.append(
+            {
+                "step": "hygiene.secret_scan_limit",
+                "message": (
+                    f"硬编码凭证扫描达到 --max-secret-files={secret_scan_stats.get('max_files')} 上限："
+                    f"已扫描 {secret_scan_stats.get('scanned_files')} 个候选文件，"
+                    f"跳过 {secret_scan_stats.get('skipped_by_limit')} 个候选文件；"
+                    "请提高上限后复扫，避免遗漏凭证。"
+                ),
+            }
+        )
     gitignore_exists, gitignore_missing = check_gitignore(
         project_path, sensitive_tracked
     )
@@ -1993,6 +2031,7 @@ def scan_hygiene(
                 "supply_chain",
                 "iac_container",
             ],
+            "secret_scan": secret_scan_stats,
         },
     }
 

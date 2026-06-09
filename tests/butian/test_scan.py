@@ -2514,6 +2514,56 @@ class CheckSensitiveTrackedTests(unittest.TestCase):
             self.assertEqual(errors, [])
 
 
+class SecretScanLimitTests(unittest.TestCase):
+    def test_scan_secrets_reports_limit_stats(self):
+        with tempfile.TemporaryDirectory(prefix="butian-secret-limit-") as root:
+            for index in range(3):
+                with open(
+                    os.path.join(root, f"config{index}.py"), "w", encoding="utf-8"
+                ) as handle:
+                    handle.write("VALUE = 'not-a-secret'\n")
+
+            stats = {}
+            findings = scan.scan_secrets(root, max_files=1, stats=stats)
+
+            self.assertEqual(findings, [])
+            self.assertEqual(stats["candidate_files"], 3)
+            self.assertEqual(stats["scanned_files"], 1)
+            self.assertEqual(stats["skipped_by_limit"], 2)
+
+    def test_none_limit_uses_default_file_budget(self):
+        with tempfile.TemporaryDirectory(prefix="butian-secret-limit-") as root:
+            with open(os.path.join(root, "config.py"), "w", encoding="utf-8") as handle:
+                handle.write("VALUE = 'not-a-secret'\n")
+
+            stats = {}
+            scan.scan_secrets(root, max_files=None, stats=stats)
+
+            self.assertEqual(stats["max_files"], 500)
+            self.assertEqual(stats["scanned_files"], 1)
+
+    def test_scan_hygiene_reports_secret_scan_limit(self):
+        with tempfile.TemporaryDirectory(prefix="butian-secret-limit-") as root:
+            for index in range(2):
+                with open(
+                    os.path.join(root, f"config{index}.py"), "w", encoding="utf-8"
+                ) as handle:
+                    handle.write("VALUE = 'not-a-secret'\n")
+
+            result = scan.scan_hygiene(root, max_secret_files=1)
+
+            secret_scan = result["coverage"]["secret_scan"]
+            self.assertEqual(secret_scan["max_files"], 1)
+            self.assertEqual(secret_scan["candidate_files"], 2)
+            self.assertEqual(secret_scan["skipped_by_limit"], 1)
+            self.assertTrue(
+                any(
+                    item["step"] == "hygiene.secret_scan_limit"
+                    for item in result["errors"]
+                )
+            )
+
+
 class DefaultAssetPathTests(unittest.TestCase):
     def test_without_preflight_creates_run(self):
         with tempfile.TemporaryDirectory(prefix="butian-asset-") as root:
@@ -3971,7 +4021,7 @@ class ExpandedHygieneIntegrationTests(unittest.TestCase):
             )
             self.assertEqual(
                 set(result["coverage"]),
-                {"builtin_rules"},
+                {"builtin_rules", "secret_scan"},
             )
 
 
