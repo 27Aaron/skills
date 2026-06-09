@@ -1388,6 +1388,21 @@ class TestBuildSummary(unittest.TestCase):
         self.assertIn("部分检查失败", result["tldr"])
         self.assertTrue(any("复查扫描错误" in p for p in result["priority"]))
 
+    def test_errors_are_visible_even_when_vulnerabilities_exist(self):
+        scan = _make_scan(errors=[{"step": "osv", "message": "HTTP 403"}])
+        analysis = self._make_analysis(
+            risk_summary={"critical": 0, "high": 1, "medium": 0, "low": 0, "info": 0},
+            top_issues=[{"package": "demo", "severity": "high"}],
+        )
+
+        result = analyze.build_summary(scan, analysis)
+
+        self.assertIn("发现 1 个已确认依赖风险项", result["tldr"])
+        self.assertIn("本次检查不完整", result["tldr"])
+        self.assertIn("官方漏洞源", result["tldr"])
+        self.assertIn("失败项补齐前", result["detail"])
+        self.assertTrue(any("复查扫描错误" in p for p in result["priority"]))
+
     def test_clean_scan(self):
         scan = _make_scan()
         analysis = self._make_analysis()

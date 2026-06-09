@@ -55,6 +55,15 @@ TRANSITIVE_RESIDUAL_GUIDANCE = (
     "或在用户确认后把锁住旧子依赖的父依赖升级到 latest。"
 )
 
+INCOMPLETE_SCAN_TLDR_NOTICE = (
+    "注意：本次检查不完整，部分官方漏洞源、包管理器或工具链检查失败，需复核后再判断剩余风险。"
+)
+
+INCOMPLETE_SCAN_DETAIL_NOTICE = (
+    "另外，本次有部分官方漏洞源、包管理器或工具链检查失败；失败项补齐前，"
+    "报告只代表成功完成的检查项。"
+)
+
 STRUCTURED_HYGIENE_GROUPS = (
     "workflow_checks",
     "repository_checks",
@@ -899,6 +908,11 @@ def build_summary(scan, analysis):
             f"本地配置/工作流检查项 {local_check_count} 个、建议 {maintenance_advice_count} 条。"
             f"过期依赖 {outdated_count} 个，建议按维护窗口和兼容性评估安排升级。"
         )
+
+    if errors:
+        if "部分检查失败" not in tldr and "检查不完整" not in tldr:
+            tldr = f"{tldr} {INCOMPLETE_SCAN_TLDR_NOTICE}"
+        detail = f"{detail}{INCOMPLETE_SCAN_DETAIL_NOTICE}"
 
     priority = []
     if hygiene_only:
