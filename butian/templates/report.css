@@ -489,11 +489,11 @@ tbody tr:hover {
     background: var(--surface-bg);
     box-shadow: var(--surface-shadow);
 }
-.vuln-extra,
+.vuln-table tr.vuln-extra,
 .outdated-row.outdated-extra {
     display: none;
 }
-.vuln-expanded .vuln-extra {
+.vuln-expanded .vuln-table tr.vuln-extra {
     display: table-row;
 }
 .outdated-expanded .outdated-row.outdated-extra {
@@ -513,6 +513,17 @@ tbody tr:hover {
     display: flex;
     justify-content: center;
     margin-top: 10px;
+}
+.outdated-toggle-label-mobile,
+.outdated-toggle-label-expanded {
+    display: none;
+}
+.outdated-expanded .outdated-toggle-label-desktop,
+.outdated-expanded .outdated-toggle-label-mobile {
+    display: none;
+}
+.outdated-expanded .outdated-toggle-label-expanded {
+    display: inline;
 }
 .table-scroll table {
     min-width: 680px;
@@ -1780,10 +1791,10 @@ footer {
         border-color: transparent;
         background: transparent;
     }
-    .vuln-extra {
+    .vuln-table tr.vuln-extra {
         display: none;
     }
-    .vuln-expanded .vuln-extra:not(.vuln-detail-row) {
+    .vuln-expanded .vuln-table tr.vuln-extra:not(.vuln-detail-row) {
         display: grid;
     }
     .vuln-detail-row.vuln-detail-open {
@@ -1870,6 +1881,24 @@ footer {
     }
     .outdated-list {
         grid-template-columns: 1fr;
+    }
+    .outdated-row.outdated-mobile-extra {
+        display: none;
+    }
+    .outdated-expanded .outdated-row.outdated-mobile-extra {
+        display: grid;
+    }
+    .outdated-toggle-label-desktop {
+        display: none;
+    }
+    .outdated-toggle-label-mobile {
+        display: inline;
+    }
+    .outdated-expanded .outdated-toggle-label-mobile {
+        display: none;
+    }
+    .outdated-expanded .outdated-toggle-label-expanded {
+        display: inline;
     }
     .outdated-row {
         grid-template-columns: minmax(0, 1fr);

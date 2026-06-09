@@ -3197,8 +3197,14 @@ function renderOutdated(items) {
     .map((it, idx) => {
       const packageName = packageNameFor(it);
       const current = String(it.current || it.version || "").trim();
-      const cls = needToggle && idx >= OUTDATED_SHOW ? " outdated-extra" : "";
-      return `<article class="outdated-row${cls}">
+      const classes = ["outdated-row"];
+      if (needToggle && idx >= OUTDATED_VISIBLE_ROWS) {
+        classes.push("outdated-mobile-extra");
+      }
+      if (needToggle && idx >= OUTDATED_SHOW) {
+        classes.push("outdated-extra");
+      }
+      return `<article class="${classes.join(" ")}">
   <div class="outdated-package" title="${esc(packageName)}">${esc(packageName)}</div>
   <div class="outdated-version-flow">
     <code class="outdated-current">${esc(current || "-")}</code>
@@ -3208,9 +3214,10 @@ function renderOutdated(items) {
 </article>`;
     })
     .join("");
-  const hiddenCount = Math.max(0, items.length - OUTDATED_SHOW);
+  const desktopHiddenCount = Math.max(0, items.length - OUTDATED_SHOW);
+  const mobileHiddenCount = Math.max(0, items.length - OUTDATED_VISIBLE_ROWS);
   const toggle = needToggle
-    ? `<div class="outdated-toggle"><button type="button" class="fix-btn open outdated-toggle-btn" aria-expanded="false" data-collapsed-label="余下 ${hiddenCount} 项" data-expanded-label="收起" onclick="toggleOutdated(this)">余下 ${hiddenCount} 项</button></div>`
+    ? `<div class="outdated-toggle"><button type="button" class="fix-btn open outdated-toggle-btn" aria-expanded="false" onclick="toggleOutdated(this)"><span class="outdated-toggle-label outdated-toggle-label-desktop">余下 ${desktopHiddenCount} 项</span><span class="outdated-toggle-label outdated-toggle-label-mobile">余下 ${mobileHiddenCount} 项</span><span class="outdated-toggle-label outdated-toggle-label-expanded">收起</span></button></div>`
     : "";
   return section(
     "过期依赖",
@@ -3227,9 +3234,6 @@ function toggleOutdated(btn) {
   const expanded = !root.classList.contains("outdated-expanded");
   root.classList.toggle("outdated-expanded", expanded);
   btn.setAttribute("aria-expanded", expanded ? "true" : "false");
-  btn.textContent = expanded
-    ? btn.dataset.expandedLabel || "收起"
-    : btn.dataset.collapsedLabel || "展开全部";
 }
 
 // ---- Yellow: manual review ----

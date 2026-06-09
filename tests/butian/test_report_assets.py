@@ -285,10 +285,18 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertNotIn("<th>严重程度</th>", html)
         self.assertIn('class="outdated-list"', html)
         self.assertIn('class="outdated-row"', html)
-        self.assertEqual(html.count('class="outdated-row"'), 14)
-        self.assertEqual(html.count('class="outdated-row outdated-extra"'), 1)
+        self.assertEqual(html.count('<article class="outdated-row'), 15)
+        self.assertEqual(html.count('class="outdated-row">'), 7)
+        self.assertEqual(
+            html.count('class="outdated-row outdated-mobile-extra">'),
+            7,
+        )
+        self.assertEqual(
+            html.count('class="outdated-row outdated-mobile-extra outdated-extra"'),
+            1,
+        )
         self.assertIn(
-            '<button type="button" class="fix-btn open outdated-toggle-btn" aria-expanded="false" data-collapsed-label="余下 1 项" data-expanded-label="收起" onclick="toggleOutdated(this)">余下 1 项</button>',
+            '<button type="button" class="fix-btn open outdated-toggle-btn" aria-expanded="false" onclick="toggleOutdated(this)"><span class="outdated-toggle-label outdated-toggle-label-desktop">余下 1 项</span><span class="outdated-toggle-label outdated-toggle-label-mobile">余下 8 项</span><span class="outdated-toggle-label outdated-toggle-label-expanded">收起</span></button>',
             html,
         )
         self.assertIn('<div class="outdated-package" title="hono">hono</div>', html)
@@ -372,6 +380,15 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn(".outdated-toggle", css)
         self.assertIn(".outdated-row.outdated-extra", css)
         self.assertIn(".outdated-expanded .outdated-row.outdated-extra", css)
+        self.assertIn(".outdated-row.outdated-mobile-extra", css)
+        self.assertIn(".outdated-expanded .outdated-row.outdated-mobile-extra", css)
+        self.assertIn(".outdated-toggle-label-mobile", css)
+        self.assertIn(".outdated-toggle-label-expanded", css)
+        self.assertIn(".vuln-table tr.vuln-extra", css)
+        self.assertIn(
+            ".vuln-expanded .vuln-table tr.vuln-extra:not(.vuln-detail-row)",
+            css,
+        )
         self.assertNotIn(".outdated-folded-note", css)
         self.assertNotIn(".outdated-card", css)
         self.assertNotIn(".outdated-table .col-current", css)
@@ -834,7 +851,7 @@ class ButianReportAssetTests(unittest.TestCase):
             html,
         )
         self.assertIn(
-            '<button type="button" class="fix-btn open outdated-toggle-btn" aria-expanded="false" data-collapsed-label="余下 1 项" data-expanded-label="收起" onclick="toggleOutdated(this)">余下 1 项</button>',
+            '<button type="button" class="fix-btn open outdated-toggle-btn" aria-expanded="false" onclick="toggleOutdated(this)"><span class="outdated-toggle-label outdated-toggle-label-desktop">余下 1 项</span><span class="outdated-toggle-label outdated-toggle-label-mobile">余下 8 项</span><span class="outdated-toggle-label outdated-toggle-label-expanded">收起</span></button>',
             html,
         )
         self.assertNotIn("onmouseenter=\"scheduleVulnTableToggleScan", html)
