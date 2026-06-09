@@ -46,12 +46,13 @@
 | `repo_checks.py`      | `docs/butian/repo_checks.md`      | `tests/butian/test_repo_checks.py`      | Dependabot、GitHub remote、lockfile、安装脚本、registry 配置 |
 | `report.py`           | `docs/butian/report.md`           | `tests/butian/test_report.py`           | Markdown 渲染、表格转义、风险/仓库安检/过期依赖输出          |
 | `run_audit.py`        | `docs/butian/run_audit.md`        | `tests/butian/test_run_audit.py`        | 全链路编排、首次扫描和复扫策略                               |
-| `scan.py`             | `docs/butian/scan.md`             | `tests/butian/test_scan.py`             | 生态解析、漏洞查询、缓存、仓库安检                           |
+| `scan.py`             | `docs/butian/scan.md`             | `tests/butian/test_scan.py`             | 扫描 CLI、并行编排、密钥扫描、过期依赖和结果汇总              |
 | `server_analyze.py`   | `docs/butian/server_analyze.md`   | `tests/butian/test_server_analyze.py`   | 服务器风险归并、Docker/端口维护建议、错误保留                |
 | `server_collect.py`   | `docs/butian/server_collect.md`   | `tests/butian/test_server_collect.py`   | 只读 SSH 命令白名单、Docker 元数据、离线 inventory           |
 | `server_inventory.py` | `docs/butian/server_inventory.md` | `tests/butian/test_server_inventory.py` | Linux 发行版、系统包、内核、监听端口和 Docker 解析           |
 | `server_match.py`     | `docs/butian/server_match.md`     | `tests/butian/test_server_match.py`     | OSV 发行版包坐标、详情公告、CVE 富化和覆盖缺口               |
 | `visualize.py`        | `docs/butian/visualize.md`        | `tests/butian/test_visualize.py`        | HTML 注入、资产内联、交互报告和浏览器打开策略                |
+| `vulnerability_sources.py` | `docs/butian/vulnerability_sources.md` | `tests/butian/test_scan.py`        | OSV/NVD/CISA KEV/FIRST EPSS 查询、富化、缓存和风险信号合并    |
 | `workspace.py`        | `docs/butian/workspace.md`        | `tests/butian/test_scan_helpers.py`     | 本地工作区、运行目录、项目根发现和扫描路径保护               |
 | `workflow_checks.py`  | `docs/butian/workflow_checks.md`  | `tests/butian/test_workflow_checks.py`  | GitHub Actions 工作流安全规则                                |
 

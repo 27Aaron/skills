@@ -20,12 +20,13 @@
 | `repo_checks.py`      | `test_repo_checks.py`                                   | GitHub remote 判定、Dependabot 全生态建议、lockfile 缺失、安装脚本风险、registry token/TLS/source 检查 |
 | `report.py`           | `test_report.py`, `test_report_assets.py`               | Markdown 表格转义、CVE/GHSA 链接、hygiene 渲染、空状态、模板资产一致性                                 |
 | `run_audit.py`        | `test_run_audit.py`                                     | 子命令编排、首次扫描 Markdown、最终报告、跳过逻辑、失败传播                                            |
-| `scan.py`             | `test_scan.py`, `test_scan_helpers.py`, `test_cache.py` | 生态解析、lockfile 解析、密钥扫描、敏感文件、缓存、API 合并、CLI 行为                                  |
+| `scan.py`             | `test_scan.py`, `test_scan_helpers.py`, `test_cache.py` | 扫描 CLI、并行编排、密钥扫描、敏感文件、过期依赖、工作区兼容导出                                       |
 | `server_analyze.py`   | `test_server_analyze.py`                                | 服务器已确认风险、Docker 旧标签维护建议、敏感公网端口、错误合并                                        |
 | `server_collect.py`   | `test_server_collect.py`                                | 只读 SSH 命令白名单、可选 Docker 元数据、命令失败保留、离线 inventory                                  |
 | `server_inventory.py` | `test_server_inventory.py`                              | Linux 发行版识别、包清单解析、内核包匹配、监听端口、Docker 标签解析                                    |
 | `server_match.py`     | `test_server_match.py`                                  | OSV 发行版包查询、source package 查询、详情公告、CVE 富化、不支持 ecosystem 说明                       |
 | `visualize.py`        | `test_visualize.py`, `test_report_assets.py`            | JSON/HTML 转义、资产内联、标签注入、占位符校验、HTML 报告交互、浏览器打开策略                          |
+| `vulnerability_sources.py` | `test_scan.py`, `test_server_match.py`              | OSV/NVD/CISA KEV/FIRST EPSS 查询、CVSS/CVE 归一化、富化缓存、漏洞结果合并和 `scan.py` 兼容导出          |
 | `workspace.py`        | `test_scan_helpers.py`, `test_detect.py`, `test_scan.py` | `.butian` 工作区、运行目录、项目根发现、系统路径保护和 `scan.py` 兼容导出                              |
 | `workflow_checks.py`  | `test_workflow_checks.py`                               | GitHub Actions permissions、trigger、checkout、远程脚本、不可信上下文、runner 风险                     |
 
@@ -94,9 +95,15 @@
 ### `scan.py`
 
 - 本地扫描覆盖：密钥正则、entropy、误报过滤、敏感文件跟踪、`.gitignore` 建议。
-- 生态覆盖：npm、pnpm、yarn、pip、pipenv、poetry、uv、Go、Cargo。
-- API 覆盖：OSV batch、NVD、CISA KEV、EPSS、缓存命中/过期/损坏。
+- 编排覆盖：生态检测、包提取、漏洞查询、过期依赖、仓库安检并行执行。
 - CLI 覆盖：`--skip-hygiene`、`--skip-outdated`、`--include-packages`、`--follow-symlinks`、`--api-concurrency`。
+
+### `vulnerability_sources.py`
+
+- 数据源覆盖：OSV querybatch/detail、NVD CVE API、CISA KEV JSON、FIRST EPSS。
+- 归一化覆盖：OSV ecosystem、CVE alias、CVSS metric、CWE、fixed version、EPSS percentile。
+- 合并覆盖：OSV 基础公告、NVD/CISA/EPSS 富化、严重度兜底、风险信号生成。
+- 容错覆盖：缓存命中/过期/损坏、HTTP/URL 错误、部分批次失败、无 CVE alias 的 advisory。
 
 ### `server_collect.py`
 

@@ -68,6 +68,7 @@ class DependencyParsersModuleCompatibilityTests(unittest.TestCase):
             scan.parse_requirements_txt, dependency_parsers.parse_requirements_txt
         )
 
+
     def test_npm_lock_nested_node_modules_uses_real_package_names(self):
         with tempfile.TemporaryDirectory(prefix="butian-npm-nested-") as root:
             with open(
@@ -401,6 +402,47 @@ class DependencyParsersModuleCompatibilityTests(unittest.TestCase):
         self.assertNotIn("docs/security-report-YYYY-MM-DD.md", skill_doc)
         self.assertNotIn("全程只读，绝不擅自动手", skill_doc)
         self.assertNotIn("没有任何会触发本地操作的按钮", skill_doc)
+
+
+# ---------------------------------------------------------------------------
+# vulnerability_sources module compatibility
+# ---------------------------------------------------------------------------
+class VulnerabilitySourcesModuleCompatibilityTests(unittest.TestCase):
+    def test_scan_reexports_vulnerability_source_helpers(self):
+        from butian.scripts import vulnerability_sources
+
+        self.assertIs(scan.OSV_ECOSYSTEMS, vulnerability_sources.OSV_ECOSYSTEMS)
+        self.assertIs(scan.normalize_cve_id, vulnerability_sources.normalize_cve_id)
+        self.assertIs(
+            scan.cvss_score_to_severity,
+            vulnerability_sources.cvss_score_to_severity,
+        )
+        self.assertIs(
+            scan.osv_query_for_package, vulnerability_sources.osv_query_for_package
+        )
+        self.assertIs(
+            scan.fetch_osv_querybatch, vulnerability_sources.fetch_osv_querybatch
+        )
+        self.assertIs(
+            scan.fetch_osv_vulnerability,
+            vulnerability_sources.fetch_osv_vulnerability,
+        )
+        self.assertIs(
+            scan.fetch_nvd_enrichments,
+            vulnerability_sources.fetch_nvd_enrichments,
+        )
+        self.assertIs(
+            scan.fetch_cisa_kev_enrichments,
+            vulnerability_sources.fetch_cisa_kev_enrichments,
+        )
+        self.assertIs(
+            scan.fetch_epss_enrichments,
+            vulnerability_sources.fetch_epss_enrichments,
+        )
+        self.assertIs(
+            scan.check_vulnerabilities,
+            vulnerability_sources.check_vulnerabilities,
+        )
 
 
 class GitignoreEntryTests(unittest.TestCase):

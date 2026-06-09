@@ -41,11 +41,7 @@ import re
 import subprocess
 import sys
 import time
-import urllib.error
-import urllib.parse
-import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any
 
 try:
     from .cache import cache_clean, cache_dir, cache_read, cache_write
@@ -92,6 +88,62 @@ try:
         package_version_index,
         current_version_for,
         clean_version,
+    )
+    from .vulnerability_sources import (
+        OSV_QUERYBATCH_URL,
+        OSV_VULN_URL_PREFIX,
+        NVD_CVE_API_URL,
+        CISA_KEV_JSON_URL,
+        EPSS_API_URL,
+        HTTP_USER_AGENT,
+        OSV_ECOSYSTEMS,
+        _cvss_to_severity,
+        cvss_score_to_severity,
+        best_advisory_alias,
+        normalize_cve_id,
+        extract_cve_aliases,
+        unique_nonempty,
+        to_string_or_none,
+        to_decimal_string,
+        iso_date_or_none,
+        official_source_error,
+        _request_with_retry,
+        post_json,
+        get_json,
+        osv_ecosystem_for,
+        normalized_ecosystem,
+        normalized_package_name,
+        package_matches_affected,
+        osv_query_for_package,
+        fetch_osv_querybatch,
+        fetch_osv_vulnerability,
+        parse_osv_query_results,
+        extract_osv_fixed_versions,
+        extract_osv_cvss,
+        first_english_description,
+        extract_cwe_ids,
+        normalize_cvss_metric,
+        extract_cvss_metrics,
+        select_best_cvss_metric,
+        parse_nvd_vulnerability_entry,
+        parse_nvd_response,
+        parse_cisa_kev_catalog,
+        parse_epss_response,
+        chunked,
+        fetch_nvd_enrichments,
+        _kev_cache_path,
+        _load_kev_cache,
+        _save_kev_cache,
+        fetch_cisa_kev_enrichments,
+        fetch_epss_enrichments,
+        merge_cve_patch,
+        fetch_cve_enrichments,
+        severity_from_enrichments,
+        number_or_none,
+        build_risk_signals,
+        build_official_vulnerability,
+        check_vulnerability_batch,
+        check_vulnerabilities,
     )
     from .iac_checks import scan_iac_checks
     from .repo_checks import scan_repository_checks
@@ -171,6 +223,62 @@ except ImportError:  # pragma: no cover - direct script execution
         current_version_for,
         clean_version,
     )
+    from vulnerability_sources import (  # pyright: ignore[reportMissingImports]
+        OSV_QUERYBATCH_URL,
+        OSV_VULN_URL_PREFIX,
+        NVD_CVE_API_URL,
+        CISA_KEV_JSON_URL,
+        EPSS_API_URL,
+        HTTP_USER_AGENT,
+        OSV_ECOSYSTEMS,
+        _cvss_to_severity,
+        cvss_score_to_severity,
+        best_advisory_alias,
+        normalize_cve_id,
+        extract_cve_aliases,
+        unique_nonempty,
+        to_string_or_none,
+        to_decimal_string,
+        iso_date_or_none,
+        official_source_error,
+        _request_with_retry,
+        post_json,
+        get_json,
+        osv_ecosystem_for,
+        normalized_ecosystem,
+        normalized_package_name,
+        package_matches_affected,
+        osv_query_for_package,
+        fetch_osv_querybatch,
+        fetch_osv_vulnerability,
+        parse_osv_query_results,
+        extract_osv_fixed_versions,
+        extract_osv_cvss,
+        first_english_description,
+        extract_cwe_ids,
+        normalize_cvss_metric,
+        extract_cvss_metrics,
+        select_best_cvss_metric,
+        parse_nvd_vulnerability_entry,
+        parse_nvd_response,
+        parse_cisa_kev_catalog,
+        parse_epss_response,
+        chunked,
+        fetch_nvd_enrichments,
+        _kev_cache_path,
+        _load_kev_cache,
+        _save_kev_cache,
+        fetch_cisa_kev_enrichments,
+        fetch_epss_enrichments,
+        merge_cve_patch,
+        fetch_cve_enrichments,
+        severity_from_enrichments,
+        number_or_none,
+        build_risk_signals,
+        build_official_vulnerability,
+        check_vulnerability_batch,
+        check_vulnerabilities,
+    )
     from iac_checks import scan_iac_checks  # pyright: ignore[reportMissingImports]
     from repo_checks import (
         scan_repository_checks,  # pyright: ignore[reportMissingImports]
@@ -201,19 +309,6 @@ except ImportError:  # pragma: no cover - direct script execution
     )
     from workflow_checks import scan_workflows  # pyright: ignore[reportMissingImports]
 
-OSV_QUERYBATCH_URL = "https://api.osv.dev/v1/querybatch"
-OSV_VULN_URL_PREFIX = "https://api.osv.dev/v1/vulns/"
-NVD_CVE_API_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
-CISA_KEV_JSON_URL = (
-    "https://www.cisa.gov/sites/default/files/feeds/"
-    "known_exploited_vulnerabilities.json"
-)
-EPSS_API_URL = "https://api.first.org/data/v1/epss"
-HTTP_USER_AGENT = (
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/125.0.0.0 Safari/537.36"
-)
 HYGIENE_ONLY_NOTICE = (
     "当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；"
     "本次仅做仓库安检，检查硬编码密钥、敏感文件跟踪、.gitignore、"
@@ -1825,917 +1920,6 @@ def scan_hygiene(
             "secret_scan": secret_scan_stats,
         },
     }
-
-
-# ---------------------------------------------------------------------------
-# Step 3: Vulnerability check via official sources
-# ---------------------------------------------------------------------------
-
-OSV_ECOSYSTEMS = {
-    "npm": "npm",
-    "pypi": "PyPI",
-    "go": "Go",
-    "crates-io": "crates.io",
-    "packagist": "Packagist",
-    "rubygems": "RubyGems",
-    "pub": "Pub",
-    "hex": "Hex",
-    "nuget": "NuGet",
-    "maven": "Maven",
-}
-
-
-def _cvss_to_severity(vector):
-    """Parse CVSS vector string → severity level.
-
-    Strategy (in priority order):
-    1. Parse explicit baseScore if embedded in the vector string.
-    2. Compute a simplified CVSS 3.x base score from the vector metrics
-       and map to severity using standard thresholds.
-    3. Fall back to None if the vector cannot be parsed.
-    """
-    if not vector or "CVSS:" not in vector:
-        return None
-    try:
-        parts: dict[str, str] = {}
-        for pair in vector.split("/"):
-            if ":" in pair and not pair.startswith("CVSS:"):
-                k, v = pair.split(":", 1)
-                parts[k] = v
-
-        # --- Strategy 1: use explicit baseScore from the vector -----------
-        raw_score = parts.get("baseScore")
-        if raw_score:
-            try:
-                score = float(raw_score)
-                return cvss_score_to_severity(score)
-            except (TypeError, ValueError):
-                pass
-
-        # --- Strategy 2: compute base score using the CVSS 3.x formula -----
-        # Full spec formula from FIRST CVSS v3.1:
-        # https://www.first.org/cvss/v3.1/specification-document
-
-        # Impact Sub-Score (ISS)
-        c = parts.get("C", "N")
-        i = parts.get("I", "N")
-        a = parts.get("A", "N")
-
-        cia_value = {"N": 0.0, "L": 0.22, "H": 0.56}
-        iss = 1.0 - (
-            (1.0 - cia_value.get(c, 0.0))
-            * (1.0 - cia_value.get(i, 0.0))
-            * (1.0 - cia_value.get(a, 0.0))
-        )
-        if iss <= 0.0:
-            return "low"
-
-        # Impact — formula differs between Scope Changed / Unchanged
-        scope = parts.get("S", "U")
-        if scope == "C":
-            impact = 7.52 * (iss - 0.029) - 3.25 * (iss - 0.02) ** 15
-        else:
-            impact = 6.42 * iss
-
-        # Exploitability
-        av = parts.get("AV", "N")
-        ac = parts.get("AC", "L")
-        pr = parts.get("PR", "N")
-        ui = parts.get("UI", "N")
-
-        av_value = {"N": 0.85, "A": 0.62, "P": 0.20, "L": 0.55}
-        ac_value = {"L": 0.77, "H": 0.44}
-        # PR value depends on Scope
-        if scope == "C":
-            pr_value = {"N": 0.85, "L": 0.68, "H": 0.50}
-        else:
-            pr_value = {"N": 0.85, "L": 0.62, "H": 0.27}
-        ui_value = {"N": 0.85, "R": 0.62}
-
-        exploitability = (
-            8.22
-            * av_value.get(av, 0.85)
-            * ac_value.get(ac, 0.77)
-            * pr_value.get(pr, 0.85)
-            * ui_value.get(ui, 0.85)
-        )
-
-        # Roundup function from the CVSS spec (round up to 1 decimal place)
-        def _roundup(x):
-            return math.ceil(x * 10) / 10.0
-
-        # Base Score
-        if impact <= 0:
-            base_score = 0.0
-        elif scope == "C":
-            base_score = _roundup(min(1.08 * (impact + exploitability), 10.0))
-        else:
-            base_score = _roundup(min(impact + exploitability, 10.0))
-
-        return cvss_score_to_severity(base_score)
-    except Exception:
-        return None
-
-
-def cvss_score_to_severity(score):
-    try:
-        value = float(score)
-    except (TypeError, ValueError):
-        return None
-    if value >= 9.0:
-        return "critical"
-    if value >= 7.0:
-        return "high"
-    if value >= 4.0:
-        return "medium"
-    if value > 0:
-        return "low"
-    return None
-
-
-def best_advisory_alias(aliases):
-    aliases = [a for a in aliases if a]
-    for alias in aliases:
-        if str(alias).upper().startswith("CVE-"):
-            return alias
-    for alias in aliases:
-        if not str(alias).upper().startswith("GHSA-"):
-            return alias
-    return aliases[0] if aliases else ""
-
-
-def normalize_cve_id(value):
-    text = str(value or "").strip().upper()
-    return text if re.match(r"^CVE-\d{4}-\d{4,}$", text) else ""
-
-
-def extract_cve_aliases(values):
-    cves = []
-    for value in values or []:
-        cve = normalize_cve_id(value)
-        if cve and cve not in cves:
-            cves.append(cve)
-    return cves
-
-
-def unique_nonempty(values):
-    result = []
-    for value in values or []:
-        if value is None:
-            continue
-        text = str(value).strip()
-        if text and text not in result:
-            result.append(text)
-    return result
-
-
-def to_string_or_none(value):
-    if isinstance(value, str) and value.strip():
-        return value.strip()
-    return None
-
-
-def to_decimal_string(value):
-    if isinstance(value, (int, float)) and not isinstance(value, bool):
-        return (
-            str(value)
-            if value == value and value not in (float("inf"), float("-inf"))
-            else None
-        )
-    if isinstance(value, str) and value.strip():
-        try:
-            float(value)
-        except ValueError:
-            return None
-        return value.strip()
-    return None
-
-
-def iso_date_or_none(value):
-    text = to_string_or_none(value)
-    if not text:
-        return None
-    if re.match(r"^\d{4}-\d{2}-\d{2}$", text):
-        return f"{text}T00:00:00.000Z"
-    if text.endswith("Z"):
-        return text
-    if "T" in text:
-        return f"{text}Z"
-    return text
-
-
-def official_source_error(source, action, error):
-    return {
-        "step": "vulnerability_check",
-        "message": f"{source} {action}失败：{error}",
-    }
-
-
-def _request_with_retry(req, timeout=120, max_retries=2, backoff_delays=(1, 3)):
-    """Execute a urllib request with exponential backoff retry on transient errors.
-
-    Retries on: HTTPError (5xx, 429), URLError, TimeoutError, OSError.
-    Does NOT retry on 4xx (except 429).
-    """
-    last_exc = None
-    for attempt in range(max_retries + 1):
-        try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
-                raw = resp.read().decode("utf-8")
-            return json.loads(raw)
-        except urllib.error.HTTPError as e:
-            if e.code == 429 or e.code >= 500:
-                last_exc = e
-            else:
-                raise
-        except (urllib.error.URLError, TimeoutError, OSError) as e:
-            last_exc = e
-        if attempt < max_retries:
-            time.sleep(
-                backoff_delays[attempt]
-                if attempt < len(backoff_delays)
-                else backoff_delays[-1]
-            )
-    if last_exc is not None:
-        raise last_exc
-    raise RuntimeError("request failed without captured exception")
-
-
-def post_json(url, payload, timeout=120):
-    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-    req = urllib.request.Request(
-        url,
-        data=body,
-        headers={
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "User-Agent": HTTP_USER_AGENT,
-        },
-        method="POST",
-    )
-    return _request_with_retry(req, timeout=timeout)
-
-
-def get_json(url, timeout=120):
-    req = urllib.request.Request(
-        url,
-        headers={
-            "Accept": "application/json",
-            "User-Agent": HTTP_USER_AGENT,
-        },
-        method="GET",
-    )
-    return _request_with_retry(req, timeout=timeout)
-
-
-def osv_ecosystem_for(ecosystem):
-    return OSV_ECOSYSTEMS.get(str(ecosystem or "").lower(), ecosystem)
-
-
-def normalized_ecosystem(value):
-    text = str(value or "").strip().lower()
-    if text in {"pypi", "python"}:
-        return "pypi"
-    if text in {"crates.io", "crates-io", "rust"}:
-        return "crates-io"
-    if text in {"golang", "go"}:
-        return "go"
-    return text
-
-
-def normalized_package_name(ecosystem, name):
-    text = str(name or "").strip()
-    if normalized_ecosystem(ecosystem) == "pypi":
-        return re.sub(r"[-_.]+", "-", text.lower())
-    if normalized_ecosystem(ecosystem) in {"npm", "crates-io"}:
-        return text.lower()
-    return text
-
-
-def package_matches_affected(package, affected):
-    affected_package = affected.get("package") if isinstance(affected, dict) else {}
-    if not isinstance(affected_package, dict) or not affected_package:
-        return True
-    package_ecosystem = package.get("ecosystem")
-    affected_ecosystem = affected_package.get("ecosystem")
-    if normalized_ecosystem(package_ecosystem) != normalized_ecosystem(
-        affected_ecosystem
-    ):
-        return False
-    return normalized_package_name(
-        package_ecosystem, package.get("name")
-    ) == normalized_package_name(
-        affected_ecosystem,
-        affected_package.get("name"),
-    )
-
-
-def osv_query_for_package(package):
-    query: dict[str, Any] = {
-        "package": {
-            "ecosystem": osv_ecosystem_for(package.get("ecosystem")),
-            "name": package.get("name", ""),
-        }
-    }
-    version = str(package.get("version") or "").strip()
-    if version:
-        query["version"] = version
-    return query
-
-
-def fetch_osv_querybatch(batch):
-    payload = {"queries": [osv_query_for_package(package) for package in batch]}
-    return post_json(OSV_QUERYBATCH_URL, payload)
-
-
-def fetch_osv_vulnerability(vuln_id):
-    return get_json(f"{OSV_VULN_URL_PREFIX}{urllib.parse.quote(str(vuln_id), safe='')}")
-
-
-def parse_osv_query_results(data, batch):
-    results = data.get("results") if isinstance(data, dict) else []
-    if not isinstance(results, list):
-        return []
-    matched = []
-    for index, package in enumerate(batch):
-        result = (
-            results[index]
-            if index < len(results) and isinstance(results[index], dict)
-            else {}
-        )
-        for vuln in result.get("vulns") or []:
-            if isinstance(vuln, dict) and vuln.get("id"):
-                matched.append((package, str(vuln["id"])))
-    return matched
-
-
-def extract_osv_fixed_versions(osv_record, package):
-    fixed = []
-    for affected in osv_record.get("affected") or []:
-        if not isinstance(affected, dict) or not package_matches_affected(
-            package, affected
-        ):
-            continue
-        for version_range in affected.get("ranges") or []:
-            if not isinstance(version_range, dict):
-                continue
-            for event in version_range.get("events") or []:
-                if isinstance(event, dict) and event.get("fixed"):
-                    fixed.append(event["fixed"])
-    return unique_nonempty(fixed)
-
-
-def extract_osv_cvss(osv_record):
-    for severity in osv_record.get("severity") or []:
-        if isinstance(severity, dict) and severity.get("score"):
-            return str(severity["score"])
-    return None
-
-
-def first_english_description(value):
-    if not isinstance(value, list):
-        return None
-    for item in value:
-        if (
-            isinstance(item, dict)
-            and item.get("lang") == "en"
-            and isinstance(item.get("value"), str)
-            and item["value"].strip()
-        ):
-            return item["value"].strip()
-    return None
-
-
-def extract_cwe_ids(weaknesses):
-    cwes = []
-    if not isinstance(weaknesses, list):
-        return cwes
-    for weakness in weaknesses:
-        if not isinstance(weakness, dict):
-            continue
-        for description in weakness.get("description") or []:
-            if not isinstance(description, dict):
-                continue
-            value = str(description.get("value") or "").strip().upper()
-            if re.match(r"^CWE-\d+$", value) and value not in cwes:
-                cwes.append(value)
-    return cwes
-
-
-def normalize_cvss_metric(source, metric):
-    if not isinstance(metric, dict) or not isinstance(metric.get("cvssData"), dict):
-        return None
-    cvss_data = metric["cvssData"]
-    base_score = to_decimal_string(cvss_data.get("baseScore"))
-    base_severity = (
-        to_string_or_none(cvss_data.get("baseSeverity"))
-        or to_string_or_none(metric.get("baseSeverity"))
-        or (cvss_score_to_severity(base_score) or "").upper()
-        or None
-    )
-    return {
-        "source": "nvd",
-        "version": to_string_or_none(cvss_data.get("version"))
-        or source.replace("cvssMetricV", ""),
-        "vector": to_string_or_none(cvss_data.get("vectorString")),
-        "baseScore": base_score,
-        "baseSeverity": base_severity,
-        "exploitabilityScore": to_decimal_string(metric.get("exploitabilityScore")),
-        "impactScore": to_decimal_string(metric.get("impactScore")),
-    }
-
-
-def extract_cvss_metrics(metrics):
-    if not isinstance(metrics, dict):
-        return []
-    result = []
-    for key, value in metrics.items():
-        if not key.startswith("cvssMetric") or not isinstance(value, list):
-            continue
-        for metric in value:
-            normalized = normalize_cvss_metric(key, metric)
-            if normalized:
-                result.append(normalized)
-    return result
-
-
-def select_best_cvss_metric(metrics):
-    def score(metric):
-        try:
-            return float(metric.get("baseScore") or 0)
-        except (TypeError, ValueError):
-            return 0
-
-    return sorted(metrics, key=score, reverse=True)[0] if metrics else None
-
-
-def parse_nvd_vulnerability_entry(entry):
-    if not isinstance(entry, dict) or not isinstance(entry.get("cve"), dict):
-        return None
-    cve = entry["cve"]
-    cve_id = normalize_cve_id(cve.get("id"))
-    if not cve_id:
-        return None
-    cvss_metrics = extract_cvss_metrics(cve.get("metrics"))
-    best_cvss = select_best_cvss_metric(cvss_metrics)
-    description = first_english_description(cve.get("descriptions"))
-    return {
-        "cveId": cve_id,
-        "title": description.split(".")[0] if description else None,
-        "description": description,
-        "cvssMetrics": cvss_metrics,
-        "bestCvssScore": best_cvss.get("baseScore") if best_cvss else None,
-        "bestCvssSeverity": best_cvss.get("baseSeverity") if best_cvss else None,
-        "cweIds": extract_cwe_ids(cve.get("weaknesses")),
-        "nvdPublishedAt": iso_date_or_none(cve.get("published")),
-        "nvdModifiedAt": iso_date_or_none(cve.get("lastModified")),
-    }
-
-
-def parse_nvd_response(data):
-    enrichments = {}
-    vulnerabilities = data.get("vulnerabilities") if isinstance(data, dict) else []
-    for entry in vulnerabilities or []:
-        patch = parse_nvd_vulnerability_entry(entry)
-        if patch:
-            enrichments[patch["cveId"]] = patch
-    return enrichments
-
-
-def parse_cisa_kev_catalog(data):
-    enrichments = {}
-    vulnerabilities = data.get("vulnerabilities") if isinstance(data, dict) else []
-    for entry in vulnerabilities or []:
-        if not isinstance(entry, dict):
-            continue
-        cve_id = normalize_cve_id(entry.get("cveID"))
-        if not cve_id:
-            continue
-        enrichments[cve_id] = {
-            "cveId": cve_id,
-            "title": to_string_or_none(entry.get("vulnerabilityName")),
-            "description": to_string_or_none(entry.get("shortDescription")),
-            "cweIds": unique_nonempty(
-                entry.get("cwes") if isinstance(entry.get("cwes"), list) else []
-            ),
-            "kevListed": True,
-            "kevDateAdded": iso_date_or_none(entry.get("dateAdded")),
-            "kevDueDate": iso_date_or_none(entry.get("dueDate")),
-            "kevKnownRansomwareCampaignUse": to_string_or_none(
-                entry.get("knownRansomwareCampaignUse")
-            ),
-            "kevRequiredAction": to_string_or_none(entry.get("requiredAction")),
-            "kevVendorProject": to_string_or_none(entry.get("vendorProject")),
-            "kevProduct": to_string_or_none(entry.get("product")),
-            "kevNotes": to_string_or_none(entry.get("notes")),
-        }
-    return enrichments
-
-
-def parse_epss_response(data):
-    enrichments = {}
-    rows = data.get("data") if isinstance(data, dict) else []
-    for row in rows or []:
-        if not isinstance(row, dict):
-            continue
-        cve_id = normalize_cve_id(row.get("cve"))
-        if not cve_id:
-            continue
-        enrichments[cve_id] = {
-            "cveId": cve_id,
-            "epss": to_decimal_string(row.get("epss")),
-            "epssPercentile": to_decimal_string(row.get("percentile")),
-            "epssScoreDate": iso_date_or_none(row.get("date")),
-            "epssModelVersion": to_string_or_none(row.get("model_version")),
-        }
-    return enrichments
-
-
-def chunked(values, size):
-    values = list(values or [])
-    for index in range(0, len(values), size):
-        yield values[index : index + size]
-
-
-def fetch_nvd_enrichments(cve_ids, errors):
-    enrichments = {}
-    for chunk in chunked(cve_ids, 100):
-        params = urllib.parse.urlencode({"cveIds": ",".join(chunk)})
-        try:
-            data = get_json(f"{NVD_CVE_API_URL}?{params}")
-            enrichments.update(parse_nvd_response(data))
-        except (
-            urllib.error.HTTPError,
-            urllib.error.URLError,
-            json.JSONDecodeError,
-            TimeoutError,
-            OSError,
-        ) as e:
-            errors.append(official_source_error("NVD", "CVE 查询", e))
-    return enrichments
-
-
-def _kev_cache_path(project_path):
-    base = os.path.join(project_path, BUTIAN_DIR, CACHE_DIR_NAME, "kev")
-    os.makedirs(base, exist_ok=True)
-    return os.path.join(base, "catalog.json")
-
-
-def _load_kev_cache(project_path):
-    cache_path = _kev_cache_path(project_path)
-    try:
-        mtime = os.path.getmtime(cache_path)
-    except OSError:
-        return None
-    if time.time() - mtime > 86400:
-        return None
-    try:
-        with open(cache_path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (json.JSONDecodeError, OSError):
-        return None
-
-
-def _save_kev_cache(data, project_path):
-    cache_path = _kev_cache_path(project_path)
-    try:
-        with open(cache_path, "w", encoding="utf-8") as f:
-            json.dump(data, f)
-    except OSError:
-        pass
-
-
-def fetch_cisa_kev_enrichments(cve_ids, errors, project_path):
-    if not cve_ids:
-        return {}
-    data = _load_kev_cache(project_path)
-    if data is None:
-        try:
-            data = get_json(CISA_KEV_JSON_URL)
-            _save_kev_cache(data, project_path)
-        except (
-            urllib.error.HTTPError,
-            urllib.error.URLError,
-            json.JSONDecodeError,
-            TimeoutError,
-            OSError,
-        ) as e:
-            errors.append(official_source_error("CISA KEV", "目录查询", e))
-            return {}
-    try:
-        kev = parse_cisa_kev_catalog(data)
-    except Exception:
-        return {}
-    wanted = set(cve_ids)
-    return {cve_id: patch for cve_id, patch in kev.items() if cve_id in wanted}
-
-
-def fetch_epss_enrichments(cve_ids, errors):
-    enrichments = {}
-    for chunk in chunked(cve_ids, 100):
-        params = urllib.parse.urlencode({"cve": ",".join(chunk)})
-        try:
-            data = get_json(f"{EPSS_API_URL}?{params}")
-            enrichments.update(parse_epss_response(data))
-        except (
-            urllib.error.HTTPError,
-            urllib.error.URLError,
-            json.JSONDecodeError,
-            TimeoutError,
-            OSError,
-        ) as e:
-            errors.append(official_source_error("FIRST EPSS", "CVE 查询", e))
-    return enrichments
-
-
-def merge_cve_patch(target, patch):
-    for key, value in (patch or {}).items():
-        if key == "cveId":
-            continue
-        if key in {"cweIds", "cvssMetrics"}:
-            merged = target.setdefault(key, [])
-            for item in value or []:
-                if item not in merged:
-                    merged.append(item)
-            continue
-        if key == "kevListed":
-            target[key] = bool(value) or bool(target.get(key))
-            continue
-        if value is not None and value != "":
-            target[key] = value
-
-
-def fetch_cve_enrichments(cve_ids, errors, project_path=None):
-    cve_ids = unique_nonempty([normalize_cve_id(cve_id) for cve_id in cve_ids])
-    enrichments = {
-        cve_id: {
-            "cveId": cve_id,
-            "cvssMetrics": [],
-            "cweIds": [],
-            "kevListed": False,
-        }
-        for cve_id in cve_ids
-    }
-    sources = [
-        fetch_nvd_enrichments(cve_ids, errors),
-        fetch_cisa_kev_enrichments(cve_ids, errors, project_path=project_path),
-        fetch_epss_enrichments(cve_ids, errors),
-    ]
-    for source in sources:
-        for cve_id, patch in source.items():
-            target = enrichments.setdefault(
-                cve_id,
-                {"cveId": cve_id, "cvssMetrics": [], "cweIds": [], "kevListed": False},
-            )
-            merge_cve_patch(target, patch)
-    return enrichments
-
-
-def severity_from_enrichments(osv_record, cve_enrichments):
-    best_metric = None
-    for enrichment in cve_enrichments:
-        for metric in enrichment.get("cvssMetrics") or []:
-            if not metric:
-                continue
-            if best_metric is None:
-                best_metric = metric
-                continue
-            try:
-                current = float(metric.get("baseScore") or 0)
-                previous = float(best_metric.get("baseScore") or 0)
-            except (TypeError, ValueError):
-                current, previous = 0, 0
-            if current > previous:
-                best_metric = metric
-    if best_metric:
-        severity = str(best_metric.get("baseSeverity") or "").lower()
-        if severity in {"critical", "high", "medium", "low"}:
-            return severity, best_metric.get("baseScore")
-        severity = cvss_score_to_severity(best_metric.get("baseScore"))
-        if severity:
-            return severity, best_metric.get("baseScore")
-
-    cvss_vector = extract_osv_cvss(osv_record)
-    return _cvss_to_severity(cvss_vector) or "unknown", cvss_vector
-
-
-def number_or_none(value):
-    try:
-        parsed = float(value)
-    except (TypeError, ValueError):
-        return None
-    return parsed if parsed == parsed else None
-
-
-def build_risk_signals(fixed_versions, cve_enrichments):
-    signals = ["affected_version_match"]
-    signals.append("fixed_version_available" if fixed_versions else "no_fixed_version")
-    max_cvss = max(
-        [0]
-        + [
-            number_or_none(metric.get("baseScore")) or 0
-            for enrichment in cve_enrichments
-            for metric in (enrichment.get("cvssMetrics") or [])
-            if isinstance(metric, dict)
-        ]
-    )
-    if max_cvss >= 9:
-        signals.append("cvss_critical")
-    elif max_cvss >= 7:
-        signals.append("cvss_high")
-    max_epss_percentile = max(
-        [0]
-        + [
-            number_or_none(enrichment.get("epssPercentile")) or 0
-            for enrichment in cve_enrichments
-        ]
-    )
-    if max_epss_percentile >= 0.95:
-        signals.append("epss_high_percentile")
-    elif max_epss_percentile >= 0.9:
-        signals.append("epss_elevated_percentile")
-    if any(enrichment.get("kevListed") for enrichment in cve_enrichments):
-        signals.append("cisa_kev")
-    if any(
-        str(enrichment.get("kevKnownRansomwareCampaignUse") or "").lower() == "known"
-        for enrichment in cve_enrichments
-    ):
-        signals.append("ransomware_campaign")
-    return signals
-
-
-def build_official_vulnerability(package, osv_record, cve_enrichments_by_id):
-    aliases = unique_nonempty(
-        (osv_record.get("aliases") or []) + [osv_record.get("id")]
-    )
-    cve_ids = extract_cve_aliases(aliases)
-    cve_enrichments = [
-        cve_enrichments_by_id[cve_id]
-        for cve_id in cve_ids
-        if cve_id in cve_enrichments_by_id
-    ]
-    fixed_versions = extract_osv_fixed_versions(osv_record, package)
-    severity, cvss = severity_from_enrichments(osv_record, cve_enrichments)
-    package_version = str(package.get("version") or "").strip()
-    package_name = package.get("name", "")
-    advisory_id = osv_record.get("id", "")
-    coordinate = (
-        f"{package_name}@{package_version}" if package_version else package_name
-    )
-    return {
-        "package": package_name,
-        "version": package_version,
-        "ecosystem": package.get("ecosystem", ""),
-        "affected": True,
-        "match_reason": "osv_query_match",
-        "match_summary": f"{coordinate} matched {advisory_id} in OSV official data.",
-        "confidence": "high",
-        "advisory_id": advisory_id,
-        "aliases": aliases,
-        "cve_id": cve_ids[0] if cve_ids else best_advisory_alias(aliases),
-        "severity": severity,
-        "cvss": cvss,
-        "fixed_versions": fixed_versions,
-        "summary": osv_record.get("summary") or osv_record.get("details") or "",
-        "risk_signals": build_risk_signals(fixed_versions, cve_enrichments),
-        "cve_enrichments": cve_enrichments,
-        "vulnerability_source": "official-osv",
-        "enrichment_sources": ["nvd", "cisa-kev", "first-epss"],
-    }
-
-
-def check_vulnerability_batch(batch_no, batch, project_path=None):
-    try:
-        data = fetch_osv_querybatch(batch)
-    except urllib.error.HTTPError as e:
-        return [], [
-            {
-                "step": "vulnerability_check",
-                "message": f"第 {batch_no} 批 OSV querybatch 返回 HTTP {e.code}",
-            }
-        ]
-    except urllib.error.URLError as e:
-        return [], [
-            {
-                "step": "vulnerability_check",
-                "message": f"第 {batch_no} 批 OSV querybatch 连接失败：{e.reason}",
-            }
-        ]
-    except (json.JSONDecodeError, TimeoutError, OSError) as e:
-        return [], [
-            {
-                "step": "vulnerability_check",
-                "message": f"第 {batch_no} 批 OSV querybatch 响应解析失败：{e}",
-            }
-        ]
-
-    errors = []
-    matches = parse_osv_query_results(data, batch)
-    if not matches:
-        return [], errors
-
-    details: dict[str, dict[str, Any]] = {}
-    detail_pairs = []
-    for package, vuln_id in matches:
-        if vuln_id not in details:
-            try:
-                details[vuln_id] = fetch_osv_vulnerability(vuln_id)
-            except (
-                urllib.error.HTTPError,
-                urllib.error.URLError,
-                json.JSONDecodeError,
-                TimeoutError,
-                OSError,
-            ) as e:
-                errors.append(official_source_error("OSV", f"{vuln_id} 详情查询", e))
-                continue
-        detail_pairs.append((package, details[vuln_id]))
-
-    cve_ids = []
-    for _, detail in detail_pairs:
-        aliases = unique_nonempty((detail.get("aliases") or []) + [detail.get("id")])
-        cve_ids.extend(extract_cve_aliases(aliases))
-    cve_enrichments = fetch_cve_enrichments(cve_ids, errors, project_path=project_path)
-
-    vulns = [
-        build_official_vulnerability(package, detail, cve_enrichments)
-        for package, detail in detail_pairs
-    ]
-    return vulns, errors
-
-
-def check_vulnerabilities(
-    packages, batch_size=100, errors=None, concurrency=1, project_path=None
-):
-    if not packages:
-        return []
-    if errors is None:
-        errors = []
-    queryable_packages = []
-    skipped = []
-    for package in packages:
-        if package.get("name") and str(package.get("version") or "").strip():
-            queryable_packages.append(package)
-        else:
-            skipped.append(package)
-    if skipped:
-        examples = unique_nonempty(
-            package.get("name") or package.get("package") for package in skipped
-        )[:8]
-        suffix = f"：{'、'.join(examples)}" if examples else ""
-        errors.append(
-            {
-                "step": "package_extraction",
-                "message": (
-                    f"已跳过 {len(skipped)} 个缺少版本的依赖坐标，"
-                    f"避免仅按包名误报漏洞{suffix}"
-                ),
-            }
-        )
-    packages = queryable_packages
-    if not packages:
-        return []
-    batches = [
-        (i // batch_size + 1, packages[i : i + batch_size])
-        for i in range(0, len(packages), batch_size)
-    ]
-    workers = max(1, min(int(concurrency or 1), len(batches), 16))
-
-    if workers == 1:
-        results = []
-        for batch_no, batch in batches:
-            vulns, batch_errors = check_vulnerability_batch(
-                batch_no, batch, project_path=project_path
-            )
-            results.append((batch_no, vulns, batch_errors))
-    else:
-        results = []
-        with ThreadPoolExecutor(max_workers=workers) as executor:
-            future_to_batch = {
-                executor.submit(
-                    check_vulnerability_batch, batch_no, batch, project_path
-                ): batch_no
-                for batch_no, batch in batches
-            }
-            for future in as_completed(future_to_batch):
-                batch_no = future_to_batch[future]
-                try:
-                    vulns, batch_errors = future.result()
-                except Exception as e:
-                    vulns = []
-                    batch_errors = [
-                        {
-                            "step": "vulnerability_check",
-                            "message": f"第 {batch_no} 批官方漏洞源检查失败：{e}",
-                        }
-                    ]
-                results.append((batch_no, vulns, batch_errors))
-
-    all_vulns = []
-    for _, vulns, batch_errors in sorted(results, key=lambda x: x[0]):
-        all_vulns.extend(vulns)
-        errors.extend(batch_errors)
-    return all_vulns
 
 
 # ---------------------------------------------------------------------------

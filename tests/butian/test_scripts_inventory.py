@@ -29,6 +29,7 @@ SCRIPT_TEST_FILES = {
     "server_inventory.py": ["test_server_inventory.py"],
     "server_match.py": ["test_server_match.py"],
     "visualize.py": ["test_visualize.py", "test_report_assets.py"],
+    "vulnerability_sources.py": ["test_scan.py", "test_server_match.py"],
     "workspace.py": ["test_scan_helpers.py", "test_detect.py"],
     "workflow_checks.py": ["test_workflow_checks.py"],
 }
@@ -51,6 +52,7 @@ SCRIPT_DOC_FILES = {
     "server_inventory.py": "server_inventory.md",
     "server_match.py": "server_match.md",
     "visualize.py": "visualize.md",
+    "vulnerability_sources.py": "vulnerability_sources.md",
     "workspace.py": "workspace.md",
     "workflow_checks.py": "workflow_checks.md",
 }
