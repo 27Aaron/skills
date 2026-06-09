@@ -18,7 +18,7 @@ description: >
 
 本地安全扫描 Skill。默认面向代码项目，生成 Markdown 审计报告和只读 HTML 报告，帮助非安全背景读者理解依赖漏洞、硬编码凭证、敏感文件跟踪、`.gitignore`、GitHub Actions、依赖维护和 IaC/容器本地配置风险。
 
-服务器扫描是独立的可选能力，用于检查已提供 SSH 目标或离线 inventory 的 Linux 运行环境。服务器扫描只生成 Markdown 报告，不生成 HTML 展示页。
+服务器扫描是独立的可选能力，用于检查显式提供的 SSH 目标或离线 inventory 对应的 Linux 运行环境。推荐使用本机 `.ssh/config` Host 别名，也允许直接传 `user@ip`；无论哪种方式都必须使用密钥登录，采集命令会禁用密码和键盘交互回退。`--server-only` 只生成 Markdown 报告，项目 + 服务器混合扫描可以在项目 HTML 的“服务器运行环境”章节展示服务器内容。
 
 ## 默认执行规则
 
@@ -30,14 +30,14 @@ description: >
 ## 详细参考
 
 - 项目的安全扫描、报告契约、数据源边界、修复交互和 AskUserQuestion：`references/project-scan.md`。
-- Linux 服务器安全扫描、只读 SSH、服务器维护建议和 Markdown 报告契约：`references/server-scan.md`。
+- Linux 服务器安全扫描、密钥登录、只读 SSH、服务器维护建议和报告契约：`references/server-scan.md`。
 
 ## 铁律
 
 - **扫描阶段不改业务内容。** 项目扫描不会修改业务源码、依赖、数据库或日志；它会创建/更新 `.butian/` 本地报告工作区、缓存、`docs/butian/security-report-*.md`，以及必要的报告忽略规则，并会确保 `.gitignore` 忽略 `.butian/` 和生成的安全报告文件。
 - **报告证据必须脱敏。** 普通密钥只展示脱敏预览，模板文件也只展示脱敏命中值；脱敏不要过度，尽量保留足够上下文让新手能找到对应位置。
 - **默认是项目扫描。** 不主动扫描系统目录、用户主目录、系统 Python、全局 npm、全局 pnpm、操作系统包、系统服务、数据库或日志。
-- **服务器扫描需要明确的扫描来源。** 只有提供 `--server`、`--server-only --server` 或 `--server-inventory` 时，才进入服务器运行环境扫描。
+- **服务器扫描需要明确的扫描来源。** 只有提供 `--server <ssh_target>`、`--server-only --server <ssh_target>` 或 `--server-inventory` 时，才进入服务器运行环境扫描。`--server` 可以是 SSH config Host 别名，也可以是 `user@ip`；必须确保密钥登录可用，脚本会禁用密码和键盘交互回退。
 - **修复必须先问用户。** 项目报告生成后，先用 AskUserQuestion 询问是否修复；升级方式、Dependabot、凭证占位符和过期依赖维护都需要确认。收尾维护动作使用多选 AskUserQuestion 统一确认。
 - **风险项和建议分开呈现。** 已确认风险、仓库安检、过期依赖、服务器维护建议不能混成一种风险。
 - **不制造恐慌。** 没有证据时说“不确定”；任何跳过、API 失败或采集失败都必须保留为不完整检查。
@@ -79,5 +79,5 @@ py -3 scripts/run_audit.py <project_path>
 ```text
 ⚠️ 能力边界
 
-> 安全往往不是最显眼的需求，却是产品长期稳定运行的底线。此 Skill 会帮助你发现应用依赖漏洞、过期依赖和仓库暴露风险，帮助团队更早暴露容易被忽视的供应链问题。但依赖漏洞查询只处理本地可确认精确包名和精确版本的应用依赖坐标，不把 Dockerfile、compose、Kubernetes、devcontainer、镜像/SBOM、OS/发行版包、系统包或系统安全公告生态混入 lockfile 扫描，也不能替代代码审计、渗透测试或部署安全评估；业务逻辑、权限控制、SQL 注入、XSS 等代码层风险仍需单独复核。
+> 安全往往不是最显眼的需求，却是产品长期稳定运行的底线。此 Skill 会帮助你发现应用依赖漏洞、过期依赖和仓库暴露风险，并在显式提供 SSH 目标或离线 inventory 时做 Linux 服务器运行环境只读检查；SSH 采集必须使用密钥登录，脚本会禁用密码和键盘交互回退。应用依赖漏洞查询只处理本地可确认精确包名和精确版本的应用依赖坐标；服务器漏洞只处理能关联到发行版包坐标、内核包或官方包管理器安全更新的证据，不把 Dockerfile、compose、Kubernetes、devcontainer、镜像/SBOM、未关联服务 banner、自编译二进制或模糊 CPE 混入已确认漏洞，也不能替代代码审计、渗透测试或完整部署安全评估；业务逻辑、权限控制、SQL 注入、XSS 等代码层风险仍需单独复核。
 ```

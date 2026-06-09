@@ -114,7 +114,10 @@ class ScriptInventoryTests(unittest.TestCase):
         self.assertIn("--server-only", text)
         self.assertIn("--server-inventory", text)
         self.assertNotIn("user@example.com", text)
+        self.assertIn("--server user@203.0.113.10", text)
         self.assertIn("--server <ssh_target>", text)
+        self.assertIn("--ssh-config", text)
+        self.assertIn(".ssh/config", text)
         self.assertNotIn("用户明确要求", text)
         self.assertNotIn("Agent 工作流", text)
 
@@ -271,7 +274,9 @@ class ScriptInventoryTests(unittest.TestCase):
         self.assertIn("## 服务器扫描入口", server_text)
         self.assertNotIn("user@example.com", skill_text)
         self.assertNotIn("user@example.com", server_text)
+        self.assertIn("--server user@203.0.113.10", server_text)
         self.assertIn("--server <ssh_target>", server_text)
+        self.assertIn(".ssh/config", server_text)
 
     def test_public_markdown_avoids_internal_routing_language(self):
         paths = [SKILL_PATH]

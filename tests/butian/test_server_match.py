@@ -109,7 +109,33 @@ class ServerMatchTests(unittest.TestCase):
         self.assertIn("CVE-2026-0001", issue["aliases"])
         self.assertEqual(issue["severity"], "high")
         self.assertEqual(issue["cwe"], ["CWE-400"])
+        self.assertEqual(issue["cve_enrichments"][0]["cvssScore"], 8.2)
         self.assertIn("发行版包坐标", issue["summary"])
+
+    def test_confirmed_kernel_issue_uses_source_package_name_when_available(self):
+        asset = {
+            "ecosystem": "Ubuntu:24.04:LTS",
+            "name": "linux-image-6.8.0-53-generic",
+            "source_name": "linux",
+            "installed_name": "linux-image-6.8.0-53-generic",
+            "version": "6.8.0-53.55",
+            "package_type": "deb",
+            "asset_type": "kernel_package",
+        }
+        osv_record = {
+            "id": "UBUNTU-CVE-2026-0003",
+            "aliases": ["CVE-2026-0003"],
+            "summary": "linux kernel issue",
+        }
+
+        issue = server_match.build_confirmed_issue(
+            asset, osv_record, {"CVE-2026-0003": [{"cvssScore": 9.1}]}
+        )
+
+        self.assertEqual(issue["asset_type"], "kernel_package")
+        self.assertEqual(issue["package"], "linux-image-6.8.0-53-generic")
+        self.assertEqual(issue["source_package"], "linux")
+        self.assertEqual(issue["severity"], "critical")
 
     def test_cpe_only_candidate_is_not_reported(self):
         result = server_match.filter_reportable_issues(

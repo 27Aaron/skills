@@ -182,8 +182,9 @@ def build_confirmed_issue(
     osv_record: dict[str, Any],
     cve_enrichments: dict[str, Any],
 ) -> dict[str, Any]:
-    source_name = asset.get("name") or ""
-    installed_name = asset.get("installed_name") or source_name
+    query_name = asset.get("name") or ""
+    source_name = asset.get("source_name") or query_name
+    installed_name = asset.get("installed_name") or query_name
     aliases = _cve_aliases(osv_record)
     enrichments = []
     for cve in aliases:
@@ -215,6 +216,7 @@ def build_confirmed_issue(
         "advisory_id": osv_record.get("id") or (aliases[0] if aliases else ""),
         "aliases": aliases or (osv_record.get("aliases") or []),
         "cve_id": aliases[0] if aliases else "",
+        "cve_enrichments": enrichments,
         "advisory_summary": osv_record.get("summary")
         or osv_record.get("details")
         or "",

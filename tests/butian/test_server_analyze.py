@@ -201,6 +201,46 @@ class ServerAnalyzeTests(unittest.TestCase):
             )
         )
 
+    def test_native_security_updates_and_unlinked_service_versions_are_maintenance(self):
+        assets = {
+            "distro": {},
+            "packages": [],
+            "kernel": {},
+            "ports": [],
+            "services": [{"name": "nginx.service"}],
+            "ssh": {"available": False, "options": {}},
+            "firewall": {"has_active_firewall": True, "tools": {}},
+            "docker": {"containers": []},
+            "native_security_updates": [
+                {
+                    "manager": "apt",
+                    "name": "openssl",
+                    "current_version": "3.0.13-0ubuntu3.5",
+                    "fixed_version": "3.0.13-0ubuntu3.6",
+                }
+            ],
+            "software_versions": [
+                {
+                    "name": "nginx",
+                    "version": "1.24.0",
+                    "source": "nginx -v",
+                    "linked_package": {},
+                }
+            ],
+            "errors": [],
+        }
+
+        result = server_analyze.build_server_analysis(
+            assets, {"confirmed_issues": [], "errors": []}
+        )
+
+        titles = "\n".join(item["title"] for item in result["maintenance_items"])
+        self.assertIn("系统安全更新可用：openssl", titles)
+        self.assertIn("nginx 版本无法关联发行版包", titles)
+        self.assertEqual(result["confirmed_issues"], [])
+        self.assertEqual(result["summary"]["service_count"], 1)
+        self.assertEqual(result["services"][0]["name"], "nginx.service")
+
     def test_asset_and_match_errors_are_preserved(self):
         result = server_analyze.build_server_analysis(
             {

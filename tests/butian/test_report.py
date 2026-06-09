@@ -543,6 +543,9 @@ class RenderServerEnvironmentTests(unittest.TestCase):
                     "confirmed_count": 1,
                     "maintenance_count": 1,
                     "public_port_count": 2,
+                    "service_count": 4,
+                    "software_version_count": 3,
+                    "native_security_update_count": 2,
                 },
             },
             "server_issues": [
@@ -568,6 +571,9 @@ class RenderServerEnvironmentTests(unittest.TestCase):
         self.assertIn("已确认服务器风险：1", result)
         self.assertIn("维护建议：1", result)
         self.assertIn("对外监听端口：2", result)
+        self.assertIn("运行服务：4", result)
+        self.assertIn("常见软件版本：3", result)
+        self.assertIn("安全更新线索：2", result)
         self.assertIn("### 已确认服务器风险", result)
         self.assertIn("nginx", result)
         self.assertIn(

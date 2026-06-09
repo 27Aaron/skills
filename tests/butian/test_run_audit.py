@@ -247,6 +247,9 @@ class ModeLabelTests(unittest.TestCase):
     def test_unknown(self):
         self.assertEqual(run_audit.mode_label("custom"), "安全扫描")
 
+    def test_server_only(self):
+        self.assertEqual(run_audit.mode_label("server_only"), "服务器运行环境扫描")
+
 
 # ---------------------------------------------------------------------------
 # format_risk_rows
@@ -465,6 +468,8 @@ class FormatHumanSummaryTests(unittest.TestCase):
         self.assertIn("已确认风险项：1 个", result)
         self.assertIn("nginx", result)
         self.assertIn("HTML 报告：服务器扫描不生成 HTML", result)
+        self.assertNotIn("总依赖", result)
+        self.assertNotIn("仓库安检", result)
         self.assertNotIn("未发现需要优先处理的依赖漏洞", result)
 
     def test_final_report_label_has_space_before_markdown(self):
@@ -648,21 +653,29 @@ class ServerArgsTests(unittest.TestCase):
         args = run_audit.parse_args(
             [
                 "--server",
-                "root@example.test",
+                "root@203.0.113.10",
                 "--server-only",
                 "--ssh-port",
                 "2222",
                 "--identity",
-                "/tmp/id",
+                "/tmp/id_ed25519",
                 "--include-docker-metadata",
             ]
         )
 
-        self.assertEqual(args.server, "root@example.test")
+        self.assertEqual(args.server, "root@203.0.113.10")
         self.assertTrue(args.server_only)
         self.assertEqual(args.ssh_port, 2222)
-        self.assertEqual(args.identity, "/tmp/id")
+        self.assertEqual(args.identity, "/tmp/id_ed25519")
         self.assertTrue(args.include_docker_metadata)
+
+    def test_parse_server_args_can_still_use_ssh_config(self):
+        args = run_audit.parse_args(
+            ["--server", "prod-web", "--ssh-config", "/tmp/ssh_config"]
+        )
+
+        self.assertEqual(args.server, "prod-web")
+        self.assertEqual(args.ssh_config, "/tmp/ssh_config")
 
     def test_parse_server_inventory_arg(self):
         args = run_audit.parse_args(
@@ -674,9 +687,11 @@ class ServerArgsTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             run_audit.parse_args(["--server-only"])
 
-        ssh_args = run_audit.parse_args(["--server-only", "--server", "root@host"])
+        ssh_args = run_audit.parse_args(
+            ["--server-only", "--server", "root@203.0.113.10"]
+        )
         self.assertTrue(ssh_args.server_only)
-        self.assertEqual(ssh_args.server, "root@host")
+        self.assertEqual(ssh_args.server, "root@203.0.113.10")
 
         inventory_args = run_audit.parse_args(
             ["--server-only", "--server-inventory", "/tmp/server.json"]
@@ -740,6 +755,27 @@ class ServerPipelineHelperTests(unittest.TestCase):
         )
 
 
+class ServerIdentityRedactionTests(unittest.TestCase):
+    def test_strip_server_identity_redacts_explicit_secret_from_free_text(self):
+        payload = {
+            "errors": [
+                {
+                    "step": "ssh",
+                    "message": "Identity file /tmp/id_prod not accessible",
+                }
+            ],
+            "outputs": {"probe": {"stderr": "using /tmp/id_prod"}},
+        }
+
+        result = run_audit.strip_server_identity(
+            payload, extra_secrets={"/tmp/id_prod"}
+        )
+
+        rendered = json.dumps(result, ensure_ascii=False)
+        self.assertNotIn("/tmp/id_prod", rendered)
+        self.assertIn("[redacted-identity]", rendered)
+
+
 class ServerOnlyPipelineTests(unittest.TestCase):
     def test_main_server_only_writes_scan_and_artifacts_without_identity(self):
         original_argv = sys.argv
@@ -800,12 +836,13 @@ class ServerOnlyPipelineTests(unittest.TestCase):
 
             modules = {
                 "butian.scripts.server_collect": SimpleNamespace(
-                    collect_server_inventory=lambda target, port, identity, include_docker_metadata: (
+                    collect_server_inventory=lambda target, port, identity, ssh_config, include_docker_metadata: (
                         collect_calls.append(
                             {
                                 "target": target,
                                 "port": port,
                                 "identity": identity,
+                                "ssh_config": ssh_config,
                                 "include_docker_metadata": include_docker_metadata,
                             }
                         )
@@ -877,7 +914,7 @@ class ServerOnlyPipelineTests(unittest.TestCase):
                 sys.argv = [
                     "run_audit.py",
                     "--server",
-                    "root@example.test",
+                    "root@203.0.113.10",
                     "--server-only",
                     "--ssh-port",
                     "2222",
@@ -902,9 +939,10 @@ class ServerOnlyPipelineTests(unittest.TestCase):
                 collect_calls,
                 [
                     {
-                        "target": "root@example.test",
+                        "target": "root@203.0.113.10",
                         "port": 2222,
                         "identity": "/tmp/id_server_only",
+                        "ssh_config": "",
                         "include_docker_metadata": True,
                     }
                 ],

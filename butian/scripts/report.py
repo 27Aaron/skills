@@ -567,6 +567,9 @@ def render_server_environment(analysis):
         f"- 已确认服务器风险：{summary.get('confirmed_count', 0)}",
         f"- 维护建议：{summary.get('maintenance_count', 0)}",
         f"- 对外监听端口：{summary.get('public_port_count', 0)}",
+        f"- 运行服务：{summary.get('service_count', 0)}",
+        f"- 常见软件版本：{summary.get('software_version_count', 0)}",
+        f"- 安全更新线索：{summary.get('native_security_update_count', 0)}",
     ]
 
     issues = analysis.get("server_issues") or []

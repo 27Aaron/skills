@@ -13,7 +13,7 @@
 | 场景 | 参考文件 | 说明 |
 | ---- | -------- | ---- |
 | 项目的安全扫描 | `butian/references/project-scan.md` | 项目扫描范围、数据源边界、报告契约、AskUserQuestion 修复交互和分步调试 |
-| 服务器的安全扫描 | `butian/references/server-scan.md` | 只读 SSH 边界、启用方式、OpenSSH/防火墙维护建议、Docker 元数据和服务器风险证据标准 |
+| 服务器的安全扫描 | `butian/references/server-scan.md` | 密钥登录、只读 SSH 边界、启用方式、内核/常见软件版本、OpenSSH/防火墙维护建议、Docker 元数据和服务器风险证据标准 |
 
 ## 管线总览
 
@@ -45,8 +45,8 @@
 | `run_audit.py`        | `docs/butian/run_audit.md`        | `tests/butian/test_run_audit.py`        | 全链路编排、首次扫描和复扫策略                               |
 | `scan.py`             | `docs/butian/scan.md`             | `tests/butian/test_scan.py`             | 扫描 CLI、并行编排、密钥扫描、过期依赖和结果汇总              |
 | `server_analyze.py`   | `docs/butian/server_analyze.md`   | `tests/butian/test_server_analyze.py`   | 服务器风险归并、Docker/端口维护建议、错误保留                |
-| `server_collect.py`   | `docs/butian/server_collect.md`   | `tests/butian/test_server_collect.py`   | 只读 SSH 命令白名单、Docker 元数据、离线 inventory           |
-| `server_inventory.py` | `docs/butian/server_inventory.md` | `tests/butian/test_server_inventory.py` | Linux 发行版、系统包、内核、监听端口和 Docker 解析           |
+| `server_collect.py`   | `docs/butian/server_collect.md`   | `tests/butian/test_server_collect.py`   | 密钥登录 SSH 目标、只读 SSH 命令白名单、Docker 元数据、离线 inventory |
+| `server_inventory.py` | `docs/butian/server_inventory.md` | `tests/butian/test_server_inventory.py` | Linux 发行版、系统包、内核、常见软件版本、安全更新、运行服务、监听端口和 Docker 解析 |
 | `server_match.py`     | `docs/butian/server_match.md`     | `tests/butian/test_server_match.py`     | OSV 发行版包坐标、详情公告、CVE 富化和覆盖缺口               |
 | `visualize.py`        | `docs/butian/visualize.md`        | `tests/butian/test_visualize.py`        | HTML 注入、资产内联、交互报告和浏览器打开策略                |
 | `vulnerability_sources.py` | `docs/butian/vulnerability_sources.md` | `tests/butian/test_scan.py`        | OSV/NVD/CISA KEV/FIRST EPSS 查询、富化、缓存和风险信号合并    |

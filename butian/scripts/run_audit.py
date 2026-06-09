@@ -104,7 +104,7 @@ def parse_args(argv):
     parser.add_argument(
         "--server",
         default="",
-        help="只读 SSH 扫描 Linux 服务器，例如 user@host",
+        help="只读 SSH 扫描 Linux 服务器，例如 user@203.0.113.10 或 SSH config Host 别名",
     )
     parser.add_argument(
         "--server-only",
@@ -128,6 +128,11 @@ def parse_args(argv):
         help="SSH 私钥路径；只传给 ssh，不写入报告",
     )
     parser.add_argument(
+        "--ssh-config",
+        default="",
+        help="可选 SSH config 路径",
+    )
+    parser.add_argument(
         "--include-docker-metadata",
         action="store_true",
         help="采集 Docker 容器名、镜像标签和端口映射；不进入容器、不扫描镜像内部",
@@ -149,7 +154,7 @@ def import_server_module(name):
     return importlib.import_module(name)
 
 
-SERVER_IDENTITY_KEYS = {"identity", "identity_file", "ssh_identity"}
+SERVER_IDENTITY_KEYS = {"identity", "identity_file", "identityfile", "ssh_identity"}
 
 
 def _collect_server_identity_secrets(value):
@@ -189,8 +194,10 @@ def _strip_server_identity(value, secrets):
     return value
 
 
-def strip_server_identity(value):
-    return _strip_server_identity(value, _collect_server_identity_secrets(value))
+def strip_server_identity(value, extra_secrets=None):
+    secrets = _collect_server_identity_secrets(value)
+    secrets.update(extra_secrets or set())
+    return _strip_server_identity(value, secrets)
 
 
 def write_json(path, data):
@@ -407,6 +414,7 @@ def mode_label(scan_mode):
     labels = {
         "full_dependency_scan": "完整依赖漏洞扫描",
         "hygiene_only": "仓库安检",
+        "server_only": "服务器运行环境扫描",
     }
     return labels.get(scan_mode, "安全扫描")
 
@@ -547,6 +555,7 @@ def format_human_summary(summary, scan, analysis, args):
         "server_maintenance_count", len(analysis.get("server_maintenance") or [])
     )
     confirmed_issue_count = dependency_issue_count + server_issue_count
+    server_only = scan_mode == "server_only"
     server_lines = (
         [
             f"- 服务器运行环境：{server_issue_count} 个已确认风险 / {server_maintenance_count} 条维护建议",
@@ -578,6 +587,24 @@ def format_human_summary(summary, scan, analysis, args):
         else []
     )
 
+    if server_only:
+        count_lines = [
+            f"- 已确认风险项：{confirmed_issue_count} 个",
+            *server_lines,
+            f"- 扫描错误：{error_label}",
+        ]
+        closing_note = "如果存在紧急/高风险服务器风险，建议先处理有明确官方公告或发行版安全更新路径的项；维护建议按变更窗口处理。"
+    else:
+        count_lines = [
+            f"- 总依赖：{total_packages} 个{dependency_unit}",
+            f"- 已确认风险项：{confirmed_issue_count} 个",
+            *server_lines,
+            f"- 仓库安检：{secret_count} 个硬编码凭证 / {sensitive_count} 个跟踪的敏感文件 / {gitignore_label}",
+            f"- 过期依赖：{analysis.get('outdated_count', len(analysis.get('outdated') or []))} 个（建议按维护窗口评估升级）",
+            f"- 扫描错误：{error_label}",
+        ]
+        closing_note = "如果存在紧急/高风险项，建议先处理有明确修复版本的依赖；过期依赖作为维护信号，放在风险项修复验证之后排期。"
+
     lines = [
         f"⏺ 扫描完成 ✅ 模式：{scan_mode}（{mode_label(scan_mode)}）。",
         *scope_notice,
@@ -591,12 +618,7 @@ def format_human_summary(summary, scan, analysis, args):
             aligns=["center", "left"],
         ),
         "",
-        f"- 总依赖：{total_packages} 个{dependency_unit}",
-        f"- 已确认风险项：{confirmed_issue_count} 个",
-        *server_lines,
-        f"- 仓库安检：{secret_count} 个硬编码凭证 / {sensitive_count} 个跟踪的敏感文件 / {gitignore_label}",
-        f"- 过期依赖：{analysis.get('outdated_count', len(analysis.get('outdated') or []))} 个（建议按维护窗口评估升级）",
-        f"- 扫描错误：{error_label}",
+        *count_lines,
         "",
         "⚠️ 能力边界",
         "",
@@ -612,9 +634,7 @@ def format_human_summary(summary, scan, analysis, args):
         html_report_line,
         f"- analysis JSON：{relative_path(summary.get('analysis_file'), project_path)}",
         "",
-        quote_line(
-            "如果存在紧急/高风险项，建议先处理有明确修复版本的依赖；过期依赖作为维护信号，放在风险项修复验证之后排期。"
-        ),
+        quote_line(closing_note),
     ]
     return "\n".join(lines)
 
@@ -745,6 +765,7 @@ def main():
                 args.server,
                 port=args.ssh_port,
                 identity=args.identity,
+                ssh_config=args.ssh_config,
                 include_docker_metadata=args.include_docker_metadata,
             )
         inventory = strip_server_identity(inventory)

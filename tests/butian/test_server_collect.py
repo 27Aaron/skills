@@ -75,6 +75,67 @@ class CommandPlanTests(unittest.TestCase):
         self.assertIn("docker_ps", with_docker_ids)
 
 
+class SshKeyPolicyTests(unittest.TestCase):
+    def test_server_scan_accepts_ssh_config_alias_as_optional_convenience(self):
+        config = """
+Host prod-web
+  HostName 203.0.113.10
+  User deploy
+  Port 2222
+  IdentityFile ~/.ssh/prod-web_ed25519
+  IdentitiesOnly yes
+  PreferredAuthentications publickey
+  PasswordAuthentication no
+  PubkeyAuthentication yes
+  BatchMode yes
+"""
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8") as handle:
+            handle.write(config)
+            handle.flush()
+
+            policy = server_collect.resolve_ssh_policy(
+                "prod-web", ssh_config=handle.name
+            )
+
+        self.assertEqual(policy["target"], "prod-web")
+        self.assertIn("identityfile", policy["options"])
+
+    def test_server_scan_accepts_direct_user_ip_with_key_only_ssh_options(self):
+        policy = server_collect.resolve_ssh_policy(
+            "root@203.0.113.10", identity="/tmp/id_ed25519"
+        )
+        cmd = server_collect._ssh_base(
+            "root@203.0.113.10", port=2222, identity="/tmp/id_ed25519"
+        )
+
+        self.assertEqual(policy["target"], "root@203.0.113.10")
+        self.assertIn("-p", cmd)
+        self.assertIn("2222", cmd)
+        self.assertIn("-i", cmd)
+        self.assertIn("/tmp/id_ed25519", cmd)
+        self.assertIn("BatchMode=yes", cmd)
+        self.assertIn("PasswordAuthentication=no", cmd)
+        self.assertIn("KbdInteractiveAuthentication=no", cmd)
+        self.assertIn("PubkeyAuthentication=yes", cmd)
+        self.assertIn("PreferredAuthentications=publickey", cmd)
+
+    def test_ssh_base_can_use_config_file_without_requiring_it(self):
+        cmd = server_collect._ssh_base("prod-web", ssh_config="/tmp/ssh_config")
+
+        self.assertIn("-F", cmd)
+        self.assertIn("/tmp/ssh_config", cmd)
+        self.assertIn("prod-web", cmd)
+        self.assertIn("BatchMode=yes", cmd)
+        self.assertIn("PasswordAuthentication=no", cmd)
+
+    def test_server_scan_rejects_unsafe_target_shape(self):
+        with self.assertRaisesRegex(ValueError, "SSH 目标"):
+            server_collect.resolve_ssh_policy("-oProxyCommand=bad")
+
+        with self.assertRaisesRegex(ValueError, "SSH 目标"):
+            server_collect.resolve_ssh_policy("root@host whoami")
+
+
 class CollectServerInventoryTests(unittest.TestCase):
     def test_collect_records_outputs_without_installing_tools(self):
         def fake_run(target, command, **kwargs):
@@ -87,8 +148,15 @@ class CollectServerInventoryTests(unittest.TestCase):
                 }
             return {"command": command, "returncode": 0, "stdout": "", "stderr": ""}
 
-        with mock.patch.object(server_collect, "run_ssh_command", side_effect=fake_run):
-            inventory = server_collect.collect_server_inventory("root@example.test")
+        with (
+            mock.patch.object(server_collect, "run_ssh_command", side_effect=fake_run),
+            mock.patch.object(
+                server_collect,
+                "resolve_ssh_policy",
+                return_value={"target": "root@203.0.113.10", "options": {}},
+            ),
+        ):
+            inventory = server_collect.collect_server_inventory("root@203.0.113.10")
 
         self.assertEqual(inventory["collection_mode"], "ssh")
         self.assertIn("os_release", inventory["outputs"])
@@ -107,8 +175,15 @@ class CollectServerInventoryTests(unittest.TestCase):
                 "stderr": "denied",
             }
 
-        with mock.patch.object(server_collect, "run_ssh_command", side_effect=fake_run):
-            inventory = server_collect.collect_server_inventory("root@example.test")
+        with (
+            mock.patch.object(server_collect, "run_ssh_command", side_effect=fake_run),
+            mock.patch.object(
+                server_collect,
+                "resolve_ssh_policy",
+                return_value={"target": "root@203.0.113.10", "options": {}},
+            ),
+        ):
+            inventory = server_collect.collect_server_inventory("root@203.0.113.10")
 
         self.assertGreater(len(inventory["errors"]), 0)
         self.assertEqual(inventory["errors"][0]["step"], "server_collect")

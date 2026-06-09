@@ -1645,6 +1645,9 @@ class ReportAssetTests(unittest.TestCase):
                     "confirmed_count": 1,
                     "maintenance_count": 1,
                     "public_port_count": 2,
+                    "service_count": 4,
+                    "software_version_count": 3,
+                    "native_security_update_count": 2,
                 }
             },
             "server_issues": [
@@ -1675,6 +1678,12 @@ class ReportAssetTests(unittest.TestCase):
         self.assertIn('section-title">服务器运行环境', html)
         self.assertIn('<span class="mini-label">系统包</span>', html)
         self.assertIn('<span class="mini-value">128</span>', html)
+        self.assertIn('<span class="mini-label">运行服务</span>', html)
+        self.assertIn('<span class="mini-value">4</span>', html)
+        self.assertIn('<span class="mini-label">软件版本</span>', html)
+        self.assertIn('<span class="mini-value">3</span>', html)
+        self.assertIn('<span class="mini-label">安全更新</span>', html)
+        self.assertIn('<span class="mini-value">2</span>', html)
         self.assertIn("nginx 1.24.0-2ubuntu7", html)
         self.assertIn("发行版安全公告确认当前 nginx 包仍受影响。", html)
         self.assertIn("Docker 容器 web 使用旧镜像标签 nginx:1.18", html)

@@ -239,6 +239,44 @@ class KernelAssetTests(unittest.TestCase):
         self.assertEqual(asset["version"], "6.6.52-0-lts")
 
 
+class NativeSecurityUpdateParsingTests(unittest.TestCase):
+    def test_parse_rpm_security_updates_uses_package_token_not_arch(self):
+        inventory = {
+            "outputs": {
+                "dnf_updateinfo": {
+                    "stdout": (
+                        "RHSA-2026:0001 Important/Sec. kernel-core-0:5.14.0-427.18.1.el9_4 x86_64\n"
+                        "RHSA-2026:0002 Moderate/Sec. openssl-libs-1:3.0.7-28.el9_4 x86_64\n"
+                    )
+                }
+            }
+        }
+
+        updates = server_inventory.parse_native_security_updates(inventory)
+
+        self.assertEqual([item["name"] for item in updates], ["kernel-core", "openssl-libs"])
+        self.assertEqual(updates[0]["fixed_version"], "0:5.14.0-427.18.1.el9_4")
+        self.assertEqual(updates[1]["fixed_version"], "1:3.0.7-28.el9_4")
+
+    def test_parse_zypper_security_patches_uses_patch_name_column(self):
+        inventory = {
+            "outputs": {
+                "zypper_patches": {
+                    "stdout": (
+                        "Repository | Name             | Category | Severity  | Interactive | Status | Summary\n"
+                        "repo-oss    | SUSE-2026-0001  | security | important | ---         | needed | openssl security update\n"
+                    )
+                }
+            }
+        }
+
+        updates = server_inventory.parse_native_security_updates(inventory)
+
+        self.assertEqual(updates[0]["manager"], "zypper")
+        self.assertEqual(updates[0]["name"], "SUSE-2026-0001")
+        self.assertEqual(updates[0]["fixed_version"], "SUSE-2026-0001")
+
+
 class ExposureAndDockerTests(unittest.TestCase):
     def test_parse_ss_listening_ports(self):
         raw = (
@@ -386,7 +424,25 @@ class ServerPostureParsingTests(unittest.TestCase):
                 "dpkg_packages": {
                     "stdout": (
                         "nginx\t1.24.0-2ubuntu7.3\tamd64\tnginx\n"
+                        "openssl\t3.0.13-0ubuntu3.5\tamd64\topenssl\n"
+                        "openssh-server\t1:9.6p1-3ubuntu13\tamd64\topenssh\n"
                         "linux-image-6.8.0-53-generic\t6.8.0-53.55\tamd64\tlinux\n"
+                    )
+                },
+                "apt_upgradable": {
+                    "stdout": (
+                        "Listing...\n"
+                        "openssl/noble-updates 3.0.13-0ubuntu3.6 amd64 [upgradable from: 3.0.13-0ubuntu3.5]\n"
+                    )
+                },
+                "nginx_v": {"stdout": "nginx version: nginx/1.24.0 (Ubuntu)\n"},
+                "openssl_v": {"stdout": "OpenSSL 3.0.13 30 Jan 2024\n"},
+                "ssh_v": {"stdout": "OpenSSH_9.6p1 Ubuntu-3ubuntu13, OpenSSL 3.0.13 30 Jan 2024\n"},
+                "services": {
+                    "stdout": (
+                        "UNIT LOAD ACTIVE SUB DESCRIPTION\n"
+                        "nginx.service loaded active running A high performance web server\n"
+                        "ssh.service loaded active running OpenBSD Secure Shell server\n"
                     )
                 },
                 "ports": {
@@ -406,11 +462,49 @@ class ServerPostureParsingTests(unittest.TestCase):
         assets = server_inventory.build_server_assets(inventory)
 
         self.assertEqual(assets["distro"]["id"], "ubuntu")
-        self.assertEqual(len(assets["packages"]), 2)
+        self.assertEqual(len(assets["packages"]), 4)
         self.assertEqual(assets["kernel"]["asset_type"], "kernel_package")
+        self.assertEqual(assets["kernel"]["source_name"], "linux")
         self.assertEqual(assets["ports"][0]["port"], 443)
+        self.assertEqual(
+            [item["name"] for item in assets["services"]],
+            ["nginx.service", "ssh.service"],
+        )
         self.assertTrue(assets["docker"]["containers"][0]["explicit_old_tag"])
+        self.assertEqual(
+            [item["name"] for item in assets["software_versions"]],
+            ["nginx", "openssl", "openssh"],
+        )
+        self.assertEqual(
+            assets["software_versions"][0]["linked_package"]["name"], "nginx"
+        )
+        self.assertEqual(assets["native_security_updates"][0]["name"], "openssl")
+        self.assertEqual(assets["native_security_updates"][0]["fixed_version"], "3.0.13-0ubuntu3.6")
         self.assertEqual(assets["errors"], [])
+
+    def test_unlinked_service_version_is_preserved_as_coverage_gap(self):
+        inventory = {
+            "target": "prod-web",
+            "collection_mode": "ssh",
+            "outputs": {
+                "os_release": {"stdout": "ID=ubuntu\nVERSION_ID=24.04\n"},
+                "dpkg_packages": {"stdout": "curl\t8.5.0-2ubuntu10\tamd64\tcurl\n"},
+                "uname_r": {"stdout": "6.8.0-53-generic\n"},
+                "nginx_v": {"stdout": "nginx version: nginx/1.24.0\n"},
+            },
+            "errors": [],
+        }
+
+        assets = server_inventory.build_server_assets(inventory)
+
+        self.assertEqual(assets["software_versions"][0]["name"], "nginx")
+        self.assertFalse(assets["software_versions"][0]["linked_package"])
+        self.assertTrue(
+            any(
+                item.get("code") == "unlinked_service_version"
+                for item in assets["errors"]
+            )
+        )
 
     def test_build_server_assets_records_unsupported_distro_error(self):
         inventory = {

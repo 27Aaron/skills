@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import shlex
 import subprocess
 import sys
 import time
@@ -60,7 +62,7 @@ def command_plan(include_docker_metadata: bool = False) -> list[dict[str, str]]:
         },
         {
             "id": "sshd_config",
-            "command": "if command -v sshd >/dev/null 2>&1; then sshd -T 2>/dev/null | awk 'tolower($1) ~ /^(passwordauthentication|kbdinteractiveauthentication|pubkeyauthentication|permitrootlogin|permitemptypasswords)$/ {print}'; else awk 'tolower($1) ~ /^(passwordauthentication|kbdinteractiveauthentication|pubkeyauthentication|permitrootlogin|permitemptypasswords)$/ {print}' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/*.conf 2>/dev/null; fi",
+            "command": "if command -v sshd >/dev/null 2>&1; then out=$(sshd -T 2>&1); rc=$?; if [ \"$rc\" -eq 0 ]; then printf '%s\\n' \"$out\" | awk 'tolower($1) ~ /^(passwordauthentication|kbdinteractiveauthentication|pubkeyauthentication|permitrootlogin|permitemptypasswords)$/ {print}'; else printf '%s\\n' \"$out\" >&2; exit \"$rc\"; fi; else awk 'tolower($1) ~ /^(passwordauthentication|kbdinteractiveauthentication|pubkeyauthentication|permitrootlogin|permitemptypasswords)$/ {print}' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/*.conf 2>/dev/null; fi",
         },
         {
             "id": "ufw_status",
@@ -111,10 +113,154 @@ def command_plan(include_docker_metadata: bool = False) -> list[dict[str, str]]:
     return commands
 
 
-def _ssh_base(target: str, port: int = 22, identity: str = "") -> list[str]:
-    cmd = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-p", str(port)]
+def default_ssh_config_path() -> str:
+    return os.path.expanduser("~/.ssh/config")
+
+
+def _target_looks_unsafe(target: str) -> bool:
+    text = str(target or "").strip()
+    return (
+        not text
+        or text.startswith("-")
+        or any(char.isspace() for char in text)
+        or any(marker in text for marker in ("/", "\\", "*", "?"))
+    )
+
+
+def _read_ssh_config_entries(path: str) -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
+    current: dict[str, Any] | None = None
+    with open(path, "r", encoding="utf-8") as handle:
+        for raw_line in handle:
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+            try:
+                parts = shlex.split(line, comments=True)
+            except ValueError:
+                continue
+            if not parts:
+                continue
+            key = parts[0].lower()
+            values = parts[1:]
+            if key in {"host", "match"}:
+                current = None
+                if key == "host" and values:
+                    current = {"patterns": values, "options": {}}
+                    entries.append(current)
+                continue
+            if current is None or not values:
+                continue
+            options = current["options"]
+            value = " ".join(values)
+            if key == "identityfile":
+                options.setdefault(key, []).append(value)
+            else:
+                options[key] = value
+    return entries
+
+
+def _find_ssh_config_entry(target: str, ssh_config: str = "") -> dict[str, Any]:
+    config_path = os.path.abspath(
+        os.path.expanduser(ssh_config or default_ssh_config_path())
+    )
+    if not os.path.exists(config_path):
+        return {}
+    for entry in _read_ssh_config_entries(config_path):
+        patterns = entry.get("patterns", [])
+        if target in patterns and not any(
+            marker in pattern for pattern in patterns for marker in "*?"
+        ):
+            return {"config": config_path, "options": entry.get("options") or {}}
+    return {}
+
+
+def resolve_ssh_policy(
+    target: str,
+    *,
+    port: int = 22,
+    identity: str = "",
+    ssh_config: str = "",
+) -> dict[str, Any]:
+    ssh_target = str(target or "").strip()
+    if _target_looks_unsafe(ssh_target):
+        raise ValueError(
+            "SSH 目标不能为空，不能以 '-' 开头，也不能包含空白、路径或通配符。"
+        )
+    policy = {
+        "target": ssh_target,
+        "port": int(port or 22),
+        "identity": identity or "",
+        "ssh_config": ssh_config or "",
+        "options": {},
+    }
+    matched = _find_ssh_config_entry(ssh_target, ssh_config=ssh_config)
+    if matched:
+        policy["ssh_config"] = matched.get("config") or policy["ssh_config"]
+        policy["options"] = matched.get("options") or {}
+    return policy
+
+
+def _identity_secret_values(policy: dict[str, Any]) -> set[str]:
+    values = set()
+    identity = str(policy.get("identity") or "").strip()
     if identity:
-        cmd.extend(["-i", identity])
+        values.add(identity)
+        values.add(os.path.expanduser(identity))
+        values.add(os.path.abspath(os.path.expanduser(identity)))
+    for value in (policy.get("options") or {}).get("identityfile") or []:
+        text = str(value or "").strip()
+        if not text:
+            continue
+        values.add(text)
+        values.add(os.path.expanduser(text))
+        values.add(os.path.abspath(os.path.expanduser(text)))
+    return values
+
+
+def _redact_identity_text(value: str, secrets: set[str]) -> str:
+    text = str(value or "")
+    for secret in sorted(secrets, key=len, reverse=True):
+        if secret:
+            text = text.replace(secret, "[redacted-identity]")
+    return text
+
+
+def _redact_command_result(result: dict[str, Any], secrets: set[str]) -> dict[str, Any]:
+    cleaned = dict(result)
+    cleaned["stdout"] = _redact_identity_text(cleaned.get("stdout") or "", secrets)
+    cleaned["stderr"] = _redact_identity_text(cleaned.get("stderr") or "", secrets)
+    return cleaned
+
+
+def _ssh_base(
+    target: str,
+    *,
+    port: int = 22,
+    identity: str = "",
+    ssh_config: str = "",
+) -> list[str]:
+    cmd = [
+        "ssh",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "PasswordAuthentication=no",
+        "-o",
+        "KbdInteractiveAuthentication=no",
+        "-o",
+        "PubkeyAuthentication=yes",
+        "-o",
+        "PreferredAuthentications=publickey",
+        "-o",
+        "ConnectTimeout=10",
+    ]
+    if ssh_config:
+        cmd.extend(["-F", os.path.abspath(os.path.expanduser(ssh_config))])
+    if port and int(port) != 22:
+        cmd.extend(["-p", str(port)])
+    if identity:
+        cmd.extend(["-i", identity, "-o", "IdentitiesOnly=yes"])
     cmd.append(target)
     return cmd
 
@@ -125,10 +271,16 @@ def run_ssh_command(
     *,
     port: int = 22,
     identity: str = "",
+    ssh_config: str = "",
     timeout: int = 20,
 ) -> dict[str, Any]:
     result = subprocess.run(
-        [*_ssh_base(target, port=port, identity=identity), remote_command],
+        [
+            *_ssh_base(
+                target, port=port, identity=identity, ssh_config=ssh_config
+            ),
+            remote_command,
+        ],
         capture_output=True,
         text=True,
         stdin=subprocess.DEVNULL,
@@ -147,22 +299,32 @@ def collect_server_inventory(
     *,
     port: int = 22,
     identity: str = "",
+    ssh_config: str = "",
     include_docker_metadata: bool = False,
 ) -> dict[str, Any]:
+    policy = resolve_ssh_policy(
+        target, port=port, identity=identity, ssh_config=ssh_config
+    )
+    identity_secrets = _identity_secret_values(policy)
     outputs = {}
     errors = []
     for item in command_plan(include_docker_metadata=include_docker_metadata):
         try:
             result = run_ssh_command(
-                target, item["command"], port=port, identity=identity
+                target,
+                item["command"],
+                port=port,
+                identity=identity,
+                ssh_config=ssh_config,
             )
         except (subprocess.SubprocessError, OSError) as exc:
             result = {
                 "command": item["command"],
                 "returncode": 255,
                 "stdout": "",
-                "stderr": str(exc),
+                "stderr": _redact_identity_text(str(exc), identity_secrets),
             }
+        result = _redact_command_result(result, identity_secrets)
         outputs[item["id"]] = result
         if result["returncode"] != 0:
             errors.append(
@@ -195,13 +357,18 @@ def write_inventory(path: str, data: dict[str, Any]) -> None:
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "target", nargs="?", default="", help="SSH target, e.g. user@host"
+        "target", nargs="?", default="", help="SSH target, e.g. user@203.0.113.10 or prod-web"
     )
     parser.add_argument(
         "--output", default="", help="Write collected inventory JSON here"
     )
     parser.add_argument("--ssh-port", type=int, default=22, help="SSH port")
     parser.add_argument("--identity", default="", help="SSH private key path")
+    parser.add_argument(
+        "--ssh-config",
+        default="",
+        help="Optional SSH config path",
+    )
     parser.add_argument(
         "--include-docker-metadata",
         action="store_true",
@@ -218,6 +385,7 @@ def main(argv: list[str] | None = None) -> int:
         args.target,
         port=args.ssh_port,
         identity=args.identity,
+        ssh_config=args.ssh_config,
         include_docker_metadata=args.include_docker_metadata,
     )
     if args.output:

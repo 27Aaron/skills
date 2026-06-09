@@ -45,6 +45,33 @@ OLD_IMAGE_VERSION_HINTS = {
     "node": (16, 0),
 }
 
+SERVICE_VERSION_SOURCES = {
+    "nginx_v": {
+        "name": "nginx",
+        "source": "nginx -v",
+        "patterns": [r"nginx/(v?\d[^\s,;)]*)"],
+        "package_names": ("nginx", "nginx-core", "nginx-full", "nginx-light"),
+    },
+    "openssl_v": {
+        "name": "openssl",
+        "source": "openssl version -a",
+        "patterns": [r"\bOpenSSL\s+(v?\d[^\s,;)]*)"],
+        "package_names": ("openssl", "libssl3", "libssl3t64"),
+    },
+    "ssh_v": {
+        "name": "openssh",
+        "source": "ssh -V",
+        "patterns": [r"\bOpenSSH[_\s](v?\d[^\s,;)]*)"],
+        "package_names": ("openssh", "openssh-server", "openssh-client"),
+    },
+    "docker_version": {
+        "name": "docker",
+        "source": "docker version",
+        "patterns": [r'"Version"\s*:\s*"(v?\d[^"]*)"'],
+        "package_names": ("docker", "docker-ce", "docker.io", "moby-engine"),
+    },
+}
+
 
 def _strip_quotes(value: str) -> str:
     value = str(value or "").strip()
@@ -454,6 +481,203 @@ def parse_docker_ps(raw: str) -> list[dict[str, Any]]:
     return containers
 
 
+def parse_running_services(raw: str) -> list[dict[str, Any]]:
+    services = []
+    for line in str(raw or "").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("UNIT "):
+            continue
+        parts = stripped.split(None, 4)
+        if len(parts) < 4 or not parts[0].endswith(".service"):
+            continue
+        services.append(
+            {
+                "name": parts[0],
+                "load": parts[1],
+                "active": parts[2],
+                "sub": parts[3],
+                "description": parts[4] if len(parts) > 4 else "",
+                "raw": stripped,
+            }
+        )
+    return services
+
+
+def _package_matches(package: dict[str, Any], names: tuple[str, ...]) -> bool:
+    candidates = {
+        str(package.get("name") or "").lower(),
+        str(package.get("source_name") or "").lower(),
+    }
+    return bool(candidates & {name.lower() for name in names})
+
+
+def _package_link(package: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "name": package.get("name") or "",
+        "source_name": package.get("source_name") or package.get("name") or "",
+        "version": package.get("version") or "",
+        "ecosystem": package.get("ecosystem") or "",
+        "package_type": package.get("package_type") or "",
+        "purl": package.get("purl") or "",
+    }
+
+
+def _linked_package(
+    packages: list[dict[str, Any]], package_names: tuple[str, ...]
+) -> dict[str, Any]:
+    for package in packages or []:
+        if _package_matches(package, package_names):
+            return _package_link(package)
+    return {}
+
+
+def _first_version(raw: str, patterns: list[str]) -> str:
+    for pattern in patterns:
+        match = re.search(pattern, str(raw or ""), flags=re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+    return ""
+
+
+def parse_software_versions(
+    inventory: dict[str, Any], packages: list[dict[str, Any]]
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    versions = []
+    errors = []
+    for output_key, spec in SERVICE_VERSION_SOURCES.items():
+        raw = _stdout(inventory, output_key)
+        version = _first_version(raw, spec["patterns"])
+        if not version:
+            continue
+        linked = _linked_package(packages, spec["package_names"])
+        item = {
+            "name": spec["name"],
+            "version": version,
+            "source": spec["source"],
+            "raw": raw.strip().splitlines()[0] if raw.strip() else "",
+            "linked_package": linked,
+        }
+        versions.append(item)
+        if not linked:
+            errors.append(
+                {
+                    "step": "server_inventory",
+                    "code": "unlinked_service_version",
+                    "message": (
+                        f"{spec['source']} 返回了 {spec['name']} {version}，"
+                        "但未能关联到发行版包坐标；不能作为已确认漏洞。"
+                    ),
+                    "name": spec["name"],
+                    "version": version,
+                }
+            )
+    return versions, errors
+
+
+def parse_apt_upgradable(raw: str) -> list[dict[str, Any]]:
+    updates = []
+    pattern = re.compile(
+        r"^(?P<name>[A-Za-z0-9_.+:-]+)/\S+\s+"
+        r"(?P<fixed>\S+)\s+\S+\s+\[upgradable from:\s*(?P<current>[^\]]+)\]"
+    )
+    for line in str(raw or "").splitlines():
+        match = pattern.search(line.strip())
+        if not match:
+            continue
+        updates.append(
+            {
+                "manager": "apt",
+                "name": match.group("name"),
+                "current_version": match.group("current").strip(),
+                "fixed_version": match.group("fixed").strip(),
+                "raw": line.strip(),
+            }
+        )
+    return updates
+
+
+RPM_ARCHES = {
+    "aarch64",
+    "i386",
+    "i486",
+    "i586",
+    "i686",
+    "noarch",
+    "ppc64le",
+    "s390x",
+    "src",
+    "x86_64",
+}
+
+
+def _split_rpm_update_package_token(line: str) -> tuple[str, str]:
+    for token in reversed(str(line or "").split()):
+        if token.lower() in RPM_ARCHES:
+            continue
+        match = re.match(r"(?P<name>.+?)-(?P<version>(?:\d+:)?\d\S*)$", token)
+        if match:
+            return match.group("name"), match.group("version")
+    return "", ""
+
+
+def _parse_rpm_security_updates(raw: str, manager: str) -> list[dict[str, Any]]:
+    updates = []
+    for line in str(raw or "").splitlines():
+        stripped = line.strip()
+        if not stripped or "sec" not in stripped.lower():
+            continue
+        package_name, fixed_version = _split_rpm_update_package_token(stripped)
+        if not package_name:
+            continue
+        updates.append(
+            {
+                "manager": manager,
+                "name": package_name,
+                "fixed_version": fixed_version,
+                "raw": stripped,
+            }
+        )
+    return updates
+
+
+def parse_zypper_security_patches(raw: str) -> list[dict[str, Any]]:
+    updates = []
+    for line in str(raw or "").splitlines():
+        stripped = line.strip()
+        if not stripped or "|" not in stripped or "security" not in stripped.lower():
+            continue
+        parts = [part.strip() for part in stripped.split("|")]
+        if not parts or parts[0].lower() == "repository":
+            continue
+        name = parts[1] if len(parts) > 1 and parts[1] else parts[0]
+        updates.append(
+            {
+                "manager": "zypper",
+                "name": name,
+                "fixed_version": name,
+                "raw": stripped,
+            }
+        )
+    return updates
+
+
+def parse_native_security_updates(inventory: dict[str, Any]) -> list[dict[str, Any]]:
+    updates = []
+    updates.extend(parse_apt_upgradable(_stdout(inventory, "apt_upgradable")))
+    updates.extend(_parse_rpm_security_updates(_stdout(inventory, "dnf_updateinfo"), "dnf"))
+    updates.extend(_parse_rpm_security_updates(_stdout(inventory, "yum_updateinfo"), "yum"))
+    updates.extend(parse_zypper_security_patches(_stdout(inventory, "zypper_patches")))
+    seen = set()
+    deduped = []
+    for item in updates:
+        key = (item.get("manager"), item.get("name"), item.get("fixed_version"), item.get("raw"))
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(item)
+    return deduped
+
+
 def parse_packages_for_distro(
     inventory: dict[str, Any], distro: dict[str, Any]
 ) -> list[dict[str, Any]]:
@@ -498,16 +722,23 @@ def build_server_assets(inventory: dict[str, Any]) -> dict[str, Any]:
         )
 
     ports = parse_listening_ports(_stdout(inventory, "ports"))
+    services = parse_running_services(_stdout(inventory, "services"))
     ssh = parse_sshd_config(_stdout(inventory, "sshd_config"))
     firewall = parse_firewall_posture(inventory)
     kernel = build_kernel_asset(_stdout(inventory, "uname_r").strip(), packages)
     docker_containers = parse_docker_ps(_stdout(inventory, "docker_ps"))
+    software_versions, version_errors = parse_software_versions(inventory, packages)
+    errors.extend(version_errors)
+    native_security_updates = parse_native_security_updates(inventory)
     return {
         "target": inventory.get("target") or "",
         "collection_mode": inventory.get("collection_mode") or "unknown",
         "distro": distro,
         "packages": packages,
         "kernel": kernel,
+        "software_versions": software_versions,
+        "native_security_updates": native_security_updates,
+        "services": services,
         "ports": ports,
         "ssh": ssh,
         "firewall": firewall,

@@ -10,7 +10,7 @@ const toList = (value) => {
     .filter(Boolean);
 };
 const CAPABILITY_BOUNDARY =
-  "安全往往不是最显眼的需求，却是产品长期稳定运行的底线。此 Skill 会帮助你发现依赖漏洞、过期依赖和仓库暴露风险，帮助团队更早暴露容易被忽视的供应链问题。但它不能替代代码审计、渗透测试或部署安全评估；业务逻辑、权限控制、SQL 注入、XSS 等代码层风险仍需单独复核。";
+  "安全往往不是最显眼的需求，却是产品长期稳定运行的底线。此 Skill 会帮助你发现应用依赖漏洞、过期依赖和仓库暴露风险，并在显式提供 SSH 目标或离线 inventory 时做 Linux 服务器运行环境只读检查；SSH 采集必须使用密钥登录，脚本会禁用密码和键盘交互回退。应用依赖漏洞查询只处理本地可确认精确包名和精确版本的应用依赖坐标；服务器漏洞只处理能关联到发行版包坐标、内核包或官方包管理器安全更新的证据，不把 Dockerfile、compose、Kubernetes、devcontainer、镜像/SBOM、未关联服务 banner、自编译二进制或模糊 CPE 混入已确认漏洞，也不能替代代码审计、渗透测试或完整部署安全评估；业务逻辑、权限控制、SQL 注入、XSS 等代码层风险仍需单独复核。";
 const HYGIENE_ONLY_NOTICE =
   "当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；本次仅做仓库安检，检查硬编码密钥、敏感文件跟踪、.gitignore、GitHub Actions、依赖配置与维护和 IaC/容器配置风险。";
 
@@ -3271,6 +3271,9 @@ function renderServerEnvironment() {
     { label: "已确认风险", value: String(summary.confirmed_count || issues.length || 0) },
     { label: "维护建议", value: String(summary.maintenance_count || maintenance.length || 0) },
     { label: "对外端口", value: String(summary.public_port_count || 0) },
+    { label: "运行服务", value: String(summary.service_count || 0) },
+    { label: "软件版本", value: String(summary.software_version_count || 0) },
+    { label: "安全更新", value: String(summary.native_security_update_count || 0) },
   ]);
 
   const issueCards = issues

@@ -247,6 +247,56 @@ def firewall_maintenance_items(
     ]
 
 
+def native_security_update_items(updates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    items = []
+    seen = set()
+    for update in updates or []:
+        name = str(update.get("name") or "").strip()
+        if not name:
+            continue
+        key = (update.get("manager"), name, update.get("fixed_version"))
+        if key in seen:
+            continue
+        seen.add(key)
+        fixed = update.get("fixed_version") or "待确认"
+        current = update.get("current_version") or ""
+        version_text = f"（{current} -> {fixed}）" if current else f"（{fixed}）"
+        items.append(
+            _maintenance_item(
+                category="native_security_update",
+                title=f"系统安全更新可用：{name} {version_text}",
+                summary="包管理器返回了安全更新线索；这不是独立 CVE 结论，但应结合维护窗口优先更新并复扫。",
+                evidence=[update.get("raw") or f"{name} {fixed}"],
+                recommendation="建议使用发行版官方包管理器完成安全更新，更新后重新运行服务器扫描。",
+                severity="medium",
+            )
+        )
+    return items
+
+
+def unlinked_service_version_items(
+    software_versions: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    items = []
+    for item in software_versions or []:
+        if item.get("linked_package"):
+            continue
+        name = str(item.get("name") or "").strip()
+        version = str(item.get("version") or "").strip()
+        if not name or not version:
+            continue
+        items.append(
+            _maintenance_item(
+                category="unlinked_service_version",
+                title=f"{name} 版本无法关联发行版包：{version}",
+                summary="该版本来自服务命令输出，无法和系统包坐标闭环，不能作为已确认漏洞；建议确认是否为源码安装、容器内服务或第三方包。",
+                evidence=[item.get("raw") or f"{item.get('source')}: {version}"],
+                recommendation="建议补充对应包来源，或使用专门的服务/镜像扫描工具复核该版本。",
+            )
+        )
+    return items
+
+
 def build_server_analysis(
     server_assets: dict[str, Any], matched: dict[str, Any]
 ) -> dict[str, Any]:
@@ -257,6 +307,7 @@ def build_server_analysis(
     ]
     containers = (server_assets.get("docker") or {}).get("containers") or []
     ports = server_assets.get("ports") or []
+    services = server_assets.get("services") or []
     ssh = server_assets.get("ssh") or {}
     firewall = server_assets.get("firewall") or {}
     maintenance = docker_maintenance_items(
@@ -264,6 +315,12 @@ def build_server_analysis(
     ) + public_service_maintenance_items(ports)
     maintenance += ssh_maintenance_items(ssh, ports)
     maintenance += firewall_maintenance_items(firewall, ports)
+    maintenance += native_security_update_items(
+        server_assets.get("native_security_updates") or []
+    )
+    maintenance += unlinked_service_version_items(
+        server_assets.get("software_versions") or []
+    )
     errors = []
     errors.extend(server_assets.get("errors") or [])
     errors.extend(matched.get("errors") or [])
@@ -274,12 +331,20 @@ def build_server_analysis(
             "confirmed_count": len(confirmed),
             "maintenance_count": len(maintenance),
             "container_count": len(containers),
+            "service_count": len(services),
             "public_port_count": len([p for p in ports if p.get("public")]),
+            "software_version_count": len(server_assets.get("software_versions") or []),
+            "native_security_update_count": len(
+                server_assets.get("native_security_updates") or []
+            ),
         },
         "confirmed_issues": confirmed,
         "maintenance_items": maintenance,
         "ports": ports,
+        "services": services,
         "docker": server_assets.get("docker") or {"containers": []},
         "kernel": server_assets.get("kernel") or {},
+        "software_versions": server_assets.get("software_versions") or [],
+        "native_security_updates": server_assets.get("native_security_updates") or [],
         "errors": errors,
     }
