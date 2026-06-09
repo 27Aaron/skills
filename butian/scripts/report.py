@@ -64,6 +64,8 @@ def text(value):
 
 
 def cell(value):
+    # Markdown helpers are the last escaping layer before analyzer text enters
+    # pipe tables; keep table delimiters and newlines inert here.
     return text(value).replace("|", "\\|").replace("\n", " ")
 
 
@@ -102,8 +104,7 @@ def date_from_analysis(analysis):
 def datetime_from_analysis(analysis):
     """Extract filesystem-safe datetime string (YYYYMMDD-HHMM) from analysis."""
     generated_at = text(analysis.get("generated_at"))
-    # generated_at format: "2026-06-06 00:45:27"
-    cleaned = re.sub(r"[^\d]", "", generated_at)  # "20260606004527"
+    cleaned = re.sub(r"[^\d]", "", generated_at)
     if len(cleaned) >= 12:
         return (
             f"{cleaned[:4]}{cleaned[4:6]}{cleaned[6:8]}-{cleaned[8:10]}{cleaned[10:12]}"
@@ -210,6 +211,8 @@ def markdown_link_label(value):
 
 
 def security_id_markdown(security_id):
+    # Security IDs must remain clickable in Markdown and the generated HTML.
+    # CVEs use the CVE record page; GHSA/OSV-style identifiers use OSV.
     value = text(security_id)
     if not value:
         return ""
@@ -594,6 +597,12 @@ def render_server_environment(analysis):
 
 
 def is_low_evidence_server_item(item):
+    """Return True for weak server clues that should not be promoted.
+
+    Low-evidence server hints stay out of manual findings because server scans
+    are optional and must not blur confirmed project risks with inferred host
+    maintenance signals.
+    """
     if not isinstance(item, dict):
         return False
 
@@ -739,6 +748,8 @@ def render_markdown(analysis):
         sum(risk_summary.values()),
     )
     tpl = load_template()
+    # Template placeholders are the renderer contract shared with report.md.
+    # Add new placeholders here and in the template together.
     return (
         tpl.substitute(
             project_name=text(project.get("name")) or "-",

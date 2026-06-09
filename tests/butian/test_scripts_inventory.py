@@ -266,6 +266,19 @@ class ButianScriptInventoryTests(unittest.TestCase):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, text)
 
+    def test_report_comments_preserve_rendering_contract_boundaries(self):
+        with open(os.path.join(SCRIPT_DIR, "report.py"), "r", encoding="utf-8") as handle:
+            text = handle.read()
+
+        for phrase in (
+            "Markdown helpers are the last escaping layer",
+            "Security IDs must remain clickable",
+            "Low-evidence server hints stay out of manual findings",
+            "Template placeholders are the renderer contract",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, text)
+
 
 if __name__ == "__main__":
     unittest.main()
