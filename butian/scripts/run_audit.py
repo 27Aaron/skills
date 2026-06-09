@@ -564,6 +564,7 @@ def format_human_summary(summary, scan, analysis, args):
     errors = analysis.get("errors") or summary.get("errors") or []
     error_label = "无" if not errors else f"{len(errors)} 个"
     html_state = "未自动打开" if args.no_open else "已自动尝试打开"
+    markdown_label = "最终 Markdown" if args.final_report else "Markdown"
     scope_notice = (
         ["", "⚠️ 扫描范围", "", quote_line(HYGIENE_ONLY_NOTICE)]
         if scan_mode == "hygiene_only"
@@ -600,7 +601,7 @@ def format_human_summary(summary, scan, analysis, args):
         "",
         "📁 报告路径",
         "",
-        f"- {'最终' if args.final_report else ''}Markdown 审计报告：{relative_path(summary.get('markdown_report'), project_path) if summary.get('markdown_report') else '复扫未生成（首次扫描已有）'}",
+        f"- {markdown_label} 审计报告：{relative_path(summary.get('markdown_report'), project_path) if summary.get('markdown_report') else '复扫未生成（首次扫描已有）'}",
         f"- HTML 报告（{html_state}）：{relative_path(summary.get('html_report'), project_path)}",
         f"- analysis JSON：{relative_path(summary.get('analysis_file'), project_path)}",
         "",

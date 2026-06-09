@@ -466,6 +466,31 @@ class FormatHumanSummaryTests(unittest.TestCase):
         self.assertIn("nginx", result)
         self.assertNotIn("未发现需要优先处理的依赖漏洞", result)
 
+    def test_final_report_label_has_space_before_markdown(self):
+        summary = {
+            "scan_mode": "hygiene_only",
+            "markdown_report": "/tmp/r.md",
+            "html_report": "/tmp/r.html",
+            "analysis_file": "/tmp/a.json",
+            "errors": [],
+        }
+        scan = {"scan_config": {"scan_mode": "hygiene_only"}, "hygiene": {}}
+        analysis = {
+            "project": {"path": "/tmp/demo", "name": "demo", "ecosystems": []},
+            "risk_summary": {"critical": 0, "high": 0, "medium": 0, "low": 0},
+            "hygiene": {},
+            "top_issues": [],
+            "vulnerability_count": 0,
+            "outdated_count": 0,
+            "errors": [],
+        }
+        args = SimpleNamespace(no_open=True, final_report=True)
+
+        result = run_audit.format_human_summary(summary, scan, analysis, args)
+
+        self.assertIn("最终 Markdown 审计报告", result)
+        self.assertNotIn("最终Markdown", result)
+
 
 class PipelinePathTests(unittest.TestCase):
     def test_main_writes_html_report_to_scan_run_dir(self):
