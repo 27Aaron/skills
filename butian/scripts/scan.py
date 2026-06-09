@@ -1833,6 +1833,8 @@ LOCKFILE_MAP = {
     "pypi": ["poetry.lock", "uv.lock", "requirements.txt", "Pipfile.lock"],
     "go": ["go.sum"],
     "crates-io": ["Cargo.lock"],
+    "packagist": ["composer.lock"],
+    "rubygems": ["Gemfile.lock"],
 }
 
 
@@ -1854,6 +1856,11 @@ def _tomllib():
         return tomllib
     except ImportError:
         return None
+
+
+def normalized_plain_version(value):
+    version = str(value or "").strip()
+    return version[1:] if re.match(r"^v(?=\d)", version) else version
 
 
 # --- npm ---
@@ -2106,6 +2113,108 @@ def _yarn_berry_descriptor_name(desc):
             return "@" + parts[1]
         return desc
     return desc.split("@", 1)[0]
+
+
+# --- PHP / Packagist ---
+
+
+def parse_composer_lock(project_path):
+    path = os.path.join(project_path, "composer.lock")
+    if not os.path.isfile(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return []
+
+    pkgs, seen = [], set()
+    for section_name in ("packages", "packages-dev"):
+        for info in data.get(section_name) or []:
+            if not isinstance(info, dict):
+                continue
+            name = str(info.get("name") or "").strip().lower()
+            version = normalized_plain_version(info.get("version"))
+            if not name or not version:
+                continue
+            key = (name, version)
+            if key in seen:
+                continue
+            seen.add(key)
+            pkgs.append(
+                {
+                    "ecosystem": "packagist",
+                    "name": name,
+                    "version": version,
+                    "is_direct": False,
+                    "source": "composer.lock",
+                }
+            )
+    return pkgs
+
+
+# --- Ruby / RubyGems ---
+
+
+def normalized_rubygems_version(value):
+    version = str(value or "").strip()
+    return re.sub(
+        r"-(?:x86_64|x64|aarch64|arm64|arm|java|universal)(?:-[A-Za-z0-9_]+)*$",
+        "",
+        version,
+    )
+
+
+def parse_gemfile_lock(project_path):
+    path = os.path.join(project_path, "Gemfile.lock")
+    if not os.path.isfile(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+    except OSError:
+        return []
+
+    pkgs, seen = [], set()
+    in_gem_section = False
+    in_specs = False
+    for raw in lines:
+        line = raw.rstrip("\n")
+        if line == "GEM":
+            in_gem_section = True
+            in_specs = False
+            continue
+        if in_gem_section and line and not line.startswith(" "):
+            in_gem_section = False
+            in_specs = False
+            continue
+        if in_gem_section and line == "  specs:":
+            in_specs = True
+            continue
+        if not in_specs:
+            continue
+
+        match = re.match(r"^    ([^\s(]+) \(([^)]+)\)$", line)
+        if not match:
+            continue
+        name = match.group(1).strip()
+        version = normalized_rubygems_version(match.group(2))
+        if not name or not version:
+            continue
+        key = (name, version)
+        if key in seen:
+            continue
+        seen.add(key)
+        pkgs.append(
+            {
+                "ecosystem": "rubygems",
+                "name": name,
+                "version": version,
+                "is_direct": False,
+                "source": "Gemfile.lock",
+            }
+        )
+    return pkgs
 
 
 # --- Python ---
@@ -2420,6 +2529,8 @@ PARSERS = {
     "pypi": parse_pypi,
     "go": parse_go_sum,
     "crates-io": parse_cargo_lock,
+    "packagist": parse_composer_lock,
+    "rubygems": parse_gemfile_lock,
 }
 
 
@@ -2480,6 +2591,8 @@ OSV_ECOSYSTEMS = {
     "pypi": "PyPI",
     "go": "Go",
     "crates-io": "crates.io",
+    "packagist": "Packagist",
+    "rubygems": "RubyGems",
 }
 
 

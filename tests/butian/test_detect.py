@@ -142,6 +142,25 @@ class DetectLanguageSupportTests(unittest.TestCase):
             result = detect.detect_language_support(root)
             self.assertIn("pnpm", result["ecosystems"])
 
+    def test_detects_expanded_language_ecosystems(self):
+        cases = {
+            "packagist": ["composer.lock"],
+            "rubygems": ["Gemfile.lock"],
+        }
+        for ecosystem, file_names in cases.items():
+            for file_name in file_names:
+                with self.subTest(ecosystem=ecosystem, file_name=file_name):
+                    with tempfile.TemporaryDirectory(prefix="butian-detect-") as root:
+                        with open(os.path.join(root, file_name), "w") as f:
+                            f.write("")
+                        result = detect.detect_language_support(root)
+                        self.assertTrue(result["supported"])
+                        self.assertIn(ecosystem, result["ecosystems"])
+                        self.assertEqual(
+                            result["matched_files"][0],
+                            {"ecosystem": ecosystem, "file": file_name},
+                        )
+
     def test_detects_multiple_ecosystems(self):
         with tempfile.TemporaryDirectory(prefix="butian-detect-") as root:
             for name in ["package-lock.json", "go.sum", "Cargo.lock"]:

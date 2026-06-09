@@ -593,6 +593,143 @@ class ParseYarnLockTests(unittest.TestCase):
             self.assertEqual(scan.parse_yarn_lock(root), [])
 
 
+class ParseComposerLockTests(unittest.TestCase):
+    def test_parses_packages_and_packages_dev(self):
+        with tempfile.TemporaryDirectory(prefix="butian-composer-") as root:
+            with open(os.path.join(root, "composer.lock"), "w", encoding="utf-8") as f:
+                json.dump(
+                    {
+                        "packages": [
+                            {"name": " Symfony/Console ", "version": "v6.4.8"},
+                            {"name": "monolog/monolog", "version": "3.6.0"},
+                        ],
+                        "packages-dev": [
+                            {"name": "phpunit/phpunit", "version": "10.5.17"}
+                        ],
+                    },
+                    f,
+                )
+
+            pkgs = scan.parse_composer_lock(root)
+
+            self.assertEqual(
+                pkgs,
+                [
+                    {
+                        "ecosystem": "packagist",
+                        "name": "symfony/console",
+                        "version": "6.4.8",
+                        "is_direct": False,
+                        "source": "composer.lock",
+                    },
+                    {
+                        "ecosystem": "packagist",
+                        "name": "monolog/monolog",
+                        "version": "3.6.0",
+                        "is_direct": False,
+                        "source": "composer.lock",
+                    },
+                    {
+                        "ecosystem": "packagist",
+                        "name": "phpunit/phpunit",
+                        "version": "10.5.17",
+                        "is_direct": False,
+                        "source": "composer.lock",
+                    },
+                ],
+            )
+
+    def test_skips_missing_version(self):
+        with tempfile.TemporaryDirectory(prefix="butian-composer-") as root:
+            with open(os.path.join(root, "composer.lock"), "w", encoding="utf-8") as f:
+                json.dump(
+                    {
+                        "packages": [
+                            {"name": "symfony/console"},
+                            {"name": "monolog/monolog", "version": "3.6.0"},
+                        ]
+                    },
+                    f,
+                )
+
+            pkgs = scan.parse_composer_lock(root)
+
+            self.assertEqual(
+                [(pkg["name"], pkg["version"]) for pkg in pkgs],
+                [("monolog/monolog", "3.6.0")],
+            )
+
+
+class ParseGemfileLockTests(unittest.TestCase):
+    def test_extracts_specs_and_skips_dependency_lines(self):
+        with tempfile.TemporaryDirectory(prefix="butian-gemfile-") as root:
+            with open(os.path.join(root, "Gemfile.lock"), "w", encoding="utf-8") as f:
+                f.write(
+                    "GEM\n"
+                    "  remote: https://rubygems.org/\n"
+                    "  specs:\n"
+                    "    rack (2.2.8)\n"
+                    "    rails (7.1.3)\n"
+                    "      actionpack (= 7.1.3)\n"
+                    "\n"
+                    "PLATFORMS\n"
+                    "  ruby\n"
+                )
+
+            pkgs = scan.parse_gemfile_lock(root)
+
+            self.assertEqual(
+                pkgs,
+                [
+                    {
+                        "ecosystem": "rubygems",
+                        "name": "rack",
+                        "version": "2.2.8",
+                        "is_direct": False,
+                        "source": "Gemfile.lock",
+                    },
+                    {
+                        "ecosystem": "rubygems",
+                        "name": "rails",
+                        "version": "7.1.3",
+                        "is_direct": False,
+                        "source": "Gemfile.lock",
+                    },
+                ],
+            )
+
+    def test_non_specs_lines_return_empty(self):
+        with tempfile.TemporaryDirectory(prefix="butian-gemfile-") as root:
+            with open(os.path.join(root, "Gemfile.lock"), "w", encoding="utf-8") as f:
+                f.write(
+                    "PATH\n"
+                    "  remote: .\n"
+                    "  specs:\n"
+                    "    local_engine (0.1.0)\n"
+                    "\n"
+                    "DEPENDENCIES\n"
+                    "  rack\n"
+                )
+
+            self.assertEqual(scan.parse_gemfile_lock(root), [])
+
+    def test_strips_platform_suffix_without_changing_prerelease(self):
+        with tempfile.TemporaryDirectory(prefix="butian-gemfile-") as root:
+            with open(os.path.join(root, "Gemfile.lock"), "w", encoding="utf-8") as f:
+                f.write(
+                    "GEM\n"
+                    "  specs:\n"
+                    "    nokogiri (1.13.10-x86_64-linux)\n"
+                    "    rails (7.1.0.beta1)\n"
+                )
+
+            pkgs = scan.parse_gemfile_lock(root)
+
+            versions = {pkg["name"]: pkg["version"] for pkg in pkgs}
+            self.assertEqual(versions["nokogiri"], "1.13.10")
+            self.assertEqual(versions["rails"], "7.1.0.beta1")
+
+
 class YarnV1DescriptorNameTests(unittest.TestCase):
     def test_simple(self):
         self.assertEqual(scan._yarn_v1_descriptor_name("lodash@^4"), "lodash")
@@ -743,6 +880,26 @@ class ExtractPackagesTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="butian-extract-") as root:
             pkgs = scan.extract_packages(root, ["unknown-eco"])
             self.assertEqual(pkgs, [])
+
+    def test_extracts_packagist_and_rubygems_packages(self):
+        with tempfile.TemporaryDirectory(prefix="butian-extract-") as root:
+            with open(os.path.join(root, "composer.lock"), "w", encoding="utf-8") as f:
+                json.dump(
+                    {"packages": [{"name": "symfony/console", "version": "v6.4.8"}]},
+                    f,
+                )
+            with open(os.path.join(root, "Gemfile.lock"), "w", encoding="utf-8") as f:
+                f.write("GEM\n  specs:\n    rack (2.2.8)\n")
+
+            pkgs = scan.extract_packages(root, ["packagist", "rubygems"])
+
+            self.assertEqual(
+                [(pkg["ecosystem"], pkg["name"], pkg["version"]) for pkg in pkgs],
+                [
+                    ("packagist", "symfony/console", "6.4.8"),
+                    ("rubygems", "rack", "2.2.8"),
+                ],
+            )
 
 
 class PackageSourceSummaryTests(unittest.TestCase):
@@ -1086,6 +1243,17 @@ class OsvQueryForPackageTests(unittest.TestCase):
         pkg = {"ecosystem": "npm", "name": "lodash"}
         query = scan.osv_query_for_package(pkg)
         self.assertNotIn("version", query)
+
+    def test_expanded_ecosystems_use_osv_names(self):
+        cases = {
+            "packagist": "Packagist",
+            "rubygems": "RubyGems",
+        }
+        for ecosystem, osv_ecosystem in cases.items():
+            with self.subTest(ecosystem=ecosystem):
+                pkg = {"ecosystem": ecosystem, "name": "demo", "version": "1.0.0"}
+                query = scan.osv_query_for_package(pkg)
+                self.assertEqual(query["package"]["ecosystem"], osv_ecosystem)
 
 
 class CheckVulnerabilitiesTests(unittest.TestCase):
