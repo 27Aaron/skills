@@ -710,7 +710,7 @@ def main():
     setup_logging()
     logger.info("补天审计流水线开始: 路径=%s", args.project_path)
 
-    # Step 1: preflight
+    # Preflight fixes the run workspace before downstream artifact paths exist.
     preflight_cmd = [
         sys.executable,
         script_path("detect.py"),
@@ -728,7 +728,7 @@ def main():
 
     server_payload = None
     if args.server or args.server_inventory:
-        # Server collection is opt-in; default project scans never touch system packages.
+        # Server scan remains opt-in; default project scans never touch system packages.
         server_collect = import_server_module("server_collect")
         if args.server_inventory:
             inventory = server_collect.read_inventory_file(args.server_inventory)
@@ -747,7 +747,7 @@ def main():
             inventory, project_path=project_path_for_server
         )
 
-    # Step 2: scan
+    # Project scan is skipped only for explicit server-only inventory runs.
     if args.server_only:
         scan = build_server_only_scan(preflight)
     else:
@@ -788,7 +788,7 @@ def main():
         len(scan.get("errors") or []),
     )
 
-    # Step 3: analyze
+    # Analysis is the deterministic JSON contract for reports and repair planning.
     analysis_path = os.path.join(
         os.path.dirname(os.path.abspath(scan["output_file"])),
         "analysis.json",
@@ -818,7 +818,8 @@ def main():
 
     run_dir = report_run_dir(analysis, scan)
 
-    # Step 4: Markdown report
+    # Intermediate repair rescans skip Markdown unless --final-report asks for
+    # an archival report.
     butian_dir = os.path.join(analysis["project"]["path"], ".butian")
     first_scan_marker = os.path.join(butian_dir, ".first-scan-done")
     skip_markdown = os.path.exists(first_scan_marker) and not args.final_report
@@ -839,7 +840,8 @@ def main():
         )
         logger.info("Markdown 报告已生成: %s", markdown_path)
 
-    # Step 5: HTML report
+    # HTML is always regenerated so the latest run has a review surface even
+    # when Markdown is skipped.
     html_path = html_report_path(run_dir)
     os.makedirs(os.path.dirname(html_path), exist_ok=True)
     build_report_cmd = build_visualize_cmd(args, analysis_path, html_path)

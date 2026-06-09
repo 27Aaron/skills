@@ -247,6 +247,23 @@ class ButianScriptInventoryTests(unittest.TestCase):
         self.assertIn("Template files keep evidence locatable", scan_text)
         self.assertIn("Regex findings take precedence over entropy", scan_text)
 
+    def test_run_audit_comments_use_pipeline_contract_names(self):
+        with open(os.path.join(SCRIPT_DIR, "run_audit.py"), "r", encoding="utf-8") as handle:
+            text = handle.read()
+
+        self.assertIsNone(
+            re.search(r"^\s*# Step \d+:", text, flags=re.MULTILINE),
+            "run_audit.py should use pipeline contract names, not numeric Step labels",
+        )
+        for phrase in (
+            "Preflight fixes the run workspace",
+            "Server scan remains opt-in",
+            "Intermediate repair rescans skip Markdown",
+            "HTML is always regenerated",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, text)
+
     def test_server_scan_comments_preserve_safety_boundaries(self):
         expectations = {
             "server_collect.py": "Read-only SSH collection must never install",
