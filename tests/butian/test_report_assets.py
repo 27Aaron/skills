@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import textwrap
@@ -701,26 +702,86 @@ class ReportAssetTests(unittest.TestCase):
             '<col class="col-severity"><col class="col-package"><col class="col-version"><col class="col-fixed"><col class="col-advisory"><col class="col-detail">',
             html,
         )
+        self.assertIn("--package-col:", html)
+        self.assertIn("--advisory-col:", html)
         self.assertIn('data-label="详情"', html)
         self.assertNotIn('<col class="col-summary">', html)
 
         with open(REPORT_CSS, "r", encoding="utf-8") as handle:
             css = handle.read()
         vuln_css = css.split(".vuln-table {", 1)[1].split("}", 1)[0]
+        compact_vuln_css = " ".join(vuln_css.split())
         self.assertIn("table-layout: fixed;", vuln_css)
-        self.assertIn("calc(460px + var(--package-col, 150px))", vuln_css)
+        self.assertIn(
+            "328px + var(--package-col, 150px) + var(--advisory-col, 132px)",
+            compact_vuln_css,
+        )
+        scroll_vuln_css = css.split(".table-scroll table.vuln-table {", 1)[1].split(
+            "}", 1
+        )[0]
+        self.assertIn("min-width: var(--risk-table-min-width);", scroll_vuln_css)
         self.assertIn(".vuln-table .col-detail", css)
         detail_col_css = css.split(".vuln-table .col-detail {", 1)[1].split("}", 1)[0]
         self.assertIn("width: auto;", detail_col_css)
         advisory_col_css = css.split(".vuln-table .col-advisory {", 1)[1].split("}", 1)[
             0
         ]
-        self.assertIn("width: 132px;", advisory_col_css)
+        self.assertIn("width: var(--advisory-col, 132px);", advisory_col_css)
         fixed_col_css = css.split(".vuln-table .col-fixed {", 1)[1].split("}", 1)[0]
         self.assertIn("width: 112px;", fixed_col_css)
+        adv_link_css = css.split(".adv-list a {", 1)[1].split("}", 1)[0]
+        self.assertIn("white-space: nowrap;", adv_link_css)
         summary_css = css.split("td.summary-cell {", 1)[1].split("}", 1)[0]
         self.assertIn("min-width: 0;", summary_css)
         self.assertIn("text-wrap: pretty;", summary_css)
+
+    def test_current_risk_security_id_column_expands_for_long_identifiers(self):
+        data = {
+            "generated_at": "2026-06-05 09:05:50",
+            "project": {"name": "demo", "path": "/tmp/demo", "ecosystems": ["nuget"]},
+            "scan_config": {"scan_mode": "full_dependency_scan"},
+            "risk_summary": {
+                "critical": 0,
+                "high": 2,
+                "medium": 0,
+                "low": 0,
+                "info": 0,
+            },
+            "summary": {"tldr": "demo", "detail": "demo", "priority": []},
+            "top_issues": [
+                {
+                    "package": "Newtonsoft.Json",
+                    "version": "12.0.1",
+                    "severity": "high",
+                    "fixed_versions": ["13.0.1"],
+                    "advisory_id": "GHSA-5crp-9r3c-p9vr",
+                    "cve_id": "CVE-2024-21907",
+                    "summary": "demo",
+                },
+                {
+                    "package": "System.Text.Json",
+                    "version": "6.0.0",
+                    "severity": "high",
+                    "fixed_versions": ["8.0.5", "6.0.10"],
+                    "aliases": [
+                        "CVE-2024-43485",
+                        "GHSA-8g4q-xg66-9fp4",
+                        "BIT-dotnet-sdk-2024-43485",
+                    ],
+                    "summary": "demo",
+                },
+            ],
+            "hygiene": {},
+            "outdated": [],
+        }
+
+        html = self._render_html(data)
+
+        match = re.search(r"--advisory-col:(\d+)px;", html)
+        self.assertIsNotNone(match)
+        self.assertGreater(int(match.group(1)), 132)
+        self.assertIn("GHSA-5crp-9r3c-p9vr", html)
+        self.assertIn("BIT-dotnet-sdk-2024-43485", html)
 
     def test_current_risk_details_use_precise_plain_language(self):
         data = {

@@ -548,8 +548,18 @@ tbody tr:hover {
     table-layout: fixed;
 }
 .vuln-table {
-    min-width: max(760px, calc(460px + var(--package-col, 150px)));
+    --risk-table-min-width: max(
+        760px,
+        calc(
+            328px + var(--package-col, 150px) +
+                var(--advisory-col, 132px)
+        )
+    );
+    min-width: var(--risk-table-min-width);
     table-layout: fixed;
+}
+.table-scroll table.vuln-table {
+    min-width: var(--risk-table-min-width);
 }
 .outdated-list-wrap {
     padding: 12px;
@@ -629,7 +639,7 @@ tbody tr:hover {
     width: 112px;
 }
 .vuln-table .col-advisory {
-    width: 132px;
+    width: var(--advisory-col, 132px);
 }
 .vuln-table .col-detail {
     width: auto;
@@ -698,14 +708,16 @@ td.advisory {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 .adv-list a {
     color: var(--accent);
     font-family: var(--font-mono);
     font-size: 11px;
     text-decoration: none;
-    overflow-wrap: anywhere;
-    white-space: normal;
+    white-space: nowrap;
 }
 .adv-list a:hover {
     color: var(--accent-ink);
