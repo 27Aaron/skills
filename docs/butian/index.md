@@ -36,6 +36,7 @@
 | 脚本                  | 文档                              | 测试入口                                | 关注点                                                       |
 | --------------------- | --------------------------------- | --------------------------------------- | ------------------------------------------------------------ |
 | `analyze.py`          | `docs/butian/analyze.md`          | `tests/butian/test_analyze.py`          | 风险排序、摘要、依赖修复项、仓库安检归一化                   |
+| `cache.py`            | `docs/butian/cache.md`            | `tests/butian/test_cache.py`            | 官方漏洞源本地缓存目录、读写和过期清理                       |
 | `detect.py`           | `docs/butian/detect.md`           | `tests/butian/test_detect.py`           | 项目根发现、lockfile 识别、preflight 输出                    |
 | `finding_utils.py`    | `docs/butian/finding_utils.md`    | `tests/butian/test_finding_utils.py`    | finding schema、文件遍历、证据截断、去重                     |
 | `fix.py`              | `docs/butian/fix.md`              | `tests/butian/test_fix.py`              | fixed/latest/parent-upgrade/force-residual/dependabot 策略   |
@@ -50,6 +51,7 @@
 | `server_inventory.py` | `docs/butian/server_inventory.md` | `tests/butian/test_server_inventory.py` | Linux 发行版、系统包、内核、监听端口和 Docker 解析           |
 | `server_match.py`     | `docs/butian/server_match.md`     | `tests/butian/test_server_match.py`     | OSV 发行版包坐标、详情公告、CVE 富化和覆盖缺口               |
 | `visualize.py`        | `docs/butian/visualize.md`        | `tests/butian/test_visualize.py`        | HTML 注入、资产内联、交互报告和浏览器打开策略                |
+| `workspace.py`        | `docs/butian/workspace.md`        | `tests/butian/test_scan_helpers.py`     | 本地工作区、运行目录、项目根发现和扫描路径保护               |
 | `workflow_checks.py`  | `docs/butian/workflow_checks.md`  | `tests/butian/test_workflow_checks.py`  | GitHub Actions 工作流安全规则                                |
 
 ## 产物目录

@@ -12,6 +12,14 @@ from butian.scripts import scan
 
 
 class CacheDirTests(unittest.TestCase):
+    def test_scan_reexports_cache_helpers(self):
+        from butian.scripts import cache
+
+        self.assertIs(scan.cache_dir, cache.cache_dir)
+        self.assertIs(scan.cache_read, cache.cache_read)
+        self.assertIs(scan.cache_write, cache.cache_write)
+        self.assertIs(scan.cache_clean, cache.cache_clean)
+
     def test_creates_directory(self):
         with tempfile.TemporaryDirectory(prefix="butian-cache-") as tmp:
             d = scan.cache_dir(tmp, "osv")

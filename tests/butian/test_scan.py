@@ -16,7 +16,7 @@ from types import SimpleNamespace
 
 # Import scan module
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "butian", "scripts"))
-from butian.scripts import analyze, run_audit, scan
+from butian.scripts import analyze, run_audit, scan, workspace
 
 
 class ButianScanTests(unittest.TestCase):
@@ -2408,7 +2408,9 @@ class EnsureButianRunTests(unittest.TestCase):
 
     def test_collision_avoidance(self):
         with tempfile.TemporaryDirectory(prefix="butian-run-") as root:
-            with mock.patch.object(scan, "make_run_id", return_value="20260609-235959"):
+            with mock.patch.object(
+                workspace, "make_run_id", return_value="20260609-235959"
+            ):
                 first = scan.ensure_butian_run(root)
                 scan._GITIGNORE_STATUS_BY_PROJECT.clear()
                 second = scan.ensure_butian_run(root)

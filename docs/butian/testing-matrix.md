@@ -10,6 +10,7 @@
 | --------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | `__init__.py`         | `test_scripts_inventory.py`                             | 包初始化文件纳入脚本清单，避免新增脚本漏登记                                                           |
 | `analyze.py`          | `test_analyze.py`                                       | 严重度标准化、风险排序、红黄绿分组、摘要、修复项、嵌套依赖上下文                                       |
+| `cache.py`            | `test_cache.py`                                         | 本地缓存目录、读写、损坏 JSON、过期清理和 `scan.py` 兼容导出                                           |
 | `detect.py`           | `test_detect.py`                                        | lockfile 识别、项目根发现、preflight 输出、自定义 output、工作区准备                                   |
 | `finding_utils.py`    | `test_finding_utils.py`, `test_repo_checks.py`          | 文件遍历、排除目录、读取容错、行号定位、证据截断、finding 规范化、去重                                 |
 | `fix.py`              | `test_fix.py`                                           | 修复项提取、包管理器命令生成、npm 父依赖计划、overrides、Dependabot 配置创建、失败退出码               |
@@ -24,6 +25,7 @@
 | `server_inventory.py` | `test_server_inventory.py`                              | Linux 发行版识别、包清单解析、内核包匹配、监听端口、Docker 标签解析                                    |
 | `server_match.py`     | `test_server_match.py`                                  | OSV 发行版包查询、source package 查询、详情公告、CVE 富化、不支持 ecosystem 说明                       |
 | `visualize.py`        | `test_visualize.py`, `test_report_assets.py`            | JSON/HTML 转义、资产内联、标签注入、占位符校验、HTML 报告交互、浏览器打开策略                          |
+| `workspace.py`        | `test_scan_helpers.py`, `test_detect.py`, `test_scan.py` | `.butian` 工作区、运行目录、项目根发现、系统路径保护和 `scan.py` 兼容导出                              |
 | `workflow_checks.py`  | `test_workflow_checks.py`                               | GitHub Actions permissions、trigger、checkout、远程脚本、不可信上下文、runner 风险                     |
 
 ## 详细覆盖说明

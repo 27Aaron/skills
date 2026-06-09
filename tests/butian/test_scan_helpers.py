@@ -49,6 +49,29 @@ class SetupLoggingTests(unittest.TestCase):
         # Cleanup
         close_logger_handlers(logger)
 
+
+# ---------------------------------------------------------------------------
+# workspace module compatibility
+# ---------------------------------------------------------------------------
+class WorkspaceModuleCompatibilityTests(unittest.TestCase):
+    def test_scan_reexports_workspace_helpers(self):
+        from butian.scripts import workspace
+
+        self.assertIs(scan.ensure_butian_run, workspace.ensure_butian_run)
+        self.assertIs(scan.default_asset_path, workspace.default_asset_path)
+        self.assertIs(scan.run_dir_from_output_file, workspace.run_dir_from_output_file)
+        self.assertIs(scan.find_project_root, workspace.find_project_root)
+        self.assertIs(scan.ensure_safe_project_path, workspace.ensure_safe_project_path)
+
+    def test_workspace_creates_run_directories(self):
+        from butian.scripts import workspace
+
+        with tempfile.TemporaryDirectory(prefix="butian-workspace-") as tmp:
+            run_dir = workspace.ensure_butian_run(tmp, run_id="20260610-010203")
+            self.assertTrue(os.path.isdir(os.path.join(run_dir, "assets")))
+            self.assertTrue(os.path.isdir(os.path.join(run_dir, "content")))
+            self.assertEqual(os.path.basename(run_dir), "20260610-010203")
+
     def test_setup_with_log_dir(self):
         import logging
 

@@ -13,6 +13,7 @@ REFERENCE_DIR = os.path.join(ROOT, "butian", "references")
 SCRIPT_TEST_FILES = {
     "__init__.py": ["test_scripts_inventory.py"],
     "analyze.py": ["test_analyze.py"],
+    "cache.py": ["test_cache.py"],
     "detect.py": ["test_detect.py"],
     "finding_utils.py": ["test_finding_utils.py", "test_repo_checks.py"],
     "fix.py": ["test_fix.py"],
@@ -27,11 +28,13 @@ SCRIPT_TEST_FILES = {
     "server_inventory.py": ["test_server_inventory.py"],
     "server_match.py": ["test_server_match.py"],
     "visualize.py": ["test_visualize.py", "test_report_assets.py"],
+    "workspace.py": ["test_scan_helpers.py", "test_detect.py"],
     "workflow_checks.py": ["test_workflow_checks.py"],
 }
 
 SCRIPT_DOC_FILES = {
     "analyze.py": "analyze.md",
+    "cache.py": "cache.md",
     "detect.py": "detect.md",
     "finding_utils.py": "finding_utils.md",
     "fix.py": "fix.md",
@@ -46,6 +49,7 @@ SCRIPT_DOC_FILES = {
     "server_inventory.py": "server_inventory.md",
     "server_match.py": "server_match.md",
     "visualize.py": "visualize.md",
+    "workspace.py": "workspace.md",
     "workflow_checks.py": "workflow_checks.md",
 }
 
