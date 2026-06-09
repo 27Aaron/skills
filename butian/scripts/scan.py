@@ -1839,6 +1839,7 @@ LOCKFILE_MAP = {
     "pub": ["pubspec.lock"],
     "hex": ["mix.lock"],
     "nuget": ["packages.lock.json", "packages.config"],
+    "maven": ["pom.xml"],
 }
 
 
@@ -2403,6 +2404,67 @@ def parse_nuget(project_path):
     return pkgs
 
 
+# --- JVM / Maven ---
+
+
+def xml_local_name(tag):
+    return str(tag or "").rsplit("}", 1)[-1]
+
+
+def xml_child_text(element, name):
+    for child in list(element):
+        if xml_local_name(child.tag) == name:
+            return str(child.text or "").strip()
+    return ""
+
+
+def xml_direct_children(element, name):
+    return [child for child in list(element) if xml_local_name(child.tag) == name]
+
+
+def is_exact_dependency_version(version):
+    version = str(version or "").strip()
+    if not version or version.startswith("${") or re.search(r"[\[\](),]", version):
+        return False
+    return bool(re.match(r"^[0-9][0-9A-Za-z._+-]*$", version))
+
+
+def parse_maven_pom(project_path):
+    path = os.path.join(project_path, "pom.xml")
+    if not os.path.isfile(path):
+        return []
+    try:
+        root = ET.parse(path).getroot()
+    except (ET.ParseError, OSError):
+        return []
+
+    pkgs, seen = [], set()
+    direct_dependencies = []
+    for dependencies in xml_direct_children(root, "dependencies"):
+        direct_dependencies.extend(xml_direct_children(dependencies, "dependency"))
+    for dependency in direct_dependencies:
+        group_id = xml_child_text(dependency, "groupId")
+        artifact_id = xml_child_text(dependency, "artifactId")
+        version = xml_child_text(dependency, "version")
+        if not group_id or not artifact_id or not is_exact_dependency_version(version):
+            continue
+        name = f"{group_id}:{artifact_id}"
+        key = (name, version)
+        if key in seen:
+            continue
+        seen.add(key)
+        pkgs.append(
+            {
+                "ecosystem": "maven",
+                "name": name,
+                "version": version,
+                "is_direct": True,
+                "source": "pom.xml",
+            }
+        )
+    return pkgs
+
+
 # --- Python ---
 
 
@@ -2720,6 +2782,7 @@ PARSERS = {
     "pub": parse_pubspec_lock,
     "hex": parse_mix_lock,
     "nuget": parse_nuget,
+    "maven": parse_maven_pom,
 }
 
 
@@ -2785,6 +2848,7 @@ OSV_ECOSYSTEMS = {
     "pub": "Pub",
     "hex": "Hex",
     "nuget": "NuGet",
+    "maven": "Maven",
 }
 
 

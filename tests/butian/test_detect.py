@@ -149,6 +149,7 @@ class DetectLanguageSupportTests(unittest.TestCase):
             "pub": ["pubspec.lock"],
             "hex": ["mix.lock"],
             "nuget": ["packages.lock.json", "packages.config"],
+            "maven": ["pom.xml"],
         }
         for ecosystem, file_names in cases.items():
             for file_name in file_names:

@@ -956,6 +956,159 @@ class ParseNugetTests(unittest.TestCase):
             )
 
 
+class ParseMavenPomTests(unittest.TestCase):
+    def test_parses_direct_dependency_versions(self):
+        with tempfile.TemporaryDirectory(prefix="butian-maven-pom-") as root:
+            with open(os.path.join(root, "pom.xml"), "w", encoding="utf-8") as f:
+                f.write(
+                    "<project>\n"
+                    "  <dependencies>\n"
+                    "    <dependency>\n"
+                    "      <groupId>org.springframework</groupId>\n"
+                    "      <artifactId>spring-core</artifactId>\n"
+                    "      <version>6.1.14</version>\n"
+                    "    </dependency>\n"
+                    "    <dependency>\n"
+                    "      <groupId>com.fasterxml.jackson.core</groupId>\n"
+                    "      <artifactId>jackson-databind</artifactId>\n"
+                    "      <version>2.17.2</version>\n"
+                    "    </dependency>\n"
+                    "  </dependencies>\n"
+                    "</project>\n"
+                )
+
+            pkgs = scan.parse_maven_pom(root)
+
+            self.assertEqual(
+                pkgs,
+                [
+                    {
+                        "ecosystem": "maven",
+                        "name": "org.springframework:spring-core",
+                        "version": "6.1.14",
+                        "is_direct": True,
+                        "source": "pom.xml",
+                    },
+                    {
+                        "ecosystem": "maven",
+                        "name": "com.fasterxml.jackson.core:jackson-databind",
+                        "version": "2.17.2",
+                        "is_direct": True,
+                        "source": "pom.xml",
+                    },
+                ],
+            )
+
+    def test_skips_property_versions_and_ranges(self):
+        with tempfile.TemporaryDirectory(prefix="butian-maven-pom-") as root:
+            with open(os.path.join(root, "pom.xml"), "w", encoding="utf-8") as f:
+                f.write(
+                    "<project>\n"
+                    "  <dependencies>\n"
+                    "    <dependency>\n"
+                    "      <groupId>org.example</groupId>\n"
+                    "      <artifactId>from-property</artifactId>\n"
+                    "      <version>${example.version}</version>\n"
+                    "    </dependency>\n"
+                    "    <dependency>\n"
+                    "      <groupId>org.example</groupId>\n"
+                    "      <artifactId>range</artifactId>\n"
+                    "      <version>[1.0,2.0)</version>\n"
+                    "    </dependency>\n"
+                    "    <dependency>\n"
+                    "      <groupId>org.example</groupId>\n"
+                    "      <artifactId>exact</artifactId>\n"
+                    "      <version>1.0.0-RC1</version>\n"
+                    "    </dependency>\n"
+                    "  </dependencies>\n"
+                    "</project>\n"
+                )
+
+            pkgs = scan.parse_maven_pom(root)
+
+            self.assertEqual(
+                [(pkg["name"], pkg["version"]) for pkg in pkgs],
+                [("org.example:exact", "1.0.0-RC1")],
+            )
+
+    def test_parses_namespaced_pom(self):
+        with tempfile.TemporaryDirectory(prefix="butian-maven-pom-") as root:
+            with open(os.path.join(root, "pom.xml"), "w", encoding="utf-8") as f:
+                f.write(
+                    '<project xmlns="http://maven.apache.org/POM/4.0.0">\n'
+                    "  <dependencies>\n"
+                    "    <dependency>\n"
+                    "      <groupId>junit</groupId>\n"
+                    "      <artifactId>junit</artifactId>\n"
+                    "      <version>4.13.2</version>\n"
+                    "    </dependency>\n"
+                    "  </dependencies>\n"
+                    "</project>\n"
+                )
+
+            pkgs = scan.parse_maven_pom(root)
+
+            self.assertEqual(
+                [(pkg["name"], pkg["version"]) for pkg in pkgs],
+                [("junit:junit", "4.13.2")],
+            )
+
+    def test_only_parses_project_direct_dependencies(self):
+        with tempfile.TemporaryDirectory(prefix="butian-maven-pom-") as root:
+            with open(os.path.join(root, "pom.xml"), "w", encoding="utf-8") as f:
+                f.write(
+                    "<project>\n"
+                    "  <dependencies>\n"
+                    "    <dependency>\n"
+                    "      <groupId>org.example</groupId>\n"
+                    "      <artifactId>direct</artifactId>\n"
+                    "      <version>1.0.0</version>\n"
+                    "    </dependency>\n"
+                    "  </dependencies>\n"
+                    "  <dependencyManagement>\n"
+                    "    <dependencies>\n"
+                    "      <dependency>\n"
+                    "        <groupId>org.example</groupId>\n"
+                    "        <artifactId>managed</artifactId>\n"
+                    "        <version>2.0.0</version>\n"
+                    "      </dependency>\n"
+                    "    </dependencies>\n"
+                    "  </dependencyManagement>\n"
+                    "  <build>\n"
+                    "    <plugins>\n"
+                    "      <plugin>\n"
+                    "        <dependencies>\n"
+                    "          <dependency>\n"
+                    "            <groupId>org.example</groupId>\n"
+                    "            <artifactId>plugin-only</artifactId>\n"
+                    "            <version>3.0.0</version>\n"
+                    "          </dependency>\n"
+                    "        </dependencies>\n"
+                    "      </plugin>\n"
+                    "    </plugins>\n"
+                    "  </build>\n"
+                    "  <profiles>\n"
+                    "    <profile>\n"
+                    "      <dependencies>\n"
+                    "        <dependency>\n"
+                    "          <groupId>org.example</groupId>\n"
+                    "          <artifactId>profile-only</artifactId>\n"
+                    "          <version>4.0.0</version>\n"
+                    "        </dependency>\n"
+                    "      </dependencies>\n"
+                    "    </profile>\n"
+                    "  </profiles>\n"
+                    "</project>\n"
+                )
+
+            pkgs = scan.parse_maven_pom(root)
+
+            self.assertEqual(
+                [(pkg["name"], pkg["version"]) for pkg in pkgs],
+                [("org.example:direct", "1.0.0")],
+            )
+
+
 class YarnV1DescriptorNameTests(unittest.TestCase):
     def test_simple(self):
         self.assertEqual(scan._yarn_v1_descriptor_name("lodash@^4"), "lodash")
@@ -1175,6 +1328,28 @@ class ExtractPackagesTests(unittest.TestCase):
             self.assertEqual(
                 [(pkg["ecosystem"], pkg["name"], pkg["version"]) for pkg in pkgs],
                 [("nuget", "Newtonsoft.Json", "13.0.3")],
+            )
+
+    def test_extracts_maven_packages(self):
+        with tempfile.TemporaryDirectory(prefix="butian-extract-") as root:
+            with open(os.path.join(root, "pom.xml"), "w", encoding="utf-8") as f:
+                f.write(
+                    "<project>\n"
+                    "  <dependencies>\n"
+                    "    <dependency>\n"
+                    "      <groupId>org.apache.commons</groupId>\n"
+                    "      <artifactId>commons-lang3</artifactId>\n"
+                    "      <version>3.14.0</version>\n"
+                    "    </dependency>\n"
+                    "  </dependencies>\n"
+                    "</project>\n"
+                )
+
+            pkgs = scan.extract_packages(root, ["maven"])
+
+            self.assertEqual(
+                [(pkg["ecosystem"], pkg["name"], pkg["version"]) for pkg in pkgs],
+                [("maven", "org.apache.commons:commons-lang3", "3.14.0")],
             )
 
 
@@ -1527,6 +1702,7 @@ class OsvQueryForPackageTests(unittest.TestCase):
             "pub": "Pub",
             "hex": "Hex",
             "nuget": "NuGet",
+            "maven": "Maven",
         }
         for ecosystem, osv_ecosystem in cases.items():
             with self.subTest(ecosystem=ecosystem):
