@@ -217,6 +217,25 @@ class SecurityIdsTests(unittest.TestCase):
     def test_no_ids(self):
         self.assertEqual(report.security_ids({}), [])
 
+    def test_rejects_malicious_markdown_link_fragments(self):
+        self.assertEqual(
+            report.security_ids(
+                {
+                    "advisory_id": "GHSA-aaaa-bbbb-cccc](javascript:alert(1))",
+                    "aliases": ["CVE-2024-0001](https://evil.example)"],
+                }
+            ),
+            [],
+        )
+
+
+class SecurityIdMarkdownTests(unittest.TestCase):
+    def test_non_cve_url_is_encoded(self):
+        self.assertEqual(
+            report.security_id_url("PYSEC-2026-1 test"),
+            "https://osv.dev/vulnerability/PYSEC-2026-1%20test",
+        )
+
 
 # ---------------------------------------------------------------------------
 # render_summary
@@ -304,6 +323,26 @@ class RenderVulnerabilitiesTests(unittest.TestCase):
             "Prototype pollution；EPSS 12.8%；CVSS 8.8；CWE-400；CISA KEV；NVD 2024-05-01",
             result,
         )
+
+    def test_malicious_security_id_does_not_break_markdown_link(self):
+        result = report.render_vulnerabilities(
+            {
+                "top_issues": [
+                    {
+                        "severity": "high",
+                        "package": "bad-lib",
+                        "version": "1.0.0",
+                        "summary": "Bad advisory",
+                        "advisory_id": "GHSA-aaaa-bbbb-cccc](javascript:alert(1))",
+                    }
+                ],
+                "scan_config": {"scan_mode": "full_dependency_scan"},
+            }
+        )
+
+        self.assertIn("| 高风险 | bad-lib | 1.0.0 | - |", result)
+        self.assertNotIn("javascript:", result)
+        self.assertNotIn("evil.example", result)
 
     def test_no_issues_full_scan(self):
         result = report.render_vulnerabilities(

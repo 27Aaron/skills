@@ -13,6 +13,7 @@ import os
 import re
 import string
 import sys
+from urllib.parse import quote
 
 logger = logging.getLogger("butian.scripts.report")
 
@@ -40,6 +41,14 @@ SEVERITY_LABELS = {
     "low": "低风险",
     "info": "待确认",
 }
+
+CVE_ID_RE = re.compile(r"^CVE-\d{4}-\d+$", flags=re.IGNORECASE)
+GHSA_ID_RE = re.compile(
+    r"^GHSA-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$", flags=re.IGNORECASE
+)
+OSV_ID_RE = re.compile(
+    r"^[A-Z][A-Z0-9]+-[A-Z0-9][A-Z0-9_.-]*$", flags=re.IGNORECASE
+)
 
 
 def to_list(value):
@@ -141,6 +150,17 @@ def is_hygiene_only(analysis):
     return (analysis.get("scan_config") or {}).get("scan_mode") == "hygiene_only"
 
 
+def normalize_security_id(value):
+    value = text(value).strip("()[]{}.,;")
+    if CVE_ID_RE.match(value):
+        return value.upper()
+    if GHSA_ID_RE.match(value):
+        return value
+    if OSV_ID_RE.match(value):
+        return value
+    return ""
+
+
 def security_ids(item):
     cves = []
     ghsas = []
@@ -159,15 +179,14 @@ def security_ids(item):
                 push(nested)
             return
         for part in re.split(r"[,，\s]+", str(value)):
-            part = part.strip().strip("()[]{}.,;")
+            part = normalize_security_id(part)
             if not part:
                 continue
-            upper = part.upper()
-            if re.match(r"^CVE-\d{4}-\d+$", upper):
-                add(cves, upper)
-            elif upper.startswith("GHSA-"):
+            if CVE_ID_RE.match(part):
+                add(cves, part.upper())
+            elif GHSA_ID_RE.match(part):
                 add(ghsas, part)
-            elif re.match(r"^[A-Z][A-Z0-9]+-[A-Z0-9][A-Z0-9_.-]*$", upper):
+            else:
                 add(others, part)
 
     push(item.get("cve_ids"))
@@ -181,16 +200,20 @@ def security_ids(item):
 
 def security_id_url(security_id):
     value = text(security_id)
-    if re.match(r"^CVE-\d{4}-\d+$", value, flags=re.IGNORECASE):
+    if CVE_ID_RE.match(value):
         return f"https://www.cve.org/CVERecord?id={value.upper()}"
-    return f"https://osv.dev/vulnerability/{value}"
+    return f"https://osv.dev/vulnerability/{quote(value, safe='-._~')}"
+
+
+def markdown_link_label(value):
+    return text(value).replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]")
 
 
 def security_id_markdown(security_id):
     value = text(security_id)
     if not value:
         return ""
-    return f"[{value}]({security_id_url(value)})"
+    return f"[{markdown_link_label(value)}]({security_id_url(value)})"
 
 
 def security_ids_markdown(item):
