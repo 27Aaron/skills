@@ -1,17 +1,9 @@
 ---
 name: butian
-description: >
-  Use when the user asks to check local dependency security, run repository security checks,
-  scan for dependency vulnerabilities with lockfile/exact versions, find hardcoded secrets, check sensitive files
-  tracked by git, audit .gitignore coverage, inspect GitHub Actions workflow security,
-  review local supply-chain/IaC/container configuration, detect outdated dependencies,
-  scan a Linux server runtime through read-only SSH, or generate a security report. Triggers include:
-  "帮我看看项目有没有安全问题"、"安全扫描"、"扫一下项目"、"依赖有没有漏洞"、
-  "木马包"、"恶意包"、"硬编码密钥"、"API Key"、"token"、"env 是否误提交"、
-  "gitignore 是否合理"、"依赖是否太旧"、"漏洞检查"、"供应链安全"、
-  "服务器扫描"、"Linux 服务器安全"、"SSH 扫描"。
-  支持 JavaScript/TypeScript、Python、Go、Rust、PHP/Packagist、Ruby/RubyGems、
-  Dart/Flutter Pub、Elixir/Erlang Hex、.NET/NuGet、Maven/JVM 的应用依赖检查；输出以简体中文为主。
+description: |
+  补天：为本地代码仓库补上安全裂缝，围绕依赖漏洞、过期依赖、硬编码凭证、敏感文件误提交、仓库忽略规则、供应链与 IaC/容器配置做只读审计。
+  输出以简体中文为主，优先生成能给团队阅读和跟进的 Markdown/HTML 安全报告。
+  触发词：「帮我看看项目有没有安全问题」「安全扫描」「扫一下项目」「依赖有没有漏洞」「硬编码密钥」「gitignore 是否合理」「漏洞检查」「供应链安全」。
 ---
 
 # 补天
