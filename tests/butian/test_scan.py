@@ -370,10 +370,12 @@ class ButianScanTests(unittest.TestCase):
             "check local dependency security, run repository security checks",
             skill_doc,
         )
-        self.assertIn("不修改源码、依赖、数据库、日志或任意项目文件", skill_doc)
+        self.assertIn("不会修改业务源码、依赖、数据库或日志", skill_doc)
         self.assertIn("会创建/更新 `.butian/` 本地报告工作区", skill_doc)
         self.assertIn("会确保 `.gitignore` 忽略 `.butian/`", skill_doc)
+        self.assertIn("模板文件也只展示脱敏命中值", skill_doc)
         self.assertIn("docs/butian/security-report-<run-id>.md", skill_doc)
+        self.assertNotIn("展示完整命中值", skill_doc)
         self.assertNotIn("docs/security-report-YYYY-MM-DD.md", skill_doc)
         self.assertNotIn("全程只读，绝不擅自动手", skill_doc)
         self.assertNotIn("没有任何会触发本地操作的按钮", skill_doc)

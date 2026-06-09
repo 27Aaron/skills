@@ -16,12 +16,12 @@ description: >
 
 # 补天
 
-本地项目安全扫描。产出 Markdown 审计报告 + 只读 HTML 报告，面向产品经理、项目负责人等非安全背景读者。扫描不改源码和依赖；报告工作区写入本地 `.butian/` 和 `docs/butian/security-report-*.md`，并会直接确保 `.gitignore` 忽略 `.butian/` 与生成的安全报告文件；修复需用户确认。
+本地项目安全扫描。产出 Markdown 审计报告 + 只读 HTML 报告，面向产品经理、项目负责人等非安全背景读者。扫描不会修改业务源码、依赖、数据库或日志；但会写入本地 `.butian/`、`docs/butian/security-report-*.md`，并会直接确保 `.gitignore` 忽略 `.butian/` 与生成的安全报告文件；修复需用户确认。
 
 ## 它会查什么
 
 - **依赖漏洞** — 从支持的依赖文件提取本地可确认的依赖坐标，逐个查已知漏洞（CVE / GHSA），按严重度排序
-- **硬编码密钥** — 扫代码里写死的 API Key / token / 密码；默认脱敏，`.env.example`、`.env.sample`、`.env.template`、`.env.dist` 这类模板文件会在本地报告里展示完整命中值和前后代码上下文
+- **硬编码密钥** — 扫代码里写死的 API Key / token / 密码；默认脱敏，`.env.example`、`.env.sample`、`.env.template`、`.env.dist` 这类模板文件也只展示脱敏命中值和前后代码上下文，方便定位但不二次泄密
 - **敏感文件误提交** — `.env`、私钥、证书是否被 git 跟踪
 - **仓库安检** — `.gitignore` 该挡的有没有挡住；GitHub Actions 是否存在过宽权限、危险触发器、脚本注入等本地静态风险；依赖配置与维护、IaC/容器配置是否有明显缺口；报告展示中文类型标签和凭证证据预览，不超过 5 条，超出显示"…及其他 N 处"
 - **过期依赖** — 给出版本维护和升级窗口建议
@@ -50,14 +50,14 @@ description: >
 
 ## 铁律
 
-- **扫描不改业务项目。** 扫描只读取项目文件、调漏洞 API，不修改源码、依赖、数据库、日志或任意项目文件；会创建/更新 `.butian/` 本地报告工作区和 `docs/butian/security-report-*.md` Markdown 报告文件，并会确保 `.gitignore` 忽略 `.butian/` 和 `docs/butian/security-report-*.md`，这个内部动作不用写进用户报告。
+- **扫描不改业务源码和依赖。** 扫描只读取项目文件、调漏洞 API，不会修改业务源码、依赖、数据库或日志；但会创建/更新 `.butian/` 本地报告工作区和 `docs/butian/security-report-*.md` Markdown 报告文件，并会确保 `.gitignore` 忽略 `.butian/` 和 `docs/butian/security-report-*.md`，这个内部动作不用写进用户报告。
 - **修复要你点头同意。** 报告生成并打开后，Agent 先用 AskUserQuestion 询问是否开始修复（开始修复 / 先不修复）；确认后再用 AskUserQuestion 询问升级方式（升级到修复版本 / 全部升级到最新版）。硬编码凭证占位符、Dependabot 配置、过期依赖更新等收尾维护动作统一放进一个多选 AskUserQuestion。Agent 不会自行执行任何升级命令或创建治理配置。
 - **风险项和建议分开呈现。** 已确认依赖风险、仓库安检项、版本建议分别归类，避免混在一起影响判断。
 - **不制造恐慌。** 没有证据时说"不确定"，不说"肯定安全"或"肯定中招"
 
 ## 技术约束
 
-- 只在本地读取用户项目文件；不上传源码、lockfile、env 或密钥；不要上传完整 lockfile、`.env`、私钥、证书、数据库、日志或任意项目文件；扫描阶段除 `.butian/`、`docs/butian/security-report-<run-id>.md` 和 `.gitignore` 中的 `.butian/`、`docs/butian/security-report-*.md` 忽略规则外，不修改源码、依赖、数据库、日志或任意项目文件；敏感文件相关 `.gitignore` 规则只能在用户确认修复后写入；不要为用户创建 CI/CD workflow。
+- 只在本地读取用户项目文件；不上传源码、lockfile、env 或密钥；不要上传完整 lockfile、`.env`、私钥、证书、数据库、日志或任意项目文件；扫描阶段除 `.butian/`、`docs/butian/security-report-<run-id>.md` 和 `.gitignore` 中的 `.butian/`、`docs/butian/security-report-*.md` 忽略规则外，不会修改业务源码、依赖、数据库或日志；敏感文件相关 `.gitignore` 规则只能在用户确认修复后写入；不要为用户创建 CI/CD workflow。
 - 依赖漏洞检查会直接请求 OSV、NVD、CISA KEV 和 FIRST EPSS；只发送最小必要信息：`ecosystem`、`name`、`version`。
 - 报告里不要泄露完整密钥，只能写文件、行号、类型和脱敏预览。HTML 报告用结构化列表展示：路径（等宽加粗）+ 中文类型标签 + 脱敏 `preview`（code 背景），不裸露英文 type 标识。
 - 扫描自动排除工具配置目录（`.git`、`.butian`、`.claude`、`node_modules`、`.next`、`dist` 等），不扫自身的模板和静态资源文件。`generic_sk_key` 正则使用 `\b` 词边界，避免 CSS `mask-composite` 等误匹配。仓库安检的 GitHub Actions、供应链、IaC/容器规则全部是本地 Python 静态规则，不调用外部扫描器，也不为用户创建 CI/CD workflow。
