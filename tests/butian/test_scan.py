@@ -126,6 +126,30 @@ class DependencyParsersModuleCompatibilityTests(unittest.TestCase):
                 ],
             )
 
+    def test_requirements_parser_skips_includes_outside_project(self):
+        with tempfile.TemporaryDirectory(prefix="butian-reqs-") as parent:
+            root = os.path.join(parent, "project")
+            os.makedirs(os.path.join(root, "nested"), exist_ok=True)
+            with open(
+                os.path.join(parent, "outside.txt"), "w", encoding="utf-8"
+            ) as handle:
+                handle.write("leaked==1.0.0\n")
+            with open(
+                os.path.join(root, "nested", "inside.txt"), "w", encoding="utf-8"
+            ) as handle:
+                handle.write("safe==2.0.0\n")
+            with open(
+                os.path.join(root, "requirements.txt"), "w", encoding="utf-8"
+            ) as handle:
+                handle.write("-r ../outside.txt\n-r nested/inside.txt\n")
+
+            packages = scan.parse_requirements_txt(root)
+
+            self.assertEqual(
+                [(pkg["name"], pkg["version"]) for pkg in packages],
+                [("safe", "2.0.0")],
+            )
+
     def test_scan_warns_when_dependency_file_has_no_exact_versions(self):
         with tempfile.TemporaryDirectory(prefix="butian-reqs-range-") as root:
             with open(

@@ -709,16 +709,38 @@ def parse_requirements_txt(project_path):
 
     漏洞匹配只纳入 == 或 === 固定版本的包。
     """
-    path = os.path.join(project_path, "requirements.txt")
+    project_root = os.path.realpath(project_path)
+    path = os.path.join(project_root, "requirements.txt")
     if not os.path.isfile(path):
         return []
 
     pkgs = []
     seen = set()
+    visited = set()
+
+    def _safe_requirements_file(filepath):
+        real_path = os.path.realpath(filepath)
+        try:
+            if os.path.commonpath([project_root, real_path]) != project_root:
+                return ""
+        except ValueError:
+            return ""
+        if not os.path.isfile(real_path):
+            return ""
+        try:
+            if os.path.getsize(real_path) > 1024 * 1024:
+                return ""
+        except OSError:
+            return ""
+        return real_path
 
     def _parse_file(filepath, depth=0):
         if depth > 5:
             return
+        filepath = _safe_requirements_file(filepath)
+        if not filepath or filepath in visited:
+            return
+        visited.add(filepath)
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 lines = f.readlines()
