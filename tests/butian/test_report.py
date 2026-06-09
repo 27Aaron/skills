@@ -255,6 +255,10 @@ class RenderSummaryTests(unittest.TestCase):
         self.assertIn("详细信息", result)
         self.assertIn("优先处理紧急项", result)
         self.assertIn("能力边界", result)
+        self.assertIn("安全的价值不只在于发现问题", result)
+        self.assertNotIn("SSH", result)
+        self.assertNotIn("inventory", result)
+        self.assertNotIn("服务器漏洞", result)
 
     def test_hygiene_only(self):
         analysis = {

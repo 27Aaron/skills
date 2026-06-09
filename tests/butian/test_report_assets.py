@@ -1472,12 +1472,15 @@ class ReportAssetTests(unittest.TestCase):
         tldr_index = html.index("TL;DR")
         detail_index = html.index("本次检查覆盖项目 demo")
         priority_index = html.index("重新运行扫描")
-        boundary_index = html.index("不能替代代码审计")
+        boundary_index = html.index("安全的价值不只在于发现问题")
         self.assertLess(tldr_index, detail_index)
         self.assertLess(detail_index, priority_index)
         self.assertLess(priority_index, boundary_index)
         self.assertIn('class="summary-boundary"', html)
         self.assertNotIn('class="summary-boundary warning"', html)
+        self.assertNotIn("SSH", html)
+        self.assertNotIn("inventory", html)
+        self.assertNotIn("服务器漏洞", html)
 
         with open(REPORT_CSS, "r", encoding="utf-8") as handle:
             css = handle.read()
