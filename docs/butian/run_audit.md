@@ -81,11 +81,13 @@ run_audit.py
 
 **治理配置**：如果 analysis 中出现 `配置 Dependabot`，说明仓库 remote 指向 GitHub 且检测到 Dependabot 官方支持生态，但缺少 `.github/dependabot.yml`。用户确认后可调用 `fix.py --strategy dependabot` 创建配置；该策略不会覆盖已有文件，也不属于依赖漏洞修复轮次。
 
+**待确认动作队列**：硬编码凭证占位符和 `配置 Dependabot` 都需要 AskUserQuestion 单独确认。用户选择继续依赖修复时不打断；用户选择 `取消修复`、`暂不处理` 或修复流程准备结束时，先逐项询问这两类动作，再生成最终报告或结束。
+
 **第一轮**：用户选择修复策略后，调用 `fix.py --strategy fixed|latest` 执行顶层依赖升级，然后重新运行 `run_audit.py` 复扫验证。复扫不会重复弹出浏览器，也不会生成 Markdown。
 
-**第二轮**（复扫后仍有残留时）：如果复扫仍出现同名旧版本，通常是间接依赖被父包锁定。脚本会自动分析父依赖声明的 semver 范围，分三档处理：修复版本在范围内（只需重新解析 lockfile）、不在范围内（升级父依赖到 latest）、无法追溯到根依赖（报告给用户）。调用 `fix.py --strategy parent-upgrade`。当前仅支持 npm `package-lock.json` 场景。升级后重新运行 `run_audit.py` 复扫。
+**第二轮**（复扫后仍有残留时）：如果复扫仍出现同名旧版本，通常是间接依赖被父包锁定。脚本会自动分析父依赖声明的 semver 范围，分三档处理：修复版本在范围内（只需重新解析 lockfile）、不在范围内（升级父依赖到 latest）、无法追溯到根依赖（报告给用户）。用户选择 `升级父依赖并重新扫描` 时调用 `fix.py --strategy parent-upgrade`；用户选择 `暂不处理` 时，先处理待确认动作队列。当前仅支持 npm `package-lock.json` 场景。升级后重新运行 `run_audit.py` 复扫。
 
-**第三轮**（第二轮后仍有残留时）：通过 `fix.py --strategy force-residual` 在 `package.json` 的 `overrides` 字段强制覆盖残留依赖。
+**第三轮**（第二轮后仍有残留时）：用户选择继续时，通过 `fix.py --strategy force-residual` 在 `package.json` 的 `overrides` 字段强制覆盖残留依赖；用户选择 `暂不处理` 时，先处理待确认动作队列。
 
 **最终报告**：所有修复轮次结束后，运行 `run_audit.py --final-report` 生成最终 Markdown 审计报告。终端摘要以 `📁 最终报告路径` 标注。
 

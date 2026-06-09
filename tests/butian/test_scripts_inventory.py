@@ -8,6 +8,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 SCRIPT_DIR = os.path.join(ROOT, "butian", "scripts")
 TEST_DIR = os.path.join(ROOT, "tests", "butian")
 DOC_DIR = os.path.join(ROOT, "docs", "butian")
+SKILL_PATH = os.path.join(ROOT, "butian", "SKILL.md")
 
 SCRIPT_TEST_FILES = {
     "__init__.py": ["test_scripts_inventory.py"],
@@ -78,6 +79,17 @@ class ButianScriptInventoryTests(unittest.TestCase):
                 with open(doc_path, "r", encoding="utf-8") as handle:
                     text = handle.read()
                 self.assertIn("butian", text.lower())
+
+    def test_skill_declares_post_cancel_manual_confirmations(self):
+        with open(SKILL_PATH, "r", encoding="utf-8") as handle:
+            text = handle.read()
+
+        self.assertIn("待确认动作队列", text)
+        self.assertIn("硬编码凭证占位符", text)
+        self.assertIn("创建 Dependabot 配置", text)
+        self.assertIn("用户选择暂不处理", text)
+        self.assertIn("升级父依赖并重新扫描", text)
+        self.assertIn("不弹出待确认动作队列", text)
 
 
 if __name__ == "__main__":
