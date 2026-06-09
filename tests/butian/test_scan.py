@@ -730,6 +730,117 @@ class ParseGemfileLockTests(unittest.TestCase):
             self.assertEqual(versions["rails"], "7.1.0.beta1")
 
 
+class ParsePubspecLockTests(unittest.TestCase):
+    def test_parses_packages_with_versions(self):
+        with tempfile.TemporaryDirectory(prefix="butian-pubspec-") as root:
+            with open(os.path.join(root, "pubspec.lock"), "w", encoding="utf-8") as f:
+                f.write(
+                    "packages:\n"
+                    "  collection:\n"
+                    "    dependency: transitive\n"
+                    "    description:\n"
+                    "      name: collection\n"
+                    "      url: \"https://pub.dev\"\n"
+                    "    source: hosted\n"
+                    "    version: \"1.18.0\"\n"
+                    "  path:\n"
+                    "    dependency: transitive\n"
+                    "    description:\n"
+                    "      name: path\n"
+                    "      url: \"https://pub.dev\"\n"
+                    "    source: hosted\n"
+                    "    version: 1.9.0\n"
+                )
+
+            pkgs = scan.parse_pubspec_lock(root)
+
+            self.assertEqual(
+                pkgs,
+                [
+                    {
+                        "ecosystem": "pub",
+                        "name": "collection",
+                        "version": "1.18.0",
+                        "is_direct": False,
+                        "source": "pubspec.lock",
+                    },
+                    {
+                        "ecosystem": "pub",
+                        "name": "path",
+                        "version": "1.9.0",
+                        "is_direct": False,
+                        "source": "pubspec.lock",
+                    },
+                ],
+            )
+
+    def test_skips_missing_version(self):
+        with tempfile.TemporaryDirectory(prefix="butian-pubspec-") as root:
+            with open(os.path.join(root, "pubspec.lock"), "w", encoding="utf-8") as f:
+                f.write(
+                    "packages:\n"
+                    "  collection:\n"
+                    "    source: hosted\n"
+                    "  path:\n"
+                    "    source: hosted\n"
+                    "    version: \"1.9.0\"\n"
+                )
+
+            pkgs = scan.parse_pubspec_lock(root)
+
+            self.assertEqual(
+                [(pkg["name"], pkg["version"]) for pkg in pkgs],
+                [("path", "1.9.0")],
+            )
+
+
+class ParseMixLockTests(unittest.TestCase):
+    def test_parses_hex_entries(self):
+        with tempfile.TemporaryDirectory(prefix="butian-mix-") as root:
+            with open(os.path.join(root, "mix.lock"), "w", encoding="utf-8") as f:
+                f.write(
+                    '%{"plug": {:hex, :plug, "1.11.0", "abcd", [:mix], [], "hexpm", "hash"},\n'
+                    '  "jason": {:hex, :jason, "1.4.1", "abcd", [:mix], [], "hexpm", "hash"}}\n'
+                )
+
+            pkgs = scan.parse_mix_lock(root)
+
+            self.assertEqual(
+                pkgs,
+                [
+                    {
+                        "ecosystem": "hex",
+                        "name": "plug",
+                        "version": "1.11.0",
+                        "is_direct": False,
+                        "source": "mix.lock",
+                    },
+                    {
+                        "ecosystem": "hex",
+                        "name": "jason",
+                        "version": "1.4.1",
+                        "is_direct": False,
+                        "source": "mix.lock",
+                    },
+                ],
+            )
+
+    def test_skips_non_hex_entries(self):
+        with tempfile.TemporaryDirectory(prefix="butian-mix-") as root:
+            with open(os.path.join(root, "mix.lock"), "w", encoding="utf-8") as f:
+                f.write(
+                    '%{"plug": {:hex, :plug, "1.11.0", "abcd", [:mix], [], "hexpm", "hash"},\n'
+                    '  "local_dep": {:git, "https://example.com/local_dep.git", "abc"}}\n'
+                )
+
+            pkgs = scan.parse_mix_lock(root)
+
+            self.assertEqual(
+                [(pkg["name"], pkg["version"]) for pkg in pkgs],
+                [("plug", "1.11.0")],
+            )
+
+
 class YarnV1DescriptorNameTests(unittest.TestCase):
     def test_simple(self):
         self.assertEqual(scan._yarn_v1_descriptor_name("lodash@^4"), "lodash")
@@ -898,6 +1009,30 @@ class ExtractPackagesTests(unittest.TestCase):
                 [
                     ("packagist", "symfony/console", "6.4.8"),
                     ("rubygems", "rack", "2.2.8"),
+                ],
+            )
+
+    def test_extracts_pub_and_hex_packages(self):
+        with tempfile.TemporaryDirectory(prefix="butian-extract-") as root:
+            with open(os.path.join(root, "pubspec.lock"), "w", encoding="utf-8") as f:
+                f.write(
+                    "packages:\n"
+                    "  collection:\n"
+                    "    source: hosted\n"
+                    "    version: \"1.18.0\"\n"
+                )
+            with open(os.path.join(root, "mix.lock"), "w", encoding="utf-8") as f:
+                f.write(
+                    '%{"plug": {:hex, :plug, "1.11.0", "abcd", [:mix], [], "hexpm", "hash"}}\n'
+                )
+
+            pkgs = scan.extract_packages(root, ["pub", "hex"])
+
+            self.assertEqual(
+                [(pkg["ecosystem"], pkg["name"], pkg["version"]) for pkg in pkgs],
+                [
+                    ("pub", "collection", "1.18.0"),
+                    ("hex", "plug", "1.11.0"),
                 ],
             )
 
@@ -1248,6 +1383,8 @@ class OsvQueryForPackageTests(unittest.TestCase):
         cases = {
             "packagist": "Packagist",
             "rubygems": "RubyGems",
+            "pub": "Pub",
+            "hex": "Hex",
         }
         for ecosystem, osv_ecosystem in cases.items():
             with self.subTest(ecosystem=ecosystem):

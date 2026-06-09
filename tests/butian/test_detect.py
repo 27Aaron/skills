@@ -146,6 +146,8 @@ class DetectLanguageSupportTests(unittest.TestCase):
         cases = {
             "packagist": ["composer.lock"],
             "rubygems": ["Gemfile.lock"],
+            "pub": ["pubspec.lock"],
+            "hex": ["mix.lock"],
         }
         for ecosystem, file_names in cases.items():
             for file_name in file_names:

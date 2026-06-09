@@ -1835,6 +1835,8 @@ LOCKFILE_MAP = {
     "crates-io": ["Cargo.lock"],
     "packagist": ["composer.lock"],
     "rubygems": ["Gemfile.lock"],
+    "pub": ["pubspec.lock"],
+    "hex": ["mix.lock"],
 }
 
 
@@ -2217,6 +2219,107 @@ def parse_gemfile_lock(project_path):
     return pkgs
 
 
+# --- Dart / Flutter Pub ---
+
+
+def parse_pubspec_lock(project_path):
+    path = os.path.join(project_path, "pubspec.lock")
+    if not os.path.isfile(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+    except OSError:
+        return []
+
+    pkgs, seen = [], set()
+    in_packages = False
+    current_name = ""
+    current_version = ""
+
+    def flush_current():
+        if not current_name or not current_version:
+            return
+        key = (current_name, current_version)
+        if key in seen:
+            return
+        seen.add(key)
+        pkgs.append(
+            {
+                "ecosystem": "pub",
+                "name": current_name,
+                "version": current_version,
+                "is_direct": False,
+                "source": "pubspec.lock",
+            }
+        )
+
+    for raw in lines:
+        line = raw.rstrip("\n")
+        if line.strip() == "packages:":
+            in_packages = True
+            continue
+        if not in_packages:
+            continue
+        if line and not line.startswith(" "):
+            flush_current()
+            break
+
+        package_match = re.match(r"^  ([A-Za-z0-9_.-]+):\s*$", line)
+        if package_match:
+            flush_current()
+            current_name = package_match.group(1)
+            current_version = ""
+            continue
+
+        if current_name:
+            version_match = re.match(r"^\s+version:\s*['\"]?([^'\"\s]+)['\"]?\s*$", line)
+            if version_match:
+                current_version = version_match.group(1)
+
+    flush_current()
+    return pkgs
+
+
+# --- Elixir / Erlang Hex ---
+
+
+def parse_mix_lock(project_path):
+    path = os.path.join(project_path, "mix.lock")
+    if not os.path.isfile(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except OSError:
+        return []
+
+    pkgs, seen = [], set()
+    for match in re.finditer(
+        r'"([^"]+)"\s*:\s*\{:hex\s*,\s*(?::([A-Za-z0-9_.-]+)|"([^"]+)")\s*,\s*"([^"]+)"',
+        content,
+    ):
+        lock_name = match.group(1).strip()
+        entry_name = (match.group(2) or match.group(3) or lock_name).strip()
+        version = match.group(4).strip()
+        if not entry_name or not version:
+            continue
+        key = (entry_name, version)
+        if key in seen:
+            continue
+        seen.add(key)
+        pkgs.append(
+            {
+                "ecosystem": "hex",
+                "name": entry_name,
+                "version": version,
+                "is_direct": False,
+                "source": "mix.lock",
+            }
+        )
+    return pkgs
+
+
 # --- Python ---
 
 
@@ -2531,6 +2634,8 @@ PARSERS = {
     "crates-io": parse_cargo_lock,
     "packagist": parse_composer_lock,
     "rubygems": parse_gemfile_lock,
+    "pub": parse_pubspec_lock,
+    "hex": parse_mix_lock,
 }
 
 
@@ -2593,6 +2698,8 @@ OSV_ECOSYSTEMS = {
     "crates-io": "crates.io",
     "packagist": "Packagist",
     "rubygems": "RubyGems",
+    "pub": "Pub",
+    "hex": "Hex",
 }
 
 
