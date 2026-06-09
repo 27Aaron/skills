@@ -17,7 +17,7 @@
 
 ## 支持的生态
 
-| 语言                    | 包管理器   | Lockfile            |
+| 语言                    | 包管理器   | 依赖文件            |
 | ----------------------- | ---------- | ------------------- |
 | JavaScript / TypeScript | npm        | `package-lock.json` |
 | JavaScript / TypeScript | pnpm       | `pnpm-lock.yaml`    |
@@ -28,6 +28,17 @@
 | Python                  | uv         | `uv.lock`           |
 | Go                      | go modules | `go.sum`            |
 | Rust                    | cargo      | `Cargo.lock`        |
+| PHP / Packagist         | Composer   | `composer.lock`     |
+| Ruby / RubyGems         | Bundler    | `Gemfile.lock`      |
+| Dart / Flutter Pub      | pub        | `pubspec.lock`      |
+| Elixir / Erlang Hex     | mix        | `mix.lock`          |
+| .NET / NuGet            | NuGet      | `packages.lock.json` |
+| .NET / NuGet            | NuGet      | `packages.config`   |
+| Maven/JVM               | Maven      | `pom.xml`           |
+
+依赖漏洞查询只处理能从本地文件提取出**精确包名 + 精确版本**的应用依赖坐标。Maven/JVM 第一版只解析本地 `pom.xml` 中直接写明版本的依赖；`${...}` 属性、父 POM、BOM、profile 或版本范围无法本地确认时跳过，不做漏洞查询。
+
+本轮新增的依赖漏洞生态不包含 Dockerfile、compose、Kubernetes、devcontainer、镜像/SBOM、OS/发行版包、系统包或系统安全公告生态扫描；这些不会被混进 lockfile / manifest 依赖漏洞查询。既有 IaC/容器本地静态规则仍只属于仓库安检，不等于镜像、SBOM 或系统包漏洞扫描。
 
 ## CLI 用法
 
@@ -196,11 +207,19 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 | 函数                                                                                    | 作用                                   |
 | --------------------------------------------------------------------------------------- | -------------------------------------- |
 | `detect_ecosystems(project_path)`                                                       | 检测项目中存在的包管理器生态           |
-| `extract_packages(project_path, ecosystems)`                                            | 从 lockfile 中提取所有依赖的名称和版本 |
+| `extract_packages(project_path, ecosystems)`                                            | 从支持的依赖文件中提取本地可确认的包名和版本 |
 | `parse_npm_lock` / `parse_pnpm_lock` / `parse_yarn_lock`                                | 各自解析对应的 JS lockfile             |
 | `parse_requirements_txt` / `parse_pipfile_lock` / `parse_poetry_lock` / `parse_uv_lock` | 各自解析对应的 Python lockfile         |
 | `parse_go_sum`                                                                          | 解析 `go.sum`                          |
 | `parse_cargo_lock`                                                                      | 解析 `Cargo.lock`                      |
+| `parse_composer_lock`                                                                   | 解析 PHP / Packagist 的 `composer.lock` |
+| `parse_gemfile_lock`                                                                    | 解析 Ruby / RubyGems 的 `Gemfile.lock` |
+| `parse_pubspec_lock`                                                                    | 解析 Dart / Flutter Pub 的 `pubspec.lock` |
+| `parse_mix_lock`                                                                        | 解析 Elixir / Erlang Hex 的 `mix.lock` |
+| `parse_packages_lock_json` / `parse_packages_config` / `parse_nuget`                    | 解析 .NET / NuGet 的 `packages.lock.json` / `packages.config` |
+| `parse_maven_pom`                                                                       | 解析 Maven/JVM 的 `pom.xml` 中直接写明版本的依赖 |
+
+解析器只返回本地可确认的精确坐标。`requirements.txt` 只使用 `==` / `===` 精确版本；Maven/JVM 遇到 `${...}` 属性、父 POM、BOM、profile 或版本范围时会跳过对应依赖。
 
 ### 漏洞查询
 
@@ -219,7 +238,7 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 | 函数                                                                      | 作用                               |
 | ------------------------------------------------------------------------- | ---------------------------------- |
 | `check_outdated(project_path, ecosystems, errors, concurrency, packages)` | 调用各语言包管理器获取过期依赖信息 |
-| `_pip_outdated` / `_go_outdated` / `_cargo_outdated` / `_yarn_outdated`   | 各生态的过期检查实现               |
+| `_pip_outdated` / `_go_outdated` / `_cargo_outdated` / `_yarn_outdated`   | 已实现生态的过期检查逻辑；未实现过期检查的生态只做漏洞查询 |
 
 ## 扫描流程
 
@@ -228,7 +247,7 @@ main()
   ├─ 初始化: setup_logging()
   ├─ cache_clean()                     清理过期缓存
   ├─ Step 1: detect_ecosystems()        识别包管理器生态
-  ├─ Step 2: extract_packages()         从 lockfile 提取依赖坐标
+  ├─ Step 2: extract_packages()         从支持的依赖文件提取依赖坐标
   ├─ Step 3-5 (并行 ThreadPoolExecutor):
   │   ├─ run_hygiene_step()             仓库安检
   │   ├─ run_vulnerability_step()       依赖漏洞查询（带缓存）
