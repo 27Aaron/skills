@@ -154,6 +154,28 @@ class ButianScriptInventoryTests(unittest.TestCase):
         self.assertIn("升级父依赖并重新扫描", repair_text)
         self.assertIn("不弹出待确认动作队列", repair_text)
 
+    def test_run_audit_docs_delegate_repair_contract_to_reference(self):
+        with open(os.path.join(DOC_DIR, "run_audit.md"), "r", encoding="utf-8") as handle:
+            text = handle.read()
+
+        self.assertIn("完整修复交互契约以 `butian/references/repair-flow.md` 为准", text)
+        self.assertNotIn("建议顺手处理下面这些维护动作", text)
+        self.assertNotIn("Dependabot 是 GitHub 的依赖更新助手", text)
+
+    def test_public_docs_avoid_known_readability_typos(self):
+        paths = [
+            SKILL_PATH,
+            *glob.glob(os.path.join(REFERENCE_DIR, "*.md")),
+            *glob.glob(os.path.join(DOC_DIR, "*.md")),
+        ]
+        for path in paths:
+            with self.subTest(path=os.path.relpath(path, ROOT)):
+                with open(path, "r", encoding="utf-8") as handle:
+                    text = handle.read()
+                self.assertNotIn("stdout供", text)
+                self.assertNotIn("最终Markdown", text)
+                self.assertNotIn("HTML报告", text)
+
     def test_skill_links_scenario_references(self):
         with open(SKILL_PATH, "r", encoding="utf-8") as handle:
             text = handle.read()

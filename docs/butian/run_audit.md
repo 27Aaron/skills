@@ -95,19 +95,11 @@ run_audit.py
 └─ 输出终端摘要
 ```
 
-`run_audit.py` 不执行依赖升级，也不询问用户是否修复。修复确认属于 `SKILL.md` 的 Agent 工作流，分三轮进行：
+`run_audit.py` 不执行依赖升级，也不询问用户是否修复。完整修复交互契约以 `butian/references/repair-flow.md` 为准；本页只说明脚本编排和输出边界。
 
-**治理配置**：如果 analysis 中出现 `配置 Dependabot`，说明仓库 remote 指向 GitHub 且检测到 Dependabot 官方支持生态，但缺少 `.github/dependabot.yml`。用户确认后可调用 `fix.py --strategy dependabot` 创建配置；该策略不会覆盖已有文件，也不属于依赖漏洞修复轮次。
+Agent 工作流在用户看完报告后再进入 AskUserQuestion：先确认是否修复，再选择升级策略；修复后重新运行 `run_audit.py` 复扫。复扫确认仍有 npm 嵌套残留时，才进入 `parent-upgrade` 或 `force-residual` 后续轮次。Dependabot、凭证占位符和过期依赖维护属于收尾维护动作，不由 `run_audit.py` 自动执行。
 
-**待确认动作队列**：硬编码凭证占位符、`配置 Dependabot` 和过期依赖更新通过一个多选 AskUserQuestion 统一确认。收尾问题使用建议性文案：`建议顺手处理下面这些维护动作，可以减少后续遗留风险。你希望现在执行哪些？` 前三项按命中情况可多选，底部 `取消/暂不处理` 互斥。`创建 Dependabot 配置` 需要解释 Dependabot 是 GitHub 的依赖更新助手，会定期检查依赖新版本并自动提交更新 PR。如果用户已经执行 `fix.py --strategy latest`，视为已处理过期依赖维护，不再重复展示 `更新过期依赖`。
-
-**第一轮**：先用建议性问题询问 `开始修复` / `先不修复`，再询问 `升级到修复版本` / `全部升级到最新版`。用户选择升级策略后，调用 `fix.py --strategy fixed|latest` 执行顶层依赖升级，然后重新运行 `run_audit.py` 复扫验证。复扫不会重复弹出浏览器，也不会生成 Markdown。
-
-**第二轮**（复扫后仍有残留时）：如果复扫仍出现同名旧版本，通常是间接依赖被父包锁定。脚本会自动分析父依赖声明的 semver 范围，分三档处理：修复版本在范围内（只需重新解析 lockfile）、不在范围内（升级父依赖到 latest）、无法追溯到根依赖（报告给用户）。用户选择 `继续处理`（升级父依赖并重新扫描）时调用 `fix.py --strategy parent-upgrade`；用户选择 `暂不处理` 时，先处理待确认动作队列。当前仅支持 npm `package-lock.json` 场景。升级后重新运行 `run_audit.py` 复扫。
-
-**第三轮**（第二轮后仍有残留时）：用建议性问题说明 overrides 的兼容性验证成本。用户选择 `强制覆盖` 时，通过 `fix.py --strategy force-residual` 在 `package.json` 的 `overrides` 字段强制覆盖残留依赖；用户选择 `暂不处理` 时，先处理待确认动作队列。
-
-**最终报告**：所有修复轮次结束后，运行 `run_audit.py --final-report` 生成最终 Markdown 审计报告。终端摘要以 `📁 最终报告路径` 标注。
+所有修复轮次结束后，运行 `run_audit.py --final-report` 生成最终 Markdown 审计报告。终端摘要以 `📁 最终报告路径` 标注。
 
 ## 子进程调用方式
 
@@ -155,7 +147,7 @@ run_audit.py
 
 # 或最终复扫时：
 📁 报告路径
-- 最终Markdown 审计报告：docs/butian/security-report-20260609-1550.md
+- 最终 Markdown 审计报告：docs/butian/security-report-20260609-1550.md
 - HTML 报告（已自动打开）：.butian/.../content/security-report.html
 - analysis JSON：.butian/.../assets/analysis.json
 

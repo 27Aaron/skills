@@ -118,6 +118,6 @@ python3 detect.py --compact              # 输出紧凑 JSON
 ## 设计要点
 
 - **仅使用标准库**：无任何第三方依赖
-- **输出双重写入**：JSON 同时写入文件和 stdout（文件供后续步骤使用，stdout供调用方检查）
+- **输出双重写入**：JSON 同时写入文件和 stdout（文件供后续步骤使用，stdout 供调用方检查）
 - **项目根发现**：`find_project_root()` 支持从子目录启动时自动向上定位
 - **预检即准备工作区**：默认输出路径会创建 `.butian/<run>/assets` 和 `.butian/<run>/content`，并记录本次忽略规则准备结果，供 `scan.py` 复用
