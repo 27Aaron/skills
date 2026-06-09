@@ -625,6 +625,20 @@ class ServerArgsTests(unittest.TestCase):
         )
         self.assertEqual(args.server_inventory, "/tmp/server-inventory.json")
 
+    def test_server_only_requires_server_or_inventory(self):
+        with self.assertRaises(SystemExit):
+            run_audit.parse_args(["--server-only"])
+
+        ssh_args = run_audit.parse_args(["--server-only", "--server", "root@host"])
+        self.assertTrue(ssh_args.server_only)
+        self.assertEqual(ssh_args.server, "root@host")
+
+        inventory_args = run_audit.parse_args(
+            ["--server-only", "--server-inventory", "/tmp/server.json"]
+        )
+        self.assertTrue(inventory_args.server_only)
+        self.assertEqual(inventory_args.server_inventory, "/tmp/server.json")
+
 
 class ServerPipelineHelperTests(unittest.TestCase):
     def test_build_server_scan_payload_from_inventory(self):

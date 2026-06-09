@@ -131,7 +131,10 @@ def parse_args(argv):
         action="store_true",
         help="采集 Docker 容器名、镜像标签和端口映射；不进入容器、不扫描镜像内部",
     )
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.server_only and not (args.server or args.server_inventory):
+        parser.error("--server-only requires --server or --server-inventory")
+    return args
 
 
 def import_server_module(name):
