@@ -1466,6 +1466,23 @@ def _extract_assignment_value(line: str) -> tuple[str, str] | None:
     return None
 
 
+def _secret_candidate_value(text: str) -> str:
+    m = re.search(r"""[=:]\s*["']?([^"'\s#]+)""", str(text or ""))
+    return m.group(1) if m else str(text or "")
+
+
+def is_placeholder_secret_candidate(text: str) -> bool:
+    candidate = _secret_candidate_value(text).lower()
+    if not candidate:
+        return False
+    if any(marker.lower() in candidate for marker in SECRET_SKIP_MARKERS):
+        return True
+    return any(
+        re.search(rf"\b{re.escape(marker.lower())}\b", candidate)
+        for marker in SECRET_SKIP_WORD_MARKERS
+    )
+
+
 def entropy_check_value(value: str) -> dict | None:
     """Analyze a value string for high entropy indicating a possible secret.
 
@@ -1758,23 +1775,13 @@ def scan_secrets(
                             stripped.startswith("//") and not is_npmrc
                         ):
                             continue
-                        lowered = stripped.lower()
-                        # Skip lines containing placeholder markers (substring match)
-                        if any(x in lowered for x in SECRET_SKIP_MARKERS):
-                            continue
-                        # Skip lines containing word-boundary markers (e.g. 'xxx', 'test')
-                        # These are too ambiguous for substring matching
-                        if any(
-                            re.search(rf"\b{re.escape(m)}\b", lowered)
-                            for m in SECRET_SKIP_WORD_MARKERS
-                        ):
-                            continue
-
                         # --- Phase 1: Regex pattern matching ---
                         for secret_type, pattern in SECRET_REGEXES:
                             m = pattern.search(line)
                             if m:
                                 match_text = m.group(0)
+                                if is_placeholder_secret_candidate(match_text):
+                                    continue
                                 preview = (
                                     soft_secret_preview(secret_type, match_text)
                                     if soft_mask_evidence
@@ -1820,6 +1827,8 @@ def scan_secrets(
                         ):
                             for einfo in scan_entropy_for_line(line):
                                 match_text = einfo.get("value") or ""
+                                if is_placeholder_secret_candidate(match_text):
+                                    continue
                                 preview = (
                                     _soft_mask_value(match_text)
                                     if soft_mask_evidence and match_text

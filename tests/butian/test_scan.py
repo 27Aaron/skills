@@ -3130,15 +3130,15 @@ class SkipWordBoundaryTests(unittest.TestCase):
             return len(scan.scan_secrets(root))
 
     def test_skip_standalone_test(self):
-        # "test" as a standalone word in comment-like context
-        self.assertEqual(
-            self._count_findings('api_key = "a_real_secret_for_prod"  # test\n'), 0
+        key = "sk-proj-" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+        self.assertGreaterEqual(
+            self._count_findings(f'OPENAI_API_KEY="{key}"  # test\n'), 1
         )
 
     def test_skip_standalone_default_in_comment(self):
-        # "default" as a standalone word in comment-like context
-        self.assertEqual(
-            self._count_findings('api_key = "a_real_prod_key"  # default\n'), 0
+        key = "sk-proj-" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+        self.assertGreaterEqual(
+            self._count_findings(f'OPENAI_API_KEY="{key}"  # default\n'), 1
         )
 
     def test_no_skip_xxx_inside_value(self):
