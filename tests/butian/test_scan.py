@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from types import SimpleNamespace
 
 # Import scan module
@@ -2402,16 +2403,15 @@ class EnsureButianRunTests(unittest.TestCase):
 
     def test_collision_avoidance(self):
         with tempfile.TemporaryDirectory(prefix="butian-run-") as root:
-            first = scan.ensure_butian_run(root)
-            scan._GITIGNORE_STATUS_BY_PROJECT.clear()  # reset cache
-            second = scan.ensure_butian_run(root)
-            # Second call within the same second gets a suffix
-            if first == second:
-                # If same timestamp, it would have a suffix; otherwise just
-                # verify both are valid directories
-                pass
-            else:
-                self.assertNotEqual(first, second)
+            with mock.patch.object(scan, "make_run_id", return_value="20260609-235959"):
+                first = scan.ensure_butian_run(root)
+                scan._GITIGNORE_STATUS_BY_PROJECT.clear()
+                second = scan.ensure_butian_run(root)
+
+            self.assertEqual(os.path.basename(first), "20260609-235959")
+            self.assertEqual(os.path.basename(second), "20260609-235959-2")
+            self.assertTrue(os.path.isdir(os.path.join(first, "assets")))
+            self.assertTrue(os.path.isdir(os.path.join(second, "assets")))
 
     def test_new_run_does_not_reuse_existing_directory(self):
         with tempfile.TemporaryDirectory(prefix="butian-run-") as root:
@@ -2586,7 +2586,7 @@ class ProjectPythonExecutableTests(unittest.TestCase):
 class MakeRunIdTests(unittest.TestCase):
     def test_format(self):
         run_id = scan.make_run_id()
-        self.assertRegex(run_id, r"^\d{8}-\d{4}$")
+        self.assertRegex(run_id, r"^\d{8}-\d{6}$")
 
 
 if __name__ == "__main__":

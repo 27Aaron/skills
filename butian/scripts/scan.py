@@ -205,11 +205,12 @@ def _latest_existing_run(workspace):
     """Return the path of the most recent run directory, or None."""
     if not os.path.isdir(workspace):
         return None
+    run_id_pattern = re.compile(r"^\d{8}-\d{4}(?:\d{2})?(?:-\d+)?$")
     candidates = sorted(
         (
             d
             for d in os.listdir(workspace)
-            if os.path.isdir(os.path.join(workspace, d)) and re.match(r"\d{8}-\d{4}", d)
+            if os.path.isdir(os.path.join(workspace, d)) and run_id_pattern.match(d)
         ),
         reverse=True,
     )
@@ -217,18 +218,26 @@ def _latest_existing_run(workspace):
 
 
 def make_run_id():
-    return time.strftime("%Y%m%d-%H%M")
+    return time.strftime("%Y%m%d-%H%M%S")
 
 
 def ensure_butian_run(project_path, run_id=None):
     workspace = ensure_butian_workspace(project_path)
 
     base_run_id = run_id or make_run_id()
-    run_dir = os.path.join(workspace, base_run_id)
-    suffix = 2
-    while os.path.exists(run_dir) and run_id is None:
-        run_dir = os.path.join(workspace, f"{base_run_id}-{suffix}")
-        suffix += 1
+    if run_id is not None:
+        run_dir = os.path.join(workspace, base_run_id)
+        os.makedirs(run_dir, exist_ok=True)
+    else:
+        suffix = 1
+        while True:
+            candidate = base_run_id if suffix == 1 else f"{base_run_id}-{suffix}"
+            run_dir = os.path.join(workspace, candidate)
+            try:
+                os.mkdir(run_dir)
+                break
+            except FileExistsError:
+                suffix += 1
     os.makedirs(os.path.join(run_dir, BUTIAN_ASSETS_DIR), exist_ok=True)
     os.makedirs(os.path.join(run_dir, BUTIAN_CONTENT_DIR), exist_ok=True)
     return run_dir
