@@ -737,6 +737,9 @@ class TestBuildHygieneItems(unittest.TestCase):
         self.assertEqual(green, [])
 
     def test_secret_high_confidence(self):
+        context = [
+            {"line": 3, "content": "OPENAI_API_KEY=sk-proj-demo", "match": True}
+        ]
         scan = _make_scan(
             hygiene={
                 "tracked_secrets": [
@@ -746,6 +749,7 @@ class TestBuildHygieneItems(unittest.TestCase):
                         "file": ".env",
                         "line": 5,
                         "preview": "sk-proj...7890",
+                        "code_context": context,
                     },
                 ],
                 "sensitive_tracked": [],
@@ -760,6 +764,7 @@ class TestBuildHygieneItems(unittest.TestCase):
         self.assertEqual(yellow[0]["severity"], "high")
         self.assertEqual(yellow[0]["secret_type"], "openai_key")
         self.assertIn(".env:5", yellow[0]["name"])
+        self.assertEqual(yellow[0]["code_context"], context)
 
     def test_secret_medium_confidence(self):
         scan = _make_scan(

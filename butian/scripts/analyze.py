@@ -499,6 +499,7 @@ def build_hygiene_items(scan):
                 "secret_type": secret_type,
                 "confidence": confidence,
                 "preview": secret.get("preview"),
+                "code_context": secret.get("code_context") or [],
                 "why_manual": f"扫描在 {location} 发现{label}特征，需要研发确认是否是真实可用凭证。",
                 "risk": "如果该凭证真实可用，泄露后可能造成未授权访问或数据暴露。",
                 "disposal": "先确认是否真实有效；如有效，先轮换或撤销，再移除代码中的明文。",

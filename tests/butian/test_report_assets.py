@@ -1138,6 +1138,117 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertNotIn("<span>依据</span>", html)
         self.assertNotIn("<span>处理</span>", html)
 
+    def test_html_renders_secret_code_context_with_line_numbers(self):
+        key = "sk-proj-ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+        data = {
+            "generated_at": "2026-06-05 09:05:50",
+            "project": {
+                "name": "demo",
+                "path": "/tmp/demo",
+                "ecosystems": [],
+                "total_packages": 0,
+            },
+            "scan_config": {"scan_mode": "hygiene_only"},
+            "risk_summary": {
+                "critical": 0,
+                "high": 0,
+                "medium": 1,
+                "low": 0,
+                "info": 0,
+            },
+            "summary": {"tldr": "demo", "detail": "demo", "priority": []},
+            "top_issues": [],
+            "hygiene": {
+                "tracked_secrets": [
+                    {
+                        "file": ".env.example",
+                        "line": 17,
+                        "type": "openai_key",
+                        "confidence": "high",
+                        "preview": key,
+                        "code_context": [
+                            {"line": 15, "content": "APP_URL=http://localhost:3000"},
+                            {"line": 16, "content": "FEATURE_FLAG=true"},
+                            {
+                                "line": 17,
+                                "content": f'OPENAI_API_KEY="{key}"',
+                                "match": True,
+                            },
+                            {"line": 18, "content": "LOG_LEVEL=debug"},
+                            {"line": 19, "content": "TIMEOUT=30"},
+                        ],
+                    }
+                ]
+            },
+            "outdated": [],
+        }
+
+        html = self._render_html(data)
+
+        self.assertIn('class="secret-evidence"', html)
+        self.assertIn('class="secret-code-line is-hit"', html)
+        self.assertIn('<span class="secret-code-no">15</span>', html)
+        self.assertIn('<span class="secret-code-no">19</span>', html)
+        self.assertIn(f'OPENAI_API_KEY=&quot;{key}&quot;', html)
+
+    def test_html_renders_secret_code_context_in_yellow_card(self):
+        key = "sk-proj-ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+        data = {
+            "generated_at": "2026-06-05 09:05:50",
+            "project": {
+                "name": "demo",
+                "path": "/tmp/demo",
+                "ecosystems": [],
+                "total_packages": 0,
+            },
+            "scan_config": {"scan_mode": "hygiene_only"},
+            "risk_summary": {
+                "critical": 0,
+                "high": 0,
+                "medium": 1,
+                "low": 0,
+                "info": 0,
+            },
+            "summary": {"tldr": "demo", "detail": "demo", "priority": []},
+            "top_issues": [],
+            "yellow": [
+                {
+                    "name": "疑似硬编码凭证：.env.example:17",
+                    "type": "secret_exposure",
+                    "severity": "medium",
+                    "path": ".env.example",
+                    "preview": key,
+                    "why_manual": "扫描在 .env.example:17 发现 LLM/API 密钥特征。",
+                    "risk": "如果该凭证真实可用，泄露后可能造成未授权访问。",
+                    "disposal": "先确认是否真实有效。",
+                    "code_context": [
+                        {"line": 15, "content": "APP_URL=http://localhost:3000"},
+                        {"line": 16, "content": "FEATURE_FLAG=true"},
+                        {
+                            "line": 17,
+                            "content": f'OPENAI_API_KEY="{key}"',
+                            "match": True,
+                        },
+                        {"line": 18, "content": "LOG_LEVEL=debug"},
+                        {"line": 19, "content": "TIMEOUT=30"},
+                    ],
+                }
+            ],
+            "hygiene": {},
+            "outdated": [],
+        }
+
+        html = self._render_html(data)
+
+        title_pos = html.index("疑似硬编码凭证：.env.example:17")
+        evidence_pos = html.index('class="secret-evidence"', title_pos)
+        self.assertGreater(evidence_pos, title_pos)
+        self.assertIn('class="secret-code-line is-hit"', html[evidence_pos:])
+        self.assertIn(f'OPENAI_API_KEY=&quot;{key}&quot;', html[evidence_pos:])
+        self.assertNotIn('<div class="label">为什么要关注</div>', html)
+        self.assertNotIn('<div class="label">可能影响</div>', html)
+        self.assertNotIn('<div class="label">建议动作</div>', html)
+
     def test_html_renders_dependabot_as_maintenance_advice(self):
         data = {
             "project": {

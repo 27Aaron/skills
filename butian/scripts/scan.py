@@ -1466,7 +1466,7 @@ def scan_entropy_for_line(line: str) -> list[dict]:
       2. Standalone quoted strings that exhibit very high entropy.
 
     Returns a list of dicts with ``entropy_type``, ``entropy``, ``key``,
-    ``value_preview``.
+    ``value`` and ``value_preview``.
     """
     results: list[dict] = []
     stripped = line.strip()
@@ -1484,6 +1484,7 @@ def scan_entropy_for_line(line: str) -> list[dict]:
                     {
                         **info,
                         "key": key,
+                        "value": value,
                         "value_preview": _mask_entropy_value(value),
                     }
                 )
@@ -1498,6 +1499,7 @@ def scan_entropy_for_line(line: str) -> list[dict]:
                 {
                     **info,
                     "key": "",
+                    "value": value,
                     "value_preview": _mask_entropy_value(value),
                 }
             )
@@ -1518,6 +1520,7 @@ def scan_entropy_for_line(line: str) -> list[dict]:
                     {
                         **info,
                         "key": key,
+                        "value": value,
                         "value_preview": _mask_entropy_value(value),
                     }
                 )
@@ -1571,6 +1574,56 @@ def secret_preview(secret_type, match_text):
     return match_text[:15] + "..." + match_text[-10:]
 
 
+def should_reveal_secret_evidence(path):
+    return is_env_template(path)
+
+
+def mask_secret_context_line(line):
+    masked = line
+    for secret_type, pattern in SECRET_REGEXES:
+        masked = pattern.sub(
+            lambda match, kind=secret_type: secret_preview(kind, match.group(0)),
+            masked,
+        )
+
+    assignment = _extract_assignment_value(masked.strip())
+    if assignment:
+        key, _ = assignment
+        if any(hint in key.lower() for hint in _SECRET_HINT_KEYWORDS):
+            masked = re.sub(
+                r"""([:=]\s*["']?)[^"'\s#]+(["']?)""",
+                r"\1***\2",
+                masked,
+                count=1,
+            )
+    return masked
+
+
+def build_secret_code_context(
+    lines, line_num, match_text="", preview="", reveal=False, radius=2
+):
+    if not lines or not line_num:
+        return []
+
+    start = max(1, line_num - radius)
+    end = min(len(lines), line_num + radius)
+    context = []
+    for idx in range(start, end + 1):
+        content = lines[idx - 1].rstrip("\n").rstrip("\r")
+        if not reveal:
+            content = mask_secret_context_line(content)
+            if idx == line_num and match_text and preview:
+                content = content.replace(match_text, preview, 1)
+        context.append(
+            {
+                "line": idx,
+                "content": content,
+                "match": idx == line_num,
+            }
+        )
+    return context
+
+
 def scan_secrets(
     project_path, max_files=500, max_bytes=1024 * 1024, follow_symlinks=False
 ):
@@ -1596,7 +1649,10 @@ def scan_secrets(
                 if os.path.getsize(fpath) > max_bytes:
                     continue
                 with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
-                    for line_num, line in enumerate(f, 1):
+                    file_lines = f.readlines()
+                    reveal_evidence = should_reveal_secret_evidence(fpath)
+                    rel = os.path.relpath(fpath, project_path)
+                    for line_num, line in enumerate(file_lines, 1):
                         stripped = line.strip()
                         is_npmrc = os.path.basename(fpath).lower() == ".npmrc"
                         if stripped.startswith("#") or (
@@ -1619,14 +1675,25 @@ def scan_secrets(
                         for secret_type, pattern in SECRET_REGEXES:
                             m = pattern.search(line)
                             if m:
-                                preview = secret_preview(secret_type, m.group(0))
-                                rel = os.path.relpath(fpath, project_path)
+                                match_text = m.group(0)
+                                preview = (
+                                    match_text
+                                    if reveal_evidence
+                                    else secret_preview(secret_type, match_text)
+                                )
                                 findings.append(
                                     {
                                         "file": rel,
                                         "line": line_num,
                                         "type": secret_type,
                                         "preview": preview,
+                                        "code_context": build_secret_code_context(
+                                            file_lines,
+                                            line_num,
+                                            match_text=match_text,
+                                            preview=preview,
+                                            reveal=reveal_evidence,
+                                        ),
                                         "confidence": "high"
                                         if secret_type in HIGH_CONFIDENCE_SECRET_TYPES
                                         else "medium",
@@ -1653,13 +1720,25 @@ def scan_secrets(
                             ".fish",
                         ):
                             for einfo in scan_entropy_for_line(line):
-                                rel = os.path.relpath(fpath, project_path)
+                                match_text = einfo.get("value") or ""
+                                preview = (
+                                    match_text
+                                    if reveal_evidence and match_text
+                                    else einfo["value_preview"]
+                                )
                                 entropy_findings.append(
                                     {
                                         "file": rel,
                                         "line": line_num,
                                         "type": einfo["entropy_type"],
-                                        "preview": einfo["value_preview"],
+                                        "preview": preview,
+                                        "code_context": build_secret_code_context(
+                                            file_lines,
+                                            line_num,
+                                            match_text=match_text,
+                                            preview=preview,
+                                            reveal=reveal_evidence,
+                                        ),
                                         "key": einfo.get("key", ""),
                                         "entropy": einfo["entropy"],
                                         "confidence": "low",

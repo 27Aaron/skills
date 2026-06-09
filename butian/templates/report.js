@@ -3029,6 +3029,24 @@ const SENSITIVE_TYPE_LABELS =
     ? {}
     : __SENSITIVE_TYPE_LABELS__;
 
+function renderSecretEvidence(item) {
+  const context = Array.isArray(item && item.code_context)
+    ? item.code_context.filter((line) => line && line.line)
+    : [];
+  if (!context.length) return "";
+
+  const firstLine = context[0].line;
+  const lastLine = context[context.length - 1].line;
+  const rows = context
+    .map((line) => {
+      const hitClass = line.match ? " is-hit" : "";
+      return `<span class="secret-code-line${hitClass}"><span class="secret-code-no">${esc(line.line)}</span><span class="secret-code-text">${esc(line.content || "")}</span></span>`;
+    })
+    .join("");
+
+  return `<div class="secret-evidence"><div class="secret-evidence-head"><span>代码位置</span><b>${esc(firstLine)}-${esc(lastLine)}</b></div><pre class="secret-code"><code>${rows}</code></pre></div>`;
+}
+
 function renderHygiene(h) {
   h = h || {};
   if (h.skipped || (DATA.scan_config && DATA.scan_config.skip_hygiene)) {
@@ -3095,7 +3113,7 @@ function renderHygiene(h) {
       const preview = x.preview
         ? `<code class="secret-preview">${esc(x.preview)}</code>`
         : "";
-      return `<div class="finding-item"><span class="finding-loc">${esc(loc)}</span><span class="finding-type">${esc(label)}</span>${preview}</div>`;
+      return `<div class="finding-item finding-item-secret"><span class="finding-loc">${esc(loc)}</span><span class="finding-type">${esc(label)}</span>${preview}${renderSecretEvidence(x)}</div>`;
     }),
     ...sensitive.slice(0, 5).map((x) => {
       const loc = `${x.file || "-"}`;
@@ -3256,6 +3274,11 @@ function renderYellow(items) {
   const cards = sortBySeverity(items)
     .map((it) => {
       let inner = "";
+      const evidence = renderSecretEvidence(it);
+      if (evidence) {
+        inner += evidence;
+        return card("yellow", it.name, it.severity, it.path || "", inner);
+      }
       inner += fieldBlock("为什么要关注", problemText(it, "yellow"));
       inner += fieldBlock("可能影响", impactText(it, "yellow"));
       inner += fieldBlock("建议动作", actionText(it, "yellow"));

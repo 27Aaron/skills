@@ -459,6 +459,24 @@ class IsEnvSecretScanFileTests(unittest.TestCase):
         # (actual template filtering happens in is_env_template / sensitive_file_type)
         self.assertTrue(scan.is_env_secret_scan_file(".env.example"))
 
+    def test_env_example_secret_keeps_full_preview_and_five_line_context(self):
+        with tempfile.TemporaryDirectory(prefix="butian-env-example-secret-") as root:
+            key = "sk-proj-" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+            lines = [f"SETTING_{i}=value{i}" for i in range(1, 20)]
+            lines[16] = f'OPENAI_API_KEY="{key}"'
+            with open(os.path.join(root, ".env.example"), "w", encoding="utf-8") as f:
+                f.write("\n".join(lines) + "\n")
+
+            findings = scan.scan_secrets(root)
+
+            finding = next(f for f in findings if f["file"] == ".env.example")
+            self.assertEqual(finding["line"], 17)
+            self.assertEqual(finding["preview"], key)
+            context = finding.get("code_context") or []
+            self.assertEqual([item["line"] for item in context], [15, 16, 17, 18, 19])
+            self.assertEqual(context[2]["content"], f'OPENAI_API_KEY="{key}"')
+            self.assertTrue(context[2]["match"])
+
 
 class NpmLockPackageNameTests(unittest.TestCase):
     def test_simple_package(self):

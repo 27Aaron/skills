@@ -436,7 +436,7 @@ def render_hygiene(analysis):
             )
     if secrets:
         lines.append("")
-        lines.append("| 位置 | 类型 | 可信度 | 脱敏预览 |")
+        lines.append("| 位置 | 类型 | 可信度 | 证据预览 |")
         lines.append("| --- | --- | --- | --- |")
         for item in secrets:
             location = item.get("file") or "-"
