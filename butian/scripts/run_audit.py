@@ -152,6 +152,8 @@ SERVER_IDENTITY_KEYS = {"identity", "identity_file", "ssh_identity"}
 
 
 def _collect_server_identity_secrets(value):
+    # Server identity paths are report secrets because they reveal local key
+    # material locations; strip them before writing server inventory artifacts.
     secrets = set()
     if isinstance(value, dict):
         for key, item in value.items():

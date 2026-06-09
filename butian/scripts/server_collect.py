@@ -12,6 +12,11 @@ from typing import Any
 
 
 def command_plan(include_docker_metadata: bool = False) -> list[dict[str, str]]:
+    """Return the bounded remote commands used for inventory collection.
+
+    Read-only SSH collection must never install, upgrade, restart, use sudo,
+    or enter container filesystems. Docker mode only reads host-visible metadata.
+    """
     commands = [
         {"id": "os_release", "command": "cat /etc/os-release"},
         {"id": "uname_r", "command": "uname -r"},

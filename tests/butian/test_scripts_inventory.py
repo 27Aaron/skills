@@ -203,6 +203,21 @@ class ButianScriptInventoryTests(unittest.TestCase):
         self.assertIn("Template files keep evidence locatable", scan_text)
         self.assertIn("Regex findings take precedence over entropy", scan_text)
 
+    def test_server_scan_comments_preserve_safety_boundaries(self):
+        expectations = {
+            "server_collect.py": "Read-only SSH collection must never install",
+            "server_inventory.py": "Unsupported or empty inventories preserve gaps",
+            "server_match.py": "Unsupported server ecosystems are coverage gaps",
+            "run_audit.py": "Server identity paths are report secrets",
+        }
+        for script, phrase in expectations.items():
+            with self.subTest(script=script):
+                with open(
+                    os.path.join(SCRIPT_DIR, script), "r", encoding="utf-8"
+                ) as handle:
+                    text = handle.read()
+                self.assertIn(phrase, text)
+
 
 if __name__ == "__main__":
     unittest.main()

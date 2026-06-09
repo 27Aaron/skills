@@ -22,6 +22,9 @@ SUPPORTED_DISTROS = {
     "ol",
 }
 
+# Unsupported or empty inventories preserve gaps as errors; they never prove
+# that a server has no vulnerable packages or exposed services.
+
 PUBLIC_ADDRESSES = {"0.0.0.0", "::", "*"}
 
 OLD_IMAGE_VERSION_HINTS = {

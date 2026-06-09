@@ -13,6 +13,9 @@ except ImportError:  # pragma: no cover
 
 OSV_SERVER_ECOSYSTEM_PREFIXES = ("Ubuntu:", "Debian:", "Alpine:")
 
+# Unsupported server ecosystems are coverage gaps, not clean results. Keep
+# explicit errors so reports do not turn an OSV support limit into "no risk".
+
 
 def _candidate_assets(server_assets: dict[str, Any]) -> list[dict[str, Any]]:
     result = []
