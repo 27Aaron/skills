@@ -81,7 +81,7 @@ run_audit.py
 
 **治理配置**：如果 analysis 中出现 `配置 Dependabot`，说明仓库 remote 指向 GitHub 且检测到 Dependabot 官方支持生态，但缺少 `.github/dependabot.yml`。用户确认后可调用 `fix.py --strategy dependabot` 创建配置；该策略不会覆盖已有文件，也不属于依赖漏洞修复轮次。
 
-**待确认动作队列**：硬编码凭证占位符和 `配置 Dependabot` 都需要 AskUserQuestion 单独确认。用户选择继续依赖修复时不打断；用户选择 `取消修复`、`暂不处理` 或修复流程准备结束时，先逐项询问这两类动作，再生成最终报告或结束。
+**待确认动作队列**：硬编码凭证占位符、`配置 Dependabot` 和过期依赖更新都需要 AskUserQuestion 单独确认。用户选择继续依赖修复时不打断；用户选择 `取消修复`、`暂不处理` 或修复流程准备结束时，先逐项询问这三类动作，再生成最终报告或结束。如果用户已经执行 `fix.py --strategy latest`，视为已处理过期依赖维护，不再重复询问。
 
 **第一轮**：用户选择修复策略后，调用 `fix.py --strategy fixed|latest` 执行顶层依赖升级，然后重新运行 `run_audit.py` 复扫验证。复扫不会重复弹出浏览器，也不会生成 Markdown。
 

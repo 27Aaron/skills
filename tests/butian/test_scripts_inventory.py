@@ -87,6 +87,7 @@ class ButianScriptInventoryTests(unittest.TestCase):
         self.assertIn("待确认动作队列", text)
         self.assertIn("硬编码凭证占位符", text)
         self.assertIn("创建 Dependabot 配置", text)
+        self.assertIn("更新过期依赖", text)
         self.assertIn("用户选择暂不处理", text)
         self.assertIn("升级父依赖并重新扫描", text)
         self.assertIn("不弹出待确认动作队列", text)
