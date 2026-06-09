@@ -9,7 +9,7 @@ import re
 import xml.etree.ElementTree as ET
 
 # ---------------------------------------------------------------------------
-# Step 2: Ecosystem detection & package extraction
+# Dependency ecosystem detection and package extraction
 # ---------------------------------------------------------------------------
 
 LOCKFILE_MAP = {
@@ -1060,4 +1060,3 @@ def current_version_for(version_index, ecosystem, package):
 
 def clean_version(value):
     return str(value or "").strip().lstrip("v")
-

@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """Project security scanner.
 
-Collects security-related data and outputs JSON for agent analysis:
-  1. Repository security checks (gitignore, sensitive file tracking, hardcoded secrets)
-  2. Dependency ecosystem detection and package coordinate extraction
-  3. Vulnerability checks via OSV, NVD, CISA KEV, and FIRST EPSS
-  4. Outdated dependency checks
+Collects project-bound security data and outputs JSON for agent analysis.
+The scanner first detects dependency ecosystems and exact package coordinates.
+Repository hygiene, vulnerability, and outdated checks then run independently
+because they use different local files, package managers, and official sources.
 
 The scan is read-only for project code and dependency files: it creates/updates
 local report workspaces and silently ensures .gitignore ignores generated reports.
@@ -27,7 +26,8 @@ Official vulnerability sources:
   EPSS      GET  https://api.first.org/data/v1/epss?cve=...
 
   OSV query example: {"queries": [{"package": {"ecosystem":"npm","name":"next"}, "version":"15.5.1"}]}
-  Supported ecosystems: JavaScript/TypeScript (npm/pnpm/yarn), Python (pypi), Go, Rust (crates-io)
+  Supported ecosystems: npm/pnpm/yarn, PyPI, Go, crates.io, Packagist,
+  RubyGems, Pub, Hex, NuGet, and Maven
 """
 
 from __future__ import annotations
@@ -1226,7 +1226,7 @@ def is_git_worktree(path):
 
 
 # ---------------------------------------------------------------------------
-# Step 1: Repository security checks
+# Repository security checks
 # ---------------------------------------------------------------------------
 
 
@@ -1923,7 +1923,7 @@ def scan_hygiene(
 
 
 # ---------------------------------------------------------------------------
-# Step 4: Outdated check
+# Outdated dependency checks
 # ---------------------------------------------------------------------------
 
 
@@ -2385,7 +2385,7 @@ def main():
     logger.info("开始扫描项目: %s", project_path)
     step_seconds = {}
 
-    # Step 1: detect ecosystems
+    # Detect ecosystems and lockfiles before deciding whether dependencies exist.
     step_started = time.time()
     if preflight_hygiene_only:
         ecosystems, lockfiles = [], {}
@@ -2410,7 +2410,7 @@ def main():
     logger.info("扫描模式: %s", scan_mode)
     skip_dependency_checks = scan_mode == "hygiene_only"
 
-    # Step 2: parse package coordinates
+    # Parse exact package coordinates; range-only manifests stay out of matching.
     step_started = time.time()
     if skip_dependency_checks:
         packages = []

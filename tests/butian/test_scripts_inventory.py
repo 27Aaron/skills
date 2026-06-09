@@ -1,6 +1,7 @@
 """Repository-level coverage guardrails for Butian scripts, tests, and docs."""
 
 import os
+import re
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -169,6 +170,29 @@ class ButianScriptInventoryTests(unittest.TestCase):
         self.assertIn("--server", server_text)
         self.assertIn("--server-inventory", server_text)
         self.assertIn("只读 SSH", server_text)
+
+    def test_scan_comments_describe_current_module_boundaries(self):
+        with open(os.path.join(SCRIPT_DIR, "scan.py"), "r", encoding="utf-8") as handle:
+            scan_text = handle.read()
+
+        self.assertIn(
+            "Repository hygiene, vulnerability, and outdated checks", scan_text
+        )
+        self.assertIn("Packagist", scan_text)
+        self.assertIn("RubyGems", scan_text)
+        self.assertIn("NuGet", scan_text)
+        self.assertIn("Maven", scan_text)
+
+        for script in ("scan.py", "dependency_parsers.py", "vulnerability_sources.py"):
+            with self.subTest(script=script):
+                with open(
+                    os.path.join(SCRIPT_DIR, script), "r", encoding="utf-8"
+                ) as handle:
+                    text = handle.read()
+                self.assertIsNone(
+                    re.search(r"^\s*# Step \d+:", text, flags=re.MULTILINE),
+                    f"{script} should use capability section names, not pipeline Step labels",
+                )
 
 
 if __name__ == "__main__":
