@@ -2,14 +2,14 @@
 
 - 项目：javascript
 - 路径：`/Users/aaron/Documents/Project/skills/tests/demo/projects/javascript`
-- 生成时间：2026-06-10 03:52:50
-- 扫描耗时：11.6 秒
+- 生成时间：2026-06-10 07:16:33
+- 扫描耗时：12.8 秒
 
 ## 报告总结
 
 - TL;DR：发现 7 个已确认依赖风险项，其中 2 个为紧急项、1 个为高风险项，仓库安检仍有疑似硬编码凭证 3 处。
 - 详细说明：本次检查覆盖项目 javascript，识别到 2 个依赖包，命中 7 个已确认风险项。仓库安检方面，发现疑似硬编码凭证 3 处、被 git 跟踪的敏感文件 0 个、建议补充的 .gitignore 规则 0 条、本地配置/工作流检查项 0 个、建议 1 条。过期依赖 0 个，建议按维护窗口和兼容性评估安排升级。
-- 能力边界：安全往往不是最显眼的需求，却是产品长期稳定运行的底线。此 Skill 会帮助你发现依赖漏洞、过期依赖和仓库暴露风险，帮助团队更早暴露容易被忽视的供应链问题。但它不能替代代码审计、渗透测试或部署安全评估；业务逻辑、权限控制、SQL 注入、XSS 等代码层风险仍需单独复核。
+- 能力边界：安全往往不是最显眼的需求，却是产品长期稳定运行的底线。此 Skill 会帮助你发现应用依赖漏洞、过期依赖和仓库暴露风险，并在显式提供 SSH 目标或离线 inventory 时做 Linux 服务器运行环境只读检查；SSH 采集必须使用密钥登录，脚本会禁用密码和键盘交互回退。应用依赖漏洞查询只处理本地可确认精确包名和精确版本的应用依赖坐标；服务器漏洞只处理能关联到发行版包坐标、内核包或官方包管理器安全更新的证据，不把 Dockerfile、compose、Kubernetes、devcontainer、镜像/SBOM、未关联服务 banner、自编译二进制或模糊 CPE 混入已确认漏洞，也不能替代代码审计、渗透测试或完整部署安全评估；业务逻辑、权限控制、SQL 注入、XSS 等代码层风险仍需单独复核。
 - 优先级建议：
   - 优先处理 3 个紧急/高风险项；依赖漏洞先处理有明确修复版本或官方处置路径的项，仓库安检项先处理工作流权限、凭证、容器和供应链配置。
   - 安排研发确认凭证和敏感文件是否真实有效；如有效，先轮换或撤销，再清理代码中的明文。
@@ -20,17 +20,17 @@
 
 未启用服务器运行环境扫描。
 
-## 命中风险项
+## 当前风险
 
-| 影响程度 | 依赖名称 | 当前版本 | 安全编号 | 修复版本 | 说明 |
-| --- | --- | --- | --- | --- | --- |
-| 紧急 | minimist | 0.0.8 | [CVE-2021-44906](https://www.cve.org/CVERecord?id=CVE-2021-44906)、[GHSA-xvch-5gv4-984h](https://osv.dev/vulnerability/GHSA-xvch-5gv4-984h) | 1.2.6、0.2.4 | minimist 0.0.8 公告摘要：Prototype Pollution in minimist；建议升级到 1.2.6、0.2.4 或更高版本。；EPSS 74.3%；CVSS 9.8；CWE-1321；NVD 2022-03-17 |
-| 紧急 | lodash | 4.17.20 | [CVE-2026-4800](https://www.cve.org/CVERecord?id=CVE-2026-4800)、[GHSA-r5fr-rjxr-66jc](https://osv.dev/vulnerability/GHSA-r5fr-rjxr-66jc) | 4.18.0 | lodash 4.17.20 公告摘要：lodash vulnerable to Code Injection via `_.template` imports key names；建议升级到 4.18.0 或更高版本。；EPSS 14.7%；CVSS 9.8；CWE-94；NVD 2026-03-31 |
-| 高风险 | lodash | 4.17.20 | [CVE-2021-23337](https://www.cve.org/CVERecord?id=CVE-2021-23337)、[GHSA-35jh-r3h4-6jhm](https://osv.dev/vulnerability/GHSA-35jh-r3h4-6jhm) | 4.17.21 | lodash 4.17.20 公告摘要：Command Injection in lodash；建议升级到 4.17.21 或更高版本。；EPSS 89.1%；CVSS 7.2；CWE-94；NVD 2021-02-15 |
-| 中风险 | lodash | 4.17.20 | [CVE-2020-28500](https://www.cve.org/CVERecord?id=CVE-2020-28500)、[GHSA-29mw-wpgm-hmr9](https://osv.dev/vulnerability/GHSA-29mw-wpgm-hmr9) | 4.17.21 | lodash 4.17.20 存在拒绝服务风险；建议升级到 4.17.21 或更高版本。；EPSS 48%；CVSS 5.3；NVD 2021-02-15 |
-| 中风险 | minimist | 0.0.8 | [CVE-2020-7598](https://www.cve.org/CVERecord?id=CVE-2020-7598)、[GHSA-vh95-rmgr-6w4m](https://osv.dev/vulnerability/GHSA-vh95-rmgr-6w4m) | 0.2.1、1.2.3 | minimist 0.0.8 公告摘要：Prototype Pollution in minimist；建议升级到 0.2.1、1.2.3 或更高版本。；EPSS 40.6%；CVSS 6.8；CWE-1321；NVD 2020-03-11 |
-| 中风险 | lodash | 4.17.20 | [CVE-2025-13465](https://www.cve.org/CVERecord?id=CVE-2025-13465)、[GHSA-xxjr-mmjv-4gpg](https://osv.dev/vulnerability/GHSA-xxjr-mmjv-4gpg) | 4.17.23 | lodash 4.17.20 公告摘要：Lodash has Prototype Pollution Vulnerability in `_.unset` and `_.omit` functions；建议升级到 4.17.23 或更高版本。；EPSS 8.3%；CVSS 6.9；CWE-1321；NVD 2026-01-21 |
-| 中风险 | lodash | 4.17.20 | [CVE-2026-2950](https://www.cve.org/CVERecord?id=CVE-2026-2950)、[GHSA-f23m-r3pf-42rh](https://osv.dev/vulnerability/GHSA-f23m-r3pf-42rh) | 4.18.0 | lodash 4.17.20 公告摘要：lodash vulnerable to Prototype Pollution via array path bypass in `_.unset` and `_.omit`；建议升级到 4.18.0 或更高版本。；EPSS 7.9%；CVSS 6.5；CWE-1321；NVD 2026-03-31 |
+| 影响程度 | 依赖名称 | 当前版本 | 修复版本 | 安全编号 |
+| --- | --- | --- | --- | --- |
+| 紧急 | minimist | 0.0.8 | 0.2.4 | [CVE-2021-44906](https://www.cve.org/CVERecord?id=CVE-2021-44906)、[GHSA-xvch-5gv4-984h](https://osv.dev/vulnerability/GHSA-xvch-5gv4-984h) |
+| 紧急 | lodash | 4.17.20 | 4.18.0 | [CVE-2026-4800](https://www.cve.org/CVERecord?id=CVE-2026-4800)、[GHSA-r5fr-rjxr-66jc](https://osv.dev/vulnerability/GHSA-r5fr-rjxr-66jc) |
+| 高风险 | lodash | 4.17.20 | 4.17.21 | [CVE-2021-23337](https://www.cve.org/CVERecord?id=CVE-2021-23337)、[GHSA-35jh-r3h4-6jhm](https://osv.dev/vulnerability/GHSA-35jh-r3h4-6jhm) |
+| 中风险 | lodash | 4.17.20 | 4.17.21 | [CVE-2020-28500](https://www.cve.org/CVERecord?id=CVE-2020-28500)、[GHSA-29mw-wpgm-hmr9](https://osv.dev/vulnerability/GHSA-29mw-wpgm-hmr9) |
+| 中风险 | minimist | 0.0.8 | 0.2.1 | [CVE-2020-7598](https://www.cve.org/CVERecord?id=CVE-2020-7598)、[GHSA-vh95-rmgr-6w4m](https://osv.dev/vulnerability/GHSA-vh95-rmgr-6w4m) |
+| 中风险 | lodash | 4.17.20 | 4.17.23 | [CVE-2025-13465](https://www.cve.org/CVERecord?id=CVE-2025-13465)、[GHSA-xxjr-mmjv-4gpg](https://osv.dev/vulnerability/GHSA-xxjr-mmjv-4gpg) |
+| 中风险 | lodash | 4.17.20 | 4.18.0 | [CVE-2026-2950](https://www.cve.org/CVERecord?id=CVE-2026-2950)、[GHSA-f23m-r3pf-42rh](https://osv.dev/vulnerability/GHSA-f23m-r3pf-42rh) |
 
 
 ## 仓库安检
@@ -48,9 +48,9 @@
 
 ### 依赖配置与维护
 
-| 等级 | 位置 | 检查项 | 依据 | 处理 |
-| --- | --- | --- | --- | --- |
-| 建议 | .github/dependabot.yml | 配置 Dependabot | GitHub remote origin: git@github.com:27Aaron/skills.git | .github/dependabot.yml，建议创建覆盖 npm 的配置；推送到 GitHub 后，Dependabot 会按 schedule 检查更新。 |
+| 等级 | 位置 | 检查项 | 处理 |
+| --- | --- | --- | --- |
+| 建议 | .github/dependabot.yml | 配置 Dependabot | .github/dependabot.yml，建议创建覆盖 npm 的配置；推送到 GitHub 后，Dependabot 会按 schedule 检查更新。 |
 
 
 ## 过期依赖

@@ -28,6 +28,11 @@
         inset 0 0 0 1px rgba(10, 10, 10, 0.04),
         inset 0 1px 0 rgba(255, 255, 255, 0.85);
     --surface-bg: rgba(255, 255, 255, 0.65);
+    --surface-highlight: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.58),
+        transparent 74%
+    );
     --surface-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
     --tile-border: rgba(0, 0, 0, 0.05);
     --tile-border-soft: rgba(0, 0, 0, 0.04);
@@ -41,7 +46,16 @@
     --field-bg: rgba(236, 253, 245, 0.36);
     --bg-code: rgba(15, 23, 42, 0.045);
     --code-block-bg: rgba(255, 255, 255, 0.7);
+    --code-block-highlight: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.54),
+        transparent 48%
+    );
     --code-block-hit: rgba(16, 185, 129, 0.12);
+    --code-block-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.72),
+        0 12px 26px -24px rgba(15, 23, 42, 0.32);
+    --code-header-bg: rgba(236, 253, 245, 0.24);
     --code-button-bg: rgba(255, 255, 255, 0.62);
     --code-button-hover-bg: rgba(236, 253, 245, 0.7);
     --warning-border: rgba(217, 119, 6, 0.22);
@@ -546,8 +560,15 @@ tbody tr:hover {
     table-layout: fixed;
 }
 .vuln-table {
-    min-width: max(760px, calc(460px + var(--package-col, 150px)));
+    --risk-table-min-width: max(
+        760px,
+        calc(328px + var(--package-col, 150px) + var(--advisory-col, 132px))
+    );
+    min-width: var(--risk-table-min-width);
     table-layout: fixed;
+}
+.table-scroll table.vuln-table {
+    min-width: var(--risk-table-min-width);
 }
 .outdated-list-wrap {
     padding: 12px;
@@ -559,14 +580,14 @@ tbody tr:hover {
 }
 .outdated-row {
     display: grid;
-    grid-template-columns: minmax(128px, 1fr) minmax(190px, auto);
+    grid-template-columns: minmax(0, 1fr) minmax(0, min(190px, 48%));
     align-items: center;
     gap: 12px;
     min-width: 0;
     border: 1px solid var(--surface-border);
     border-radius: 8px;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.58), transparent 74%),
+        var(--surface-highlight),
         color-mix(in srgb, var(--surface-bg) 82%, var(--panel-soft));
     padding: 10px 12px;
 }
@@ -587,9 +608,11 @@ tbody tr:hover {
     justify-content: flex-end;
     gap: 7px;
     min-width: 0;
+    overflow: hidden;
     text-align: right;
 }
 .outdated-version-flow code {
+    min-width: 0;
     max-width: 100%;
     overflow: visible;
     overflow-wrap: anywhere;
@@ -625,7 +648,7 @@ tbody tr:hover {
     width: 112px;
 }
 .vuln-table .col-advisory {
-    width: 132px;
+    width: var(--advisory-col, 132px);
 }
 .vuln-table .col-detail {
     width: auto;
@@ -645,18 +668,21 @@ td.ver {
     font-family: var(--font-mono);
     font-size: 12px;
     white-space: nowrap;
-    min-width: 80px;
+    min-width: 0;
+    overflow: hidden;
 }
 td.fixed-cell {
     white-space: normal;
 }
 .fixed-list {
-    display: inline-grid;
-    grid-template-columns: minmax(0, max-content);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 2px;
     align-items: start;
     justify-content: start;
     line-height: 1.45;
+    width: 100%;
+    max-width: 100%;
 }
 .fixed-chip,
 .fixed-empty {
@@ -668,6 +694,77 @@ td.fixed-cell {
 }
 .fixed-empty {
     color: var(--sub);
+}
+.version-scroll {
+    --version-scroll-distance: 0px;
+    --version-scroll-duration: 8s;
+    display: block;
+    position: relative;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--accent) 48%, transparent)
+        transparent;
+}
+.version-scroll::-webkit-scrollbar {
+    height: 4px;
+}
+.version-scroll::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.version-scroll-inner {
+    display: inline-block;
+    min-width: max-content;
+    transform: translateX(0);
+    will-change: transform;
+}
+.version-scroll.is-overflowing {
+    padding-bottom: 6px;
+    -webkit-mask-image: linear-gradient(
+        90deg,
+        transparent 0,
+        #000 10px,
+        #000 calc(100% - 10px),
+        transparent 100%
+    );
+    mask-image: linear-gradient(
+        90deg,
+        transparent 0,
+        #000 10px,
+        #000 calc(100% - 10px),
+        transparent 100%
+    );
+}
+.version-scroll.is-overflowing::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 1px;
+    left: 0;
+    height: 2px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 42%, transparent);
+    pointer-events: none;
+}
+.version-scroll.is-overflowing .version-scroll-inner {
+    animation: version-scroll-marquee var(--version-scroll-duration) ease-in-out
+        0.8s infinite alternate;
+}
+.version-scroll.is-overflowing:hover .version-scroll-inner,
+.version-scroll.is-overflowing:focus .version-scroll-inner,
+.version-scroll.is-overflowing:focus-within .version-scroll-inner {
+    animation-play-state: paused;
+}
+@keyframes version-scroll-marquee {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(calc(-1 * var(--version-scroll-distance)));
+    }
 }
 td.path {
     font-family: var(--font-mono);
@@ -694,14 +791,16 @@ td.advisory {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 .adv-list a {
     color: var(--accent);
     font-family: var(--font-mono);
     font-size: 11px;
     text-decoration: none;
-    overflow-wrap: anywhere;
-    white-space: normal;
+    white-space: nowrap;
 }
 .adv-list a:hover {
     color: var(--accent-ink);
@@ -884,12 +983,8 @@ td.summary-cell {
     overflow: hidden;
     border: 1px solid var(--field-border);
     border-radius: var(--radius-field);
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.54), transparent 48%),
-        var(--code-block-bg);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.72),
-        0 12px 26px -24px rgba(15, 23, 42, 0.32);
+    background: var(--code-block-highlight), var(--code-block-bg);
+    box-shadow: var(--code-block-shadow);
 }
 .secret-evidence-head {
     display: flex;
@@ -898,7 +993,7 @@ td.summary-cell {
     gap: 12px;
     padding: 7px 11px;
     border-bottom: 1px solid var(--field-border);
-    background: rgba(236, 253, 245, 0.24);
+    background: var(--code-header-bg);
     color: var(--accent);
     font-size: 12px;
     font-weight: 720;
@@ -945,13 +1040,14 @@ td.summary-cell {
 }
 .secret-code-line {
     display: grid;
-    grid-template-columns: 4ch minmax(0, max-content);
+    grid-template-columns: 4ch minmax(0, 1fr);
     gap: 12px;
+    width: 100%;
     min-height: 22px;
     padding: 1px 12px;
 }
 .secret-code-line.is-hit {
-    background: linear-gradient(90deg, var(--code-block-hit), transparent 72%);
+    background: var(--code-block-hit);
     box-shadow: inset 3px 0 0 var(--accent);
 }
 .secret-code-no {
@@ -1573,6 +1669,12 @@ footer {
             inset 0 1px 0 rgba(255, 255, 255, 0.04);
         --surface-border: rgba(255, 255, 255, 0.1);
         --surface-bg: rgba(255, 255, 255, 0.04);
+        --surface-highlight: linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.055),
+            rgba(255, 255, 255, 0.012) 42%,
+            transparent 78%
+        );
         --surface-shadow: none;
         --tile-border: rgba(255, 255, 255, 0.08);
         --tile-border-soft: rgba(255, 255, 255, 0.08);
@@ -1585,7 +1687,17 @@ footer {
         --field-bg: rgba(110, 231, 183, 0.06);
         --bg-code: rgba(255, 255, 255, 0.07);
         --code-block-bg: rgba(255, 255, 255, 0.045);
+        --code-block-highlight: linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.06),
+            rgba(255, 255, 255, 0.012) 44%,
+            transparent 72%
+        );
         --code-block-hit: rgba(16, 185, 129, 0.16);
+        --code-block-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.06),
+            0 14px 28px -26px rgba(0, 0, 0, 0.78);
+        --code-header-bg: rgba(110, 231, 183, 0.055);
         --code-button-bg: rgba(255, 255, 255, 0.06);
         --code-button-hover-bg: rgba(16, 185, 129, 0.12);
         --warning-border: rgba(251, 191, 36, 0.24);
@@ -1902,9 +2014,11 @@ footer {
         justify-content: stretch;
     }
     .vuln-table .fixed-list {
-        display: inline-grid;
-        grid-template-columns: minmax(0, max-content);
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
         gap: 2px;
+        max-width: 100%;
+        width: 100%;
     }
     .vuln-table .summary-cell {
         color: var(--text-soft);
@@ -2550,6 +2664,7 @@ footer {
 @media (prefers-reduced-motion: reduce) {
     .bar::after,
     .vuln-row,
+    .version-scroll.is-overflowing .version-scroll-inner,
     .vuln-detail-row.vuln-detail-open .vuln-detail,
     .vuln-detail-row.vuln-detail-scan-ready .vuln-detail::after {
         animation: none !important;
@@ -2663,7 +2778,7 @@ footer {
         </div>
 
         <script>
-            window.__BUTIAN_REPORT_DATA__ = {"generated_at":"2026-06-10 03:55:51","scan_seconds":6.2,"project":{"path":"/Users/aaron/Documents/Project/skills/tests/demo/projects/dart","name":"dart","ecosystems":["pub"],"lockfiles":["pubspec.lock"],"git_repo":true,"git_branch":"main","total_packages":2,"total_vulnerabilities":2},"scan_config":{"api_concurrency":4,"outdated_concurrency":4,"preflight_file":"/Users/aaron/Documents/Project/skills/tests/demo/projects/dart/.butian/20260610-035544/assets/preflight.json","scan_mode":"full_dependency_scan","skip_dependency_checks":false,"skip_hygiene":false,"skip_outdated":false,"include_packages":false,"max_secret_files":500,"vulnerability_sources":["osv","nvd","cisa-kev","first-epss"]},"source_scan_file":"/Users/aaron/Documents/Project/skills/tests/demo/projects/dart/.butian/20260610-035544/assets/scan.json","output_file":"/Users/aaron/Documents/Project/skills/tests/demo/projects/dart/.butian/20260610-035544/assets/analysis.json","risk_summary":{"critical":0,"high":2,"medium":0,"low":0,"info":0},"dependency_risk_summary":{"critical":0,"high":2,"medium":0,"low":0,"info":0},"server_risk_summary":{"critical":0,"high":0,"medium":0,"low":0,"info":0},"local_risk_summary":{"critical":0,"high":0,"medium":0,"low":0,"info":0},"hygiene":{"gitignore_exists":true,"gitignore_missing":[],"tracked_secrets":[],"sensitive_tracked":[],"repository_checks":[{"id":"repo.missing_dependabot","category":"repo_governance","severity":"info","confidence":"high","file":".github/dependabot.yml","line":null,"title":"配置 Dependabot","detail":"检测到仓库 remote 指向 GitHub，且项目包含 Dependabot 支持的依赖生态或 GitHub Actions 配置；可用 Dependabot 定期创建版本更新 PR。","evidence":"GitHub remote origin: git@github.com:27Aaron/skills.git","recommendation":".github/dependabot.yml，建议创建覆盖 pub 的配置；推送到 GitHub 后，Dependabot 会按 schedule 检查更新。","source":"builtin","fixable":true,"fix_config":{"type":"dependabot_config","path":".github/dependabot.yml","content":"version: 2\nupdates:\n  - package-ecosystem: \"pub\"\n    directory: \"/\"\n    schedule:\n      interval: \"weekly\"\n","ecosystems":["pub"]},"kind":"maintenance_advice"}],"workflow_checks":[],"iac_checks":[],"errors":[],"coverage":{"builtin_rules":["secrets","sensitive_files","gitignore","github_actions","repo_governance","supply_chain","iac_container"],"secret_scan":{"max_files":500,"candidate_files":1,"scanned_files":1,"skipped_by_limit":0,"skipped_fixture_files":0,"skipped_too_large":0,"skipped_unreadable":0}}},"outdated":[],"server":{},"top_issues":[{"package":"archive","version":"3.1.2","ecosystem":"pub","affected":true,"match_reason":"osv_query_match","match_summary":"archive@3.1.2 matched GHSA-r285-q736-9v95 in OSV official data.","confidence":"high","advisory_id":"GHSA-r285-q736-9v95","aliases":["CVE-2023-39137","GHSA-r285-q736-9v95"],"cve_id":"CVE-2023-39137","severity":"high","cvss":"7.8","fixed_versions":["3.3.8"],"summary":"archive 3.1.2 公告摘要：Filename spoofing in archive；建议升级到 3.3.8 或更高版本。","risk_signals":["affected_version_match","fixed_version_available","cvss_high"],"cve_enrichments":[{"cveId":"CVE-2023-39137","cvssMetrics":[{"source":"nvd","version":"3.1","vector":"CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H","baseScore":"7.8","baseSeverity":"HIGH","exploitabilityScore":"1.8","impactScore":"5.9"}],"cweIds":["CWE-20"],"kevListed":false,"title":"An issue in Archive v3","description":"An issue in Archive v3.3.7 allows attackers to spoof zip filenames which can lead to inconsistent filename parsing.","bestCvssScore":"7.8","bestCvssSeverity":"HIGH","nvdPublishedAt":"2023-08-30T22:15:09.030Z","nvdModifiedAt":"2024-11-21T08:14:47.060Z","epss":"0.000470000","epssPercentile":"0.150500000","epssScoreDate":"2026-06-09T00:00:00.000Z"}],"vulnerability_source":"official-osv","enrichment_sources":["nvd","cisa-kev","first-epss"],"tier":"red","name":"archive","advisory_summary":"Filename spoofing in archive","rank":1},{"package":"archive","version":"3.1.2","ecosystem":"pub","affected":true,"match_reason":"osv_query_match","match_summary":"archive@3.1.2 matched GHSA-9v85-q87q-g4vg in OSV official data.","confidence":"high","advisory_id":"GHSA-9v85-q87q-g4vg","aliases":["CVE-2023-39139","GHSA-9v85-q87q-g4vg"],"cve_id":"CVE-2023-39139","severity":"high","cvss":"7.8","fixed_versions":["3.3.8"],"summary":"archive 3.1.2 公告摘要：Path traversal in Archive；建议升级到 3.3.8 或更高版本。","risk_signals":["affected_version_match","fixed_version_available","cvss_high"],"cve_enrichments":[{"cveId":"CVE-2023-39139","cvssMetrics":[{"source":"nvd","version":"3.1","vector":"CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H","baseScore":"7.8","baseSeverity":"HIGH","exploitabilityScore":"1.8","impactScore":"5.9"}],"cweIds":["CWE-22"],"kevListed":false,"title":"An issue in Archive v3","description":"An issue in Archive v3.3.7 allows attackers to execute a path traversal via extracting a crafted zip file.","bestCvssScore":"7.8","bestCvssSeverity":"HIGH","nvdPublishedAt":"2023-08-30T22:15:09.300Z","nvdModifiedAt":"2024-11-21T08:14:47.420Z","epss":"0.000390000","epssPercentile":"0.120260000","epssScoreDate":"2026-06-09T00:00:00.000Z"}],"vulnerability_source":"official-osv","enrichment_sources":["nvd","cisa-kev","first-epss"],"tier":"red","name":"archive","advisory_summary":"Path traversal in Archive","rank":2}],"server_issues":[],"server_maintenance":[],"red":[],"yellow":[],"green":[{"name":"升级 archive","type":"dependency_upgrade","severity":"high","package":"archive","version":"3.1.2","ecosystem":"pub","summary":"archive 命中 2 个风险项，建议升级到 3.3.8 或更高版本后运行测试。该建议只覆盖包管理器可解析的普通升级；修复后必须复扫。","fix_config":{"type":"upgrade","ecosystem":"pub","package":"archive","current_versions":["3.1.2"],"target_version":"3.3.8","fixed_versions":["3.3.8"],"advisory_ids":["GHSA-r285-q736-9v95","GHSA-9v85-q87q-g4vg"],"fixed_versions_by_advisory":{"GHSA-r285-q736-9v95":["3.3.8"],"GHSA-9v85-q87q-g4vg":["3.3.8"]},"upgrade_scope":"direct_package","residual_guidance":"如果复扫仍出现同名旧版本，通常是间接依赖被父包锁定；需要升级父依赖、等待上游修复，或在用户确认后把锁住旧子依赖的父依赖升级到 latest。"},"dependency_context":null},{"name":"配置 Dependabot","type":"local_repository_check","severity":"info","path":".github/dependabot.yml","file":".github/dependabot.yml","line":null,"category":"repo_governance","source_id":"repo.missing_dependabot","kind":"maintenance_advice","confidence":"high","evidence":"GitHub remote origin: git@github.com:27Aaron/skills.git","why_manual":"检测到仓库 remote 指向 GitHub，且项目包含 Dependabot 支持的依赖生态或 GitHub Actions 配置；可用 Dependabot 定期创建版本更新 PR。","risk":"检测到仓库 remote 指向 GitHub，且项目包含 Dependabot 支持的依赖生态或 GitHub Actions 配置；可用 Dependabot 定期创建版本更新 PR。","disposal":".github/dependabot.yml，建议创建覆盖 pub 的配置；推送到 GitHub 后，Dependabot 会按 schedule 检查更新。","source":"builtin","fix_config":{"type":"dependabot_config","path":".github/dependabot.yml","content":"version: 2\nupdates:\n  - package-ecosystem: \"pub\"\n    directory: \"/\"\n    schedule:\n      interval: \"weekly\"\n","ecosystems":["pub"]},"summary":".github/dependabot.yml，建议创建覆盖 pub 的配置；推送到 GitHub 后，Dependabot 会按 schedule 检查更新。"}],"errors":[],"package_count":2,"vulnerability_count":2,"server_issue_count":0,"server_maintenance_count":0,"outdated_count":0,"package_sources":[{"ecosystem":"pub","source":"pubspec.lock","count":2}],"butian_workspace":{"gitignore":{"path":"/Users/aaron/Documents/Project/skills/tests/demo/projects/dart/.gitignore","preexisting":true,"had_butian_entry":true,"missing_entries":[],"added_butian_entry":false,"added_entries":[],"exists_after":true}},"summary":{"tldr":"发现 2 个已确认依赖风险项，其中 2 个为高风险项，仓库安检未发现凭证或敏感文件问题。","detail":"本次检查覆盖项目 dart，识别到 2 个依赖包，命中 2 个已确认风险项。仓库安检方面，发现疑似硬编码凭证 0 处、被 git 跟踪的敏感文件 0 个、建议补充的 .gitignore 规则 0 条、本地配置/工作流检查项 0 个、建议 1 条。过期依赖 0 个，建议按维护窗口和兼容性评估安排升级。","priority":["优先处理 2 个紧急/高风险项；依赖漏洞先处理有明确修复版本或官方处置路径的项，仓库安检项先处理工作流权限、凭证、容器和供应链配置。","依赖修复后必须重新运行扫描；如果仍出现同名旧版本，通常是间接依赖被父包锁定，需要询问用户是否确认升级父依赖到 latest。"],"tier_stats":{"red":"0 项优先处理","yellow":"0 项需要人工确认","green":"2 项可作为修复计划"}}};
+            window.__BUTIAN_REPORT_DATA__ = {"generated_at":"2026-06-10 07:20:12","scan_seconds":5.6,"project":{"path":"/Users/aaron/Documents/Project/skills/tests/demo/projects/dart","name":"dart","ecosystems":["pub"],"lockfiles":["pubspec.lock"],"git_repo":true,"git_branch":"main","total_packages":2,"total_vulnerabilities":2},"scan_config":{"api_concurrency":4,"outdated_concurrency":4,"preflight_file":"/Users/aaron/Documents/Project/skills/tests/demo/projects/dart/.butian/20260610-072006/assets/preflight.json","scan_mode":"full_dependency_scan","skip_dependency_checks":false,"skip_hygiene":false,"skip_outdated":false,"include_packages":false,"max_secret_files":500,"vulnerability_sources":["osv","nvd","cisa-kev","first-epss"]},"source_scan_file":"/Users/aaron/Documents/Project/skills/tests/demo/projects/dart/.butian/20260610-072006/assets/scan.json","output_file":"/Users/aaron/Documents/Project/skills/tests/demo/projects/dart/.butian/20260610-072006/assets/analysis.json","risk_summary":{"critical":0,"high":2,"medium":0,"low":0,"info":0},"dependency_risk_summary":{"critical":0,"high":2,"medium":0,"low":0,"info":0},"server_risk_summary":{"critical":0,"high":0,"medium":0,"low":0,"info":0},"local_risk_summary":{"critical":0,"high":0,"medium":0,"low":0,"info":0},"hygiene":{"gitignore_exists":true,"gitignore_missing":[],"tracked_secrets":[],"sensitive_tracked":[],"repository_checks":[{"id":"repo.missing_dependabot","category":"repo_governance","severity":"info","confidence":"high","file":".github/dependabot.yml","line":null,"title":"配置 Dependabot","detail":"检测到仓库 remote 指向 GitHub，且项目包含 Dependabot 支持的依赖生态或 GitHub Actions 配置；可用 Dependabot 定期创建版本更新 PR。","evidence":"GitHub remote origin: git@github.com:27Aaron/skills.git","recommendation":".github/dependabot.yml，建议创建覆盖 pub 的配置；推送到 GitHub 后，Dependabot 会按 schedule 检查更新。","source":"builtin","fixable":true,"fix_config":{"type":"dependabot_config","path":".github/dependabot.yml","content":"version: 2\nupdates:\n  - package-ecosystem: \"pub\"\n    directory: \"/\"\n    schedule:\n      interval: \"weekly\"\n","ecosystems":["pub"]},"kind":"maintenance_advice"}],"workflow_checks":[],"iac_checks":[],"errors":[],"coverage":{"builtin_rules":["secrets","sensitive_files","gitignore","github_actions","repo_governance","supply_chain","iac_container"],"secret_scan":{"max_files":500,"candidate_files":1,"scanned_files":1,"skipped_by_limit":0,"skipped_fixture_files":0,"skipped_too_large":0,"skipped_unreadable":0}}},"outdated":[],"server":{},"top_issues":[{"package":"archive","version":"3.1.2","ecosystem":"pub","affected":true,"match_reason":"osv_query_match","match_summary":"archive@3.1.2 matched GHSA-r285-q736-9v95 in OSV official data.","confidence":"high","advisory_id":"GHSA-r285-q736-9v95","aliases":["CVE-2023-39137","GHSA-r285-q736-9v95"],"cve_id":"CVE-2023-39137","severity":"high","cvss":"7.8","fixed_versions":["3.3.8"],"summary":"archive 3.1.2 公告摘要：Filename spoofing in archive；建议升级到 3.3.8 或更高版本。","risk_signals":["affected_version_match","fixed_version_available","cvss_high"],"cve_enrichments":[{"cveId":"CVE-2023-39137","cvssMetrics":[{"source":"nvd","version":"3.1","vector":"CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H","baseScore":"7.8","baseSeverity":"HIGH","exploitabilityScore":"1.8","impactScore":"5.9"}],"cweIds":["CWE-20"],"kevListed":false,"title":"An issue in Archive v3","description":"An issue in Archive v3.3.7 allows attackers to spoof zip filenames which can lead to inconsistent filename parsing.","bestCvssScore":"7.8","bestCvssSeverity":"HIGH","nvdPublishedAt":"2023-08-30T22:15:09.030Z","nvdModifiedAt":"2024-11-21T08:14:47.060Z","epss":"0.000470000","epssPercentile":"0.150500000","epssScoreDate":"2026-06-09T00:00:00.000Z"}],"vulnerability_source":"official-osv","enrichment_sources":["nvd","cisa-kev","first-epss"],"tier":"red","name":"archive","advisory_summary":"Filename spoofing in archive","rank":1},{"package":"archive","version":"3.1.2","ecosystem":"pub","affected":true,"match_reason":"osv_query_match","match_summary":"archive@3.1.2 matched GHSA-9v85-q87q-g4vg in OSV official data.","confidence":"high","advisory_id":"GHSA-9v85-q87q-g4vg","aliases":["CVE-2023-39139","GHSA-9v85-q87q-g4vg"],"cve_id":"CVE-2023-39139","severity":"high","cvss":"7.8","fixed_versions":["3.3.8"],"summary":"archive 3.1.2 公告摘要：Path traversal in Archive；建议升级到 3.3.8 或更高版本。","risk_signals":["affected_version_match","fixed_version_available","cvss_high"],"cve_enrichments":[{"cveId":"CVE-2023-39139","cvssMetrics":[{"source":"nvd","version":"3.1","vector":"CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H","baseScore":"7.8","baseSeverity":"HIGH","exploitabilityScore":"1.8","impactScore":"5.9"}],"cweIds":["CWE-22"],"kevListed":false,"title":"An issue in Archive v3","description":"An issue in Archive v3.3.7 allows attackers to execute a path traversal via extracting a crafted zip file.","bestCvssScore":"7.8","bestCvssSeverity":"HIGH","nvdPublishedAt":"2023-08-30T22:15:09.300Z","nvdModifiedAt":"2024-11-21T08:14:47.420Z","epss":"0.000390000","epssPercentile":"0.120260000","epssScoreDate":"2026-06-09T00:00:00.000Z"}],"vulnerability_source":"official-osv","enrichment_sources":["nvd","cisa-kev","first-epss"],"tier":"red","name":"archive","advisory_summary":"Path traversal in Archive","rank":2}],"server_issues":[],"server_maintenance":[],"red":[],"yellow":[],"green":[{"name":"升级 archive","type":"dependency_upgrade","severity":"high","package":"archive","version":"3.1.2","ecosystem":"pub","summary":"archive 命中 2 个风险项，建议升级到 3.3.8 或更高版本后运行测试。该建议只覆盖包管理器可解析的普通升级；修复后必须复扫。","fix_config":{"type":"upgrade","ecosystem":"pub","package":"archive","current_versions":["3.1.2"],"target_version":"3.3.8","fixed_versions":["3.3.8"],"advisory_ids":["GHSA-r285-q736-9v95","GHSA-9v85-q87q-g4vg"],"fixed_versions_by_advisory":{"GHSA-r285-q736-9v95":["3.3.8"],"GHSA-9v85-q87q-g4vg":["3.3.8"]},"upgrade_scope":"direct_package","residual_guidance":"如果复扫仍出现同名旧版本，通常是间接依赖被父包锁定；需要升级父依赖、等待上游修复，或在用户确认后把锁住旧子依赖的父依赖升级到 latest。"},"dependency_context":null},{"name":"配置 Dependabot","type":"local_repository_check","severity":"info","path":".github/dependabot.yml","file":".github/dependabot.yml","line":null,"category":"repo_governance","source_id":"repo.missing_dependabot","kind":"maintenance_advice","confidence":"high","evidence":"GitHub remote origin: git@github.com:27Aaron/skills.git","why_manual":"检测到仓库 remote 指向 GitHub，且项目包含 Dependabot 支持的依赖生态或 GitHub Actions 配置；可用 Dependabot 定期创建版本更新 PR。","risk":"检测到仓库 remote 指向 GitHub，且项目包含 Dependabot 支持的依赖生态或 GitHub Actions 配置；可用 Dependabot 定期创建版本更新 PR。","disposal":".github/dependabot.yml，建议创建覆盖 pub 的配置；推送到 GitHub 后，Dependabot 会按 schedule 检查更新。","source":"builtin","fix_config":{"type":"dependabot_config","path":".github/dependabot.yml","content":"version: 2\nupdates:\n  - package-ecosystem: \"pub\"\n    directory: \"/\"\n    schedule:\n      interval: \"weekly\"\n","ecosystems":["pub"]},"summary":".github/dependabot.yml，建议创建覆盖 pub 的配置；推送到 GitHub 后，Dependabot 会按 schedule 检查更新。"}],"errors":[],"package_count":2,"vulnerability_count":2,"server_issue_count":0,"server_maintenance_count":0,"outdated_count":0,"package_sources":[{"ecosystem":"pub","source":"pubspec.lock","count":2}],"butian_workspace":{"gitignore":{"path":"/Users/aaron/Documents/Project/skills/tests/demo/projects/dart/.gitignore","preexisting":true,"had_butian_entry":true,"missing_entries":[],"added_butian_entry":false,"added_entries":[],"exists_after":true}},"summary":{"tldr":"发现 2 个已确认依赖风险项，其中 2 个为高风险项，仓库安检未发现凭证或敏感文件问题。","detail":"本次检查覆盖项目 dart，识别到 2 个依赖包，命中 2 个已确认风险项。仓库安检方面，发现疑似硬编码凭证 0 处、被 git 跟踪的敏感文件 0 个、建议补充的 .gitignore 规则 0 条、本地配置/工作流检查项 0 个、建议 1 条。过期依赖 0 个，建议按维护窗口和兼容性评估安排升级。","priority":["优先处理 2 个紧急/高风险项；依赖漏洞先处理有明确修复版本或官方处置路径的项，仓库安检项先处理工作流权限、凭证、容器和供应链配置。","依赖修复后必须重新运行扫描；如果仍出现同名旧版本，通常是间接依赖被父包锁定，需要询问用户是否确认升级父依赖到 latest。"],"tier_stats":{"red":"0 项优先处理","yellow":"0 项需要人工确认","green":"2 项可作为修复计划"}}};
         </script>
         <script>
             const RAW = window.__BUTIAN_REPORT_DATA__ || {};
@@ -2678,7 +2793,7 @@ const toList = (value) => {
     .filter(Boolean);
 };
 const CAPABILITY_BOUNDARY =
-  "安全往往不是最显眼的需求，却是产品长期稳定运行的底线。此 Skill 会帮助你发现依赖漏洞、过期依赖和仓库暴露风险，帮助团队更早暴露容易被忽视的供应链问题。但它不能替代代码审计、渗透测试或部署安全评估；业务逻辑、权限控制、SQL 注入、XSS 等代码层风险仍需单独复核。";
+  "安全往往不是最显眼的需求，却是产品长期稳定运行的底线。此 Skill 会帮助你发现应用依赖漏洞、过期依赖和仓库暴露风险，并在显式提供 SSH 目标或离线 inventory 时做 Linux 服务器运行环境只读检查；SSH 采集必须使用密钥登录，脚本会禁用密码和键盘交互回退。应用依赖漏洞查询只处理本地可确认精确包名和精确版本的应用依赖坐标；服务器漏洞只处理能关联到发行版包坐标、内核包或官方包管理器安全更新的证据，不把 Dockerfile、compose、Kubernetes、devcontainer、镜像/SBOM、未关联服务 banner、自编译二进制或模糊 CPE 混入已确认漏洞，也不能替代代码审计、渗透测试或完整部署安全评估；业务逻辑、权限控制、SQL 注入、XSS 等代码层风险仍需单独复核。";
 const HYGIENE_ONLY_NOTICE =
   "当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；本次仅做仓库安检，检查硬编码密钥、敏感文件跟踪、.gitignore、GitHub Actions、依赖配置与维护和 IaC/容器配置风险。";
 
@@ -3496,19 +3611,19 @@ function shortFixedVersionText(r) {
     : "建议研发确认官方修复版本后再安排升级。";
 }
 
+function versionScrollHtml(value, extraClass = "") {
+  const text = String(value || "");
+  const classes = [extraClass, "version-scroll"].filter(Boolean).join(" ");
+  return `<span class="${classes}" title="${esc(text)}"><span class="version-scroll-inner">${esc(text)}</span></span>`;
+}
+
 function fixedVersionHtml(r) {
   const versions = toList(
     r.fixed_versions || r.fix_versions || r.patched_versions,
   );
-  const currentVersion = r && r.version;
-  const higherVersions = currentVersion
-    ? versions.filter((version) => compareVersions(version, currentVersion) > 0)
-    : versions;
-  const displayVersions = higherVersions.length ? higherVersions : versions;
-  if (!displayVersions.length) return '<span class="fixed-empty">待确认</span>';
-  return `<div class="fixed-list">${displayVersions
-    .map((version) => `<span class="fixed-chip">${esc(version)}</span>`)
-    .join("")}</div>`;
+  const displayVersion = bestFixedVersion(versions, r && r.version);
+  if (!displayVersion) return '<span class="fixed-empty">待确认</span>';
+  return `<div class="fixed-list">${versionScrollHtml(displayVersion, "fixed-chip")}</div>`;
 }
 
 function miniFields(fields) {
@@ -4698,9 +4813,7 @@ function normalizedCweIds(r) {
 }
 
 function normalizeIssueText(parts) {
-  return [
-    ...parts,
-  ]
+  return [...parts]
     .map((x) => String(x || "").trim())
     .filter(Boolean)
     .join(" ")
@@ -4722,13 +4835,12 @@ function rawPrimaryIssueText(r) {
 function rawIssueText(r) {
   const enrichmentText = Array.isArray(r.cve_enrichments)
     ? r.cve_enrichments
-        .map((e) => [e.description, e.title, e.summary].filter(Boolean).join(" "))
+        .map((e) =>
+          [e.description, e.title, e.summary].filter(Boolean).join(" "),
+        )
         .join(" ")
     : "";
-  return normalizeIssueText([
-    rawPrimaryIssueText(r),
-    enrichmentText,
-  ]);
+  return normalizeIssueText([rawPrimaryIssueText(r), enrichmentText]);
 }
 
 function hasAnyCwe(cwes, ids) {
@@ -4774,7 +4886,10 @@ function plainRiskStory(r) {
   ) {
     return "当前版本在缓存响应时可能没有正确区分 Authorization 或 Cookie。不同用户之间可能看到不该共享的缓存内容。";
   }
-  if (primaryText.includes("redirect") && primaryText.includes("cache-poison")) {
+  if (
+    primaryText.includes("redirect") &&
+    primaryText.includes("cache-poison")
+  ) {
     return "当前版本在缓存跳转响应时可能没有正确区分请求上下文。攻击者可能让后续用户命中被污染的跳转结果。";
   }
   if (
@@ -4793,7 +4908,9 @@ function plainRiskStory(r) {
   }
   if (
     primaryText.includes("numericdate") ||
-    (primaryText.includes("jwt") && primaryText.includes("exp") && primaryText.includes("nbf"))
+    (primaryText.includes("jwt") &&
+      primaryText.includes("exp") &&
+      primaryText.includes("nbf"))
   ) {
     return "当前版本在校验 JWT 时间声明（exp、nbf、iat）时可能不够严格。过期或尚未生效的令牌可能被错误接受，需要结合使用方式复核影响。";
   }
@@ -4823,7 +4940,8 @@ function plainRiskStory(r) {
   if (
     primaryText.includes("app.mount") ||
     primaryText.includes("mount prefix") ||
-    (primaryText.includes("incorrect routing") && primaryText.includes("percent-encoded"))
+    (primaryText.includes("incorrect routing") &&
+      primaryText.includes("percent-encoded"))
   ) {
     return "当前版本在挂载子应用时可能对编码后的路径处理不一致。如果项目依赖 mount 前缀做路由隔离，请求可能进入非预期路由。";
   }
@@ -5018,7 +5136,8 @@ function securityIds(r) {
       .map((x) => x.trim())
       .filter(Boolean)
       .forEach((id) => {
-        if (!ids.some((x) => x.toLowerCase() === id.toLowerCase())) ids.push(id);
+        if (!ids.some((x) => x.toLowerCase() === id.toLowerCase()))
+          ids.push(id);
       });
   };
 
@@ -5279,7 +5398,13 @@ function epssDetailText(prob, pct) {
 
 function cvssScoreTooltip(score) {
   const level =
-    score >= 9 ? "紧急" : score >= 7 ? "高风险" : score >= 4 ? "中风险" : "低风险";
+    score >= 9
+      ? "紧急"
+      : score >= 7
+        ? "高风险"
+        : score >= 4
+          ? "中风险"
+          : "低风险";
   return `CVSS 是漏洞严重度评分，${score.toFixed(1)} 属于${level}；分数越高，影响通常越大`;
 }
 
@@ -5424,11 +5549,7 @@ function vulnDetailPanel(r) {
   const badges = riskBadgeRow(a);
 
   if (a.description) {
-    story = detailStory(
-      "漏洞描述",
-      esc(a.description),
-      badges,
-    );
+    story = detailStory("漏洞描述", esc(a.description), badges);
   } else if (badges) {
     story = detailStory("关键信号", "", badges);
   }
@@ -5461,7 +5582,9 @@ function vulnDetailPanel(r) {
     const prob = (a.maxEpss * 100).toFixed(2);
     const pct = (a.maxEpssPercentile * 100).toFixed(1);
     const dateStr = shortDate(a.epssDate);
-    const label = dateStr ? `EPSS 利用预测（评分日期 ${dateStr}）` : "EPSS 利用预测";
+    const label = dateStr
+      ? `EPSS 利用预测（评分日期 ${dateStr}）`
+      : "EPSS 利用预测";
     const epssField = detailField(
       label,
       epssDetailText(prob, pct),
@@ -5485,9 +5608,13 @@ function vulnDetailPanel(r) {
     ? `<div class="detail-facts">${fields.join("")}</div>`
     : "";
   const action = story ? detailAction(r) : "";
-  const bottom = bottomFact ? `<div class="detail-facts-bottom">${bottomFact}</div>` : "";
+  const bottom = bottomFact
+    ? `<div class="detail-facts-bottom">${bottomFact}</div>`
+    : "";
   const layoutClass =
-    story && (facts || bottom) ? "detail-dossier-split" : "detail-dossier-compact";
+    story && (facts || bottom)
+      ? "detail-dossier-split"
+      : "detail-dossier-compact";
   const body =
     story || facts || action || bottom
       ? `<div class="detail-dossier ${layoutClass}">${story}${facts}${action}${bottom}</div>`
@@ -5593,9 +5720,15 @@ function packageColumnWidth(rows) {
   return Math.min(220, Math.max(132, maxChars * 8 + 30));
 }
 
-function packageColumnWidthStyle(rows) {
-  const px = packageColumnWidth(rows);
-  return `--package-col:${px}px;`;
+function advisoryColumnWidth(rows) {
+  const maxChars = (rows || []).reduce((max, row) => {
+    return Math.max(max, ...securityIds(row).map(measuredTextLength));
+  }, 4);
+  return Math.min(260, Math.max(132, maxChars * 8 + 30));
+}
+
+function riskTableColumnWidthStyle(rows) {
+  return `--package-col:${packageColumnWidth(rows)}px;--advisory-col:${advisoryColumnWidth(rows)}px;`;
 }
 
 function renderTableColgroup(columns) {
@@ -5660,7 +5793,7 @@ function renderVulnTable(rows) {
       return `<tr class="${hasDetail}${extraCls}"${detailAttrs}>
   <td class="sev" data-label="影响程度">${sevBadge(r.severity)}</td>
   <td class="package-cell" data-label="依赖名称"><b title="${esc(packageName)}">${esc(packageName)}</b></td>
-  <td class="ver" data-label="当前版本">${esc(r.version || "")}</td>
+  <td class="ver" data-label="当前版本">${versionScrollHtml(r.version || "")}</td>
   <td class="ver fixed-cell" data-label="修复版本">${fixedHtml}</td>
   <td class="advisory" data-label="安全编号">${advHtml}</td>
   <td class="summary-cell" data-label="详情">${vulnerabilityExplanation(r)}</td>
@@ -5673,7 +5806,7 @@ function renderVulnTable(rows) {
   return section(
     "当前风险",
     sortedRows.length,
-    `<div class="table-scroll"><table class="stable-table vuln-table" style="${packageColumnWidthStyle(sortedRows)}">
+    `<div class="table-scroll"><table class="stable-table vuln-table" style="${riskTableColumnWidthStyle(sortedRows)}">
   ${renderTableColgroup(["severity", "package", "version", "fixed", "advisory", "detail"])}
   <thead><tr><th>影响程度</th><th>依赖名称</th><th>当前版本</th><th>修复版本</th><th>安全编号</th><th>详情</th></tr></thead>
   <tbody>${body}${toggle}</tbody></table></div>`,
@@ -5689,6 +5822,11 @@ function toggleVulns(btn) {
   const rows = table.querySelectorAll(".vuln-extra:not(.vuln-detail-row)");
   btn.setAttribute("aria-expanded", expanded ? "true" : "false");
   btn.textContent = expanded ? "收起" : `余下 ${rows.length} 项`;
+  if (typeof requestAnimationFrame === "function") {
+    requestAnimationFrame(() => initVersionScroll(table));
+  } else {
+    initVersionScroll(table);
+  }
 }
 
 const VULN_DETAIL_SCAN_DELAY_MS = 380;
@@ -5846,11 +5984,38 @@ function initCustomTooltips(root) {
   });
 }
 
+function initVersionScroll(root) {
+  if (!root || typeof root.querySelectorAll !== "function") return;
+  root.querySelectorAll(".version-scroll").forEach((target) => {
+    const inner = target.querySelector(".version-scroll-inner");
+    if (!inner) return;
+
+    target.classList.remove("is-overflowing");
+    target.style.removeProperty("--version-scroll-distance");
+    target.style.removeProperty("--version-scroll-duration");
+    target.removeAttribute("tabindex");
+    target.removeAttribute("aria-label");
+
+    const distance = Math.max(0, inner.scrollWidth - target.clientWidth);
+    if (distance <= 4) return;
+
+    target.classList.add("is-overflowing");
+    target.style.setProperty("--version-scroll-distance", `${distance}px`);
+    target.style.setProperty(
+      "--version-scroll-duration",
+      `${Math.max(6, Math.min(16, distance / 10 + 5)).toFixed(1)}s`,
+    );
+    target.setAttribute("tabindex", "0");
+    target.setAttribute("aria-label", inner.textContent || "");
+  });
+}
+
 if (
   typeof window !== "undefined" &&
   typeof window.addEventListener === "function"
 ) {
   window.addEventListener("resize", () => {
+    initVersionScroll(document.getElementById("app"));
     if (customTooltipTarget) positionCustomTooltip(customTooltipTarget);
   });
   window.addEventListener(
@@ -5898,18 +6063,35 @@ function renderServerEnvironment() {
   const summary = server.summary || {};
   const fields = miniFields([
     { label: "系统包", value: String(summary.package_count || 0) },
-    { label: "已确认风险", value: String(summary.confirmed_count || issues.length || 0) },
-    { label: "维护建议", value: String(summary.maintenance_count || maintenance.length || 0) },
+    {
+      label: "已确认风险",
+      value: String(summary.confirmed_count || issues.length || 0),
+    },
+    {
+      label: "维护建议",
+      value: String(summary.maintenance_count || maintenance.length || 0),
+    },
     { label: "对外端口", value: String(summary.public_port_count || 0) },
+    { label: "运行服务", value: String(summary.service_count || 0) },
+    { label: "软件版本", value: String(summary.software_version_count || 0) },
+    {
+      label: "安全更新",
+      value: String(summary.native_security_update_count || 0),
+    },
   ]);
 
   const issueCards = issues
     .map((item) => {
-      const title = [item.package || item.name || "服务器软件", item.version || ""]
+      const title = [
+        item.package || item.name || "服务器软件",
+        item.version || "",
+      ]
         .filter(Boolean)
         .join(" ");
       const body = esc(
-        item.summary || item.advisory_summary || "服务器运行环境命中已确认风险。",
+        item.summary ||
+          item.advisory_summary ||
+          "服务器运行环境命中已确认风险。",
       );
       const ids = securityIds(item);
       const idsHtml = ids.length
@@ -5932,9 +6114,10 @@ function renderServerEnvironment() {
     })
     .join("");
 
-  const cards = issueCards || maintenanceCards
-    ? `<div class="server-grid">${issueCards}${maintenanceCards}</div>`
-    : "";
+  const cards =
+    issueCards || maintenanceCards
+      ? `<div class="server-grid">${issueCards}${maintenanceCards}</div>`
+      : "";
   const count =
     Number(summary.confirmed_count || issues.length || 0) +
     Number(summary.maintenance_count || maintenance.length || 0);
@@ -5999,7 +6182,8 @@ function secretEvidenceLanguage(item) {
   const file = String((item && (item.file || item.path)) || "").toLowerCase();
   const name = file.split(/[\\/]/).pop() || "";
   if (name === ".env" || name.startsWith(".env.")) return "ENV";
-  if (name === "dockerfile" || name.startsWith("dockerfile.")) return "Dockerfile";
+  if (name === "dockerfile" || name.startsWith("dockerfile."))
+    return "Dockerfile";
   const ext = (name.match(/\.([a-z0-9]+)$/) || [])[1] || "";
   return (
     {
@@ -6419,6 +6603,7 @@ app.innerHTML =
   renderRed(DATA.red) +
   renderYellow(DATA.yellow) +
   renderErrors();
+initVersionScroll(app);
 initCustomTooltips(app);;
         </script>
     </body>

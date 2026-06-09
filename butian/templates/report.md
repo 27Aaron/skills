@@ -13,7 +13,7 @@ $summary
 
 $server_environment
 
-## 命中风险项
+## 当前风险
 
 $vulnerabilities
 

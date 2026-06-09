@@ -175,6 +175,18 @@ class BestFixedVersionTests(unittest.TestCase):
             run_audit.best_fixed_version([{"fixed_versions": []}]), "待确认"
         )
 
+    def test_filters_lower_versions_and_matches_current_major(self):
+        result = run_audit.best_fixed_version(
+            [
+                {
+                    "version": "2.2.0",
+                    "fixed_versions": ["1.11.23", "2.2.28", "3.2.25"],
+                }
+            ]
+        )
+
+        self.assertEqual(result, "2.2.28")
+
 
 # ---------------------------------------------------------------------------
 # risk_nature

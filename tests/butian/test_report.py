@@ -317,12 +317,31 @@ class RenderVulnerabilitiesTests(unittest.TestCase):
             "[CVE-2024-0001](https://www.cve.org/CVERecord?id=CVE-2024-0001)", result
         )
         self.assertIn(
-            "| 影响程度 | 依赖名称 | 当前版本 | 安全编号 | 修复版本 | 说明 |", result
+            "| 影响程度 | 依赖名称 | 当前版本 | 修复版本 | 安全编号 |", result
         )
-        self.assertIn(
-            "Prototype pollution；EPSS 12.8%；CVSS 8.8；CWE-400；CISA KEV；NVD 2024-05-01",
-            result,
+        self.assertNotIn("说明", result)
+        self.assertNotIn("Prototype pollution", result)
+        self.assertNotIn("EPSS 12.8%", result)
+
+    def test_fixed_versions_below_current_version_are_removed(self):
+        result = report.render_vulnerabilities(
+            {
+                "top_issues": [
+                    {
+                        "severity": "high",
+                        "package": "django",
+                        "version": "2.2.0",
+                        "fixed_versions": ["1.11.23", "2.2.28", "3.2.25"],
+                        "advisory_id": "PYSEC-2024-1",
+                    }
+                ],
+                "scan_config": {"scan_mode": "full_dependency_scan"},
+            }
         )
+
+        self.assertIn("| 高风险 | django | 2.2.0 | 2.2.28 |", result)
+        self.assertNotIn("1.11.23", result)
+        self.assertNotIn("3.2.25", result)
 
     def test_malicious_security_id_does_not_break_markdown_link(self):
         result = report.render_vulnerabilities(
@@ -340,7 +359,7 @@ class RenderVulnerabilitiesTests(unittest.TestCase):
             }
         )
 
-        self.assertIn("| 高风险 | bad-lib | 1.0.0 | - |", result)
+        self.assertIn("| 高风险 | bad-lib | 1.0.0 | 待确认 | - |", result)
         self.assertNotIn("javascript:", result)
         self.assertNotIn("evil.example", result)
 
@@ -467,6 +486,8 @@ class RenderHygieneTests(unittest.TestCase):
         self.assertIn("checksum/signature", result)
         self.assertIn("IaC / 容器 / 部署配置", result)
         self.assertIn("Dockerfile:1", result)
+        self.assertIn("| 等级 | 位置 | 检查项 | 依据 | 处理 |", result)
+        self.assertIn("run: curl https://example.com/install.sh", result)
 
     def test_dependabot_is_rendered_as_maintenance_advice(self):
         analysis = {
@@ -490,6 +511,8 @@ class RenderHygieneTests(unittest.TestCase):
         result = report.render_hygiene(analysis)
 
         self.assertIn("| 建议 | .github/dependabot.yml | 配置 Dependabot |", result)
+        self.assertIn("| 等级 | 位置 | 检查项 | 处理 |", result)
+        self.assertNotIn("| 等级 | 位置 | 检查项 | 依据 | 处理 |", result)
         self.assertNotIn("维护建议", result)
 
 
@@ -630,7 +653,7 @@ class RenderMarkdownStructureTests(unittest.TestCase):
             markdown.index("## 报告总结"), markdown.index("## 服务器运行环境")
         )
         self.assertLess(
-            markdown.index("## 服务器运行环境"), markdown.index("## 命中风险项")
+            markdown.index("## 服务器运行环境"), markdown.index("## 当前风险")
         )
         self.assertIn("[server_collect] SSH timeout", markdown)
 
@@ -650,7 +673,7 @@ class RenderMarkdownStructureTests(unittest.TestCase):
                 ],
             }
         )
-        self.assertIn("## 命中风险项", markdown)
+        self.assertIn("## 当前风险", markdown)
         self.assertIn("lodash", markdown)
         self.assertIn("4.17.20", markdown)
         self.assertIn("4.17.21", markdown)

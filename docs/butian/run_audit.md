@@ -200,7 +200,7 @@ run_audit.py
 
 | 函数                                                  | 作用                                                                                     |
 | ----------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `format_focus(analysis, scan_mode)`                   | 生成重点关注区域的表格（按命中风险项数排序的前 6 个包）                                  |
+| `format_focus(analysis, scan_mode)`                   | 生成重点关注区域的表格（按当前风险项数排序的前 6 个包）                                  |
 | `format_risk_rows(risk_summary)`                      | 格式化风险统计行（含 emoji 指示器）                                                      |
 | `format_human_summary(summary, scan, analysis, args)` | 组装完整的终端摘要文本                                                                   |
 | `best_fixed_version(issues)`                          | 从多个风险项记录中选出最佳修复版本                                                       |

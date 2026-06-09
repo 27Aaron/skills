@@ -358,19 +358,51 @@ def version_key(value):
     return tuple(int(part) for part in parts)
 
 
+def compare_versions(a, b):
+    left = version_key(a)
+    right = version_key(b)
+    for index in range(max(len(left), len(right))):
+        delta = (left[index] if index < len(left) else 0) - (
+            right[index] if index < len(right) else 0
+        )
+        if delta:
+            return delta
+    return 0
+
+
 def best_fixed_version(issues):
     versions = []
+    current_version = ""
     for issue in issues:
+        current_version = (
+            current_version
+            or issue.get("version")
+            or issue.get("current_version")
+            or issue.get("current")
+            or ""
+        )
         for version in issue.get("fixed_versions") or issue.get("fix_versions") or []:
             text = str(version)
             if text and text not in versions:
                 versions.append(text)
     if not versions:
         return "待确认"
+    if version_key(current_version):
+        versions = [
+            version for version in versions if compare_versions(version, current_version) > 0
+        ]
+    if not versions:
+        return "待确认"
+
+    current_major = version_key(current_version)[0] if version_key(current_version) else None
+    same_major = [
+        version
+        for version in versions
+        if current_major is not None and version_key(version)[0:1] == (current_major,)
+    ]
+    versions = same_major or versions
     versions.sort(key=version_key)
-    if len(versions) == 1:
-        return versions[0]
-    return f"{versions[-1]}（含 {versions[0]} 等多个修复）"
+    return versions[-1]
 
 
 def risk_nature(issues):

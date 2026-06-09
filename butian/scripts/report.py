@@ -78,6 +78,55 @@ def clean_version(value):
     return text(value).removeprefix("v")
 
 
+def version_parts(value):
+    match = re.search(r"\d+(?:\.\d+){0,3}", text(value))
+    if not match:
+        return []
+    return [int(part) for part in match.group(0).split(".")]
+
+
+def compare_versions(a, b):
+    left = version_parts(a)
+    right = version_parts(b)
+    for index in range(max(len(left), len(right))):
+        delta = (left[index] if index < len(left) else 0) - (
+            right[index] if index < len(right) else 0
+        )
+        if delta:
+            return delta
+    return 0
+
+
+def best_fixed_version(versions, current_version):
+    unique_versions = []
+    for version in to_list(versions):
+        version = text(version)
+        if version and version not in unique_versions:
+            unique_versions.append(version)
+    if not unique_versions:
+        return "待确认"
+
+    if version_parts(current_version):
+        candidates = [
+            version
+            for version in unique_versions
+            if compare_versions(version, current_version) > 0
+        ]
+    else:
+        candidates = unique_versions
+    if not candidates:
+        return "待确认"
+
+    current_major = version_parts(current_version)[0] if version_parts(current_version) else None
+    same_major = [
+        version
+        for version in candidates
+        if current_major is not None and version_parts(version)[0:1] == [current_major]
+    ]
+    candidates = same_major or candidates
+    return sorted(candidates, key=lambda version: version_parts(version))[-1]
+
+
 def outdated_update_target(item):
     return (
         item.get("wanted")
@@ -378,20 +427,17 @@ def render_vulnerabilities(analysis):
         return "未命中已确认的依赖风险项。\n"
 
     lines = [
-        "| 影响程度 | 依赖名称 | 当前版本 | 安全编号 | 修复版本 | 说明 |",
-        "| --- | --- | --- | --- | --- | --- |",
+        "| 影响程度 | 依赖名称 | 当前版本 | 修复版本 | 安全编号 |",
+        "| --- | --- | --- | --- | --- |",
     ]
     for item in issues:
         ids = security_ids_markdown(item)
-        fixed = "、".join(map(str, to_list(item.get("fixed_versions")))) or "待确认"
-        summary_parts = []
-        summary = text(item.get("summary") or item.get("match_summary"))
-        if summary:
-            summary_parts.append(summary)
-        signals = enrichment_summary(item)
-        if signals:
-            summary_parts.append(signals)
-        summary_text = "；".join(summary_parts) or "-"
+        fixed = best_fixed_version(
+            item.get("fixed_versions")
+            or item.get("fix_versions")
+            or item.get("patched_versions"),
+            item.get("version"),
+        )
         lines.append(
             "| "
             + " | ".join(
@@ -399,9 +445,8 @@ def render_vulnerabilities(analysis):
                     cell(severity_label(item.get("severity"))),
                     cell(item.get("package") or item.get("name") or "-"),
                     cell(item.get("version") or "-"),
-                    cell(ids),
                     cell(fixed),
-                    cell(summary_text),
+                    cell(ids),
                 ]
             )
             + " |"
@@ -479,23 +524,28 @@ def render_hygiene(analysis):
         lines.append("")
         lines.append(f"### {title}")
         lines.append("")
-        lines.append("| 等级 | 位置 | 检查项 | 依据 | 处理 |")
-        lines.append("| --- | --- | --- | --- | --- |")
+        include_evidence = title != "依赖配置与维护"
+        if include_evidence:
+            lines.append("| 等级 | 位置 | 检查项 | 依据 | 处理 |")
+            lines.append("| --- | --- | --- | --- | --- |")
+        else:
+            lines.append("| 等级 | 位置 | 检查项 | 处理 |")
+            lines.append("| --- | --- | --- | --- |")
         for item in items:
             location = item.get("file") or "-"
             if item.get("line"):
                 location = f"{location}:{item['line']}"
+            row = [
+                cell(structured_finding_label(item)),
+                cell(location),
+                cell(item.get("title") or item.get("id") or "-"),
+            ]
+            if include_evidence:
+                row.append(cell(item.get("evidence") or "-"))
+            row.append(cell(item.get("recommendation") or "-"))
             lines.append(
                 "| "
-                + " | ".join(
-                    [
-                        cell(structured_finding_label(item)),
-                        cell(location),
-                        cell(item.get("title") or item.get("id") or "-"),
-                        cell(item.get("evidence") or "-"),
-                        cell(item.get("recommendation") or "-"),
-                    ]
-                )
+                + " | ".join(row)
                 + " |"
             )
     lines.append("")

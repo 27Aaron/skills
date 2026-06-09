@@ -2,14 +2,14 @@
 
 - 项目：php
 - 路径：`/Users/aaron/Documents/Project/skills/tests/demo/projects/php`
-- 生成时间：2026-06-10 03:55:00
-- 扫描耗时：6.3 秒
+- 生成时间：2026-06-10 07:19:25
+- 扫描耗时：5.9 秒
 
 ## 报告总结
 
 - TL;DR：发现 2 个已确认依赖风险项，其中 1 个为高风险项，仓库安检仍有疑似硬编码凭证 3 处。
 - 详细说明：本次检查覆盖项目 php，识别到 2 个依赖包，命中 2 个已确认风险项。仓库安检方面，发现疑似硬编码凭证 3 处、被 git 跟踪的敏感文件 0 个、建议补充的 .gitignore 规则 0 条、本地配置/工作流检查项 0 个、建议 1 条。过期依赖 0 个，建议按维护窗口和兼容性评估安排升级。
-- 能力边界：安全往往不是最显眼的需求，却是产品长期稳定运行的底线。此 Skill 会帮助你发现依赖漏洞、过期依赖和仓库暴露风险，帮助团队更早暴露容易被忽视的供应链问题。但它不能替代代码审计、渗透测试或部署安全评估；业务逻辑、权限控制、SQL 注入、XSS 等代码层风险仍需单独复核。
+- 能力边界：安全往往不是最显眼的需求，却是产品长期稳定运行的底线。此 Skill 会帮助你发现应用依赖漏洞、过期依赖和仓库暴露风险，并在显式提供 SSH 目标或离线 inventory 时做 Linux 服务器运行环境只读检查；SSH 采集必须使用密钥登录，脚本会禁用密码和键盘交互回退。应用依赖漏洞查询只处理本地可确认精确包名和精确版本的应用依赖坐标；服务器漏洞只处理能关联到发行版包坐标、内核包或官方包管理器安全更新的证据，不把 Dockerfile、compose、Kubernetes、devcontainer、镜像/SBOM、未关联服务 banner、自编译二进制或模糊 CPE 混入已确认漏洞，也不能替代代码审计、渗透测试或完整部署安全评估；业务逻辑、权限控制、SQL 注入、XSS 等代码层风险仍需单独复核。
 - 优先级建议：
   - 优先处理 1 个紧急/高风险项；依赖漏洞先处理有明确修复版本或官方处置路径的项，仓库安检项先处理工作流权限、凭证、容器和供应链配置。
   - 安排研发确认凭证和敏感文件是否真实有效；如有效，先轮换或撤销，再清理代码中的明文。
@@ -20,12 +20,12 @@
 
 未启用服务器运行环境扫描。
 
-## 命中风险项
+## 当前风险
 
-| 影响程度 | 依赖名称 | 当前版本 | 安全编号 | 修复版本 | 说明 |
-| --- | --- | --- | --- | --- | --- |
-| 高风险 | symfony/http-foundation | 5.4.0 | [CVE-2025-64500](https://www.cve.org/CVERecord?id=CVE-2025-64500)、[GHSA-3rg7-wf37-54rm](https://osv.dev/vulnerability/GHSA-3rg7-wf37-54rm) | 5.4.50、6.4.29、7.3.7 | symfony/http-foundation 5.4.0 公告摘要：Symfony's incorrect parsing of PATH_INFO can lead to limited authorization bypass；建议升级到 5.4.50、6.4.29、7.3.7 或更高版本。；EPSS 91.1%；CVSS 7.3；CWE-647；NVD 2025-11-12 |
-| 中风险 | symfony/http-foundation | 5.4.0 | [CVE-2024-50345](https://www.cve.org/CVERecord?id=CVE-2024-50345)、[GHSA-mrqx-rp3w-jpjp](https://osv.dev/vulnerability/GHSA-mrqx-rp3w-jpjp) | 5.4.46、6.4.14、7.1.7 | symfony/http-foundation 5.4.0 公告摘要：Symfony vulnerable to open redirect via browser-sanitized URLs；建议升级到 5.4.46、6.4.14、7.1.7 或更高版本。；EPSS 60.7%；CVSS 6.1；CWE-601；NVD 2024-11-06 |
+| 影响程度 | 依赖名称 | 当前版本 | 修复版本 | 安全编号 |
+| --- | --- | --- | --- | --- |
+| 高风险 | symfony/http-foundation | 5.4.0 | 5.4.50 | [CVE-2025-64500](https://www.cve.org/CVERecord?id=CVE-2025-64500)、[GHSA-3rg7-wf37-54rm](https://osv.dev/vulnerability/GHSA-3rg7-wf37-54rm) |
+| 中风险 | symfony/http-foundation | 5.4.0 | 5.4.46 | [CVE-2024-50345](https://www.cve.org/CVERecord?id=CVE-2024-50345)、[GHSA-mrqx-rp3w-jpjp](https://osv.dev/vulnerability/GHSA-mrqx-rp3w-jpjp) |
 
 
 ## 仓库安检
@@ -43,9 +43,9 @@
 
 ### 依赖配置与维护
 
-| 等级 | 位置 | 检查项 | 依据 | 处理 |
-| --- | --- | --- | --- | --- |
-| 建议 | .github/dependabot.yml | 配置 Dependabot | GitHub remote origin: git@github.com:27Aaron/skills.git | .github/dependabot.yml，建议创建覆盖 composer 的配置；推送到 GitHub 后，Dependabot 会按 schedule 检查更新。 |
+| 等级 | 位置 | 检查项 | 处理 |
+| --- | --- | --- | --- |
+| 建议 | .github/dependabot.yml | 配置 Dependabot | .github/dependabot.yml，建议创建覆盖 composer 的配置；推送到 GitHub 后，Dependabot 会按 schedule 检查更新。 |
 
 
 ## 过期依赖
