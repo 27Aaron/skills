@@ -24,7 +24,7 @@
 | 2a   | `server_collect.py` / `server_inventory.py` / `server_match.py` / `server_analyze.py` | SSH 目标或离线 inventory | `.butian/<run>/assets/server-*.json`         | 可选 Linux 服务器只读采集、资产标准化、漏洞匹配和服务器分析  |
 | 3    | `analyze.py`                                                                          | `scan.json`              | `.butian/<run>/assets/analysis.json`         | 标准化风险项、分红黄绿行动项、生成摘要和修复建议             |
 | 4    | `report.py`                                                                           | `analysis.json`          | `docs/butian/security-report-*.md`           | 输出给人读的 Markdown 审计报告                               |
-| 5    | `visualize.py`                                                                        | `analysis.json`          | `.butian/<run>/content/security-report.html` | 输出自包含 HTML 报告并按首次扫描策略打开                     |
+| 5    | `visualize.py`                                                                        | `analysis.json`          | `.butian/<run>/content/security-report.html` | 项目扫描输出自包含 HTML 报告并按首次扫描策略打开；server_only 跳过 |
 | 6    | `fix.py`                                                                              | `analysis.json`          | 包管理器命令结果或配置文件                   | 用户确认后执行依赖升级策略或创建 Dependabot 配置             |
 | 7    | `run_audit.py`                                                                        | 项目路径                 | 全链路产物                                   | 串联 detect、scan、analyze、report、visualize                |
 
@@ -64,7 +64,7 @@
 | `.butian/<run>/assets/server-vulns.json`     | 服务器漏洞匹配结果    | 启用服务器扫描时生成            |
 | `.butian/<run>/assets/server-analysis.json`  | 服务器分析结果        | 启用服务器扫描时生成            |
 | `.butian/<run>/assets/analysis.json`         | 分析结果              | 每次扫描生成                    |
-| `.butian/<run>/content/security-report.html` | 自包含 HTML 报告      | 每次扫描生成                    |
+| `.butian/<run>/content/security-report.html` | 自包含 HTML 报告      | 项目扫描生成；server_only 不生成 |
 | `.butian/<run>/logs/scan.log`                | DEBUG 日志            | `--verbose` 或 `--debug` 时生成 |
 | `.butian/cache/`                             | OSV/NVD/EPSS/KEV 缓存 | 跨 run 复用                     |
 | `docs/butian/security-report-*.md`           | Markdown 审计报告     | 首扫或最终复扫生成              |

@@ -565,6 +565,12 @@ def format_human_summary(summary, scan, analysis, args):
     error_label = "无" if not errors else f"{len(errors)} 个"
     html_state = "未自动打开" if args.no_open else "已自动尝试打开"
     markdown_label = "最终 Markdown" if args.final_report else "Markdown"
+    if summary.get("html_report"):
+        html_report_line = f"- HTML 报告（{html_state}）：{relative_path(summary.get('html_report'), project_path)}"
+    elif scan_mode == "server_only":
+        html_report_line = "- HTML 报告：服务器扫描不生成 HTML"
+    else:
+        html_report_line = "- HTML 报告：未生成"
     scope_notice = (
         ["", "⚠️ 扫描范围", "", quote_line(HYGIENE_ONLY_NOTICE)]
         if scan_mode == "hygiene_only"
@@ -602,7 +608,7 @@ def format_human_summary(summary, scan, analysis, args):
         "📁 报告路径",
         "",
         f"- {markdown_label} 审计报告：{relative_path(summary.get('markdown_report'), project_path) if summary.get('markdown_report') else '复扫未生成（首次扫描已有）'}",
-        f"- HTML 报告（{html_state}）：{relative_path(summary.get('html_report'), project_path)}",
+        html_report_line,
         f"- analysis JSON：{relative_path(summary.get('analysis_file'), project_path)}",
         "",
         quote_line(
@@ -823,7 +829,9 @@ def main():
     # an archival report.
     butian_dir = os.path.join(analysis["project"]["path"], ".butian")
     first_scan_marker = os.path.join(butian_dir, ".first-scan-done")
-    skip_markdown = os.path.exists(first_scan_marker) and not args.final_report
+    skip_markdown = (
+        not args.server_only and os.path.exists(first_scan_marker) and not args.final_report
+    )
 
     if skip_markdown:
         markdown_path = None
@@ -841,16 +849,20 @@ def main():
         )
         logger.info("Markdown 报告已生成: %s", markdown_path)
 
-    # HTML is always regenerated so the latest run has a review surface even
-    # when Markdown is skipped.
-    html_path = html_report_path(run_dir)
-    os.makedirs(os.path.dirname(html_path), exist_ok=True)
-    build_report_cmd = build_visualize_cmd(args, analysis_path, html_path)
-    run_text(
-        build_report_cmd,
-        echo=True,
-    )
-    logger.info("HTML 报告已生成: %s", html_path)
+    if args.server_only:
+        html_path = None
+        logger.info("服务器单独扫描不生成 HTML 报告")
+    else:
+        # HTML is always regenerated so the latest project run has a review surface
+        # even when Markdown is skipped.
+        html_path = html_report_path(run_dir)
+        os.makedirs(os.path.dirname(html_path), exist_ok=True)
+        build_report_cmd = build_visualize_cmd(args, analysis_path, html_path)
+        run_text(
+            build_report_cmd,
+            echo=True,
+        )
+        logger.info("HTML 报告已生成: %s", html_path)
 
     summary = {
         "preflight_file": preflight["output_file"],

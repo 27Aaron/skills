@@ -429,7 +429,7 @@ class FormatHumanSummaryTests(unittest.TestCase):
         summary = {
             "scan_mode": "server_only",
             "markdown_report": "/tmp/r.md",
-            "html_report": "/tmp/r.html",
+            "html_report": None,
             "analysis_file": "/tmp/a.json",
             "errors": [],
         }
@@ -464,6 +464,7 @@ class FormatHumanSummaryTests(unittest.TestCase):
 
         self.assertIn("已确认风险项：1 个", result)
         self.assertIn("nginx", result)
+        self.assertIn("HTML 报告：服务器扫描不生成 HTML", result)
         self.assertNotIn("未发现需要优先处理的依赖漏洞", result)
 
     def test_final_report_label_has_space_before_markdown(self):
@@ -943,6 +944,10 @@ class ServerOnlyPipelineTests(unittest.TestCase):
             self.assertEqual(assets_json, server_assets)
             self.assertEqual(server_analysis_json, server_analysis)
             self.assertEqual(server_vulns_json, server_matched)
+            command_names = [os.path.basename(cmd[1]) for cmd in captured["commands"]]
+            self.assertIn("report.py", command_names)
+            self.assertNotIn("visualize.py", command_names)
+            self.assertFalse(os.path.exists(os.path.join(content_dir, "security-report.html")))
             self.assertNotIn(
                 "/tmp/id_server_only", json.dumps(scan, ensure_ascii=False)
             )

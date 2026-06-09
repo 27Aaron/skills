@@ -37,6 +37,25 @@ class CommandPlanTests(unittest.TestCase):
             "zypper --non-interactive list-patches --category security", joined
         )
 
+    def test_security_posture_commands_cover_ssh_and_firewalls(self):
+        commands = server_collect.command_plan(include_docker_metadata=False)
+        ids = {cmd["id"] for cmd in commands}
+        joined = "\n".join(cmd["command"] for cmd in commands)
+
+        self.assertIn("sshd_config", ids)
+        self.assertIn("ufw_status", ids)
+        self.assertIn("firewalld_status", ids)
+        self.assertIn("nft_rules", ids)
+        self.assertIn("iptables_rules", ids)
+        self.assertIn("ip6tables_rules", ids)
+        self.assertIn("sshd -T", joined)
+        self.assertIn("ufw status", joined)
+        self.assertIn("firewall-cmd", joined)
+        self.assertIn("nft list ruleset", joined)
+        self.assertIn("iptables -S", joined)
+        self.assertNotIn(" sudo ", joined)
+        self.assertNotIn("systemctl restart", joined)
+
     def test_docker_commands_are_optional(self):
         without_docker_ids = "\n".join(
             cmd["id"]

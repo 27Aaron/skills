@@ -59,6 +59,30 @@ def command_plan(include_docker_metadata: bool = False) -> list[dict[str, str]]:
             "command": "if command -v ss >/dev/null 2>&1; then ss -lntup; elif command -v netstat >/dev/null 2>&1; then netstat -lntup; fi",
         },
         {
+            "id": "sshd_config",
+            "command": "if command -v sshd >/dev/null 2>&1; then sshd -T 2>/dev/null | awk 'tolower($1) ~ /^(passwordauthentication|kbdinteractiveauthentication|pubkeyauthentication|permitrootlogin|permitemptypasswords)$/ {print}'; else awk 'tolower($1) ~ /^(passwordauthentication|kbdinteractiveauthentication|pubkeyauthentication|permitrootlogin|permitemptypasswords)$/ {print}' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/*.conf 2>/dev/null; fi",
+        },
+        {
+            "id": "ufw_status",
+            "command": "if command -v ufw >/dev/null 2>&1; then ufw status verbose; fi",
+        },
+        {
+            "id": "firewalld_status",
+            "command": "if command -v firewall-cmd >/dev/null 2>&1; then firewall-cmd --state; firewall-cmd --list-all; fi",
+        },
+        {
+            "id": "nft_rules",
+            "command": "if command -v nft >/dev/null 2>&1; then nft list ruleset; fi",
+        },
+        {
+            "id": "iptables_rules",
+            "command": "if command -v iptables >/dev/null 2>&1; then iptables -S; fi",
+        },
+        {
+            "id": "ip6tables_rules",
+            "command": "if command -v ip6tables >/dev/null 2>&1; then ip6tables -S; fi",
+        },
+        {
             "id": "nginx_v",
             "command": "if command -v nginx >/dev/null 2>&1; then nginx -v 2>&1; fi",
         },

@@ -282,6 +282,71 @@ class ExposureAndDockerTests(unittest.TestCase):
         self.assertNotIn("packages", containers[0])
         self.assertFalse(containers[1]["explicit_old_tag"])
 
+
+class ServerPostureParsingTests(unittest.TestCase):
+    def test_parse_sshd_config_normalizes_supported_options(self):
+        raw = (
+            "passwordauthentication yes\n"
+            "kbdinteractiveauthentication yes\n"
+            "pubkeyauthentication no\n"
+            "permitrootlogin yes\n"
+            "permitemptypasswords no\n"
+            "maxauthtries 3\n"
+        )
+
+        result = server_inventory.parse_sshd_config(raw)
+
+        self.assertEqual(result["options"]["PasswordAuthentication"], "yes")
+        self.assertEqual(result["options"]["KbdInteractiveAuthentication"], "yes")
+        self.assertEqual(result["options"]["PubkeyAuthentication"], "no")
+        self.assertEqual(result["options"]["PermitRootLogin"], "yes")
+        self.assertEqual(result["options"]["PermitEmptyPasswords"], "no")
+        self.assertNotIn("MaxAuthTries", result["options"])
+        self.assertTrue(result["available"])
+
+    def test_parse_firewall_posture_detects_active_tools_and_rules(self):
+        inventory = {
+            "outputs": {
+                "ufw_status": {"stdout": "Status: inactive\n"},
+                "firewalld_status": {"stdout": "running\npublic (active)\n"},
+                "nft_rules": {"stdout": "table inet filter { chain input { } }\n"},
+                "iptables_rules": {"stdout": "-P INPUT ACCEPT\n-A INPUT -p tcp --dport 22 -j ACCEPT\n"},
+                "ip6tables_rules": {"stdout": ""},
+            }
+        }
+
+        result = server_inventory.parse_firewall_posture(inventory)
+
+        self.assertFalse(result["tools"]["ufw"]["active"])
+        self.assertTrue(result["tools"]["firewalld"]["active"])
+        self.assertTrue(result["tools"]["nftables"]["has_rules"])
+        self.assertTrue(result["tools"]["iptables"]["has_rules"])
+        self.assertTrue(result["has_active_firewall"])
+
+    def test_build_server_assets_includes_ssh_and_firewall_posture(self):
+        inventory = {
+            "target": "root@example.test",
+            "collection_mode": "ssh",
+            "outputs": {
+                "os_release": {"stdout": "ID=ubuntu\nVERSION_ID=24.04\n"},
+                "dpkg_packages": {"stdout": "openssh-server\t1:9.6p1-3ubuntu13\tamd64\topenssh\n"},
+                "uname_r": {"stdout": "6.8.0-53-generic\n"},
+                "ports": {"stdout": 'LISTEN 0 128 0.0.0.0:22 0.0.0.0:* users:(("sshd",pid=1,fd=3))\n'},
+                "sshd_config": {"stdout": "passwordauthentication yes\npubkeyauthentication yes\n"},
+                "ufw_status": {"stdout": "Status: inactive\n"},
+                "firewalld_status": {"stdout": ""},
+                "nft_rules": {"stdout": ""},
+                "iptables_rules": {"stdout": ""},
+                "ip6tables_rules": {"stdout": ""},
+            },
+            "errors": [],
+        }
+
+        assets = server_inventory.build_server_assets(inventory)
+
+        self.assertEqual(assets["ssh"]["options"]["PasswordAuthentication"], "yes")
+        self.assertFalse(assets["firewall"]["has_active_firewall"])
+
     def test_major_only_docker_tags_are_compared_as_major_zero(self):
         self.assertFalse(server_inventory.is_explicit_old_image_tag("redis", "6"))
         self.assertFalse(server_inventory.is_explicit_old_image_tag("mysql", "8"))

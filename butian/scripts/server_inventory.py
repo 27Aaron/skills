@@ -27,6 +27,14 @@ SUPPORTED_DISTROS = {
 
 PUBLIC_ADDRESSES = {"0.0.0.0", "::", "*"}
 
+SSHD_OPTION_KEYS = {
+    "passwordauthentication": "PasswordAuthentication",
+    "kbdinteractiveauthentication": "KbdInteractiveAuthentication",
+    "pubkeyauthentication": "PubkeyAuthentication",
+    "permitrootlogin": "PermitRootLogin",
+    "permitemptypasswords": "PermitEmptyPasswords",
+}
+
 OLD_IMAGE_VERSION_HINTS = {
     "nginx": (1, 20),
     "redis": (6, 0),
@@ -315,6 +323,87 @@ def parse_listening_ports(raw: str) -> list[dict[str, Any]]:
     return ports
 
 
+def parse_sshd_config(raw: str) -> dict[str, Any]:
+    options: dict[str, str] = {}
+    evidence = []
+    for line in str(raw or "").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        parts = stripped.split()
+        if len(parts) < 2:
+            continue
+        key = SSHD_OPTION_KEYS.get(parts[0].lower())
+        if not key:
+            continue
+        value = parts[1].lower()
+        options[key] = value
+        evidence.append(stripped)
+    return {
+        "available": bool(options),
+        "options": options,
+        "evidence": evidence,
+    }
+
+
+def _output_result(inventory: dict[str, Any], key: str) -> dict[str, Any]:
+    return dict(((inventory.get("outputs") or {}).get(key) or {}))
+
+
+def _firewall_tool(raw: str, *, active: bool = False, has_rules: bool = False) -> dict[str, Any]:
+    text = str(raw or "").strip()
+    return {
+        "available": bool(text),
+        "active": bool(active),
+        "has_rules": bool(has_rules),
+        "summary": text[:500],
+    }
+
+
+def _iptables_has_rules(raw: str) -> bool:
+    for line in str(raw or "").splitlines():
+        stripped = line.strip()
+        if stripped.startswith(("-A ", "-I ", "-N ")):
+            return True
+    return False
+
+
+def parse_firewall_posture(inventory: dict[str, Any]) -> dict[str, Any]:
+    ufw_raw = str(_output_result(inventory, "ufw_status").get("stdout") or "")
+    firewalld_raw = str(
+        _output_result(inventory, "firewalld_status").get("stdout") or ""
+    )
+    nft_raw = str(_output_result(inventory, "nft_rules").get("stdout") or "")
+    iptables_raw = str(_output_result(inventory, "iptables_rules").get("stdout") or "")
+    ip6tables_raw = str(
+        _output_result(inventory, "ip6tables_rules").get("stdout") or ""
+    )
+
+    ufw_active = "status: active" in ufw_raw.lower()
+    firewalld_active = firewalld_raw.splitlines()[:1] == ["running"]
+    nft_has_rules = bool(nft_raw.strip())
+    iptables_has_rules = _iptables_has_rules(iptables_raw)
+    ip6tables_has_rules = _iptables_has_rules(ip6tables_raw)
+
+    tools = {
+        "ufw": _firewall_tool(ufw_raw, active=ufw_active, has_rules=ufw_active),
+        "firewalld": _firewall_tool(
+            firewalld_raw,
+            active=firewalld_active,
+            has_rules=firewalld_active,
+        ),
+        "nftables": _firewall_tool(nft_raw, has_rules=nft_has_rules),
+        "iptables": _firewall_tool(iptables_raw, has_rules=iptables_has_rules),
+        "ip6tables": _firewall_tool(ip6tables_raw, has_rules=ip6tables_has_rules),
+    }
+    return {
+        "tools": tools,
+        "has_active_firewall": any(
+            tool.get("active") or tool.get("has_rules") for tool in tools.values()
+        ),
+    }
+
+
 def _split_image(image: str) -> tuple[str, str]:
     image = str(image or "").strip()
     leaf = image.rsplit("/", 1)[-1]
@@ -409,6 +498,8 @@ def build_server_assets(inventory: dict[str, Any]) -> dict[str, Any]:
         )
 
     ports = parse_listening_ports(_stdout(inventory, "ports"))
+    ssh = parse_sshd_config(_stdout(inventory, "sshd_config"))
+    firewall = parse_firewall_posture(inventory)
     kernel = build_kernel_asset(_stdout(inventory, "uname_r").strip(), packages)
     docker_containers = parse_docker_ps(_stdout(inventory, "docker_ps"))
     return {
@@ -418,6 +509,8 @@ def build_server_assets(inventory: dict[str, Any]) -> dict[str, Any]:
         "packages": packages,
         "kernel": kernel,
         "ports": ports,
+        "ssh": ssh,
+        "firewall": firewall,
         "docker": {"containers": docker_containers},
         "errors": errors,
     }

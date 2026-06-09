@@ -22,6 +22,8 @@ class ServerAnalyzeTests(unittest.TestCase):
                     "raw": "redis raw",
                 }
             ],
+            "ssh": {"available": False, "options": {}},
+            "firewall": {"has_active_firewall": True, "tools": {}},
             "docker": {
                 "containers": [
                     {
@@ -120,6 +122,84 @@ class ServerAnalyzeTests(unittest.TestCase):
         self.assertEqual([item["service"] for item in items], ["redis", "mysql"])
         self.assertIn("服务对公网监听", items[0]["title"])
         self.assertTrue(all(item["confidence"] == "maintenance" for item in items))
+
+    def test_ssh_maintenance_items_are_advice_not_confirmed_vulnerabilities(self):
+        assets = {
+            "distro": {},
+            "packages": [],
+            "kernel": {},
+            "ports": [
+                {
+                    "address": "0.0.0.0",
+                    "port": 22,
+                    "process": "sshd",
+                    "public": True,
+                    "raw": "sshd public",
+                }
+            ],
+            "ssh": {
+                "available": True,
+                "options": {
+                    "PasswordAuthentication": "yes",
+                    "KbdInteractiveAuthentication": "yes",
+                    "PubkeyAuthentication": "no",
+                    "PermitRootLogin": "yes",
+                    "PermitEmptyPasswords": "yes",
+                },
+            },
+            "firewall": {"has_active_firewall": True, "tools": {}},
+            "docker": {"containers": []},
+            "errors": [],
+        }
+
+        result = server_analyze.build_server_analysis(
+            assets, {"confirmed_issues": [], "errors": []}
+        )
+
+        titles = "\n".join(item["title"] for item in result["maintenance_items"])
+        self.assertIn("SSH 允许密码登录", titles)
+        self.assertIn("SSH 未启用密钥登录", titles)
+        self.assertIn("root 账号允许直接 SSH 登录", titles)
+        self.assertIn("SSH 允许空密码登录", titles)
+        self.assertEqual(result["confirmed_issues"], [])
+        self.assertTrue(
+            all(item["confidence"] == "maintenance" for item in result["maintenance_items"])
+        )
+
+    def test_firewall_maintenance_item_when_public_ports_lack_firewall(self):
+        assets = {
+            "distro": {},
+            "packages": [],
+            "kernel": {},
+            "ports": [
+                {
+                    "address": "0.0.0.0",
+                    "port": 443,
+                    "process": "nginx",
+                    "public": True,
+                    "raw": "nginx public",
+                }
+            ],
+            "ssh": {"available": False, "options": {}},
+            "firewall": {
+                "has_active_firewall": False,
+                "tools": {"ufw": {"available": True, "active": False}},
+            },
+            "docker": {"containers": []},
+            "errors": [],
+        }
+
+        result = server_analyze.build_server_analysis(
+            assets, {"confirmed_issues": [], "errors": []}
+        )
+
+        self.assertTrue(
+            any(
+                item["category"] == "firewall_posture"
+                and "防火墙" in item["title"]
+                for item in result["maintenance_items"]
+            )
+        )
 
     def test_asset_and_match_errors_are_preserved(self):
         result = server_analyze.build_server_analysis(

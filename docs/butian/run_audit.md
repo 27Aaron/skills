@@ -14,7 +14,7 @@
 | 2   | 参数透传      | 将用户参数传递给各子阶段（verbose/debug/follow-symlinks）                                                                    |
 | 3   | 结果汇总      | 收集各阶段的文件路径和风险统计                                                                                               |
 | 4   | 终端摘要      | 输出格式化的终端摘要（包含 Unicode 表格）                                                                                    |
-| 5   | 报告打开      | 首次扫描自动用系统浏览器打开 HTML 报告，复扫跳过（由 `.butian/.first-scan-done` 标记控制）；`--no-open` 时明确标注未自动打开 |
+| 5   | 报告打开      | 项目扫描首次自动用系统浏览器打开 HTML 报告，复扫跳过（由 `.butian/.first-scan-done` 标记控制）；服务器单独扫描不生成 HTML |
 | 6   | Markdown 控制 | 首次扫描 + 最终复扫（`--final-report`）生成 Markdown，中间复扫跳过                                                           |
 
 ## CLI 用法
@@ -90,7 +90,8 @@ run_audit.py
 │     复扫时跳过（由 .butian/.first-scan-done 标记控制）
 ├─ 5. visualize.py <analysis_path> <html_path> [--no-open]
 │     → .butian/<run>/content/security-report.html
-│     首次扫描自动打开浏览器，复扫跳过（.first-scan-done 标记）
+│     项目扫描首次自动打开浏览器，复扫跳过（.first-scan-done 标记）
+│     server_only 模式跳过本阶段，只生成 Markdown
 │
 └─ 输出终端摘要
 ```
@@ -99,7 +100,7 @@ run_audit.py
 
 Agent 工作流在用户看完报告后再进入 AskUserQuestion：先确认是否修复，再选择升级策略；修复后重新运行 `run_audit.py` 复扫。复扫确认仍有 npm 嵌套残留时，才进入 `parent-upgrade` 或 `force-residual` 后续轮次。Dependabot、凭证占位符和过期依赖维护属于收尾维护动作，不由 `run_audit.py` 自动执行。
 
-所有修复轮次结束后，运行 `run_audit.py --final-report` 生成最终 Markdown 审计报告。终端摘要以 `📁 最终报告路径` 标注。
+所有项目修复轮次结束后，运行 `run_audit.py --final-report` 生成最终 Markdown 审计报告和项目 HTML 报告。服务器单独扫描只生成 Markdown 报告，终端摘要会标注“服务器扫描不生成 HTML”。
 
 ## 子进程调用方式
 
