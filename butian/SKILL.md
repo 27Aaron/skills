@@ -22,7 +22,7 @@ description: >
 
 ## 新手快速路径
 
-1. **第一次项目扫描报告**：在目标项目目录中，让 Agent 调用补天脚本；手动运行时使用脚本绝对路径，例如 `python3 /path/to/butian/scripts/run_audit.py /path/to/project`。项目扫描会生成 `.butian/<run-id>/content/security-report.html` 和 `docs/butian/security-report-<run-id>.md`，并尝试自动打开 HTML。先让用户看报告，再问是否修复。
+1. **第一次扫描报告**：在目标项目目录中，让 Agent 调用补天脚本；手动运行时使用脚本绝对路径，例如 `python3 /path/to/butian/scripts/run_audit.py /path/to/project`。项目扫描会生成 `.butian/<run-id>/content/security-report.html` 和 `docs/butian/security-report-<run-id>.md`，并尝试自动打开 HTML。先让用户看报告，再问是否修复。
 2. **修复前先确认**：用户明确选择开始修复后，才运行 `fix.py` 或包管理器命令。默认优先升级到已知修复版本；升级到 latest、Dependabot、凭证占位符替换、过期依赖维护都需要用户点头。
 3. **修复完成后的最终报告**：修复和复扫结束后运行 `python3 /path/to/butian/scripts/run_audit.py --final-report /path/to/project`。项目最终复扫会再次生成 HTML 和 Markdown，并尝试打开最终 HTML；如果用户显式传了 `--no-open`，仍尊重不打开。
 4. **默认只处理项目**：不要加 `--server`、`--server-only` 或 `--server-inventory`，除非用户明确要求服务器扫描。普通项目扫描不扫描系统 Python、全局 npm、全局 pnpm 或操作系统包，也不会碰系统升级、系统服务、数据库或日志。
@@ -34,7 +34,8 @@ description: >
 
 ## 铁律
 
-- **扫描阶段不改业务源码和依赖。** 项目扫描对业务代码和依赖只读；它会创建/更新 `.butian/` 本地报告工作区、缓存、`docs/butian/security-report-*.md`，以及必要的报告忽略规则，并会确保 `.gitignore` 忽略 `.butian/` 和生成的安全报告文件。
+- **扫描阶段不改业务内容。** 项目扫描不会修改业务源码、依赖、数据库或日志；它会创建/更新 `.butian/` 本地报告工作区、缓存、`docs/butian/security-report-*.md`，以及必要的报告忽略规则，并会确保 `.gitignore` 忽略 `.butian/` 和生成的安全报告文件。
+- **报告证据必须脱敏。** 普通密钥只展示脱敏预览，模板文件也只展示脱敏命中值；脱敏不要过度，尽量保留足够上下文让新手能找到对应位置。
 - **默认是项目扫描。** 不主动扫描系统目录、用户主目录、系统 Python、全局 npm、全局 pnpm、操作系统包、系统服务、数据库或日志。
 - **服务器扫描必须由用户明确要求。** 只有用户提供 `--server`、`--server-only --server` 或 `--server-inventory` 时，才进入服务器运行环境扫描。
 - **修复必须先问用户。** 项目报告生成后，先用 AskUserQuestion 询问是否修复；升级方式、Dependabot、凭证占位符和过期依赖维护都需要确认。收尾维护动作使用多选 AskUserQuestion 统一确认。
