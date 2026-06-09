@@ -2081,6 +2081,31 @@ class NormalizeCvssMetricTests(unittest.TestCase):
         self.assertEqual(result["baseSeverity"], "CRITICAL")
         self.assertEqual(result["source"], "nvd")
 
+    def test_uses_metric_level_base_severity(self):
+        metric = {
+            "cvssData": {
+                "version": "3.1",
+                "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
+                "baseScore": 8.1,
+            },
+            "baseSeverity": "HIGH",
+        }
+
+        result = scan.normalize_cvss_metric("cvssMetricV31", metric)
+
+        self.assertIsNotNone(result)
+        assert result is not None
+        self.assertEqual(result["baseSeverity"], "HIGH")
+
+    def test_infers_base_severity_from_score_when_missing(self):
+        metric = {"cvssData": {"version": "3.1", "baseScore": 7.5}}
+
+        result = scan.normalize_cvss_metric("cvssMetricV31", metric)
+
+        self.assertIsNotNone(result)
+        assert result is not None
+        self.assertEqual(result["baseSeverity"], "HIGH")
+
     def test_invalid_metric(self):
         self.assertIsNone(scan.normalize_cvss_metric("cvssMetricV31", {}))
 
@@ -2226,6 +2251,14 @@ class SeverityFromEnrichmentsTests(unittest.TestCase):
         severity, score = scan.severity_from_enrichments({}, enrichments)
         self.assertEqual(severity, "critical")
         self.assertEqual(score, "9.8")
+
+    def test_infers_from_cvss_score_when_enrichment_severity_missing(self):
+        enrichments = [{"cvssMetrics": [{"baseScore": "7.5"}]}]
+
+        severity, score = scan.severity_from_enrichments({}, enrichments)
+
+        self.assertEqual(severity, "high")
+        self.assertEqual(score, "7.5")
 
     def test_falls_back_to_osv_cvss(self):
         # C:H/I:L/A:N → ISS≈0.657, impact≈4.22, exploit≈3.92, base≈8.1 → high

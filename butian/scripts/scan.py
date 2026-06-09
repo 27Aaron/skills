@@ -3025,13 +3025,7 @@ def _cvss_to_severity(vector):
         if raw_score:
             try:
                 score = float(raw_score)
-                if score >= 9.0:
-                    return "critical"
-                if score >= 7.0:
-                    return "high"
-                if score >= 4.0:
-                    return "medium"
-                return "low"
+                return cvss_score_to_severity(score)
             except (TypeError, ValueError):
                 pass
 
@@ -3095,15 +3089,25 @@ def _cvss_to_severity(vector):
         else:
             base_score = _roundup(min(impact + exploitability, 10.0))
 
-        if base_score >= 9.0:
-            return "critical"
-        if base_score >= 7.0:
-            return "high"
-        if base_score >= 4.0:
-            return "medium"
-        return "low"
+        return cvss_score_to_severity(base_score)
     except Exception:
         return None
+
+
+def cvss_score_to_severity(score):
+    try:
+        value = float(score)
+    except (TypeError, ValueError):
+        return None
+    if value >= 9.0:
+        return "critical"
+    if value >= 7.0:
+        return "high"
+    if value >= 4.0:
+        return "medium"
+    if value > 0:
+        return "low"
+    return None
 
 
 def best_advisory_alias(aliases):
@@ -3380,7 +3384,12 @@ def normalize_cvss_metric(source, metric):
         return None
     cvss_data = metric["cvssData"]
     base_score = to_decimal_string(cvss_data.get("baseScore"))
-    base_severity = to_string_or_none(cvss_data.get("baseSeverity"))
+    base_severity = (
+        to_string_or_none(cvss_data.get("baseSeverity"))
+        or to_string_or_none(metric.get("baseSeverity"))
+        or (cvss_score_to_severity(base_score) or "").upper()
+        or None
+    )
     return {
         "source": "nvd",
         "version": to_string_or_none(cvss_data.get("version"))
@@ -3658,6 +3667,9 @@ def severity_from_enrichments(osv_record, cve_enrichments):
     if best_metric:
         severity = str(best_metric.get("baseSeverity") or "").lower()
         if severity in {"critical", "high", "medium", "low"}:
+            return severity, best_metric.get("baseScore")
+        severity = cvss_score_to_severity(best_metric.get("baseScore"))
+        if severity:
             return severity, best_metric.get("baseScore")
 
     cvss_vector = extract_osv_cvss(osv_record)
