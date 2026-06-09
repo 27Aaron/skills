@@ -33,6 +33,18 @@ python3 run_audit.py --follow-symlinks .    # 跟随符号链接
 python3 run_audit.py --final-report .       # 最终复扫：强制生成 Markdown 报告
 ```
 
+## 服务器扫描，仅显式要求时使用
+
+默认项目扫描不会连接服务器，也不会扫描系统包、系统服务、数据库或日志。只有用户明确要求服务器扫描时，才使用下面这些入口：
+
+```bash
+python3 run_audit.py --server user@example.com .
+python3 run_audit.py --server-only --server user@example.com .
+python3 run_audit.py --server-inventory server-inventory.json .
+```
+
+服务器扫描仍然只做只读采集；`--server-only` 必须搭配 `--server` 或 `--server-inventory`。
+
 ## CLI 参数
 
 | 参数                  | 类型     | 默认值 | 说明                             |
@@ -48,6 +60,12 @@ python3 run_audit.py --final-report .       # 最终复扫：强制生成 Markdo
 | `--verbose`           | flag     | false  | 输出详细日志到 stderr            |
 | `--debug`             | flag     | false  | 输出调试级别日志                 |
 | `--follow-symlinks`   | flag     | false  | 跟随符号链接扫描                 |
+| `--server`            | string   | None   | 只读 SSH 扫描 Linux 服务器       |
+| `--server-only`       | flag     | false  | 只生成服务器运行环境扫描结果     |
+| `--server-inventory`  | path     | None   | 读取已有 inventory 做离线分析    |
+| `--ssh-port`          | int      | 22     | 服务器 SSH 端口                  |
+| `--identity`          | path     | None   | SSH 私钥路径，不写入报告         |
+| `--include-docker-metadata` | flag | false | 只读取 Docker 容器名、镜像标签和端口映射 |
 
 ## 管线流程
 

@@ -22,7 +22,7 @@ description: >
 
 ## 新手快速路径
 
-1. **第一次扫描报告**：在项目目录运行 `python3 scripts/run_audit.py`。它会生成 `.butian/<run-id>/content/security-report.html` 和 `docs/butian/security-report-<run-id>.md`，并尝试自动打开 HTML。先让用户看报告，再问是否修复。
+1. **第一次扫描报告**：在目标项目目录中，让 Agent 调用补天脚本；手动运行时使用脚本绝对路径，例如 `python3 /path/to/butian/scripts/run_audit.py /path/to/project`。它会生成 `.butian/<run-id>/content/security-report.html` 和 `docs/butian/security-report-<run-id>.md`，并尝试自动打开 HTML。先让用户看报告，再问是否修复。
 2. **修复前先确认**：用户明确选择开始修复后，才运行 `fix.py` 或包管理器命令。默认优先升级到已知修复版本；升级到 latest、Dependabot、凭证占位符替换、过期依赖维护都需要用户点头。
 3. **修复完成后的最终报告**：修复和复扫结束后运行 `python3 scripts/run_audit.py --final-report`。最终复扫会再次生成 HTML 和 Markdown，并强制尝试打开最终 HTML；如果用户显式传了 `--no-open`，仍尊重不打开。
 4. **默认只处理项目**：不要加 `--server`、`--server-only` 或 `--server-inventory`，除非用户明确要求服务器扫描。普通项目扫描不扫描系统 Python、全局 npm、全局 pnpm 或操作系统包，也不会碰系统升级、系统服务、数据库或日志。
@@ -37,7 +37,7 @@ description: >
 
 ## 铁律
 
-- **扫描阶段不改业务源码和依赖。** 扫描只读取项目文件、调官方漏洞源，不会修改业务源码、依赖、数据库或日志；但会创建/更新 `.butian/` 本地报告工作区和 `docs/butian/security-report-*.md`，并会确保 `.gitignore` 忽略 `.butian/` 和生成的安全报告文件。
+- **扫描阶段不改业务源码和依赖。** 扫描对业务代码、依赖和系统环境只读，不会修改业务源码、依赖、数据库或日志；它会创建/更新 `.butian/` 本地报告工作区、缓存、`docs/butian/security-report-*.md`，以及必要的报告忽略规则，并会确保 `.gitignore` 忽略 `.butian/` 和生成的安全报告文件。
 - **默认是项目扫描。** 不主动扫描系统目录、用户主目录、系统 Python、全局 npm、全局 pnpm、操作系统包、系统服务、数据库或日志。
 - **服务器扫描必须由用户明确要求。** 只有用户提供 `--server`、`--server-only --server` 或 `--server-inventory` 时，才进入服务器运行环境扫描。
 - **修复必须先问用户。** 报告生成后，先用 AskUserQuestion 询问是否修复；升级方式、Dependabot、凭证占位符和过期依赖维护都需要确认。
@@ -46,12 +46,14 @@ description: >
 
 ## 默认执行流程
 
-```bash
-# macOS / Linux
-python3 scripts/run_audit.py
+Agent 优先直接调用本 skill 里的 `run_audit.py`。如果用户手动运行，先确认 shell 位于本 skill 目录；否则使用脚本绝对路径。
 
-# Windows
-py -3 scripts/run_audit.py
+```bash
+# 在本 skill 目录中
+python3 scripts/run_audit.py /path/to/project
+
+# 不在本 skill 目录中
+python3 /path/to/butian/scripts/run_audit.py /path/to/project
 ```
 
 `scripts/run_audit.py` 默认扫描当前目录并自动向上识别最近的项目根目录。在 monorepo 子项目中运行时，优先使用当前子项目的 manifest/lockfile，不要跳到上层 git repo。需要扫描其他目录时，把路径作为最后一个参数传入。
@@ -119,10 +121,10 @@ python3 scripts/visualize.py .butian/<run-id>/assets/analysis.json
 
 ## 最终报告
 
-所有修复轮次结束后运行：
+所有修复轮次结束后，Agent 运行本 skill 的 `run_audit.py --final-report`；手动运行仍使用脚本绝对路径：
 
 ```bash
-python3 scripts/run_audit.py --final-report
+python3 /path/to/butian/scripts/run_audit.py --final-report /path/to/project
 ```
 
 `--final-report` 会重新生成 Markdown 和 HTML，并尝试打开最终 HTML；只有显式传入 `--no-open` 时才跳过自动打开。

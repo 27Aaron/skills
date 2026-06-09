@@ -394,6 +394,8 @@ class DependencyParsersModuleCompatibilityTests(unittest.TestCase):
         self.assertIn("docs/butian/security-report-<run-id>.md", skill_doc)
         self.assertIn("新手快速路径", skill_doc)
         self.assertIn("第一次扫描报告", skill_doc)
+        self.assertIn("让 Agent 调用补天脚本", skill_doc)
+        self.assertIn("手动运行时使用脚本绝对路径", skill_doc)
         self.assertIn("修复完成后的最终报告", skill_doc)
         self.assertIn("不扫描系统 Python、全局 npm、全局 pnpm 或操作系统包", skill_doc)
         self.assertIn("不要加 `--server`", skill_doc)

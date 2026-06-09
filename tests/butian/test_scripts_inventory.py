@@ -102,6 +102,16 @@ class ButianScriptInventoryTests(unittest.TestCase):
                     text = handle.read()
                 self.assertIn("butian", text.lower())
 
+    def test_run_audit_docs_explain_explicit_server_scan_args(self):
+        with open(os.path.join(DOC_DIR, "run_audit.md"), "r", encoding="utf-8") as handle:
+            text = handle.read()
+
+        self.assertIn("服务器扫描，仅显式要求时使用", text)
+        self.assertIn("默认项目扫描不会连接服务器", text)
+        self.assertIn("--server", text)
+        self.assertIn("--server-only", text)
+        self.assertIn("--server-inventory", text)
+
     def test_public_docs_do_not_contain_generated_security_reports(self):
         generated_reports = sorted(
             os.path.basename(path)
