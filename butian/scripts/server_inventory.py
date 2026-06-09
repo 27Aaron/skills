@@ -48,29 +48,294 @@ OLD_IMAGE_VERSION_HINTS = {
 SERVICE_VERSION_SOURCES = {
     "nginx_v": {
         "name": "nginx",
+        "category": "web",
         "source": "nginx -v",
         "patterns": [r"nginx/(v?\d[^\s,;)]*)"],
         "package_names": ("nginx", "nginx-core", "nginx-full", "nginx-light"),
     },
+    "apache_v": {
+        "name": "apache",
+        "category": "web",
+        "source": "apache2/httpd -v",
+        "patterns": [r"Apache/([0-9][^\s)]*)"],
+        "package_names": ("apache2", "httpd"),
+    },
+    "caddy_v": {
+        "name": "caddy",
+        "category": "web",
+        "source": "caddy version",
+        "patterns": [r"^v?([0-9][^\s]*)"],
+        "package_names": ("caddy",),
+    },
+    "tomcat_v": {
+        "name": "tomcat",
+        "category": "web",
+        "source": "catalina.sh version",
+        "patterns": [r"Server version:\s*Apache Tomcat/([0-9][^\s]*)"],
+        "package_names": ("tomcat", "tomcat*", "tomcat9", "tomcat10"),
+    },
     "openssl_v": {
         "name": "openssl",
+        "category": "tls",
         "source": "openssl version -a",
         "patterns": [r"\bOpenSSL\s+(v?\d[^\s,;)]*)"],
         "package_names": ("openssl", "libssl3", "libssl3t64"),
     },
+    "gnutls_v": {
+        "name": "gnutls",
+        "category": "tls",
+        "source": "gnutls-cli --version",
+        "patterns": [r"gnutls-cli\s+([0-9][^\s]*)", r"GnuTLS\s+([0-9][^\s]*)"],
+        "package_names": ("gnutls", "gnutls-bin", "libgnutls30", "gnutls28"),
+    },
     "ssh_v": {
         "name": "openssh",
+        "category": "remote_access",
         "source": "ssh -V",
         "patterns": [r"\bOpenSSH[_\s](v?\d[^\s,;)]*)"],
         "package_names": ("openssh", "openssh-server", "openssh-client"),
     },
+    "mysql_v": {
+        "name": "mysql",
+        "category": "database",
+        "source": "mysql --version",
+        "patterns": [r"Distrib\s+([0-9][^\s,]*)", r"mysql\s+Ver\s+([0-9][^\s]*)"],
+        "package_names": ("mysql", "mysql-server", "mysql-client", "mysql-community-server"),
+    },
+    "mariadb_v": {
+        "name": "mariadb",
+        "category": "database",
+        "source": "mariadb --version",
+        "patterns": [r"Distrib\s+([0-9][^\s,]*)", r"mariadb\s+Ver\s+([0-9][^\s]*)"],
+        "package_names": ("mariadb", "mariadb-server", "mariadb-client"),
+    },
+    "postgres_v": {
+        "name": "postgresql",
+        "category": "database",
+        "source": "psql --version",
+        "patterns": [r"\(PostgreSQL\)\s+([0-9][^\s]*)"],
+        "package_names": ("postgresql", "postgresql-*", "postgresql-client", "postgresql-client-*"),
+    },
+    "mongo_v": {
+        "name": "mongodb",
+        "category": "database",
+        "source": "mongod --version",
+        "patterns": [r"db version v?([0-9][^\s]*)", r'"version"\s*:\s*"([0-9][^"]*)"'],
+        "package_names": ("mongodb", "mongodb-org", "mongodb-server", "mongod"),
+    },
+    "redis_v": {
+        "name": "redis",
+        "category": "database",
+        "source": "redis-server --version",
+        "patterns": [r"\bv=([0-9][^\s]*)"],
+        "package_names": ("redis", "redis-server", "redis-tools"),
+    },
+    "elasticsearch_v": {
+        "name": "elasticsearch",
+        "category": "database",
+        "source": "elasticsearch --version",
+        "patterns": [r"Version:\s*([0-9][^,\s]*)"],
+        "package_names": ("elasticsearch",),
+    },
     "docker_version": {
         "name": "docker",
+        "category": "container",
         "source": "docker version",
-        "patterns": [r'"Version"\s*:\s*"(v?\d[^"]*)"'],
+        "patterns": [r"Docker version\s+([^,\s]+)", r'"Version"\s*:\s*"(v?\d[^"]*)"'],
         "package_names": ("docker", "docker-ce", "docker.io", "moby-engine"),
     },
+    "containerd_v": {
+        "name": "containerd",
+        "category": "container",
+        "source": "containerd --version",
+        "patterns": [r"\bcontainerd\b.*\s([0-9]+(?:\.[0-9]+)+[^\s]*)"],
+        "package_names": ("containerd", "containerd.io"),
+    },
+    "runc_v": {
+        "name": "runc",
+        "category": "container",
+        "source": "runc --version",
+        "patterns": [r"runc version\s+([0-9][^\s]*)"],
+        "package_names": ("runc",),
+    },
+    "podman_v": {
+        "name": "podman",
+        "category": "container",
+        "source": "podman --version",
+        "patterns": [r"podman version\s+([0-9][^\s]*)"],
+        "package_names": ("podman",),
+    },
+    "node_v": {
+        "name": "node",
+        "category": "runtime",
+        "source": "node --version",
+        "patterns": [r"^v?([0-9][^\s]*)"],
+        "package_names": ("node", "nodejs"),
+    },
+    "python_v": {
+        "name": "python",
+        "category": "runtime",
+        "source": "python --version",
+        "patterns": [r"Python\s+([0-9][^\s]*)"],
+        "package_names": ("python", "python3", "python3.*"),
+    },
+    "java_v": {
+        "name": "java",
+        "category": "runtime",
+        "source": "java -version",
+        "patterns": [r'version\s+"([^"]+)"'],
+        "package_names": ("java", "openjdk*", "java-*", "temurin-*"),
+    },
+    "php_v": {
+        "name": "php",
+        "category": "runtime",
+        "source": "php -v",
+        "patterns": [r"PHP\s+([0-9][^\s]*)"],
+        "package_names": ("php", "php-cli", "php-fpm", "php*"),
+    },
+    "ruby_v": {
+        "name": "ruby",
+        "category": "runtime",
+        "source": "ruby -v",
+        "patterns": [r"ruby\s+([0-9][^\s]*)"],
+        "package_names": ("ruby", "ruby-full", "ruby*"),
+    },
+    "go_v": {
+        "name": "go",
+        "category": "runtime",
+        "source": "go version",
+        "patterns": [r"go version go([0-9][^\s]*)"],
+        "package_names": ("golang", "golang-go", "go"),
+    },
+    "rabbitmq_v": {
+        "name": "rabbitmq",
+        "category": "message_queue",
+        "source": "rabbitmqctl version",
+        "patterns": [r"^([0-9]+(?:\.[0-9]+)+[^\s]*)"],
+        "package_names": ("rabbitmq", "rabbitmq-server"),
+    },
+    "kafka_v": {
+        "name": "kafka",
+        "category": "message_queue",
+        "source": "kafka --version",
+        "patterns": [r"^([0-9]+(?:\.[0-9]+)+[^\s]*)"],
+        "package_names": ("kafka", "apache-kafka", "confluent-kafka"),
+    },
+    "haproxy_v": {
+        "name": "haproxy",
+        "category": "proxy_gateway",
+        "source": "haproxy -v",
+        "patterns": [r"HAProxy version\s+([0-9][^\s]*)"],
+        "package_names": ("haproxy",),
+    },
+    "envoy_v": {
+        "name": "envoy",
+        "category": "proxy_gateway",
+        "source": "envoy --version",
+        "patterns": [r"version:\s*([0-9][^/\s]*)"],
+        "package_names": ("envoy", "envoyproxy"),
+    },
+    "traefik_v": {
+        "name": "traefik",
+        "category": "proxy_gateway",
+        "source": "traefik version",
+        "patterns": [r"Version:\s*([0-9][^\s]*)"],
+        "package_names": ("traefik",),
+    },
+    "git_v": {
+        "name": "git",
+        "category": "ops",
+        "source": "git --version",
+        "patterns": [r"git version\s+([0-9][^\s]*)"],
+        "package_names": ("git",),
+    },
+    "curl_v": {
+        "name": "curl",
+        "category": "ops",
+        "source": "curl --version",
+        "patterns": [r"curl\s+([0-9][^\s]*)"],
+        "package_names": ("curl", "libcurl4", "libcurl"),
+    },
+    "wget_v": {
+        "name": "wget",
+        "category": "ops",
+        "source": "wget --version",
+        "patterns": [r"GNU Wget\s+([0-9][^\s]*)"],
+        "package_names": ("wget",),
+    },
+    "cron_v": {
+        "name": "cron",
+        "category": "ops",
+        "source": "cron/crond -V",
+        "patterns": [r"(?:cron|crond).*?([0-9]+(?:\.[0-9]+)+[^\s]*)"],
+        "package_names": ("cron", "cronie", "crond"),
+    },
+    "systemd_v": {
+        "name": "systemd",
+        "category": "ops",
+        "source": "systemctl --version",
+        "patterns": [r"systemd\s+([0-9][^\s]*)"],
+        "package_names": ("systemd",),
+    },
+    "grafana_v": {
+        "name": "grafana",
+        "category": "panel",
+        "source": "grafana-server -v",
+        "patterns": [r"(?:Version|version)\s+([0-9][^\s]*)"],
+        "package_names": ("grafana", "grafana-enterprise"),
+    },
+    "prometheus_v": {
+        "name": "prometheus",
+        "category": "panel",
+        "source": "prometheus --version",
+        "patterns": [r"version\s+([0-9][^\s]*)"],
+        "package_names": ("prometheus",),
+    },
 }
+
+COMMON_PACKAGE_COMPONENTS = [
+    {"name": "nginx", "category": "web", "package_names": ("nginx", "nginx-core", "nginx-full", "nginx-light")},
+    {"name": "openssh", "category": "remote_access", "package_names": ("openssh", "openssh-server", "openssh-client")},
+    {"name": "openssl", "category": "tls", "package_names": ("openssl", "libssl3", "libssl3t64", "libssl*")},
+    {"name": "gnutls", "category": "tls", "package_names": ("gnutls", "gnutls-bin", "libgnutls30", "gnutls28")},
+    {"name": "nss", "category": "tls", "package_names": ("nss", "libnss3", "nss-util")},
+    {"name": "apache", "category": "web", "package_names": ("apache2", "httpd")},
+    {"name": "tomcat", "category": "web", "package_names": ("tomcat", "tomcat*", "tomcat9", "tomcat10")},
+    {"name": "mysql", "category": "database", "package_names": ("mysql", "mysql-server", "mysql-client", "mysql-community-server")},
+    {"name": "mariadb", "category": "database", "package_names": ("mariadb", "mariadb-server", "mariadb-client")},
+    {"name": "postgresql", "category": "database", "package_names": ("postgresql", "postgresql-*", "postgresql-client", "postgresql-client-*")},
+    {"name": "mongodb", "category": "database", "package_names": ("mongodb", "mongodb-org", "mongodb-server", "mongod")},
+    {"name": "redis", "category": "database", "package_names": ("redis", "redis-server", "redis-tools")},
+    {"name": "elasticsearch", "category": "database", "package_names": ("elasticsearch",)},
+    {"name": "docker", "category": "container", "package_names": ("docker", "docker-ce", "docker.io", "moby-engine")},
+    {"name": "containerd", "category": "container", "package_names": ("containerd", "containerd.io")},
+    {"name": "runc", "category": "container", "package_names": ("runc",)},
+    {"name": "podman", "category": "container", "package_names": ("podman",)},
+    {"name": "node", "category": "runtime", "package_names": ("node", "nodejs")},
+    {"name": "python", "category": "runtime", "package_names": ("python", "python3", "python3.*")},
+    {"name": "java", "category": "runtime", "package_names": ("java", "openjdk*", "java-*", "temurin-*")},
+    {"name": "php", "category": "runtime", "package_names": ("php", "php-cli", "php-fpm", "php*")},
+    {"name": "ruby", "category": "runtime", "package_names": ("ruby", "ruby-full", "ruby*")},
+    {"name": "go", "category": "runtime", "package_names": ("golang", "golang-go", "go")},
+    {"name": "rabbitmq", "category": "message_queue", "package_names": ("rabbitmq", "rabbitmq-server")},
+    {"name": "kafka", "category": "message_queue", "package_names": ("kafka", "apache-kafka", "confluent-kafka")},
+    {"name": "haproxy", "category": "proxy_gateway", "package_names": ("haproxy",)},
+    {"name": "envoy", "category": "proxy_gateway", "package_names": ("envoy", "envoyproxy")},
+    {"name": "traefik", "category": "proxy_gateway", "package_names": ("traefik",)},
+    {"name": "caddy", "category": "proxy_gateway", "package_names": ("caddy",)},
+    {"name": "git", "category": "ops", "package_names": ("git",)},
+    {"name": "curl", "category": "ops", "package_names": ("curl", "libcurl4", "libcurl")},
+    {"name": "wget", "category": "ops", "package_names": ("wget",)},
+    {"name": "sudo", "category": "ops", "package_names": ("sudo",)},
+    {"name": "cron", "category": "ops", "package_names": ("cron", "cronie", "crond")},
+    {"name": "systemd", "category": "ops", "package_names": ("systemd",)},
+    {"name": "jenkins", "category": "panel", "package_names": ("jenkins",)},
+    {"name": "gitlab", "category": "panel", "package_names": ("gitlab", "gitlab-ee", "gitlab-ce")},
+    {"name": "grafana", "category": "panel", "package_names": ("grafana", "grafana-enterprise")},
+    {"name": "prometheus", "category": "panel", "package_names": ("prometheus",)},
+    {"name": "nexus", "category": "panel", "package_names": ("nexus", "nexus-repository-manager", "nexus3")},
+    {"name": "harbor", "category": "panel", "package_names": ("harbor",)},
+]
 
 
 def _strip_quotes(value: str) -> str:
@@ -510,7 +775,17 @@ def _package_matches(package: dict[str, Any], names: tuple[str, ...]) -> bool:
         str(package.get("name") or "").lower(),
         str(package.get("source_name") or "").lower(),
     }
-    return bool(candidates & {name.lower() for name in names})
+    for expected in names:
+        name = str(expected or "").lower()
+        if not name:
+            continue
+        if name.endswith("*"):
+            prefix = name[:-1]
+            if any(candidate.startswith(prefix) for candidate in candidates):
+                return True
+        elif name in candidates:
+            return True
+    return False
 
 
 def _package_link(package: dict[str, Any]) -> dict[str, Any]:
@@ -541,6 +816,32 @@ def _first_version(raw: str, patterns: list[str]) -> str:
     return ""
 
 
+def parse_package_software_components(
+    packages: list[dict[str, Any]], existing: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    versions = []
+    seen_names = {str(item.get("name") or "").lower() for item in existing or []}
+    for spec in COMMON_PACKAGE_COMPONENTS:
+        name = spec["name"]
+        if name.lower() in seen_names:
+            continue
+        linked = _linked_package(packages, spec["package_names"])
+        if not linked:
+            continue
+        versions.append(
+            {
+                "name": name,
+                "category": spec["category"],
+                "version": linked.get("version") or "",
+                "source": "package inventory",
+                "raw": f"{linked.get('name') or name} {linked.get('version') or ''}".strip(),
+                "linked_package": linked,
+            }
+        )
+        seen_names.add(name.lower())
+    return versions
+
+
 def parse_software_versions(
     inventory: dict[str, Any], packages: list[dict[str, Any]]
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -554,6 +855,7 @@ def parse_software_versions(
         linked = _linked_package(packages, spec["package_names"])
         item = {
             "name": spec["name"],
+            "category": spec.get("category") or "",
             "version": version,
             "source": spec["source"],
             "raw": raw.strip().splitlines()[0] if raw.strip() else "",
@@ -573,6 +875,7 @@ def parse_software_versions(
                     "version": version,
                 }
             )
+    versions.extend(parse_package_software_components(packages, versions))
     return versions, errors
 
 

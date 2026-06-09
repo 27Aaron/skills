@@ -107,14 +107,14 @@
 
 ### `server_collect.py`
 
-- 命令覆盖：`/etc/os-release`、`uname -r`、dpkg/rpm/apk 包清单、`ss`/`netstat` 监听端口。
-- 安全覆盖：命令白名单只读，不包含 install、upgrade、restart、sudo；SSH 必须使用密钥登录并禁用密码/键盘交互回退；可选 Docker 只读取 `docker version` 和 `docker ps` 元数据。
+- 命令覆盖：`/etc/os-release`、`uname -r`、dpkg/rpm/apk 包清单、`ss`/`netstat` 监听端口、常见软件版本命令。
+- 安全覆盖：命令白名单只读，不包含 install、upgrade、restart、sudo；SSH 必须使用密钥登录并禁用密码/键盘交互回退；Docker 版本默认读取，容器元数据需要显式开启。
 - 错误覆盖：单条命令失败写入 `errors`，不把失败解释成没有风险；离线 inventory 可读写 round-trip。
 
 ### `server_inventory.py`
 
 - 发行版覆盖：Ubuntu、Debian、Alpine、RHEL、Rocky、AlmaLinux、CentOS Stream、SUSE/openSUSE、Amazon Linux、Oracle Linux；国产或冷门 `ID_LIKE` 不自动放行。
-- 包解析覆盖：dpkg source package、rpm、apk、内核包与 `uname -r` 关联、常见软件版本与发行版包关联。
+- 包解析覆盖：dpkg source package、rpm、apk、内核包与 `uname -r` 关联、常见软件版本与发行版包关联、面板/CI 组件包清单兜底。
 - 安全更新覆盖：apt/dnf/yum/zypper 返回的安全更新线索进入维护建议输入。
 - 暴露面覆盖：运行中的 `.service`、TCP `LISTEN`、UDP `UNCONN`、公网地址判断、敏感服务端口。
 - Docker 覆盖：只基于明确镜像名和版本标签提示旧标签，`latest`、custom tag、无版本标签不生成风险。

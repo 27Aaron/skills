@@ -520,6 +520,84 @@ class ServerPostureParsingTests(unittest.TestCase):
             )
         )
 
+    def test_common_software_versions_cover_server_component_matrix(self):
+        inventory = {
+            "target": "prod-web",
+            "collection_mode": "ssh",
+            "outputs": {
+                "os_release": {"stdout": "ID=ubuntu\nVERSION_ID=24.04\n"},
+                "uname_r": {"stdout": "6.8.0-53-generic\n"},
+                "dpkg_packages": {
+                    "stdout": (
+                        "apache2\t2.4.58-1ubuntu8.4\tamd64\tapache2\n"
+                        "postgresql-client-16\t16.3-0ubuntu0.24.04.1\tamd64\tpostgresql-16\n"
+                        "redis-server\t5:7.0.15-1build2\tamd64\tredis\n"
+                        "containerd\t1.7.12-0ubuntu4\tamd64\tcontainerd\n"
+                        "nodejs\t20.11.1-1nodesource1\tamd64\tnodejs\n"
+                        "grafana\t11.0.0\tamd64\tgrafana\n"
+                        "prometheus\t2.51.2\tamd64\tprometheus\n"
+                        "libgnutls30\t3.8.3-1.1ubuntu3.2\tamd64\tgnutls28\n"
+                        "libnss3\t2:3.98-1build1\tamd64\tnss\n"
+                        "jenkins\t2.452.1\tall\tjenkins\n"
+                        "gitlab-ee\t17.0.2-ee.0\tamd64\tgitlab-ee\n"
+                        "nexus-repository-manager\t3.68.1\tall\tnexus-repository-manager\n"
+                        "harbor\t2.10.0\tamd64\tharbor\n"
+                    )
+                },
+                "apache_v": {"stdout": "Server version: Apache/2.4.58 (Ubuntu)\n"},
+                "postgres_v": {
+                    "stdout": (
+                        "psql (PostgreSQL) 16.3 "
+                        "(Ubuntu 16.3-0ubuntu0.24.04.1)\n"
+                    )
+                },
+                "redis_v": {
+                    "stdout": (
+                        "Redis server v=7.0.15 sha=00000000:0 "
+                        "malloc=jemalloc-5.3.0 bits=64\n"
+                    )
+                },
+                "containerd_v": {
+                    "stdout": "containerd github.com/containerd/containerd 1.7.12\n"
+                },
+                "node_v": {"stdout": "v20.11.1\n"},
+                "grafana_v": {
+                    "stdout": "Version 11.0.0 (commit: abc, branch: HEAD)\n"
+                },
+                "prometheus_v": {
+                    "stdout": "prometheus, version 2.51.2 (branch: HEAD, revision: abc)\n"
+                },
+            },
+            "errors": [],
+        }
+
+        assets = server_inventory.build_server_assets(inventory)
+        versions = {item["name"]: item for item in assets["software_versions"]}
+
+        for name in [
+            "apache",
+            "postgresql",
+            "redis",
+            "containerd",
+            "node",
+            "grafana",
+            "prometheus",
+            "gnutls",
+            "nss",
+            "jenkins",
+            "gitlab",
+            "nexus",
+            "harbor",
+        ]:
+            self.assertIn(name, versions)
+        self.assertEqual(versions["apache"]["version"], "2.4.58")
+        self.assertEqual(
+            versions["postgresql"]["linked_package"]["name"],
+            "postgresql-client-16",
+        )
+        self.assertEqual(versions["jenkins"]["source"], "package inventory")
+        self.assertEqual(versions["nss"]["linked_package"]["source_name"], "nss")
+
     def test_build_server_assets_records_unsupported_distro_error(self):
         inventory = {
             "target": "root@example.test",

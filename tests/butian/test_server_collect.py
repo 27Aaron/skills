@@ -56,7 +56,41 @@ class CommandPlanTests(unittest.TestCase):
         self.assertNotIn(" sudo ", joined)
         self.assertNotIn("systemctl restart", joined)
 
-    def test_docker_commands_are_optional(self):
+    def test_common_software_version_commands_are_read_only(self):
+        commands = server_collect.command_plan(include_docker_metadata=False)
+        ids = {cmd["id"] for cmd in commands}
+        joined = "\n".join(cmd["command"] for cmd in commands)
+
+        expected_ids = {
+            "apache_v",
+            "caddy_v",
+            "tomcat_v",
+            "gnutls_v",
+            "mysql_v",
+            "postgres_v",
+            "redis_v",
+            "containerd_v",
+            "node_v",
+            "java_v",
+            "rabbitmq_v",
+            "haproxy_v",
+            "grafana_v",
+            "prometheus_v",
+            "git_v",
+            "curl_v",
+            "wget_v",
+            "systemd_v",
+        }
+        self.assertTrue(expected_ids.issubset(ids))
+        self.assertIn("apache2 -v", joined)
+        self.assertIn("httpd -v", joined)
+        self.assertIn("docker --version", joined)
+        self.assertIn("node --version", joined)
+        self.assertIn("java -version", joined)
+        self.assertNotIn("docker exec", joined)
+        self.assertNotIn("systemctl restart", joined)
+
+    def test_docker_container_metadata_is_optional(self):
         without_docker_ids = "\n".join(
             cmd["id"]
             for cmd in server_collect.command_plan(include_docker_metadata=False)
@@ -70,8 +104,10 @@ class CommandPlanTests(unittest.TestCase):
             for cmd in server_collect.command_plan(include_docker_metadata=False)
         )
 
+        self.assertIn("docker_version", without_docker_ids)
         self.assertNotIn("docker_ps", without_docker_ids)
-        self.assertNotIn("docker ", without_docker_commands)
+        self.assertIn("docker --version", without_docker_commands)
+        self.assertNotIn("docker ps", without_docker_commands)
         self.assertIn("docker_ps", with_docker_ids)
 
 

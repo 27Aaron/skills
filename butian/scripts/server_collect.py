@@ -89,21 +89,145 @@ def command_plan(include_docker_metadata: bool = False) -> list[dict[str, str]]:
             "command": "if command -v nginx >/dev/null 2>&1; then nginx -v 2>&1; fi",
         },
         {
+            "id": "apache_v",
+            "command": "if command -v apache2 >/dev/null 2>&1; then apache2 -v 2>&1; elif command -v httpd >/dev/null 2>&1; then httpd -v 2>&1; fi",
+        },
+        {
+            "id": "caddy_v",
+            "command": "if command -v caddy >/dev/null 2>&1; then caddy version 2>&1; fi",
+        },
+        {
+            "id": "tomcat_v",
+            "command": "if command -v catalina.sh >/dev/null 2>&1; then catalina.sh version 2>&1; elif command -v version.sh >/dev/null 2>&1; then version.sh 2>&1; fi",
+        },
+        {
             "id": "openssl_v",
             "command": "if command -v openssl >/dev/null 2>&1; then openssl version -a; fi",
+        },
+        {
+            "id": "gnutls_v",
+            "command": "if command -v gnutls-cli >/dev/null 2>&1; then gnutls-cli --version 2>&1; fi",
         },
         {
             "id": "ssh_v",
             "command": "if command -v ssh >/dev/null 2>&1; then ssh -V 2>&1; fi",
         },
+        {
+            "id": "mysql_v",
+            "command": "if command -v mysql >/dev/null 2>&1; then mysql --version 2>&1; fi",
+        },
+        {
+            "id": "mariadb_v",
+            "command": "if command -v mariadb >/dev/null 2>&1; then mariadb --version 2>&1; fi",
+        },
+        {
+            "id": "postgres_v",
+            "command": "if command -v psql >/dev/null 2>&1; then psql --version 2>&1; fi",
+        },
+        {
+            "id": "mongo_v",
+            "command": "if command -v mongod >/dev/null 2>&1; then mongod --version 2>&1; fi",
+        },
+        {
+            "id": "redis_v",
+            "command": "if command -v redis-server >/dev/null 2>&1; then redis-server --version 2>&1; fi",
+        },
+        {
+            "id": "elasticsearch_v",
+            "command": "if command -v elasticsearch >/dev/null 2>&1; then elasticsearch --version 2>&1; fi",
+        },
+        {
+            "id": "docker_version",
+            "command": "if command -v docker >/dev/null 2>&1; then docker --version 2>&1; fi",
+        },
+        {
+            "id": "containerd_v",
+            "command": "if command -v containerd >/dev/null 2>&1; then containerd --version 2>&1; fi",
+        },
+        {
+            "id": "runc_v",
+            "command": "if command -v runc >/dev/null 2>&1; then runc --version 2>&1; fi",
+        },
+        {
+            "id": "podman_v",
+            "command": "if command -v podman >/dev/null 2>&1; then podman --version 2>&1; fi",
+        },
+        {
+            "id": "node_v",
+            "command": "if command -v node >/dev/null 2>&1; then node --version 2>&1; fi",
+        },
+        {
+            "id": "python_v",
+            "command": "if command -v python3 >/dev/null 2>&1; then python3 --version 2>&1; elif command -v python >/dev/null 2>&1; then python --version 2>&1; fi",
+        },
+        {
+            "id": "java_v",
+            "command": "if command -v java >/dev/null 2>&1; then java -version 2>&1; fi",
+        },
+        {
+            "id": "php_v",
+            "command": "if command -v php >/dev/null 2>&1; then php -v 2>&1; fi",
+        },
+        {
+            "id": "ruby_v",
+            "command": "if command -v ruby >/dev/null 2>&1; then ruby -v 2>&1; fi",
+        },
+        {
+            "id": "go_v",
+            "command": "if command -v go >/dev/null 2>&1; then go version 2>&1; fi",
+        },
+        {
+            "id": "rabbitmq_v",
+            "command": "if command -v rabbitmqctl >/dev/null 2>&1; then rabbitmqctl version 2>&1; fi",
+        },
+        {
+            "id": "kafka_v",
+            "command": "if command -v kafka-topics.sh >/dev/null 2>&1; then kafka-topics.sh --version 2>&1; elif command -v kafka-server-start.sh >/dev/null 2>&1; then kafka-server-start.sh --version 2>&1; fi",
+        },
+        {
+            "id": "haproxy_v",
+            "command": "if command -v haproxy >/dev/null 2>&1; then haproxy -v 2>&1; fi",
+        },
+        {
+            "id": "envoy_v",
+            "command": "if command -v envoy >/dev/null 2>&1; then envoy --version 2>&1; fi",
+        },
+        {
+            "id": "traefik_v",
+            "command": "if command -v traefik >/dev/null 2>&1; then traefik version 2>&1; fi",
+        },
+        {
+            "id": "git_v",
+            "command": "if command -v git >/dev/null 2>&1; then git --version 2>&1; fi",
+        },
+        {
+            "id": "curl_v",
+            "command": "if command -v curl >/dev/null 2>&1; then curl --version 2>&1; fi",
+        },
+        {
+            "id": "wget_v",
+            "command": "if command -v wget >/dev/null 2>&1; then wget --version 2>&1; fi",
+        },
+        {
+            "id": "cron_v",
+            "command": "if command -v cron >/dev/null 2>&1; then cron -V 2>&1; elif command -v crond >/dev/null 2>&1; then crond -V 2>&1; fi",
+        },
+        {
+            "id": "systemd_v",
+            "command": "if command -v systemctl >/dev/null 2>&1; then systemctl --version 2>&1; fi",
+        },
+        {
+            "id": "grafana_v",
+            "command": "if command -v grafana-server >/dev/null 2>&1; then grafana-server -v 2>&1; fi",
+        },
+        {
+            "id": "prometheus_v",
+            "command": "if command -v prometheus >/dev/null 2>&1; then prometheus --version 2>&1; fi",
+        },
     ]
     if include_docker_metadata:
         commands.extend(
             [
-                {
-                    "id": "docker_version",
-                    "command": "if command -v docker >/dev/null 2>&1; then docker version --format '{{json .}}'; fi",
-                },
                 {
                     "id": "docker_ps",
                     "command": "if command -v docker >/dev/null 2>&1; then docker ps --format '{{json .}}'; fi",
