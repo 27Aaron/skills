@@ -1516,7 +1516,7 @@ class TestBuildSummary(unittest.TestCase):
         )
         result = analyze.build_summary(scan, analysis)
 
-        self.assertTrue(any("重新运行补天扫描" in p for p in result["priority"]))
+        self.assertTrue(any("重新运行扫描" in p for p in result["priority"]))
         self.assertTrue(any("间接依赖" in p for p in result["priority"]))
         self.assertTrue(any("确认升级父依赖" in p for p in result["priority"]))
 

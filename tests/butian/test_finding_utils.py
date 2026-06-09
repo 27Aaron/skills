@@ -41,8 +41,8 @@ class ReadTextTests(unittest.TestCase):
     def test_reads_utf8_text(self):
         with tempfile.TemporaryDirectory(prefix="butian-findings-") as root:
             path = os.path.join(root, "a.txt")
-            write(path, "hello\n补天\n")
-            self.assertEqual(finding_utils.read_text(path), "hello\n补天\n")
+            write(path, "hello\n扫描\n")
+            self.assertEqual(finding_utils.read_text(path), "hello\n扫描\n")
 
     def test_returns_empty_for_missing_file(self):
         self.assertEqual(finding_utils.read_text("/not/a/real/file"), "")

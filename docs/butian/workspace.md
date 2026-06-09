@@ -4,7 +4,7 @@
 
 ## 概览
 
-`workspace.py` 维护 Butian 本地工作区、运行目录、项目根发现和扫描路径安全边界。它不执行漏洞查询，也不读取业务文件内容；只负责让其他脚本稳定找到 `.butian/<run>/assets/`、`.butian/<run>/content/` 和安全的项目根。
+`workspace.py` 维护本地工作区、运行目录、项目根发现和扫描路径安全边界。它不执行漏洞查询，也不读取业务文件内容；只负责让其他脚本稳定找到 `.butian/<run>/assets/`、`.butian/<run>/content/` 和安全的项目根。
 
 ## 职责
 
@@ -24,7 +24,7 @@
 | `run_dir_from_output_file(output_file)` | 从 assets 文件路径反推 run 目录 |
 | `find_project_root(start_path=".")` | 自动识别最近项目根目录 |
 | `ensure_safe_project_path(project_path)` | 拒绝系统目录和用户主目录 |
-| `butian_gitignore_status(project_path)` | 返回 Butian 本地产物忽略规则状态 |
+| `butian_gitignore_status(project_path)` | 返回本地产物忽略规则状态 |
 
 ## 兼容关系
 
@@ -35,4 +35,3 @@
 - `tests/butian/test_scan_helpers.py`
 - `tests/butian/test_detect.py`
 - `tests/butian/test_scan.py`
-

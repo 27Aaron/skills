@@ -1119,7 +1119,7 @@ _LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
 def setup_logging(verbose=False, debug=False, log_dir=None, log_file="scan.log"):
-    """配置补天日志输出到 stderr 和可选日志文件。
+    """配置扫描日志输出到 stderr 和可选日志文件。
 
     参数：
         verbose: 为 True 时，stderr 使用 INFO 级别。

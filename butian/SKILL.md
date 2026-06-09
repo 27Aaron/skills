@@ -22,7 +22,7 @@ description: >
 
 ## 默认执行规则
 
-1. **第一次扫描报告**：在目标项目目录中，扫描流程直接运行补天脚本；命令示例用于说明执行方式，不作为必须手动复制的操作步骤。项目扫描会生成 `.butian/<run-id>/content/security-report.html` 和 `docs/butian/security-report-<run-id>.md`，并尝试自动打开 HTML。先展示报告，再询问是否修复。
+1. **第一次扫描报告**：在目标项目目录中运行 `run_audit.py` 完成首次扫描。项目扫描会生成 `.butian/<run-id>/content/security-report.html` 和 `docs/butian/security-report-<run-id>.md`，并尝试自动打开 HTML。先展示报告，再询问是否修复。
 2. **修复前先确认**：确认开始修复后，才运行 `fix.py` 或包管理器命令。默认优先升级到已知修复版本；升级到 latest、Dependabot、凭证占位符替换、过期依赖维护都需要确认。
 3. **修复完成后的最终报告**：修复和复扫结束后，运行 `run_audit.py --final-report`。项目最终复扫会再次生成 HTML 和 Markdown，并尝试打开最终 HTML；如果传入了 `--no-open`，仍尊重不打开。
 4. **默认只处理项目**：默认不加 `--server`、`--server-only` 或 `--server-inventory`。普通项目扫描不扫描系统 Python、全局 npm、全局 pnpm 或操作系统包，也不会碰系统升级、系统服务、数据库或日志；提供 SSH 目标或离线 inventory 时，服务器扫描按独立流程处理。
@@ -44,7 +44,7 @@ description: >
 
 ## 默认项目流程
 
-默认通过本 skill 里的 `run_audit.py` 完成项目扫描，并按当前操作系统选择 Python 启动器。命令示例用于说明执行方式，不是必须手动输入的步骤。实际执行时可以使用脚本绝对路径，避免依赖 shell 当前目录。
+默认通过本 skill 里的 `run_audit.py` 完成项目扫描，并按当前操作系统选择 Python 启动器。实际执行时可以使用脚本绝对路径，避免依赖 shell 当前目录。
 
 ```bash
 # macOS / Linux

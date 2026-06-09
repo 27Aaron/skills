@@ -4,7 +4,7 @@
 
 ## 概览
 
-`labels.py` 维护 Butian 面向用户展示的共享中文标签。它把扫描器内部的机器标识，例如 `openai_key`、`terraform_state`，映射成 Markdown 和 HTML 报告可读的中文名称。
+`labels.py` 维护面向用户展示的共享中文标签。它把扫描器内部的机器标识，例如 `openai_key`、`terraform_state`，映射成 Markdown 和 HTML 报告可读的中文名称。
 
 ## 职责
 

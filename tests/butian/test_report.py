@@ -744,7 +744,7 @@ class RenderNextStepsTests(unittest.TestCase):
             ]
         }
         result = report.render_next_steps(analysis)
-        self.assertIn("重新运行补天扫描", result)
+        self.assertIn("重新运行扫描", result)
         self.assertIn("父依赖信息", result)
         self.assertIn("升级父依赖", result)
         self.assertIn("确认风险项是否真正消失", result)

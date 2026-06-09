@@ -464,7 +464,7 @@ class CliHelperTests(unittest.TestCase):
     def test_post_fix_guidance_explains_rescan_and_transitive_residuals(self):
         lines = fix_mod.post_fix_guidance("minimal")
         text = "\n".join(lines)
-        self.assertIn("重新运行补天扫描", text)
+        self.assertIn("重新运行扫描", text)
         self.assertIn("普通包管理器升级", text)
         self.assertIn("父依赖信息", text)
         self.assertIn("升级父依赖", text)

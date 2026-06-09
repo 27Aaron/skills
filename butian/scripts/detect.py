@@ -38,7 +38,7 @@ except ImportError:
 
 
 def parse_args(argv):
-    parser = argparse.ArgumentParser(description="运行补天项目扫描预检")
+    parser = argparse.ArgumentParser(description="运行项目扫描预检")
     parser.add_argument("project_path", nargs="?", default=".")
     parser.add_argument(
         "--no-root-discovery",

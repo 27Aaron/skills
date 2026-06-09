@@ -1,4 +1,4 @@
-"""Expose the Butian test suite to ``python -m unittest discover -s tests``."""
+"""Expose the package test suite to ``python -m unittest discover -s tests``."""
 
 import os
 

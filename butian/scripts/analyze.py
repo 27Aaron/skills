@@ -861,7 +861,7 @@ def build_summary(scan, analysis):
     )
 
     if hygiene_only:
-        tldr = "本次没有发现补天支持的依赖文件，因此未执行依赖漏洞扫描；报告结论仅覆盖仓库安检范围。"
+        tldr = "本次没有发现当前支持的依赖文件，因此未执行依赖漏洞扫描；报告结论仅覆盖仓库安检范围。"
     elif critical_high and vuln_count:
         risk_scope = "依赖风险项" if server_issue_count == 0 else "风险项"
         severity_summary = (
@@ -952,7 +952,7 @@ def build_summary(scan, analysis):
         )
     if dependency_fix_count:
         priority.append(
-            "依赖修复后必须重新运行补天扫描；如果仍出现同名旧版本，通常是间接依赖被父包锁定，"
+            "依赖修复后必须重新运行扫描；如果仍出现同名旧版本，通常是间接依赖被父包锁定，"
             "需要询问用户是否确认升级父依赖到 latest。"
         )
     if errors:

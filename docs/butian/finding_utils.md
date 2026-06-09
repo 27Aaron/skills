@@ -4,7 +4,7 @@
 
 ## 概览
 
-`finding_utils.py` 是 Butian 本地规则的公共工具层。`repo_checks.py`、`iac_checks.py`、`workflow_checks.py` 等脚本都通过它生成统一的 finding 结构，避免每个规则模块各自处理路径、证据、严重度和去重。
+`finding_utils.py` 是本地规则的公共工具层。`repo_checks.py`、`iac_checks.py`、`workflow_checks.py` 等脚本都通过它生成统一的 finding 结构，避免每个规则模块各自处理路径、证据、严重度和去重。
 
 ## 职责
 

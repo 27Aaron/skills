@@ -1,4 +1,4 @@
-"""Detailed unit tests for shared Butian display labels."""
+"""Detailed unit tests for shared display labels."""
 
 import re
 import unittest

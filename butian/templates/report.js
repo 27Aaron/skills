@@ -106,7 +106,7 @@ const DATA = (() => {
     }
     if (!d.summary.tldr || !d.project.total_packages) {
       d.summary.tldr =
-        "本次没有发现补天支持的依赖文件，因此未执行依赖漏洞扫描；报告结论仅覆盖仓库安检范围。";
+        "本次没有发现当前支持的依赖文件，因此未执行依赖漏洞扫描；报告结论仅覆盖仓库安检范围。";
     }
     if (!d.summary.detail || !d.project.total_packages) {
       d.summary.detail = HYGIENE_ONLY_NOTICE;

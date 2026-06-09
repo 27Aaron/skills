@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "butian", "scri
 from butian.scripts import analyze, run_audit, scan, workspace
 
 
-class ButianScanTests(unittest.TestCase):
+class ScanPipelineTests(unittest.TestCase):
     def test_user_agent_is_browser_like_and_header_safe(self):
         scan.HTTP_USER_AGENT.encode("latin-1")
         self.assertTrue(scan.HTTP_USER_AGENT.startswith("Mozilla/5.0"))
@@ -396,7 +396,9 @@ class DependencyParsersModuleCompatibilityTests(unittest.TestCase):
         self.assertIn("docs/butian/security-report-<run-id>.md", skill_doc)
         self.assertIn("默认执行规则", skill_doc)
         self.assertIn("第一次扫描报告", skill_doc)
-        self.assertIn("扫描流程直接运行补天脚本", skill_doc)
+        self.assertIn("运行 `run_audit.py` 完成首次扫描", skill_doc)
+        self.assertNotIn("命令" + "示例用于说明执行方式", skill_doc)
+        self.assertNotIn("\u8865\u5929" + "脚本", skill_doc)
         self.assertIn("macOS / Linux", skill_doc)
         self.assertIn("python3 scripts/run_audit.py", skill_doc)
         self.assertIn("Windows", skill_doc)
@@ -2461,7 +2463,7 @@ class RunDirFromOutputFileTests(unittest.TestCase):
         self.assertEqual(result, "/tmp/custom")
 
 
-class EnsureButianRunTests(unittest.TestCase):
+class EnsureRunWorkspaceTests(unittest.TestCase):
     def test_creates_workspace_and_dirs(self):
         with tempfile.TemporaryDirectory(prefix="butian-run-") as root:
             run_dir = scan.ensure_butian_run(root)
@@ -2500,7 +2502,7 @@ class EnsureButianRunTests(unittest.TestCase):
             self.assertTrue(os.path.isdir(os.path.join(new_run, "content")))
 
 
-class EnsureButianGitignoreTests(unittest.TestCase):
+class EnsureGitignoreWorkspaceTests(unittest.TestCase):
     def test_creates_gitignore(self):
         with tempfile.TemporaryDirectory(prefix="butian-gitignore-") as root:
             scan._GITIGNORE_STATUS_BY_PROJECT.clear()

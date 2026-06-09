@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""补天依赖修复执行器。
+"""依赖修复执行器。
 
 独立用法：
     python3 scripts/fix.py <analysis.json> --strategy fixed
@@ -831,7 +831,7 @@ def execute_fixes(commands, project_path):
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(
-        description="执行选定的补天依赖修复"
+        description="执行选定的依赖修复"
     )
     parser.add_argument(
         "analysis_json", help=".butian/<run>/assets/analysis.json 路径"
@@ -921,20 +921,20 @@ def post_fix_guidance(strategy):
     """返回修复后必须复扫的人类可读提示。"""
     if strategy == "latest":
         return [
-            "全部依赖已升级到最新版本，请重新运行补天扫描验证结果。",
+            "全部依赖已升级到最新版本，请重新运行扫描验证结果。",
             "跨大版本升级可能引入兼容性变化；请运行项目测试、构建或启动检查。",
             "如果复扫仍出现同名旧版本（通常来自嵌套依赖），报告会标注父依赖信息。",
         ]
     if strategy == "parent-upgrade":
         return [
-            "父依赖和子依赖升级已完成，请重新运行补天扫描验证结果。",
+            "父依赖和子依赖升级已完成，请重新运行扫描验证结果。",
             "升级后复扫会生成新报告，打开 HTML 报告查看最终修复状态。",
             "部分父依赖升到 latest 可能带来兼容性变化；请运行项目测试、构建或启动检查。",
             "如果复扫仍有残留（通常来自无法追溯的间接依赖），需要等待上游修复或人工评估。",
         ]
     if strategy == "force-residual":
         return [
-            "强制覆盖已完成，请重新运行补天扫描验证结果。",
+            "强制覆盖已完成，请重新运行扫描验证结果。",
             "npm overrides 已写入 package.json，强制所有嵌套实例使用指定版本。",
             "请运行项目测试、构建或启动检查，确认 overrides 不会导致兼容性问题。",
             "overrides 是永久性的版本约束，已记录在 package.json 中，后续 npm install 会自动遵守。",
@@ -947,7 +947,7 @@ def post_fix_guidance(strategy):
         ]
     label = strategy_label(strategy)
     return [
-        f"{label}已完成，请重新运行补天扫描验证结果。",
+        f"{label}已完成，请重新运行扫描验证结果。",
         "本脚本只执行普通包管理器升级，不会自动改父依赖链。",
         "如果复扫仍出现同名旧版本，报告会标注父依赖信息，可继续升级父依赖。",
     ]

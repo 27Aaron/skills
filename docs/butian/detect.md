@@ -13,7 +13,7 @@
 | 1   | 依赖文件检测   | 扫描项目根目录，匹配已知的 lockfile 名称                                                       |
 | 2   | 工作区准备     | 创建 `.butian/<run>/` 运行目录结构；默认 run id 为 `YYYYMMDD-HHMM`，同一分钟重复扫描会追加后缀 |
 | 3   | 扫描模式推荐   | 根据是否找到依赖文件推荐 `full_dependency_scan` 或 `hygiene_only`                              |
-| 4   | Gitignore 准备 | 确保 `.gitignore` 覆盖 Butian 本地工作区和报告目录                                             |
+| 4   | Gitignore 准备 | 确保 `.gitignore` 覆盖本地工作区和报告目录                                                     |
 
 ## CLI 用法
 
@@ -109,7 +109,7 @@ python3 detect.py --compact              # 输出紧凑 JSON
 | 导入项                     | 用途                                   |
 | -------------------------- | -------------------------------------- |
 | `LOCKFILE_MAP`             | 生态 → lockfile 文件名的映射           |
-| `butian_gitignore_status`  | 获取 Butian 本地工作区相关忽略规则状态 |
+| `butian_gitignore_status`  | 获取本地工作区相关忽略规则状态 |
 | `default_asset_path`       | 构建默认资产文件路径                   |
 | `ensure_butian_run`        | 创建运行目录                           |
 | `find_project_root`        | 向上遍历查找项目根                     |

@@ -7,7 +7,7 @@
 
 `visualize.py` 将 `analyze.py` 的 `analysis.json` 注入为一个完全自包含的 HTML 安全报告。HTML 内联 CSS、JavaScript 和报告数据，不依赖外部网络资源，适合直接通过浏览器打开、截图、发送给同事或作为本地验收面。
 
-HTML 是 Butian 最完整的用户界面：它不仅展示 Markdown 中的风险和仓库安检事实，还提供折叠详情、代码证据、tooltip、响应式布局和复制按钮。
+HTML 是最完整的报告界面：它不仅展示 Markdown 中的风险和仓库安检事实，还提供折叠详情、代码证据、tooltip、响应式布局和复制按钮。
 
 ## 职责
 

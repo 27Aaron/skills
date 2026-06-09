@@ -4,7 +4,7 @@
 
 ## 概览
 
-`scan.py` 是 Butian 安全扫描器的核心引擎，负责收集项目安全数据并输出结构化 JSON，供下游 `analyze.py` 和 `report.py` 消费。扫描过程不修改业务源码或依赖；只准备 Butian 本地工作区、缓存和报告产物，并确保这些本地产物路径被项目忽略规则覆盖。
+`scan.py` 是安全扫描器的核心引擎，负责收集项目安全数据并输出结构化 JSON，供下游 `analyze.py` 和 `report.py` 消费。扫描过程不修改业务源码或依赖；只准备本地工作区、缓存和报告产物，并确保这些本地产物路径被项目忽略规则覆盖。
 
 ## 职责
 
@@ -95,7 +95,7 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 | `find_project_root(start_path)`                         | 向上遍历目录树，找到包含项目标记文件（`.git`、`package.json` 等）的根目录      |
 | `ensure_butian_run(project_path, run_id)`               | 创建 `.butian/<run>/` 运行目录；默认 run id 为 `YYYYMMDD-HHMM`，重复时追加后缀 |
 | `default_asset_path(project_path, filename, preflight)` | 返回默认的资产文件路径                                                         |
-| `butian_gitignore_status(project_path)`                 | 返回 Butian 本地产物忽略规则的状态，包含缺失项和已新增项                       |
+| `butian_gitignore_status(project_path)`                 | 返回本地产物忽略规则的状态，包含缺失项和已新增项                               |
 
 ### 日志系统
 
@@ -591,7 +591,7 @@ main()
 `scan.py` 自动在项目 `.gitignore` 中添加以下条目：
 
 ```
-# Butian local workspace
+# Local security scan workspace
 .butian/
 docs/butian/security-report-*.md
 ```

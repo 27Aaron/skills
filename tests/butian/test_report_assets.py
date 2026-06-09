@@ -15,7 +15,7 @@ REPORT_CSS = os.path.join(ROOT, "butian", "templates", "report.css")
 REPORT_JS = os.path.join(ROOT, "butian", "templates", "report.js")
 
 
-class ButianReportAssetTests(unittest.TestCase):
+class ReportAssetTests(unittest.TestCase):
     def test_markdown_hygiene_only_warns_dependency_scan_was_not_run(self):
         analysis = {
             "generated_at": "2026-06-05 09:05:50",
@@ -1312,7 +1312,7 @@ class ButianReportAssetTests(unittest.TestCase):
             "summary": {
                 "tldr": "发现 1 个已确认依赖风险项，其中 1 个高风险，主要集中在 focus-pkg；仓库安检未发现凭证或敏感文件问题。建议先升级有明确修复版本的高风险依赖，完成后复扫确认。",
                 "detail": "本次检查覆盖项目 demo，仓库安检通过。",
-                "priority": ["先升级 focus-pkg，再重新运行补天扫描。"],
+                "priority": ["先升级 focus-pkg，再重新运行扫描。"],
             },
             "top_issues": [
                 {
@@ -1339,7 +1339,7 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertNotIn("其中 1 个高风险，主要集中在 focus-pkg", html)
         tldr_index = html.index("TL;DR")
         detail_index = html.index("本次检查覆盖项目 demo")
-        priority_index = html.index("重新运行补天扫描")
+        priority_index = html.index("重新运行扫描")
         boundary_index = html.index("不能替代代码审计")
         self.assertLess(tldr_index, detail_index)
         self.assertLess(detail_index, priority_index)

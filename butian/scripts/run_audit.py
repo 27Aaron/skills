@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""运行完整的补天本地审计流水线。
+"""运行完整的本地审计流水线。
 
 用法：
     python3 scripts/run_audit.py [project_path]
@@ -48,7 +48,7 @@ def script_path(name):
 
 
 def parse_args(argv):
-    parser = argparse.ArgumentParser(description="运行补天本地审计流水线")
+    parser = argparse.ArgumentParser(description="运行本地审计流水线")
     parser.add_argument("project_path", nargs="?", default=".")
     parser.add_argument(
         "--no-root-discovery",
@@ -325,7 +325,7 @@ def report_run_dir(analysis, scan=None):
     output_file = (scan or {}).get("output_file")
     if output_file:
         return os.path.abspath(run_dir_from_output_file(output_file))
-    raise ValueError("无法从分析结果中确定补天报告运行目录")
+    raise ValueError("无法从分析结果中确定报告运行目录")
 
 
 def report_run_id(run_dir):
@@ -716,7 +716,7 @@ def main():
     args = parse_args(sys.argv[1:])
     # 先启用 stderr 日志；scan.json 固定运行目录后再追加文件日志。
     setup_logging()
-    logger.info("补天审计流水线开始: 路径=%s", args.project_path)
+    logger.info("审计流水线开始: 路径=%s", args.project_path)
 
     # 预检先固定本次运行工作区，再让下游阶段写入产物路径。
     preflight_cmd = [
@@ -876,7 +876,7 @@ def main():
     }
 
     print(format_human_summary(summary, scan, analysis, args))
-    logger.info("补天审计流水线完成")
+    logger.info("审计流水线完成")
     return 0
 
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""补天工作区和项目边界工具。"""
+"""本地工作区和项目边界工具。"""
 
 from __future__ import annotations
 
@@ -139,7 +139,7 @@ def ensure_butian_gitignore(project_path):
 
     with open(gitignore_path, "a", encoding="utf-8") as handle:
         header = (
-            "" if "Butian local workspace" in content else "# Butian local workspace\n"
+            "" if "Local security scan workspace" in content else "# Local security scan workspace\n"
         )
         entries = "\n".join(missing_entries)
         handle.write(f"{prefix}{header}{entries}\n")
@@ -252,7 +252,7 @@ def is_protected_project_path(path):
 def ensure_safe_project_path(project_path):
     if is_protected_project_path(project_path):
         raise ValueError(
-            "补天只扫描项目目录，不能把系统目录或用户主目录作为 project_path。"
+            "只扫描项目目录，不能把系统目录或用户主目录作为 project_path。"
             "请切换到具体代码仓库后重新运行。"
         )
 

@@ -1,4 +1,4 @@
-"""Repository-level coverage guardrails for Butian scripts, tests, and docs."""
+"""Repository-level coverage guardrails for scripts, tests, and docs."""
 
 import os
 import re
@@ -61,7 +61,7 @@ SCRIPT_DOC_FILES = {
 }
 
 
-class ButianScriptInventoryTests(unittest.TestCase):
+class ScriptInventoryTests(unittest.TestCase):
     def test_every_python_script_has_declared_test_files(self):
         scripts = sorted(
             name for name in os.listdir(SCRIPT_DIR) if name.endswith(".py")
@@ -277,16 +277,80 @@ class ButianScriptInventoryTests(unittest.TestCase):
         paths = [SKILL_PATH]
         paths.extend(glob.glob(os.path.join(REFERENCE_DIR, "*.md")))
         paths.extend(glob.glob(os.path.join(DOC_DIR, "*.md")))
+        brand_cn = "\u8865\u5929"
+        brand_en = "B" + "utian"
+        empty_guidance = "命令" + "示例用于说明执行方式"
+        manual_guidance = "不作为" + "必须手动"
         banned_patterns = {
             "internal reference routing": r"读 `references|不要在主流程",
             "explicit-user-requirement phrasing": r"显式要求|用户明确|用户点头|用户明确要求|只有用户明确要求|除非用户明确要求|必须由用户明确要求",
             "agent-facing wording": r"(?<!User-)\b[Aa]gent\b",
+            "forced branding": "|".join(
+                [
+                    brand_cn + r"脚本",
+                    brand_cn + r"扫描",
+                    brand_cn + r"支持",
+                    brand_cn + r"通用",
+                    brand_cn + r"会",
+                    brand_en + r" 安全",
+                    brand_en + r" 本地",
+                    brand_en + r" 的",
+                    r"HTML 是 " + brand_en,
+                    brand_en + r" 同时",
+                ]
+            ),
+            "empty command guidance": empty_guidance + "|" + manual_guidance,
         }
 
         for path in sorted(paths):
             with self.subTest(path=os.path.relpath(path, ROOT)):
                 with open(path, "r", encoding="utf-8") as handle:
                     text = handle.read()
+                if path != SKILL_PATH:
+                    self.assertIsNone(
+                        re.search(brand_cn + r"|\b" + brand_en + r"\b", text),
+                        f"brand term appears in {path}",
+                    )
+                for label, pattern in banned_patterns.items():
+                    self.assertIsNone(
+                        re.search(pattern, text),
+                        f"{label} appears in {path}",
+                    )
+
+    def test_user_visible_strings_avoid_forced_branding(self):
+        paths = glob.glob(os.path.join(SCRIPT_DIR, "*.py"))
+        paths.extend(glob.glob(os.path.join(ROOT, "butian", "templates", "*.js")))
+        brand_cn = "\u8865\u5929"
+        brand_en = "B" + "utian"
+        empty_guidance = "命令" + "示例用于说明执行方式"
+        manual_guidance = "不作为" + "必须手动"
+        banned_patterns = {
+            "forced branding": "|".join(
+                [
+                    brand_cn + r"脚本",
+                    brand_cn + r"扫描",
+                    brand_cn + r"支持",
+                    brand_cn + r"通用",
+                    brand_cn + r"会",
+                    brand_en + r" 安全",
+                    brand_en + r" 本地",
+                    brand_en + r" 的",
+                    r"HTML 是 " + brand_en,
+                    brand_en + r" 同时",
+                    brand_en + r" local workspace",
+                ]
+            ),
+            "empty command guidance": empty_guidance + "|" + manual_guidance,
+        }
+
+        for path in sorted(paths):
+            with self.subTest(path=os.path.relpath(path, ROOT)):
+                with open(path, "r", encoding="utf-8") as handle:
+                    text = handle.read()
+                self.assertIsNone(
+                    re.search(brand_cn + r"|\b" + brand_en + r"\b", text),
+                    f"brand term appears in {path}",
+                )
                 for label, pattern in banned_patterns.items():
                     self.assertIsNone(
                         re.search(pattern, text),

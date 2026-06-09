@@ -4,7 +4,7 @@
 
 ## 概览
 
-`run_audit.py` 是 Butian 安全审计的完整管线编排器。它按顺序调用 `detect → scan → analyze → report → visualize` 五个阶段，一次性完成从预检到报告生成的全流程。
+`run_audit.py` 是完整管线编排器。它按顺序调用 `detect → scan → analyze → report → visualize` 五个阶段，一次性完成从预检到报告生成的全流程。
 
 ## 职责
 
