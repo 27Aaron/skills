@@ -194,6 +194,15 @@ class ButianScriptInventoryTests(unittest.TestCase):
                     f"{script} should use capability section names, not pipeline Step labels",
                 )
 
+    def test_secret_scan_comments_explain_why_boundaries_exist(self):
+        with open(os.path.join(SCRIPT_DIR, "scan.py"), "r", encoding="utf-8") as handle:
+            scan_text = handle.read()
+
+        self.assertIn("Secret scan file selection", scan_text)
+        self.assertIn("Entropy is a fallback signal", scan_text)
+        self.assertIn("Template files keep evidence locatable", scan_text)
+        self.assertIn("Regex findings take precedence over entropy", scan_text)
+
 
 if __name__ == "__main__":
     unittest.main()

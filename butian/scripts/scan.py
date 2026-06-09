@@ -1174,7 +1174,7 @@ def is_binary_file(filepath):
 
 
 # ---------------------------------------------------------------------------
-# Progress reporter
+# Secret scan file selection
 # ---------------------------------------------------------------------------
 
 
@@ -1339,6 +1339,9 @@ def check_sensitive_tracked(project_path, errors=None):
 # ---------------------------------------------------------------------------
 # Entropy-based secret detection engine
 # ---------------------------------------------------------------------------
+
+# Entropy is a fallback signal for unknown token formats. Provider-specific
+# regex signatures remain the primary evidence because they are more precise.
 
 # Shannon entropy thresholds
 _BASE64_ENTROPY_THRESHOLD = 4.5  # base64 chars: max ~6.0
@@ -1601,6 +1604,8 @@ def secret_preview(secret_type, match_text):
 
 def soft_secret_preview(secret_type, match_text):
     """Partially mask evidence from template files without hiding its location."""
+    # Template files keep evidence locatable so beginners can find the exact
+    # placeholder line, while still masking enough characters for safe reports.
     if secret_type == "private_key":
         return "-----BEGIN **** PRIVATE KEY-----"
 
@@ -1825,9 +1830,8 @@ def scan_secrets(
             count += 1
             secret_scan_stats["scanned_files"] = count
 
-    # Merge: deduplicate regex findings.
-    # Same (file, line) already matched by a high-confidence pattern suppresses
-    # lower-confidence matches on that line to avoid duplicate reports.
+    # Regex findings take precedence over entropy. A provider-shaped token is
+    # stronger evidence than a generic random-looking value on the same line.
     seen = set()
     high_conf_locations = set()
     deduped = []
