@@ -3,6 +3,7 @@
 import os
 import re
 import glob
+import subprocess
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -113,14 +114,18 @@ class ButianScriptInventoryTests(unittest.TestCase):
         self.assertIn("--server-inventory", text)
 
     def test_public_docs_do_not_contain_generated_security_reports(self):
-        generated_reports = sorted(
-            os.path.basename(path)
-            for path in glob.glob(os.path.join(DOC_DIR, "security-report-*.md"))
+        result = subprocess.run(
+            ["git", "ls-files", "docs/butian/security-report-*.md"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
         )
+        tracked_reports = [line for line in result.stdout.splitlines() if line]
         self.assertEqual(
-            generated_reports,
+            tracked_reports,
             [],
-            "Generated security reports belong in ignored runtime artifacts, not public docs",
+            "Generated security reports belong in ignored runtime artifacts, not tracked public docs",
         )
 
     def test_skill_declares_post_cancel_manual_confirmations(self):
