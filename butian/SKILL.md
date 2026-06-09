@@ -152,6 +152,14 @@ py -3 scripts/visualize.py .butian/<timestamp>/assets/analysis.json
 
 扫描完成、Markdown 报告生成、HTML 报告打开、终端摘要输出之后，如果存在可修复依赖漏洞，Agent 按以下三轮流程引导用户修复。这些询问写在 Skill 工作流里，不写进扫描脚本。
 
+如果报告的 `仓库安检 / 依赖配置与维护` 中出现 `配置 Dependabot`，说明本地检测到 GitHub remote 和 GitHub Dependabot 官方支持的生态，但仓库缺少 `.github/dependabot.yml`。这不是漏洞修复项，必须单独向用户确认是否创建配置；用户确认后才运行：
+
+```bash
+python3 scripts/fix.py .butian/<timestamp>/assets/analysis.json --strategy dependabot
+```
+
+该策略只创建 `.github/dependabot.yml`，不会覆盖已有文件；推送到 GitHub 后 Dependabot 才会按 schedule 创建版本更新 PR。
+
 #### 第一轮：顶层依赖升级
 
 1. **是否修复**：用 AskUserQuestion 提供 `确认修复` / `取消修复`。提问时用"风险项"替代"依赖漏洞"，格式如"发现 N 个风险项（X高/Y中/Z低），是否执行修复？"（数字与级别之间无空格）。用户选择取消时，停止修复，只总结报告路径和主要风险。

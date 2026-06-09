@@ -263,6 +263,62 @@ def extract_fixable_items(analysis):
     return fixable
 
 
+def extract_dependabot_config_items(analysis):
+    """Return generated Dependabot config items from analysis green items."""
+    items = analysis.get("green") or analysis.get("green_items") or []
+    configs = []
+    for item in items:
+        fc = item.get("fix_config") or {}
+        if fc.get("type") != "dependabot_config":
+            continue
+        path = fc.get("path") or ".github/dependabot.yml"
+        content = fc.get("content") or ""
+        if not content:
+            continue
+        configs.append({"path": path, "content": content})
+    return configs
+
+
+def _safe_project_file(project_path, rel_path):
+    normalized = str(rel_path or "").replace("\\", "/").lstrip("/")
+    parts = [part for part in normalized.split("/") if part]
+    if not parts or ".." in parts:
+        return None
+    root = os.path.abspath(project_path)
+    target = os.path.abspath(os.path.join(root, *parts))
+    try:
+        if os.path.commonpath([root, target]) != root:
+            return None
+    except ValueError:
+        return None
+    return target
+
+
+def execute_dependabot_config_fixes(analysis, project_path):
+    """Create generated Dependabot config files without overwriting user files."""
+    items = extract_dependabot_config_items(analysis)
+    if not items:
+        return [], [("dependabot", "没有可创建的 Dependabot 配置。")]
+
+    successes = []
+    failures = []
+    for item in items:
+        rel_path = item["path"]
+        target = _safe_project_file(project_path, rel_path)
+        if not target:
+            failures.append((rel_path, "目标路径不安全"))
+            continue
+        if os.path.exists(target):
+            failures.append((rel_path, "文件已存在，未覆盖"))
+            continue
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        with open(target, "w", encoding="utf-8") as handle:
+            handle.write(item["content"])
+        successes.append(rel_path)
+        print(f"  ✅ 已创建 {rel_path}")
+    return successes, failures
+
+
 # ---------------------------------------------------------------------------
 # Build upgrade commands
 # ---------------------------------------------------------------------------
@@ -797,12 +853,20 @@ def parse_args(argv):
     parser.add_argument(
         "--strategy",
         required=True,
-        choices=["fixed", "minimal", "latest", "parent-upgrade", "force-residual"],
+        choices=[
+            "fixed",
+            "minimal",
+            "latest",
+            "parent-upgrade",
+            "force-residual",
+            "dependabot",
+        ],
         help=(
             "'fixed'/'minimal' upgrades to known fixed versions; "
             "'latest' upgrades to latest versions; "
             "'parent-upgrade' upgrades root parent dependencies for nested residuals; "
-            "'force-residual' forces override versions for untraceable nested residuals"
+            "'force-residual' forces override versions for untraceable nested residuals; "
+            "'dependabot' creates generated .github/dependabot.yml"
         ),
     )
     return parser.parse_args(argv)
@@ -817,6 +881,8 @@ def strategy_label(strategy):
         return "升级父依赖"
     if strategy == "force-residual":
         return "强制覆盖残留依赖"
+    if strategy == "dependabot":
+        return "创建 Dependabot 配置"
     return "升级到最新版本"
 
 
@@ -845,6 +911,12 @@ def post_fix_guidance(strategy):
             "npm overrides 已写入 package.json，强制所有嵌套实例使用指定版本。",
             "请运行项目测试、构建或启动检查，确认 overrides 不会导致兼容性问题。",
             "overrides 是永久性的版本约束，已记录在 package.json 中，后续 npm install 会自动遵守。",
+        ]
+    if strategy == "dependabot":
+        return [
+            "Dependabot 配置创建成功后，请提交 .github/dependabot.yml 到 GitHub。",
+            "推送后 GitHub 会按 schedule 检查对应生态，并为可更新依赖创建 PR。",
+            "如仓库使用私有 registry，需要再按 GitHub 文档补充 registries 和凭据配置。",
         ]
     label = strategy_label(strategy)
     return [
@@ -920,6 +992,26 @@ def main(argv=None):
         print()
         for line in post_fix_guidance(strategy):
             print(f"  {line}")
+        return 1 if failures else 0
+
+    # --- Strategy: dependabot ---
+    if strategy == "dependabot":
+        print()
+        print("正在创建 Dependabot 配置...")
+        successes, failures = execute_dependabot_config_fixes(analysis, project_path)
+        print()
+        if successes:
+            print(f"  成功创建 {len(successes)} 个文件")
+        if failures:
+            print(f"  失败 {len(failures)} 个:")
+            for path, err in failures:
+                print(f"    - {path}: {err}")
+        print()
+        if successes:
+            for line in post_fix_guidance(strategy):
+                print(f"  {line}")
+        elif failures:
+            print("  未创建 Dependabot 配置，请先处理上面的失败原因。")
         return 1 if failures else 0
 
     # --- Strategy: minimal/fixed — only upgrade vulnerable packages ---

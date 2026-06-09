@@ -576,6 +576,8 @@ def build_hygiene_items(scan):
                 or "请安排负责人确认并按项目策略修正。",
                 "source": finding.get("source") or "builtin",
             }
+            if finding.get("fix_config"):
+                item["fix_config"] = finding["fix_config"]
             if severity in {"critical", "high"}:
                 red.append(item)
             elif severity == "medium":

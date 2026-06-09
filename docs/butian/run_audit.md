@@ -79,6 +79,8 @@ run_audit.py
 
 `run_audit.py` 不执行依赖升级，也不询问用户是否修复。修复确认属于 `SKILL.md` 的 Agent 工作流，分三轮进行：
 
+**治理配置**：如果 analysis 中出现 `配置 Dependabot`，说明仓库 remote 指向 GitHub 且检测到 Dependabot 官方支持生态，但缺少 `.github/dependabot.yml`。用户确认后可调用 `fix.py --strategy dependabot` 创建配置；该策略不会覆盖已有文件，也不属于依赖漏洞修复轮次。
+
 **第一轮**：用户选择修复策略后，调用 `fix.py --strategy fixed|latest` 执行顶层依赖升级，然后重新运行 `run_audit.py` 复扫验证。复扫不会重复弹出浏览器，也不会生成 Markdown。
 
 **第二轮**（复扫后仍有残留时）：如果复扫仍出现同名旧版本，通常是间接依赖被父包锁定。脚本会自动分析父依赖声明的 semver 范围，分三档处理：修复版本在范围内（只需重新解析 lockfile）、不在范围内（升级父依赖到 latest）、无法追溯到根依赖（报告给用户）。调用 `fix.py --strategy parent-upgrade`。当前仅支持 npm `package-lock.json` 场景。升级后重新运行 `run_audit.py` 复扫。

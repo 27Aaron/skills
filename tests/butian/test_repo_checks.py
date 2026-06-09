@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 import tempfile
 import unittest
 
@@ -69,16 +70,140 @@ class RepositoryChecksTests(unittest.TestCase):
                 any(f["id"] == "repo.missing_dependabot" for f in findings)
             )
 
-    def test_dependabot_advice_is_reported_when_github_directory_exists(self):
+    def test_dependabot_advice_is_skipped_for_github_directory_without_github_remote(self):
         with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
             os.makedirs(os.path.join(root, ".github"), exist_ok=True)
 
             findings = repo_checks.scan_repository_checks(root)
 
+            self.assertFalse(
+                any(f["id"] == "repo.missing_dependabot" for f in findings)
+            )
+
+    def test_dependabot_advice_is_reported_for_github_remote(self):
+        with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
+            subprocess.run(["git", "init"], cwd=root, check=True, stdout=subprocess.DEVNULL)
+            subprocess.run(
+                ["git", "remote", "add", "origin", "git@github.com:acme/demo.git"],
+                cwd=root,
+                check=True,
+            )
+            write(os.path.join(root, "package.json"), "{}\n")
+            write(os.path.join(root, "package-lock.json"), "{}\n")
+
+            findings = repo_checks.scan_repository_checks(root, ecosystems=["npm"])
+
             self.assertTrue(any(f["id"] == "repo.missing_dependabot" for f in findings))
             item = next(f for f in findings if f["id"] == "repo.missing_dependabot")
-            self.assertEqual(item["evidence"], "")
+            self.assertIn("GitHub remote", item["evidence"])
             self.assertIn(".github/dependabot.yml", item["recommendation"])
+            self.assertEqual(item["fix_config"]["type"], "dependabot_config")
+            self.assertIn('package-ecosystem: "npm"', item["fix_config"]["content"])
+
+    def test_dependabot_config_covers_multiple_ecosystems_and_actions(self):
+        with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
+            subprocess.run(["git", "init"], cwd=root, check=True, stdout=subprocess.DEVNULL)
+            subprocess.run(
+                ["git", "remote", "add", "origin", "https://github.com/acme/polyrepo.git"],
+                cwd=root,
+                check=True,
+            )
+            write(os.path.join(root, ".github", "workflows", "ci.yml"), "name: ci\n")
+
+            content = repo_checks.build_dependabot_config(
+                root, ecosystems=["npm", "pnpm", "pypi", "go", "crates-io"]
+            )
+
+            self.assertIn("version: 2\nupdates:\n", content)
+            self.assertEqual(content.count('package-ecosystem: "npm"'), 1)
+            self.assertIn('package-ecosystem: "pip"', content)
+            self.assertIn('package-ecosystem: "gomod"', content)
+            self.assertIn('package-ecosystem: "cargo"', content)
+            self.assertIn('package-ecosystem: "github-actions"', content)
+            self.assertEqual(content.count('schedule:\n      interval: "weekly"'), 5)
+
+    def test_dependabot_config_detects_all_github_supported_ecosystems(self):
+        with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:
+            files = {
+                "bazel/MODULE.bazel": "module(name = 'demo')\n",
+                "bun/bun.lock": "\n",
+                "ruby/Gemfile": "source 'https://rubygems.org'\n",
+                "rust/Cargo.toml": "[package]\nname = 'demo'\nversion = '0.1.0'\n",
+                "php/composer.json": "{}\n",
+                "conda/environment.yml": "name: demo\n",
+                "deno/deno.json": "{}\n",
+                ".devcontainer/devcontainer.json": "{}\n",
+                "docker/Dockerfile": "FROM alpine:3\n",
+                "compose/compose.yaml": "services: {}\n",
+                "dotnet/global.json": "{}\n",
+                "helm/Chart.yaml": "apiVersion: v2\nname: demo\nversion: 0.1.0\n",
+                "elixir/mix.exs": "defmodule Demo.MixProject do\nend\n",
+                "julia/Project.toml": "[deps]\n",
+                "elm/elm.json": "{}\n",
+                ".gitmodules": "[submodule \"lib\"]\n",
+                ".github/workflows/ci.yml": "name: ci\n",
+                "go/go.mod": "module example.com/demo\n",
+                "gradle/build.gradle": "plugins {}\n",
+                "maven/pom.xml": "<project />\n",
+                "nix/flake.lock": "{}\n",
+                "node/package.json": "{}\n",
+                "nuget/app.csproj": "<Project />\n",
+                "tofu/main.tofu": 'module "x" {}\n',
+                "python/requirements.txt": "requests==2.0.0\n",
+                ".pre-commit-config.yaml": "repos: []\n",
+                "dart/pubspec.yaml": "name: demo\n",
+                "toolchain/rust-toolchain.toml": "[toolchain]\nchannel = 'stable'\n",
+                "sbt/build.sbt": 'name := "demo"\n',
+                "swift/Package.swift": "// swift-tools-version: 5.9\n",
+                "terraform/main.tf": 'resource "x" "y" {}\n',
+                "uv/uv.lock": "\n",
+                "vcpkg/vcpkg.json": "{}\n",
+            }
+            for path, content in files.items():
+                write(os.path.join(root, path), content)
+
+            content = repo_checks.build_dependabot_config(root)
+
+            expected = {
+                "bazel",
+                "bun",
+                "bundler",
+                "cargo",
+                "composer",
+                "conda",
+                "deno",
+                "devcontainers",
+                "docker",
+                "docker-compose",
+                "dotnet-sdk",
+                "helm",
+                "mix",
+                "julia",
+                "elm",
+                "gitsubmodule",
+                "github-actions",
+                "gomod",
+                "gradle",
+                "maven",
+                "nix",
+                "npm",
+                "nuget",
+                "opentofu",
+                "pip",
+                "pre-commit",
+                "pub",
+                "rust-toolchain",
+                "sbt",
+                "swift",
+                "terraform",
+                "uv",
+                "vcpkg",
+            }
+            for ecosystem in sorted(expected):
+                self.assertIn(f'package-ecosystem: "{ecosystem}"', content)
+            self.assertIn('directory: "/node"', content)
+            self.assertIn('directory: "/go"', content)
+            self.assertIn('directory: "/"', content)
 
     def test_dependabot_missing_github_actions_ecosystem(self):
         with tempfile.TemporaryDirectory(prefix="butian-repo-") as root:

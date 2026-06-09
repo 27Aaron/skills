@@ -112,6 +112,33 @@ class ExtractFixableItemsTests(unittest.TestCase):
         items = fix_mod.extract_fixable_items(analysis)
         self.assertEqual(len(items), 0)
 
+    def test_extracts_dependabot_config_items(self):
+        analysis = {
+            "green": [
+                {
+                    "type": "local_repository_check",
+                    "name": "配置 Dependabot",
+                    "fix_config": {
+                        "type": "dependabot_config",
+                        "path": ".github/dependabot.yml",
+                        "content": "version: 2\nupdates: []\n",
+                    },
+                }
+            ]
+        }
+
+        items = fix_mod.extract_dependabot_config_items(analysis)
+
+        self.assertEqual(
+            items,
+            [
+                {
+                    "path": ".github/dependabot.yml",
+                    "content": "version: 2\nupdates: []\n",
+                }
+            ],
+        )
+
     def test_empty_analysis(self):
         items = fix_mod.extract_fixable_items({})
         self.assertEqual(items, [])
@@ -447,6 +474,68 @@ class CliHelperTests(unittest.TestCase):
                 code = fix_mod.main([analysis_path, "--strategy", "latest"])
 
         self.assertEqual(code, 1)
+
+    def test_dependabot_strategy_writes_config_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            analysis_path = os.path.join(tmp, "analysis.json")
+            with open(analysis_path, "w", encoding="utf-8") as handle:
+                json.dump(
+                    {
+                        "project": {"path": tmp},
+                        "green": [
+                            {
+                                "type": "local_repository_check",
+                                "fix_config": {
+                                    "type": "dependabot_config",
+                                    "path": ".github/dependabot.yml",
+                                    "content": "version: 2\nupdates: []\n",
+                                },
+                            }
+                        ],
+                    },
+                    handle,
+                )
+
+            code = fix_mod.main([analysis_path, "--strategy", "dependabot"])
+
+            self.assertEqual(code, 0)
+            with open(
+                os.path.join(tmp, ".github", "dependabot.yml"),
+                "r",
+                encoding="utf-8",
+            ) as handle:
+                self.assertEqual(handle.read(), "version: 2\nupdates: []\n")
+
+    def test_dependabot_strategy_does_not_overwrite_existing_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            os.makedirs(os.path.join(tmp, ".github"), exist_ok=True)
+            existing_path = os.path.join(tmp, ".github", "dependabot.yml")
+            with open(existing_path, "w", encoding="utf-8") as handle:
+                handle.write("version: 2\nupdates:\n")
+            analysis_path = os.path.join(tmp, "analysis.json")
+            with open(analysis_path, "w", encoding="utf-8") as handle:
+                json.dump(
+                    {
+                        "project": {"path": tmp},
+                        "green": [
+                            {
+                                "type": "local_repository_check",
+                                "fix_config": {
+                                    "type": "dependabot_config",
+                                    "path": ".github/dependabot.yml",
+                                    "content": "version: 2\nupdates: []\n",
+                                },
+                            }
+                        ],
+                    },
+                    handle,
+                )
+
+            code = fix_mod.main([analysis_path, "--strategy", "dependabot"])
+
+            self.assertEqual(code, 1)
+            with open(existing_path, "r", encoding="utf-8") as handle:
+                self.assertEqual(handle.read(), "version: 2\nupdates:\n")
 
 
 if __name__ == "__main__":
