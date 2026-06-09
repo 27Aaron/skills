@@ -232,9 +232,9 @@ def main():
     print(f"报告已生成: {out}")
     print("HTML 报告已保存，之后也可以从 content 目录重新查看。")
     should_open, reason = open_decision(args, out)
+    _mark_first_scan_done(out)
     if should_open:
         if open_report(out):
-            _mark_first_scan_done(out)
             print("已尝试在默认浏览器中打开报告。")
         else:
             print("未能自动打开报告，请手动打开上面的路径。")

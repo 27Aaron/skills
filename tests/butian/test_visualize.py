@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from types import SimpleNamespace
+from unittest import mock
 
 from butian.scripts import visualize
 
@@ -186,6 +187,40 @@ class ShouldOpenReportTests(unittest.TestCase):
 
         self.assertFalse(should_open)
         self.assertEqual(reason, "first_scan_done")
+
+
+class FirstScanMarkerTests(unittest.TestCase):
+    def test_marker_is_written_when_browser_open_fails_after_html_generation(self):
+        with tempfile.TemporaryDirectory(prefix="butian-viz-") as root:
+            analysis_path = os.path.join(
+                root, ".butian", "20260605-120000", "assets", "analysis.json"
+            )
+            output_path = os.path.join(
+                root, ".butian", "20260605-120000", "content", "security-report.html"
+            )
+            os.makedirs(os.path.dirname(analysis_path))
+            with open(analysis_path, "w", encoding="utf-8") as handle:
+                json.dump(
+                    {
+                        "project": {"name": "demo", "path": root},
+                        "summary": {"tldr": "demo", "detail": "demo"},
+                        "hygiene": {},
+                    },
+                    handle,
+                )
+
+            with (
+                mock.patch.object(
+                    sys, "argv", ["visualize.py", analysis_path, output_path]
+                ),
+                mock.patch.object(visualize, "open_report", return_value=False),
+                mock.patch.dict(os.environ, {"BUTIAN_NO_OPEN": ""}),
+            ):
+                visualize.main()
+
+            marker_path = os.path.join(root, ".butian", visualize.FIRST_SCAN_MARKER)
+            self.assertTrue(os.path.exists(marker_path))
+            self.assertTrue(os.path.isfile(output_path))
 
 
 # ---------------------------------------------------------------------------
