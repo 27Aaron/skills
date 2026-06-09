@@ -330,6 +330,12 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertNotIn(">低危", html)
         self.assertNotIn("<span>能力边界</span>", html)
         self.assertNotIn("并跑一次测试", html)
+        self.assertIn(
+            "当前版本在处理特殊输入时可能大量占用资源。攻击者提交构造好的内容后，服务可能变慢、卡住，甚至无法响应。建议升级到 13.0.1 或更高版本。",
+            html,
+        )
+        self.assertNotIn("这个版本", html)
+        self.assertNotIn("当前版本存在资源耗尽风险", html)
         self.assertNotIn("可更新到", html)
         self.assertNotIn("最近可用版本为", html)
         self.assertNotIn("有新版本 4.12.21 可用", html)
@@ -415,6 +421,7 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn('class="detail-dossier detail-dossier-split"', html)
         self.assertIn('class="detail-story"', html)
         self.assertIn('class="detail-signal-row"', html)
+
         self.assertIn('class="detail-story-heading"', html)
         self.assertIn(
             'class="detail-signal-row"><div class="detail-label">关键信号</div><div class="signal-tags">',
@@ -575,6 +582,161 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertNotIn(".vuln-detail-header", css)
         self.assertNotIn("border-left-width: 4px", css)
         self.assertNotIn("border-left-color: var(--warning-ink)", css)
+
+    def test_current_risk_details_use_precise_plain_language(self):
+        data = {
+            "generated_at": "2026-06-05 09:05:50",
+            "project": {"name": "demo", "path": "/tmp/demo", "ecosystems": ["npm"]},
+            "scan_config": {"scan_mode": "full_dependency_scan"},
+            "risk_summary": {
+                "critical": 0,
+                "high": 5,
+                "medium": 0,
+                "low": 0,
+                "info": 0,
+            },
+            "summary": {"tldr": "demo", "detail": "demo", "priority": []},
+            "top_issues": [
+                {
+                    "package": "next",
+                    "version": "16.2.4",
+                    "severity": "high",
+                    "fixed_versions": ["16.2.5"],
+                    "advisory_id": "GHSA-ssrf",
+                    "advisory_summary": "Next.js vulnerable to server-side request forgery in applications using WebSocket upgrades",
+                    "cve_enrichments": [{"cweIds": ["CWE-918"]}],
+                },
+                {
+                    "package": "fast-uri",
+                    "version": "3.1.0",
+                    "severity": "high",
+                    "fixed_versions": ["3.1.1"],
+                    "advisory_id": "GHSA-path",
+                    "advisory_summary": "fast-uri vulnerable to path traversal via percent-encoded dot segments",
+                    "cve_enrichments": [{"cweIds": ["CWE-22"]}],
+                },
+                {
+                    "package": "next",
+                    "version": "16.2.4",
+                    "severity": "high",
+                    "fixed_versions": ["16.2.5"],
+                    "advisory_id": "GHSA-middleware",
+                    "advisory_summary": "Next.js has a Middleware / Proxy bypass in App Router applications via segment-prefetch routes",
+                    "cve_enrichments": [{"cweIds": ["CWE-288"]}],
+                },
+                {
+                    "package": "brace-expansion",
+                    "version": "5.0.5",
+                    "severity": "high",
+                    "fixed_versions": ["5.0.6"],
+                    "advisory_id": "GHSA-dos",
+                    "advisory_summary": "brace-expansion: Large numeric range defeats documented `max` DoS protection",
+                    "cve_enrichments": [{"cweIds": ["CWE-400"]}],
+                },
+                {
+                    "package": "uuid",
+                    "version": "13.0.0",
+                    "severity": "high",
+                    "fixed_versions": ["13.0.1"],
+                    "advisory_id": "GHSA-buffer",
+                    "advisory_summary": "uuid: Missing buffer bounds check in v3/v5/v6 when buf is provided",
+                    "cve_enrichments": [{"cweIds": ["CWE-787", "CWE-823"]}],
+                },
+                {
+                    "package": "hono",
+                    "version": "4.12.14",
+                    "severity": "medium",
+                    "fixed_versions": ["4.12.21"],
+                    "advisory_id": "GHSA-ip",
+                    "advisory_summary": "Hono: IP Restriction bypasses static deny rules for non-canonical IPv6",
+                    "cve_enrichments": [{"cweIds": ["CWE-185", "CWE-1289"]}],
+                },
+                {
+                    "package": "hono",
+                    "version": "4.12.14",
+                    "severity": "medium",
+                    "fixed_versions": ["4.12.18"],
+                    "advisory_id": "GHSA-cache-leak",
+                    "advisory_summary": "Hono's Cache Middleware ignores Vary: Authorization / Vary: Cookie leading to cross-user cache leakage",
+                    "cve_enrichments": [{"cweIds": ["CWE-524"]}],
+                },
+                {
+                    "package": "next",
+                    "version": "16.2.4",
+                    "severity": "medium",
+                    "fixed_versions": ["16.2.5"],
+                    "advisory_id": "GHSA-xss",
+                    "advisory_summary": "Next.js vulnerable to cross-site scripting in App Router applications using CSP nonces",
+                    "cve_enrichments": [{"cweIds": ["CWE-79"]}],
+                },
+                {
+                    "package": "next",
+                    "version": "16.2.4",
+                    "severity": "medium",
+                    "fixed_versions": ["16.2.5"],
+                    "advisory_id": "GHSA-cache-redirect",
+                    "advisory_summary": "Next.js's Middleware / Proxy redirects can be cache-poisoned",
+                    "cve_enrichments": [{"cweIds": ["CWE-349"]}],
+                },
+                {
+                    "package": "hono",
+                    "version": "4.12.14",
+                    "severity": "low",
+                    "fixed_versions": ["4.12.18"],
+                    "advisory_id": "GHSA-jwt-date",
+                    "advisory_summary": "Hono has improper validation of NumericDate claims (exp, nbf, iat) in JWT verify()",
+                    "cve_enrichments": [{"cweIds": ["CWE-1284"]}],
+                },
+            ],
+            "hygiene": {},
+            "outdated": [],
+        }
+
+        html = self._render_html(data)
+
+        self.assertIn(
+            "当前版本在 WebSocket upgrade 场景下可能错误转发服务端请求。攻击者可能让服务器访问内部服务、云元数据地址或其他非预期目标。建议升级到 16.2.5 或更高版本。",
+            html,
+        )
+        self.assertIn(
+            "当前版本在规范化 URL 路径时可能判断不严。如果项目用它做路径白名单或前缀校验，限制可能被绕过，请求可能被导向不该允许的位置。建议升级到 3.1.1 或更高版本。",
+            html,
+        )
+        self.assertIn(
+            "当前版本在特定路由场景下可能绕过中间件或代理检查。如果项目依赖这些检查做登录或权限控制，受保护页面可能被直接访问。建议升级到 16.2.5 或更高版本。",
+            html,
+        )
+        self.assertIn(
+            "当前版本在展开超大数字范围时可能先消耗大量内存和 CPU。攻击者提交构造好的内容后，服务可能变慢、卡住，甚至无法响应。建议升级到 5.0.6 或更高版本。",
+            html,
+        )
+        self.assertIn(
+            "当前版本在调用方传入输出缓冲区时可能缺少边界检查。生成结果可能被部分写入或写到非预期位置，依赖这些值的逻辑可能得到异常数据。建议升级到 13.0.1 或更高版本。",
+            html,
+        )
+        self.assertIn(
+            "当前版本在解析非标准 IPv6 地址时可能与访问限制规则不一致。如果项目依赖 IP 黑名单或静态 deny 规则，部分本应拒绝的请求可能被放行。建议升级到 4.12.21 或更高版本。",
+            html,
+        )
+        self.assertIn(
+            "当前版本在缓存响应时可能没有正确区分 Authorization 或 Cookie。不同用户之间可能看到不该共享的缓存内容。建议升级到 4.12.18 或更高版本。",
+            html,
+        )
+        self.assertIn(
+            "当前版本在输出脚本、样式或 HTML 内容时可能没有充分转义不可信输入。如果项目把用户可控内容传入相关接口，页面中可能执行非预期脚本。建议升级到 16.2.5 或更高版本。",
+            html,
+        )
+        self.assertIn(
+            "当前版本在缓存跳转响应时可能没有正确区分请求上下文。攻击者可能让后续用户命中被污染的跳转结果。建议升级到 16.2.5 或更高版本。",
+            html,
+        )
+        self.assertIn(
+            "当前版本在校验 JWT 时间声明（exp、nbf、iat）时可能不够严格。过期或尚未生效的令牌可能被错误接受，需要结合使用方式复核影响。建议升级到 4.12.18 或更高版本。",
+            html,
+        )
+        self.assertNotIn("服务器上不该公开的文件", html)
+        self.assertNotIn("关键数据被覆盖", html)
+        self.assertNotIn("当前版本命中已公开安全公告", html)
 
     def test_html_report_assets_only_ship_secret_evidence_copy_handler(self):
         with open(REPORT_JS, "r", encoding="utf-8") as handle:

@@ -1999,14 +1999,250 @@ function cwePlainDescription(r) {
   return "";
 }
 
+function normalizedCweIds(r) {
+  const enrichments = Array.isArray(r.cve_enrichments) ? r.cve_enrichments : [];
+  const ids = [];
+  for (const e of enrichments) {
+    if (!e || !Array.isArray(e.cweIds)) continue;
+    for (const cwe of e.cweIds) {
+      if (!cwe) continue;
+      const normalized = /^CWE-/i.test(String(cwe))
+        ? String(cwe).toUpperCase()
+        : "CWE-" + String(cwe);
+      if (!ids.includes(normalized)) ids.push(normalized);
+    }
+  }
+  return ids;
+}
+
+function normalizeIssueText(parts) {
+  return [
+    ...parts,
+  ]
+    .map((x) => String(x || "").trim())
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function rawPrimaryIssueText(r) {
+  return normalizeIssueText([
+    r.advisory_summary,
+    r.advisorySummary,
+    r.advisory_title,
+    r.title,
+    r.summary,
+    r.description,
+    r.match_summary,
+  ]);
+}
+
+function rawIssueText(r) {
+  const enrichmentText = Array.isArray(r.cve_enrichments)
+    ? r.cve_enrichments
+        .map((e) => [e.description, e.title, e.summary].filter(Boolean).join(" "))
+        .join(" ")
+    : "";
+  return normalizeIssueText([
+    rawPrimaryIssueText(r),
+    enrichmentText,
+  ]);
+}
+
+function hasAnyCwe(cwes, ids) {
+  return ids.some((id) => cwes.includes(id));
+}
+
+function plainRiskStory(r) {
+  const cwes = normalizedCweIds(r);
+  const primaryText = rawPrimaryIssueText(r);
+  const text = rawIssueText(r);
+  if (
+    primaryText.includes("set-cookie") ||
+    (primaryText.includes("cookie") && primaryText.includes("injection")) ||
+    primaryText.includes("header injection") ||
+    primaryText.includes("response splitting")
+  ) {
+    return "当前版本在生成响应头时可能没有充分校验调用方传入的字段。如果项目把用户输入传给相关选项，响应头可能被附加非预期内容。";
+  }
+  if (
+    hasAnyCwe(cwes, ["CWE-79"]) ||
+    primaryText.includes("cross-site scripting") ||
+    /\bxss\b/.test(primaryText) ||
+    primaryText.includes("html injection") ||
+    primaryText.includes("css declaration injection") ||
+    primaryText.includes("jsx tag")
+  ) {
+    return "当前版本在输出脚本、样式或 HTML 内容时可能没有充分转义不可信输入。如果项目把用户可控内容传入相关接口，页面中可能执行非预期脚本。";
+  }
+  if (primaryText.includes("prototype pollution")) {
+    return "当前版本在合并或预编译对象配置时可能接受攻击者控制的键名。如果这些数据来自外部输入，原型对象可能被污染，进而影响后续逻辑判断。";
+  }
+  if (
+    primaryText.includes("development server") &&
+    primaryText.includes("read the response")
+  ) {
+    return "当前版本的开发服务器可能接受非预期网页发起的请求并返回响应内容。该问题主要影响本地开发或暴露的开发服务，不应直接外网开放。";
+  }
+  if (
+    primaryText.includes("cache leakage") ||
+    primaryText.includes("cross-user cache") ||
+    primaryText.includes("vary: authorization") ||
+    primaryText.includes("vary: cookie")
+  ) {
+    return "当前版本在缓存响应时可能没有正确区分 Authorization 或 Cookie。不同用户之间可能看到不该共享的缓存内容。";
+  }
+  if (primaryText.includes("redirect") && primaryText.includes("cache-poison")) {
+    return "当前版本在缓存跳转响应时可能没有正确区分请求上下文。攻击者可能让后续用户命中被污染的跳转结果。";
+  }
+  if (
+    primaryText.includes("cache poisoning") ||
+    primaryText.includes("cache-poisoned") ||
+    primaryText.includes("cache-busting")
+  ) {
+    return "当前版本在处理缓存键或缓存结果时可能没有正确区分请求上下文。用户可能看到被污染、过期或不属于当前请求的内容。";
+  }
+  if (
+    primaryText.includes("ip restriction") ||
+    primaryText.includes("static deny") ||
+    primaryText.includes("non-canonical ipv6")
+  ) {
+    return "当前版本在解析非标准 IPv6 地址时可能与访问限制规则不一致。如果项目依赖 IP 黑名单或静态 deny 规则，部分本应拒绝的请求可能被放行。";
+  }
+  if (
+    primaryText.includes("numericdate") ||
+    (primaryText.includes("jwt") && primaryText.includes("exp") && primaryText.includes("nbf"))
+  ) {
+    return "当前版本在校验 JWT 时间声明（exp、nbf、iat）时可能不够严格。过期或尚未生效的令牌可能被错误接受，需要结合使用方式复核影响。";
+  }
+  if (
+    primaryText.includes("authorization scheme") ||
+    (primaryText.includes("jwt") && primaryText.includes("bearer"))
+  ) {
+    return "当前版本在校验 Authorization 头时可能未严格限制 Bearer 方案。如果项目用 JWT middleware 做身份校验，非预期认证方案可能被接受。";
+  }
+  if (
+    primaryText.includes("server-side request forgery") ||
+    primaryText.includes("ssrf")
+  ) {
+    if (primaryText.includes("websocket") && primaryText.includes("upgrade")) {
+      return "当前版本在 WebSocket upgrade 场景下可能错误转发服务端请求。攻击者可能让服务器访问内部服务、云元数据地址或其他非预期目标。";
+    }
+    return "当前版本在服务端请求转发场景下可能判断不严。攻击者可能让服务器访问非预期的内部或外部目标。";
+  }
+  if (
+    primaryText.includes("host confusion") ||
+    primaryText.includes("hostname confusion") ||
+    primaryText.includes("authority delimiter") ||
+    primaryText.includes("authority delimiters")
+  ) {
+    return "当前版本在规范化 URL 主机信息时可能改变原始目标。如果项目用它做域名白名单、跳转校验或出站请求限制，请求可能被导向非预期域名。";
+  }
+  if (
+    primaryText.includes("app.mount") ||
+    primaryText.includes("mount prefix") ||
+    (primaryText.includes("incorrect routing") && primaryText.includes("percent-encoded"))
+  ) {
+    return "当前版本在挂载子应用时可能对编码后的路径处理不一致。如果项目依赖 mount 前缀做路由隔离，请求可能进入非预期路由。";
+  }
+  if (
+    hasAnyCwe(cwes, [
+      "CWE-22",
+      "CWE-23",
+      "CWE-24",
+      "CWE-25",
+      "CWE-26",
+      "CWE-27",
+      "CWE-28",
+      "CWE-29",
+      "CWE-30",
+      "CWE-31",
+      "CWE-32",
+      "CWE-33",
+      "CWE-34",
+      "CWE-35",
+      "CWE-36",
+      "CWE-37",
+      "CWE-38",
+      "CWE-39",
+      "CWE-40",
+    ]) ||
+    primaryText.includes("path traversal")
+  ) {
+    return "当前版本在规范化 URL 路径时可能判断不严。如果项目用它做路径白名单或前缀校验，限制可能被绕过，请求可能被导向不该允许的位置。";
+  }
+  if (primaryText.includes("middleware") && primaryText.includes("bypass")) {
+    return "当前版本在特定路由场景下可能绕过中间件或代理检查。如果项目依赖这些检查做登录或权限控制，受保护页面可能被直接访问。";
+  }
+  if (
+    primaryText.includes("bodylimit") ||
+    (primaryText.includes("chunked") && primaryText.includes("unknown-length"))
+  ) {
+    return "当前版本在处理分块或未知长度请求体时可能绕过 bodyLimit 限制。攻击者可能发送超出预期大小的请求，增加资源消耗或影响接口稳定性。";
+  }
+  if (
+    hasAnyCwe(cwes, ["CWE-284", "CWE-285", "CWE-862", "CWE-863"]) ||
+    primaryText.includes("authorization") ||
+    primaryText.includes("permission")
+  ) {
+    return "当前版本在校验权限时可能判断不严。没有对应权限的人，也可能访问本来受限制的功能或数据。";
+  }
+  if (
+    hasAnyCwe(cwes, [
+      "CWE-287",
+      "CWE-288",
+      "CWE-289",
+      "CWE-290",
+      "CWE-291",
+      "CWE-293",
+      "CWE-294",
+      "CWE-301",
+      "CWE-302",
+      "CWE-303",
+      "CWE-304",
+      "CWE-305",
+      "CWE-306",
+    ]) ||
+    primaryText.includes("authentication")
+  ) {
+    return "当前版本在校验登录状态时可能判断不严。没有登录的人，也可能访问原本需要登录才能看的页面或资源。";
+  }
+  if (
+    hasAnyCwe(cwes, ["CWE-400", "CWE-404"]) ||
+    primaryText.includes("denial of service") ||
+    primaryText.includes("connection exhaustion") ||
+    primaryText.includes("resource exhaustion") ||
+    /\bdos\b/.test(primaryText)
+  ) {
+    if (
+      primaryText.includes("large numeric range") ||
+      (primaryText.includes("numeric range") && primaryText.includes("max"))
+    ) {
+      return "当前版本在展开超大数字范围时可能先消耗大量内存和 CPU。攻击者提交构造好的内容后，服务可能变慢、卡住，甚至无法响应。";
+    }
+    if (primaryText.includes("connection exhaustion")) {
+      return "当前版本在特定请求处理场景下可能长时间占用连接。攻击者提交构造好的请求后，服务容量可能被耗尽，正常用户可能无法访问。";
+    }
+    return "当前版本在处理特殊输入时可能大量占用资源。攻击者提交构造好的内容后，服务可能变慢、卡住，甚至无法响应。";
+  }
+  if (
+    text.includes("buffer") ||
+    text.includes("bounds") ||
+    text.includes("out-of-bounds") ||
+    text.includes("memory")
+  ) {
+    return "当前版本在调用方传入输出缓冲区时可能缺少边界检查。生成结果可能被部分写入或写到非预期位置，依赖这些值的逻辑可能得到异常数据。";
+  }
+  if (primaryText.includes("cache")) {
+    return "当前版本在处理缓存时可能把不该信任的内容当成可用结果。用户可能看到过期或错误内容，也可能影响访问控制判断。";
+  }
+  return "当前版本命中已公开安全公告。报告未提供足够细分类型，建议先按公告确认项目是否调用受影响功能。";
+}
+
 function vulnerabilityExplanation(r) {
   const context = dependencyContextText(r);
   if (context) return esc(context);
-  const cweDesc = cwePlainDescription(r);
-  if (cweDesc) {
-    return esc(`当前版本${cweDesc}。${shortFixedVersionText(r)}`);
-  }
-  return esc(`当前版本${advisorySummaryText(r)}；${shortFixedVersionText(r)}`);
+  return esc(`${plainRiskStory(r)}${shortFixedVersionText(r)}`);
 }
 
 function isMajorVersionJump(current, target) {
