@@ -480,9 +480,94 @@ class RenderOutdatedTests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# render_server_environment
+# ---------------------------------------------------------------------------
+class RenderServerEnvironmentTests(unittest.TestCase):
+    def test_render_server_environment_with_confirmed_issue_and_maintenance(self):
+        analysis = {
+            "server": {
+                "summary": {
+                    "package_count": 3,
+                    "confirmed_count": 1,
+                    "maintenance_count": 1,
+                    "public_port_count": 2,
+                },
+            },
+            "server_issues": [
+                {
+                    "package": "nginx",
+                    "version": "1.24.0",
+                    "severity": "high",
+                    "summary": "nginx confirmed",
+                    "aliases": ["CVE-2026-0001"],
+                }
+            ],
+            "server_maintenance": [
+                {
+                    "title": "Docker 容器 web 使用旧镜像标签 nginx:1.18",
+                    "summary": "只基于明确镜像标签，作为维护建议处理。",
+                }
+            ],
+        }
+
+        result = report.render_server_environment(analysis)
+
+        self.assertIn("系统包数量：3", result)
+        self.assertIn("已确认服务器风险：1", result)
+        self.assertIn("维护建议：1", result)
+        self.assertIn("对外监听端口：2", result)
+        self.assertIn("### 已确认服务器风险", result)
+        self.assertIn("nginx", result)
+        self.assertIn(
+            "[CVE-2026-0001](https://www.cve.org/CVERecord?id=CVE-2026-0001)",
+            result,
+        )
+        self.assertIn("### 维护建议", result)
+        self.assertIn("Docker 容器 web 使用旧镜像标签", result)
+        self.assertLess(result.index("### 已确认服务器风险"), result.index("### 维护建议"))
+
+    def test_render_server_environment_empty(self):
+        self.assertEqual(report.render_server_environment({}), "未启用服务器运行环境扫描。")
+
+
+# ---------------------------------------------------------------------------
 # Markdown structure
 # ---------------------------------------------------------------------------
 class RenderMarkdownStructureTests(unittest.TestCase):
+    def test_render_markdown_places_server_environment_after_summary(self):
+        markdown = report.render_markdown(
+            {
+                "project": {"name": "demo", "path": "/tmp/demo"},
+                "generated_at": "2026-06-09 12:00:00",
+                "scan_seconds": 1,
+                "summary": {"tldr": "demo", "detail": "demo", "priority": []},
+                "server": {
+                    "summary": {
+                        "package_count": 3,
+                        "confirmed_count": 1,
+                        "maintenance_count": 0,
+                        "public_port_count": 1,
+                    }
+                },
+                "server_issues": [
+                    {
+                        "package": "openssl",
+                        "version": "3.0.2",
+                        "summary": "openssl confirmed",
+                    }
+                ],
+                "hygiene": {"gitignore_missing": [".env"]},
+                "errors": [{"step": "server_collect", "message": "SSH timeout"}],
+            }
+        )
+
+        self.assertIn("## 服务器运行环境", markdown)
+        self.assertIn("## 覆盖说明", markdown)
+        self.assertNotIn("## 需要人工确认的事项", markdown)
+        self.assertLess(markdown.index("## 报告总结"), markdown.index("## 服务器运行环境"))
+        self.assertLess(markdown.index("## 服务器运行环境"), markdown.index("## 命中风险项"))
+        self.assertIn("[server_collect] SSH timeout", markdown)
+
     def test_render_markdown_omits_llm_fix_context_section(self):
         markdown = report.render_markdown(
             {
@@ -534,6 +619,25 @@ class RenderManualItemsTests(unittest.TestCase):
     def test_empty(self):
         result = report.render_manual_items({"red": [], "yellow": []})
         self.assertIn("没有需要额外人工确认", result)
+
+    def test_low_evidence_server_clues_are_not_manual_items(self):
+        analysis = {
+            "red": [],
+            "yellow": [
+                {
+                    "name": "仅由服务版本推断的 nginx 风险",
+                    "source": "服务器扫描",
+                    "kind": "低证据",
+                    "evidence_level": "low",
+                    "why_manual": "只有服务 banner，没有发行版包公告闭环。",
+                }
+            ],
+        }
+
+        result = report.render_manual_items(analysis)
+
+        self.assertIn("没有需要额外人工确认", result)
+        self.assertNotIn("nginx", result)
 
 
 # ---------------------------------------------------------------------------

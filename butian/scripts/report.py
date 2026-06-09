@@ -534,8 +534,107 @@ def render_outdated(analysis):
     return "\n".join(lines)
 
 
+def render_server_environment(analysis):
+    server = analysis.get("server") or {}
+    if not server:
+        return "未启用服务器运行环境扫描。"
+
+    summary = server.get("summary") or {}
+    lines = [
+        f"- 系统包数量：{summary.get('package_count', 0)}",
+        f"- 已确认服务器风险：{summary.get('confirmed_count', 0)}",
+        f"- 维护建议：{summary.get('maintenance_count', 0)}",
+        f"- 对外监听端口：{summary.get('public_port_count', 0)}",
+    ]
+
+    issues = analysis.get("server_issues") or []
+    if issues:
+        lines.extend(["", "### 已确认服务器风险", ""])
+        for item in issues:
+            package = cell(item.get("package") or item.get("name") or "服务器软件")
+            version = inline_code(item.get("version") or "-")
+            summary_text = cell(
+                item.get("summary")
+                or item.get("advisory_summary")
+                or "服务器运行环境命中已确认风险。"
+            )
+            ids = security_ids_markdown(item)
+            ids_text = f"（{ids}）" if ids != "-" else ""
+            lines.append(f"- **{package}** {version}：{summary_text}{ids_text}")
+
+    maintenance = analysis.get("server_maintenance") or []
+    if maintenance:
+        lines.extend(["", "### 维护建议", ""])
+        for item in maintenance:
+            title = cell(item.get("title") or item.get("name") or "维护建议")
+            summary_text = cell(item.get("summary") or item.get("recommendation") or "")
+            suffix = f"：{summary_text}" if summary_text else ""
+            lines.append(f"- **{title}**{suffix}")
+
+    return "\n".join(lines)
+
+
+def is_low_evidence_server_item(item):
+    if not isinstance(item, dict):
+        return False
+
+    server_fields = [
+        item.get("source"),
+        item.get("scope"),
+        item.get("origin"),
+        item.get("domain"),
+        item.get("category"),
+        item.get("kind"),
+        item.get("type"),
+        item.get("scanner"),
+    ]
+    server_text = " ".join(text(value).lower() for value in server_fields)
+    serverish = any(marker in server_text for marker in ("server", "linux", "服务器"))
+
+    evidence_fields = [
+        item.get("kind"),
+        item.get("type"),
+        item.get("evidence_level"),
+        item.get("confidence"),
+        item.get("match_status"),
+        item.get("reason"),
+        item.get("why_manual"),
+        item.get("evidence"),
+    ]
+    evidence_text = " ".join(text(value).lower() for value in evidence_fields)
+    low_markers = (
+        "low_evidence",
+        "low evidence",
+        "low-confidence",
+        "low confidence",
+        "weak",
+        "inferred",
+        "unconfirmed",
+        "cpe_only",
+        "cpe-only",
+        "service_version",
+        "service version",
+        "banner",
+        "docker_tag_guess",
+        "docker tag guess",
+        "低证据",
+        "推断",
+        "服务版本",
+        "docker 模糊",
+    )
+    return serverish and (
+        item.get("low_evidence") is True
+        or item.get("confirmed") is False
+        or any(marker in evidence_text for marker in low_markers)
+    )
+
+
 def render_manual_items(analysis):
-    items = (analysis.get("red") or []) + (analysis.get("yellow") or [])
+    items = [
+        item
+        for item in (analysis.get("red") or []) + (analysis.get("yellow") or [])
+        if not is_low_evidence_server_item(item)
+    ]
     if not items:
         return "没有需要额外人工确认的事项。\n"
 
@@ -628,6 +727,7 @@ def render_markdown(analysis):
             generated_at=text(analysis.get("generated_at")) or "-",
             scan_seconds=text(analysis.get("scan_seconds")) or "-",
             summary=render_summary(analysis),
+            server_environment=render_server_environment(analysis),
             vulnerabilities=render_vulnerabilities(analysis),
             hygiene=render_hygiene(analysis),
             outdated=render_outdated(analysis),

@@ -9,6 +9,10 @@
 
 $summary
 
+## 服务器运行环境
+
+$server_environment
+
 ## 命中风险项
 
 $vulnerabilities
@@ -21,7 +25,7 @@ $hygiene
 
 $outdated
 
-## 需要人工确认的事项
+## 覆盖说明
 
 $manual_items
 

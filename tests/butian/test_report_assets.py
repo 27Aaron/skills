@@ -1347,6 +1347,74 @@ class ButianReportAssetTests(unittest.TestCase):
         )
         return result.stdout
 
+    def test_html_renders_server_environment_between_summary_and_hygiene(self):
+        data = {
+            "generated_at": "2026-06-09 12:00:00",
+            "project": {
+                "name": "demo",
+                "path": "/tmp/demo",
+                "ecosystems": ["npm"],
+                "total_packages": 1,
+            },
+            "scan_config": {"scan_mode": "full_dependency_scan"},
+            "risk_summary": {
+                "critical": 0,
+                "high": 1,
+                "medium": 0,
+                "low": 0,
+                "info": 0,
+            },
+            "summary": {"tldr": "demo", "detail": "demo", "priority": ["demo"]},
+            "top_issues": [],
+            "server": {
+                "summary": {
+                    "package_count": 128,
+                    "confirmed_count": 1,
+                    "maintenance_count": 1,
+                    "public_port_count": 2,
+                }
+            },
+            "server_issues": [
+                {
+                    "package": "nginx",
+                    "version": "1.24.0-2ubuntu7",
+                    "severity": "high",
+                    "summary": "发行版安全公告确认当前 nginx 包仍受影响。",
+                    "aliases": ["CVE-2026-0001"],
+                }
+            ],
+            "server_maintenance": [
+                {
+                    "title": "Docker 容器 web 使用旧镜像标签 nginx:1.18",
+                    "summary": "Docker 只基于宿主机元数据展示维护建议，不作为 CVE 风险项。",
+                    "aliases": ["CVE-2026-9999"],
+                }
+            ],
+            "hygiene": {"gitignore_missing": [".env"]},
+            "outdated": [],
+        }
+
+        html = self._render_html(data)
+
+        with open(REPORT_JS, "r", encoding="utf-8") as handle:
+            script = handle.read()
+        self.assertIn("function renderServerEnvironment", script)
+        self.assertIn('section-title">服务器运行环境', html)
+        self.assertIn('<span class="mini-label">系统包</span>', html)
+        self.assertIn('<span class="mini-value">128</span>', html)
+        self.assertIn("nginx 1.24.0-2ubuntu7", html)
+        self.assertIn("发行版安全公告确认当前 nginx 包仍受影响。", html)
+        self.assertIn("Docker 容器 web 使用旧镜像标签 nginx:1.18", html)
+        self.assertIn("Docker 只基于宿主机元数据展示维护建议，不作为 CVE 风险项。", html)
+        self.assertNotIn("CVE-2026-9999", html)
+        self.assertLess(html.index('section-title">报告总结'), html.index('section-title">服务器运行环境'))
+        self.assertLess(html.index('section-title">服务器运行环境'), html.index('section-title">仓库安检'))
+
+        with open(REPORT_CSS, "r", encoding="utf-8") as handle:
+            css = handle.read()
+        self.assertIn(".server-grid", css)
+        self.assertIn(".server-issue", css)
+
     def test_html_hides_empty_hygiene_section(self):
         data = {
             "generated_at": "2026-06-05 09:05:50",
