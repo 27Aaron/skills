@@ -347,7 +347,6 @@ class DependencyParsersModuleCompatibilityTests(unittest.TestCase):
         self.assertIn("部分公告未给出明确修复版本", upgrade["summary"])
 
     def test_build_report_output_is_visible_in_human_mode(self):
-        # verify run_audit no longer has should_echo_build_report (removed with --compact)
         self.assertFalse(hasattr(run_audit, "should_echo_build_report"))
 
     def test_pipeline_scripts_expose_help(self):
@@ -524,7 +523,7 @@ class IsEnvSecretScanFileTests(unittest.TestCase):
         self.assertTrue(scan.is_env_secret_scan_file(".env.local"))
 
     def test_env_dot_example_is_secret_candidate(self):
-        # .env.example starts with ".env." → is_env_secret_scan_file returns True
+        # .env.example starts with ".env.", so it remains a secret scan candidate.
         # (actual template filtering happens in is_env_template / sensitive_file_type)
         self.assertTrue(scan.is_env_secret_scan_file(".env.example"))
 
@@ -1405,7 +1404,7 @@ class ParseCargoLockTests(unittest.TestCase):
                     "[[package]]\n"
                     'name = "my-local"\n'
                     'version = "0.1.0"\n'
-                    # no source → local crate, should be excluded from fallback
+                    # No source means local crate, which fallback parsing excludes.
                 )
             pkgs = scan.parse_cargo_lock(root)
             # tomllib path may or may not be available; if not, fallback runs
@@ -1904,7 +1903,7 @@ class CvssToSeverityTests(unittest.TestCase):
         self.assertEqual(result, "low")
 
     def test_computed_severity_network_av(self):
-        """CVSS 3.x vector without baseScore → compute from metrics."""
+        """CVSS 3.x vector without baseScore computes from metrics."""
         result = scan._cvss_to_severity("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H")
         self.assertIn(result, {"critical", "high"})
 
@@ -2327,7 +2326,7 @@ class SeverityFromEnrichmentsTests(unittest.TestCase):
         self.assertEqual(score, "7.5")
 
     def test_falls_back_to_osv_cvss(self):
-        # C:H/I:L/A:N → ISS≈0.657, impact≈4.22, exploit≈3.92, base≈8.1 → high
+        # C:H/I:L/A:N computes to high severity via CVSS 3.x base scoring.
         osv_record = {
             "severity": [{"score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:L/A:N"}]
         }
@@ -3181,11 +3180,11 @@ class EntropyEngineTests(unittest.TestCase):
         self.assertEqual(scan._shannon_entropy("a"), 0.0)
 
     def test_shannon_entropy_uniform(self):
-        # All same character → 0 entropy
+        # All same character means zero entropy.
         self.assertEqual(scan._shannon_entropy("aaaa"), 0.0)
 
     def test_shannon_entropy_high(self):
-        # Mixed characters → high entropy
+        # Mixed characters produce high entropy.
         entropy = scan._shannon_entropy("aB3xY9kL2mN7pQ5rT")
         self.assertGreater(entropy, 3.5)
 
@@ -3213,7 +3212,7 @@ class EntropyEngineTests(unittest.TestCase):
     def test_entropy_check_value_hex(self):
         s = "e10adc3949ba59abbe56e057f20f883e"
         result = scan.entropy_check_value(s)
-        # This is a known MD5 — high enough hex entropy
+        # This known MD5 has high enough hex entropy.
         self.assertIsNotNone(result)
         assert result is not None  # for type checkers
         self.assertIn(
@@ -3333,7 +3332,7 @@ class SkipWordBoundaryTests(unittest.TestCase):
         self._count_findings(
             'secret_key = "aXxxB3cD5eF7gH9iJ1kLmNoPqR2"\n'
         )  # fake fixture
-        # Should NOT be skipped — 'xxx' is part of a value, not a standalone word
+        # Should NOT be skipped because 'xxx' is part of a value, not a word.
         # But it might not be detected as a finding either (depends on patterns)
         # The key assertion: it should at least not be blocked by skip markers
 
@@ -3954,7 +3953,7 @@ class ExhaustiveSecretPatternTests(unittest.TestCase):
         self.assertEqual(f["confidence"], "medium")
 
     def test_generic_sk_key_random(self):
-        # 15 chars after sk- — long enough for generic_sk_key (8+) but
+        # 15 chars after sk- is long enough for generic_sk_key (8+) but
         # shorter than openai_key threshold (20+)
         f = self._detect_one(
             'MY_KEY = "sk-' + 'abc123def456ghi"', "generic_sk_key"
@@ -3962,7 +3961,7 @@ class ExhaustiveSecretPatternTests(unittest.TestCase):
         self.assertEqual(f["confidence"], "medium")
 
     def test_generic_sk_key_no_false_positive_css(self):
-        # CSS properties like "mask-composite" contain "sk-composite" — must NOT match
+        # CSS properties like "mask-composite" contain "sk-composite" and must NOT match.
         css_lines = [
             "-webkit-mask-composite: xor;",
             "mask-composite: exclude;",

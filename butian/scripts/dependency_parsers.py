@@ -311,8 +311,8 @@ def _yarn_berry_descriptor_name(desc):
     """Extract package name from Yarn Berry descriptor.
 
     Examples:
-      "lodash@npm:^4.0.0" → "lodash"
-      "@scope/pkg@npm:1.2.3" → "@scope/pkg"
+      "lodash@npm:^4.0.0" -> "lodash"
+      "@scope/pkg@npm:1.2.3" -> "@scope/pkg"
     """
     if not desc:
         return ""
@@ -1060,5 +1060,4 @@ def current_version_for(version_index, ecosystem, package):
 
 def clean_version(value):
     return str(value or "").strip().lstrip("v")
-
 

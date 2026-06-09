@@ -272,7 +272,7 @@ def _semver_satisfies(version, range_str):
     if not range_str or range_str == "*" or range_str == "latest":
         return True
 
-    # Union (||) — any sub-range matching is enough.
+    # Union (||): any matching sub-range is enough.
     if "||" in range_str:
         return any(
             _semver_satisfies(version, part.strip()) for part in range_str.split("||")
@@ -646,7 +646,7 @@ def build_dependency_fix_items(top_issues):
         if not target_version:
             continue
         # Go requires 'v' prefix on versions (e.g. v1.2.3, not 1.2.3);
-        # OSV sometimes omits it — normalize here so downstream tools
+        # OSV sometimes omits it; normalize here so downstream tools
         # and reports always see correct Go version format.
         if ecosystem == "go":
             fixed_versions = [

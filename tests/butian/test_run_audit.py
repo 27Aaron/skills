@@ -1,4 +1,4 @@
-"""Unit tests for butian/scripts/run_audit.py — pipeline orchestrator."""
+"""Unit tests for butian/scripts/run_audit.py - pipeline orchestrator."""
 
 import json
 import os

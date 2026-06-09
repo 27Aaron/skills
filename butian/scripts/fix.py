@@ -67,7 +67,7 @@ def _semver_satisfies(version, range_str):
 
 
 # ---------------------------------------------------------------------------
-# Ecosystem → upgrade command builders
+# Ecosystem upgrade command builders
 # ---------------------------------------------------------------------------
 
 # Maps ecosystem name to a fixed-version upgrade command builder.
@@ -950,7 +950,7 @@ def main(argv=None):
     strategy = normalize_strategy(args.strategy)
     project_path = analysis.get("project", {}).get("path") or "."
 
-    # --- Strategy: latest — upgrade ALL deps (not just vulnerable ones) ---
+    # --- Strategy: latest - upgrade ALL deps, not just vulnerable ones ---
     if strategy == "latest":
         commands = build_all_latest_commands(project_path)
         if not commands:
@@ -1059,7 +1059,7 @@ def main(argv=None):
             print("  未创建 Dependabot 配置，请先处理上面的失败原因。")
         return 1 if failures else 0
 
-    # --- Strategy: minimal/fixed — only upgrade vulnerable packages ---
+    # --- Strategy: minimal/fixed - only upgrade vulnerable packages ---
     fix_items = extract_fixable_items(analysis)
     if not fix_items:
         logger.info("未发现可修复的漏洞")

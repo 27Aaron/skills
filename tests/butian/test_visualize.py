@@ -1,4 +1,4 @@
-"""Unit tests for butian/scripts/visualize.py — HTML report generation."""
+"""Unit tests for butian/scripts/visualize.py - HTML report generation."""
 
 import json
 import os

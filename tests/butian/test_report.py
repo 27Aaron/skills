@@ -1,4 +1,4 @@
-"""Unit tests for butian/scripts/report.py — Markdown report rendering."""
+"""Unit tests for butian/scripts/report.py - Markdown report rendering."""
 
 import os
 import subprocess

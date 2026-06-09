@@ -348,15 +348,15 @@ _CLOUD_PROVIDER_PATTERNS = [
         r"DefaultEndpointsProtocol=https?;AccountName=[^;]+;AccountKey=[A-Za-z0-9+/=]{88}",
     ),
     ("azure_sas_token", r"sv=\d{4}-\d{2}-\d{2}&[a-z]+=.{20,}"),
-    # Alibaba Cloud (阿里云)
+    # Alibaba Cloud
     ("aliyun_access_key", r"LTAI[0-9A-Za-z]{12,20}"),
     (
         "aliyun_secret_key",
         r"(?:ALIBABA|ALICLOUD|ALIYUN|aliyun|alibaba)[_\s-]?(?:SECRET|secret|ACCESS|access)[_\s-]?KEY[_\s-]*[:=]\s*[\"']?[A-Za-z0-9/+=]{30}[\"']?",
     ),
-    # Tencent Cloud (腾讯云)
+    # Tencent Cloud
     ("tencent_secret_id", r"(?:AKID|TC3)[A-Za-z0-9]{32}"),
-    # Huawei Cloud (华为云)
+    # Huawei Cloud
     (
         "huawei_access_key",
         r"(?:HUAWEI|hw|HW)[_\s-]?(?:ACCESS|access)[_\s-]?KEY[_\s-]*[:=]\s*[\"']?[A-Za-z0-9]{20,}[\"']?",
@@ -549,7 +549,7 @@ _SAAS_PATTERNS = [
     # OpenAI / LLM Providers
     ("openai_key", r"sk-(?:proj-)?[A-Za-z0-9_-]{20,}"),
     ("anthropic_key", r"sk-ant-[A-Za-z0-9_-]{20,}"),
-    # Note: google_ai_key uses same AIza prefix as gcp_api_key — already covered above
+    # google_ai_key uses the same AIza prefix as gcp_api_key and is covered above.
     ("huggingface_token", r"hf_[A-Za-z0-9]{34}"),
     ("replicate_token", r"r8_[A-Za-z0-9]{30,}"),
     # PyPI
@@ -713,7 +713,7 @@ SECRET_SKIP_MARKERS = (
     "sanitized",
     "[secret]",
 )
-# Markers that are too short / ambiguous — require word boundary check
+# Markers that are too short or ambiguous require word-boundary checks.
 SECRET_SKIP_WORD_MARKERS = (
     "xxx",
     "test",
@@ -840,7 +840,7 @@ SENSITIVE_FILE_REGEXES = [
 
 ENV_TEMPLATE_SUFFIXES = (".example", ".sample", ".template", ".dist")
 
-# 敏感文件类型 → 对应的 .gitignore 规则（只按实际发现的文件推荐，不一股脑全加）
+# Sensitive file types map to .gitignore rules only after matching real files.
 SENSITIVE_TO_GITIGNORE = {
     "env_file": [".env", ".env.*"],
     "envrc": [".envrc"],
@@ -2379,7 +2379,7 @@ def main():
     preflight_hygiene_only = preflight_scan_mode == "hygiene_only"
     output_file = args.output or default_output_path(project_path, preflight=preflight)
     errors = []
-    # Setup logging
+    # Initialize logging after the output path determines the run directory.
     log_dir = os.path.join(os.path.dirname(os.path.dirname(output_file)), "logs")
     logger = setup_logging(verbose=args.verbose, debug=args.debug, log_dir=log_dir)
     logger.info("开始扫描项目: %s", project_path)
@@ -2441,9 +2441,7 @@ def main():
         )
     step_seconds["package_extraction"] = round(time.time() - step_started, 3)
 
-    # Step 3-5: independent I/O-heavy checks run in parallel.
-
-    # Note: steps 4 and 5 run in parallel
+    # Steps 3-5 are independent I/O-heavy checks and can run in parallel.
     def run_hygiene_step():
         step_started = time.time()
         if args.skip_hygiene:

@@ -704,7 +704,7 @@ def merge_server_payload(scan, server_payload):
 
 def main():
     args = parse_args(sys.argv[1:])
-    # Early logging to stderr; file logging set up after scan produces output_file
+    # Start with stderr logging; add file logging after scan.json fixes the run dir.
     setup_logging()
     logger.info("补天审计流水线开始: 路径=%s", args.project_path)
 
@@ -726,6 +726,7 @@ def main():
 
     server_payload = None
     if args.server or args.server_inventory:
+        # Server collection is opt-in; default project scans never touch system packages.
         server_collect = import_server_module("server_collect")
         if args.server_inventory:
             inventory = server_collect.read_inventory_file(args.server_inventory)
@@ -755,7 +756,7 @@ def main():
         write_json(scan["output_file"], scan)
     scan_mode = scan.get("scan_config", {}).get("scan_mode", "unknown")
 
-    # Set up file logging now that we know the workspace layout
+    # Add run-scoped file logging once the workspace layout is known.
     scan_log_dir = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(scan["output_file"]))),
         "logs",

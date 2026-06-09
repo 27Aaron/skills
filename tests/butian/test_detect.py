@@ -354,7 +354,7 @@ class BuildPreflightTests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# main() — subprocess integration tests
+# main() subprocess integration tests
 # ---------------------------------------------------------------------------
 class MainIntegrationTests(unittest.TestCase):
     @staticmethod

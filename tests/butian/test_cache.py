@@ -77,13 +77,11 @@ class CacheCleanTests(unittest.TestCase):
             old_file = os.path.join(cache_base, "old.json")
             new_file = os.path.join(cache_base, "new.json")
 
-            # Write old file
             with open(old_file, "w") as f:
                 json.dump({"data": "old"}, f)
             old_time = time.time() - 172800
             os.utime(old_file, (old_time, old_time))
 
-            # Write new file
             with open(new_file, "w") as f:
                 json.dump({"data": "new"}, f)
 
