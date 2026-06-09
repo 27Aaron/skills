@@ -698,6 +698,22 @@ def count_risks(*groups):
     return summary
 
 
+def merge_risk_summaries(*summaries):
+    merged = {key: 0 for key in SEVERITY_ORDER}
+    for summary in summaries:
+        for key in merged:
+            merged[key] += int((summary or {}).get(key) or 0)
+    return merged
+
+
+def risk_summary_for_items(items, fallback=None):
+    summary = count_risks(items or [])
+    known = sum(summary[key] for key in ("critical", "high", "medium", "low"))
+    if items and known == 0 and fallback:
+        return fallback
+    return summary
+
+
 def build_server_items(scan):
     server = scan.get("server") or {}
     low_evidence_categories = {
@@ -787,12 +803,27 @@ def build_summary(scan, analysis):
     hygiene = scan.get("hygiene") or {}
     scan_config = scan.get("scan_config") or {}
     hygiene_only = scan_config.get("scan_mode") == "hygiene_only"
-    risk_summary = analysis["risk_summary"]
-    critical_high = risk_summary["critical"] + risk_summary["high"]
-    medium_low = risk_summary["medium"] + risk_summary["low"]
     dependency_issue_count = len(analysis.get("top_issues") or [])
     server_issue_count = len(analysis.get("server_issues") or [])
     vuln_count = dependency_issue_count + server_issue_count
+    risk_summary = analysis["risk_summary"]
+    dependency_risk_summary = analysis.get(
+        "dependency_risk_summary"
+    ) or risk_summary_for_items(analysis.get("top_issues") or [], risk_summary)
+    server_risk_summary = analysis.get("server_risk_summary") or risk_summary_for_items(
+        analysis.get("server_issues") or []
+    )
+    confirmed_risk_summary = merge_risk_summaries(
+        dependency_risk_summary, server_risk_summary
+    )
+    critical_high = confirmed_risk_summary["critical"] + confirmed_risk_summary["high"]
+    medium_low = confirmed_risk_summary["medium"] + confirmed_risk_summary["low"]
+    local_critical_high = max(
+        0,
+        int(risk_summary.get("critical") or 0)
+        + int(risk_summary.get("high") or 0)
+        - critical_high,
+    )
     secret_count = len(hygiene.get("tracked_secrets") or [])
     sensitive_count = len(hygiene.get("sensitive_tracked") or [])
     missing_count = len(hygiene.get("gitignore_missing") or [])
@@ -819,19 +850,32 @@ def build_summary(scan, analysis):
         tldr = "本次没有发现补天支持的依赖文件，因此未执行依赖漏洞扫描；报告结论仅覆盖仓库安检范围。"
     elif critical_high and vuln_count:
         risk_scope = "依赖风险项" if server_issue_count == 0 else "风险项"
+        severity_summary = (
+            dependency_risk_summary
+            if server_issue_count == 0
+            else confirmed_risk_summary
+        )
         tldr = (
-            f"发现 {vuln_count} 个已确认{risk_scope}，其中 {summary_severity_phrase(risk_summary)}，"
+            f"发现 {vuln_count} 个已确认{risk_scope}，其中 {summary_severity_phrase(severity_summary)}，"
             f"{summary_hygiene_status_phrase(secret_count, sensitive_count, missing_count, local_check_count)}。"
         )
-    elif critical_high:
+    elif vuln_count and medium_low:
+        risk_scope = "依赖风险项" if server_issue_count == 0 else "风险项"
+        severity_summary = (
+            dependency_risk_summary
+            if server_issue_count == 0
+            else confirmed_risk_summary
+        )
+        tldr = (
+            f"发现 {vuln_count} 个已确认{risk_scope}，其中 {summary_severity_phrase(severity_summary)}，"
+            f"{summary_hygiene_status_phrase(secret_count, sensitive_count, missing_count, local_check_count)}。"
+        )
+    elif vuln_count:
+        tldr = "命中已确认风险项，但严重度数据不足，需要结合公告复核影响范围。"
+    elif local_critical_high:
         tldr = "仓库安检发现需要优先处理的本地安全配置风险，建议先处理工作流、凭证、容器或供应链高风险项。"
     elif secret_count or sensitive_count:
         tldr = "未发现高优先级依赖漏洞，但仓库里有凭证或敏感文件迹象，需要研发确认。"
-    elif vuln_count and medium_low:
-        risk_scope = "依赖风险项" if server_issue_count == 0 else "风险项"
-        tldr = f"发现已确认{risk_scope}，当前以中风险或低风险为主，建议按维护窗口分批处理。"
-    elif vuln_count:
-        tldr = "命中已确认风险项，但严重度数据不足，需要结合公告复核影响范围。"
     elif errors:
         tldr = (
             "本次扫描暂未确认安全风险，但有部分检查失败，结论需要复核后再作为发布依据。"
@@ -865,6 +909,10 @@ def build_summary(scan, analysis):
         )
         priority.append(
             f"优先处理 {critical_high} 个紧急/高风险项；{primary_scope}先处理有明确修复版本或官方处置路径的项，仓库安检项先处理工作流权限、凭证、容器和供应链配置。"
+        )
+    elif local_critical_high:
+        priority.append(
+            "优先处理仓库安检中的高风险本地配置项，例如工作流权限、凭证、容器或供应链配置。"
         )
     elif vuln_count:
         risk_scope = "依赖风险项" if server_issue_count == 0 else "风险项"
@@ -921,6 +969,9 @@ def build_analysis(scan, source_scan_file=None, output_file=None):
     dependency_green = build_dependency_fix_items(top_issues)
     server_issues, server_maintenance = build_server_items(scan)
     green = dependency_green + hygiene_green + server_maintenance
+    dependency_risk_summary = count_risks(top_issues)
+    server_risk_summary = count_risks(server_issues)
+    local_risk_summary = count_risks(red, yellow)
 
     analysis = {
         "generated_at": scan.get("generated_at"),
@@ -929,7 +980,12 @@ def build_analysis(scan, source_scan_file=None, output_file=None):
         "scan_config": scan.get("scan_config") or {},
         "source_scan_file": source_scan_file,
         "output_file": output_file,
-        "risk_summary": count_risks(top_issues + server_issues, red, yellow),
+        "risk_summary": merge_risk_summaries(
+            dependency_risk_summary, server_risk_summary, local_risk_summary
+        ),
+        "dependency_risk_summary": dependency_risk_summary,
+        "server_risk_summary": server_risk_summary,
+        "local_risk_summary": local_risk_summary,
         "hygiene": scan.get("hygiene") or {},
         "outdated": scan.get("outdated") or [],
         "server": scan.get("server") or {},

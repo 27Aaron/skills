@@ -1311,6 +1311,13 @@ class TestBuildSummary(unittest.TestCase):
                 "low": 3,
                 "info": 0,
             },
+            dependency_risk_summary={
+                "critical": 0,
+                "high": 11,
+                "medium": 18,
+                "low": 3,
+                "info": 0,
+            },
             top_issues=[
                 {"package": "next", "severity": "high", "fixed_versions": ["16.2.5"]},
                 {"package": "next", "severity": "high", "fixed_versions": ["16.2.5"]},
@@ -1331,6 +1338,33 @@ class TestBuildSummary(unittest.TestCase):
         )
         self.assertNotIn("主要集中", result["tldr"])
         self.assertNotIn("建议先升级", result["tldr"])
+
+    def test_tldr_does_not_mix_hygiene_severity_into_dependency_phrase(self):
+        scan = _make_scan(
+            hygiene={
+                "tracked_secrets": [{"type": "openai_key"}],
+                "sensitive_tracked": [],
+                "gitignore_missing": [],
+            }
+        )
+        analysis = self._make_analysis(
+            risk_summary={
+                "critical": 0,
+                "high": 1,
+                "medium": 1,
+                "low": 0,
+                "info": 0,
+            },
+            top_issues=[{"package": "demo", "severity": "medium"}],
+            yellow=[{"type": "secret_exposure", "severity": "high"}],
+        )
+
+        result = analyze.build_summary(scan, analysis)
+
+        self.assertIn("发现 1 个已确认依赖风险项", result["tldr"])
+        self.assertIn("1 个为中风险项", result["tldr"])
+        self.assertIn("疑似硬编码凭证 1 处", result["tldr"])
+        self.assertNotIn("高风险项，仓库安检", result["tldr"])
 
     def test_secrets_found(self):
         scan = _make_scan(
@@ -1370,7 +1404,8 @@ class TestBuildSummary(unittest.TestCase):
         )
         result = analyze.build_summary(scan, analysis)
 
-        self.assertIn("中风险或低风险", result["tldr"])
+        self.assertIn("3 个已确认依赖风险项", result["tldr"])
+        self.assertIn("2 个为中风险项", result["tldr"])
         self.assertIn("已确认依赖风险项", result["tldr"])
         self.assertTrue(any("已确认依赖风险项" in p for p in result["priority"]))
 
