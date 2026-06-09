@@ -61,6 +61,11 @@ def parse_args(argv):
         help="跳过包管理器 outdated 检查，加快只看漏洞的扫描",
     )
     parser.add_argument(
+        "--allow-project-exec",
+        action="store_true",
+        help="允许 outdated 检查执行项目内工具（例如 .venv/bin/python）",
+    )
+    parser.add_argument(
         "--skip-hygiene",
         action="store_true",
         help="跳过 gitignore、被跟踪敏感文件和硬编码密钥检查",
@@ -680,6 +685,8 @@ def build_scan_cmd(args, preflight_file):
     ]
     if args.skip_outdated:
         cmd.append("--skip-outdated")
+    if args.allow_project_exec:
+        cmd.append("--allow-project-exec")
     if args.skip_hygiene:
         cmd.append("--skip-hygiene")
     if args.include_packages:

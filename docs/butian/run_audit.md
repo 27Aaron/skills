@@ -74,6 +74,7 @@ py -3 run_audit.py --server-inventory <server_inventory_json> .
 | `project_path`        | 位置参数 | `.`    | 项目路径                         |
 | `--no-root-discovery` | flag     | false  | 不向上遍历查找项目根             |
 | `--skip-outdated`     | flag     | false  | 跳过过期依赖检查                 |
+| `--allow-project-exec` | flag     | false  | 允许过期检查执行项目内工具       |
 | `--skip-hygiene`      | flag     | false  | 跳过仓库安检                     |
 | `--max-secret-files`  | int      | None   | 限制密钥扫描的文件数量           |
 | `--include-packages`  | flag     | false  | 在扫描输出中包含完整包列表       |

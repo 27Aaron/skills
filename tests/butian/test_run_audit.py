@@ -16,6 +16,7 @@ def _scan_args(**overrides):
     """Build a namespace with all build_scan_cmd attributes and sensible defaults."""
     defaults = dict(
         skip_outdated=False,
+        allow_project_exec=False,
         skip_hygiene=False,
         include_packages=False,
         max_secret_files=None,
@@ -623,6 +624,11 @@ class BuildScanCmdTests(unittest.TestCase):
         args = _scan_args(skip_outdated=True)
         cmd = run_audit.build_scan_cmd(args, "preflight.json")
         self.assertIn("--skip-outdated", cmd)
+
+    def test_allow_project_exec(self):
+        args = _scan_args(allow_project_exec=True)
+        cmd = run_audit.build_scan_cmd(args, "preflight.json")
+        self.assertIn("--allow-project-exec", cmd)
 
     def test_skip_hygiene(self):
         args = _scan_args(skip_hygiene=True)

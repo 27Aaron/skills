@@ -218,6 +218,67 @@ class DependencyParsersModuleCompatibilityTests(unittest.TestCase):
                 any("项目本地虚拟环境" in item.get("message", "") for item in errors)
             )
 
+    def test_pip_outdated_skips_project_virtualenv_without_opt_in(self):
+        with tempfile.TemporaryDirectory(prefix="butian-pypi-") as root:
+            bin_dir = os.path.join(root, ".venv", "bin")
+            os.makedirs(bin_dir)
+            with open(
+                os.path.join(root, ".venv", "pyvenv.cfg"), "w", encoding="utf-8"
+            ) as handle:
+                handle.write("home = /usr/bin\n")
+            python = os.path.join(bin_dir, "python")
+            with open(python, "w", encoding="utf-8") as handle:
+                handle.write("#!/bin/sh\nexit 0\n")
+            os.chmod(python, 0o755)
+            calls = []
+            original = scan.run_cmd_checked
+
+            def fake_run_cmd_checked(*args, **kwargs):
+                calls.append((args, kwargs))
+                return "[]"
+
+            scan.run_cmd_checked = fake_run_cmd_checked
+            try:
+                errors = []
+                self.assertEqual(scan._pip_outdated(root, errors), [])
+            finally:
+                scan.run_cmd_checked = original
+
+            self.assertEqual(calls, [])
+            self.assertTrue(
+                any("--allow-project-exec" in item.get("message", "") for item in errors)
+            )
+
+    def test_pip_outdated_runs_project_virtualenv_when_opted_in(self):
+        with tempfile.TemporaryDirectory(prefix="butian-pypi-") as root:
+            bin_dir = os.path.join(root, ".venv", "bin")
+            os.makedirs(bin_dir)
+            with open(
+                os.path.join(root, ".venv", "pyvenv.cfg"), "w", encoding="utf-8"
+            ) as handle:
+                handle.write("home = /usr/bin\n")
+            python = os.path.join(bin_dir, "python")
+            with open(python, "w", encoding="utf-8") as handle:
+                handle.write("#!/bin/sh\nexit 0\n")
+            os.chmod(python, 0o755)
+            calls = []
+            original = scan.run_cmd_checked
+
+            def fake_run_cmd_checked(cmd, *args, **kwargs):
+                calls.append(cmd)
+                return "[]"
+
+            scan.run_cmd_checked = fake_run_cmd_checked
+            try:
+                errors = []
+                self.assertEqual(
+                    scan._pip_outdated(root, errors, allow_project_exec=True), []
+                )
+            finally:
+                scan.run_cmd_checked = original
+
+            self.assertEqual(calls[0][0], python)
+
     def test_cargo_outdated_skips_with_clear_message_when_subcommand_missing(self):
         calls = []
         original = scan.run_cmd_checked

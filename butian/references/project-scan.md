@@ -41,7 +41,7 @@
 - **GitHub Actions**：本地静态检查过宽权限、危险触发器、脚本注入、远程脚本管道执行等。
 - **依赖配置与维护**：检查 lockfile 缺失、可疑安装脚本、registry 配置和 Dependabot 建议。
 - **IaC / 容器配置**：本地检查 Dockerfile、Compose、Kubernetes、Terraform 常见配置风险。
-- **过期依赖**：只运行项目内包管理器或项目本地虚拟环境，不扫描系统包和全局包。
+- **过期依赖**：默认不扫描系统包和全局包，也不执行项目本地虚拟环境；只有显式传入 `--allow-project-exec` 时，才允许过期检查执行 `.venv/bin/python` 等项目内工具。
 
 ## 数据源、缓存和错误处理
 

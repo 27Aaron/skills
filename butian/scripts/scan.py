@@ -1970,7 +1970,14 @@ def run_outdated_task(index, task):
     return index, items, local_errors
 
 
-def check_outdated(project_path, ecosystems, errors=None, concurrency=4, packages=None):
+def check_outdated(
+    project_path,
+    ecosystems,
+    errors=None,
+    concurrency=4,
+    packages=None,
+    allow_project_exec=False,
+):
     if errors is None:
         errors = []
     version_index = package_version_index(packages)
@@ -1998,7 +2005,13 @@ def check_outdated(project_path, ecosystems, errors=None, concurrency=4, package
     if "yarn" in ecosystems:
         tasks.append(lambda task_errors: _yarn_outdated(project_path, task_errors))
     if "pypi" in ecosystems:
-        tasks.append(lambda task_errors: _pip_outdated(project_path, task_errors))
+        tasks.append(
+            lambda task_errors: _pip_outdated(
+                project_path,
+                task_errors,
+                allow_project_exec=allow_project_exec,
+            )
+        )
     if "go" in ecosystems:
         tasks.append(lambda task_errors: _go_outdated(project_path, task_errors))
     if "crates-io" in ecosystems:
@@ -2148,7 +2161,7 @@ def project_python_executable(cwd):
     return ""
 
 
-def _pip_outdated(cwd, errors=None):
+def _pip_outdated(cwd, errors=None, *, allow_project_exec=False):
     # uv 管理的项目：使用 uv pip list 做过期检查。
     if os.path.isfile(os.path.join(cwd, "uv.lock")):
         output = run_cmd_checked(
@@ -2189,6 +2202,15 @@ def _pip_outdated(cwd, errors=None):
                 {
                     "step": "outdated_check",
                     "message": "未发现项目本地虚拟环境，已跳过 PyPI 过期依赖检查，避免扫描系统 Python 环境",
+                }
+            )
+        return []
+    if not allow_project_exec:
+        if errors is not None:
+            errors.append(
+                {
+                    "step": "outdated_check",
+                    "message": "已跳过 PyPI 过期依赖检查：发现项目本地虚拟环境，但默认不执行项目内 Python；如需执行请显式传入 --allow-project-exec。",
                 }
             )
         return []
@@ -2331,6 +2353,11 @@ def parse_args(argv):
         "--skip-outdated",
         action="store_true",
         help="skip package-manager outdated checks for faster vulnerability-only scans",
+    )
+    parser.add_argument(
+        "--allow-project-exec",
+        action="store_true",
+        help="allow outdated checks to execute project-local tools such as .venv/bin/python",
     )
     parser.add_argument(
         "--skip-hygiene",
@@ -2576,6 +2603,7 @@ def main():
                 errors=step_errors,
                 concurrency=outdated_workers,
                 packages=packages,
+                allow_project_exec=args.allow_project_exec,
             )
             logger.info(
                 "Step 5/5 过时依赖检测完成: %d 个过时, 耗时 %.3fs",
