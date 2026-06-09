@@ -461,6 +461,8 @@ def build_top_issues(scan):
     for vuln in scan.get("vulnerabilities") or []:
         item = dict(vuln)
         item["severity"] = normalize_severity(item.get("severity"))
+        # The red/yellow/green buckets are a report contract. Keep severity
+        # routing stable unless templates, repair planning, and docs change together.
         item["tier"] = (
             "red"
             if item["severity"] in {"critical", "high"}
@@ -668,6 +670,8 @@ def build_dependency_fix_items(top_issues):
         )
         if missing_fixed:
             summary += " 其中部分公告未给出明确修复版本，需升级后复扫确认。"
+        # fix_config is the machine contract consumed by fix.py; prose can be
+        # refined independently, but these fields must stay automation-safe.
         green.append(
             {
                 "name": f"升级 {package}",
@@ -733,6 +737,8 @@ def build_server_items(scan):
         "service_version",
         "service_version_only",
     }
+    # Server confirmed issues are separate from maintenance advice; only
+    # confirmed evidence may enter the risk counters and top report rows.
     confirmed = []
     for item in server.get("confirmed_issues") or []:
         confidence = str(item.get("confidence") or "confirmed").lower()
@@ -940,6 +946,8 @@ def build_summary(scan, analysis):
     if missing_count:
         priority.append("补充 .gitignore 敏感文件规则，降低后续误提交概率。")
     if outdated_count:
+        # Outdated dependencies are maintenance signals, not confirmed
+        # vulnerabilities; keep them out of the red/yellow risk totals.
         priority.append(
             "过期依赖按维护计划处理，结合版本跨度、兼容性和发布窗口分批升级。"
         )

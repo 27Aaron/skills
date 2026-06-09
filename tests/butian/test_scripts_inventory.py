@@ -240,6 +240,19 @@ class ButianScriptInventoryTests(unittest.TestCase):
                     text = handle.read()
                 self.assertIn(phrase, text)
 
+    def test_analyze_comments_preserve_report_contract_boundaries(self):
+        with open(os.path.join(SCRIPT_DIR, "analyze.py"), "r", encoding="utf-8") as handle:
+            text = handle.read()
+
+        for phrase in (
+            "The red/yellow/green buckets are a report contract",
+            "fix_config is the machine contract consumed by fix.py",
+            "Server confirmed issues are separate from maintenance advice",
+            "Outdated dependencies are maintenance signals",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, text)
+
 
 if __name__ == "__main__":
     unittest.main()
