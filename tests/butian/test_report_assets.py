@@ -223,12 +223,18 @@ class ButianReportAssetTests(unittest.TestCase):
                         "latest": "1.0.1",
                         "ecosystem": "npm",
                     }
-                    for idx in range(6)
+                    for idx in range(12)
                 ],
                 {
                     "package": "@scope/very-long-hidden-package-name",
                     "current": "2026.10.100",
                     "latest": "2026.11.101",
+                    "ecosystem": "npm",
+                },
+                {
+                    "package": "hidden-lib",
+                    "current": "0.1.0",
+                    "latest": "0.2.0",
                     "ecosystem": "npm",
                 },
             ],
@@ -277,14 +283,29 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertIn("<th>影响程度</th>", html)
         self.assertNotIn("风险等级分布", html)
         self.assertNotIn("<th>严重程度</th>", html)
-        self.assertIn("<th>依赖名称</th>", html)
-        self.assertIn("<th>当前版本</th>", html)
-        self.assertIn("<th>最近版本</th>", html)
+        self.assertIn('class="outdated-list"', html)
+        self.assertIn('class="outdated-row"', html)
+        self.assertEqual(html.count('class="outdated-row"'), 14)
+        self.assertEqual(html.count('class="outdated-row outdated-extra"'), 1)
+        self.assertIn(
+            '<button type="button" class="fix-btn open outdated-toggle-btn" aria-expanded="false" data-collapsed-label="余下 1 项" data-expanded-label="收起" onclick="toggleOutdated(this)">余下 1 项</button>',
+            html,
+        )
+        self.assertIn('<div class="outdated-package" title="hono">hono</div>', html)
+        self.assertIn('class="outdated-version-flow"', html)
+        self.assertIn('<code class="outdated-current">4.12.14</code>', html)
+        self.assertIn('<span class="outdated-arrow">→</span>', html)
+        self.assertIn('<code class="outdated-latest">4.12.21</code>', html)
+        self.assertIn("hidden-lib", html)
+        self.assertNotIn('class="outdated-card"', html)
+        self.assertNotIn('<span class="outdated-version-label">当前</span>', html)
+        self.assertNotIn('<span class="outdated-version-label">最近</span>', html)
+        self.assertNotIn('class="stable-table outdated-table"', html)
+        self.assertNotIn("<th>最近版本</th>", html)
+        self.assertNotIn("<th>建议</th>", html)
+        self.assertNotIn('data-label="建议"', html)
         self.assertNotIn("<th>生态</th>", html)
         self.assertNotIn("<td>npm</td>", html)
-        self.assertIn("--outdated-current-col:", html)
-        self.assertIn("--outdated-latest-col:", html)
-        self.assertIn('class="outdated-extra"', html)
         self.assertIn("@scope/very-long-hidden-package-name", html)
         self.assertNotIn("信息 <b>", html)
         self.assertIn("待确认 <b>1</b>", html)
@@ -303,10 +324,8 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertNotIn("并跑一次测试", html)
         self.assertNotIn("可更新到", html)
         self.assertNotIn("最近可用版本为", html)
-        self.assertIn(
-            "有新版本 4.12.21 可用，建议在近期迭代中安排升级。",
-            html,
-        )
+        self.assertNotIn("有新版本 4.12.21 可用", html)
+        self.assertNotIn("建议在近期迭代中安排升级", html)
         self.assertIn('class="fixed-list"', html)
         self.assertEqual(html.count('class="fixed-chip"'), 3)
         self.assertNotIn("11.1.1、12.0.1、13.0.1", html)
@@ -341,8 +360,22 @@ class ButianReportAssetTests(unittest.TestCase):
         )[0]
         self.assertIn("opacity: 0.62;", risk_pulse_css)
         self.assertIn("opacity: 0.48;", risk_pulse_css)
-        self.assertIn(".outdated-table .col-current", css)
-        self.assertIn(".outdated-table .col-latest", css)
+        self.assertIn(".outdated-list", css)
+        outdated_list_css = css.split(".outdated-list {", 1)[1].split("}", 1)[0]
+        self.assertIn("grid-template-columns: repeat(2, minmax(0, 1fr));", outdated_list_css)
+        self.assertIn(".outdated-row", css)
+        self.assertIn(".outdated-version-flow", css)
+        outdated_code_css = css.split(".outdated-version-flow code {", 1)[1].split("}", 1)[0]
+        self.assertIn("overflow-wrap: anywhere;", outdated_code_css)
+        self.assertIn("white-space: normal;", outdated_code_css)
+        self.assertNotIn("text-overflow: ellipsis;", outdated_code_css)
+        self.assertIn(".outdated-toggle", css)
+        self.assertIn(".outdated-row.outdated-extra", css)
+        self.assertIn(".outdated-expanded .outdated-row.outdated-extra", css)
+        self.assertNotIn(".outdated-folded-note", css)
+        self.assertNotIn(".outdated-card", css)
+        self.assertNotIn(".outdated-table .col-current", css)
+        self.assertNotIn(".outdated-table .col-latest", css)
         self.assertIn('data-label="详情"', html)
         self.assertIn("@media (max-width: 860px)", css)
         self.assertIn(".vuln-table thead", css)
@@ -359,7 +392,7 @@ class ButianReportAssetTests(unittest.TestCase):
             css,
         )
         self.assertIn(
-            "@media (max-width: 440px) {\n    .vuln-table td,\n    .outdated-table td {",
+            "@media (max-width: 440px) {\n    .vuln-table td {",
             css,
         )
         self.assertIn('class="detail-dossier detail-dossier-split"', html)
@@ -790,7 +823,7 @@ class ButianReportAssetTests(unittest.TestCase):
                     "wanted": "1.1.0",
                     "latest": "2.0.0",
                 }
-                for idx in range(8)
+                for idx in range(15)
             ],
         }
 
@@ -801,7 +834,7 @@ class ButianReportAssetTests(unittest.TestCase):
             html,
         )
         self.assertIn(
-            '<button type="button" class="fix-btn open table-toggle-btn" aria-expanded="false" onclick="toggleOutdated(this)">余下 1 项</button>',
+            '<button type="button" class="fix-btn open outdated-toggle-btn" aria-expanded="false" data-collapsed-label="余下 1 项" data-expanded-label="收起" onclick="toggleOutdated(this)">余下 1 项</button>',
             html,
         )
         self.assertNotIn("onmouseenter=\"scheduleVulnTableToggleScan", html)
@@ -819,6 +852,8 @@ class ButianReportAssetTests(unittest.TestCase):
         self.assertNotIn("window.scheduleVulnTableToggleScan", js)
         self.assertNotIn("window.scheduleOutdatedTableToggleScan", js)
         self.assertNotIn("window.cancelTableToggleScan", js)
+        self.assertIn("function toggleOutdated", js)
+        self.assertIn("window.toggleOutdated", js)
 
         with open(REPORT_CSS, "r", encoding="utf-8") as handle:
             css = handle.read()

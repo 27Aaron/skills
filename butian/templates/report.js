@@ -2009,25 +2009,6 @@ function vulnerabilityExplanation(r) {
   return esc(`当前版本${advisorySummaryText(r)}；${shortFixedVersionText(r)}`);
 }
 
-function outdatedExplanation(it) {
-  const current = String(it.current || it.version || "").trim();
-  const target =
-    String(it.latest || it.latestVersion || "").trim() ||
-    String(it.wanted || it.update || "").trim() ||
-    outdatedDisplayTarget(it);
-  const majorJump = current && target && isMajorVersionJump(current, target);
-  if (current && target) {
-    if (majorJump) {
-      return `有新版本 ${target} 可用，跨大版本更新建议先阅读更新日志并做兼容性测试。`;
-    }
-    return `有新版本 ${target} 可用，建议在近期迭代中安排升级。`;
-  }
-  if (target) {
-    return `有新版本 ${target} 可用，建议安排升级。`;
-  }
-  return "需要复核版本状态";
-}
-
 function isMajorVersionJump(current, target) {
   const c = parseVersion(current);
   const t = parseVersion(target);
@@ -2672,7 +2653,9 @@ function renderOverview(proj, rs) {
 
 // ---- Dense report tables ----
 const VULN_SHOW = 7;
-const OUTDATED_SHOW = 7;
+const OUTDATED_VISIBLE_ROWS = 7;
+const OUTDATED_COLUMNS = 2;
+const OUTDATED_SHOW = OUTDATED_VISIBLE_ROWS * OUTDATED_COLUMNS;
 
 function packageNameFor(row) {
   return String((row && (row.package || row.name)) || "");
@@ -2680,13 +2663,6 @@ function packageNameFor(row) {
 
 function measuredTextLength(value) {
   return Array.from(String(value || "")).length;
-}
-
-function columnWidth(rows, getter, min, max, charWidth, padding) {
-  const maxChars = (rows || []).reduce((longest, row) => {
-    return Math.max(longest, measuredTextLength(getter(row)));
-  }, 0);
-  return Math.min(max, Math.max(min, maxChars * charWidth + padding));
 }
 
 function packageColumnWidth(rows) {
@@ -2699,38 +2675,6 @@ function packageColumnWidth(rows) {
 function packageColumnWidthStyle(rows) {
   const px = packageColumnWidth(rows);
   return `--package-col:${px}px;`;
-}
-
-function outdatedColumnWidthStyle(rows) {
-  const packagePx = packageColumnWidth(rows);
-  const currentPx = columnWidth(
-    rows,
-    (row) => row && (row.current || row.version),
-    112,
-    180,
-    9,
-    40,
-  );
-  const latestPx = columnWidth(
-    rows,
-    (row) => row && outdatedDisplayTarget(row),
-    112,
-    180,
-    9,
-    40,
-  );
-  const targetLeadPx = Math.max(
-    620,
-    Math.min(760, packagePx + currentPx + latestPx + 240),
-  );
-  const spacerPx = Math.max(0, targetLeadPx - packagePx - currentPx - latestPx);
-  const currentWithSpacePx = currentPx + Math.floor(spacerPx / 2);
-  const latestWithSpacePx = latestPx + Math.ceil(spacerPx / 2);
-  return [
-    `--package-col:${packagePx}px`,
-    `--outdated-current-col:${currentWithSpacePx}px`,
-    `--outdated-latest-col:${latestWithSpacePx}px`,
-  ].join(";");
 }
 
 function renderTableColgroup(columns) {
@@ -3253,38 +3197,39 @@ function renderOutdated(items) {
     .map((it, idx) => {
       const packageName = packageNameFor(it);
       const current = String(it.current || it.version || "").trim();
-      const cls =
-        needToggle && idx >= OUTDATED_SHOW ? ' class="outdated-extra"' : "";
-      return `<tr${cls}>
-  <td class="package-cell" data-label="依赖名称"><b title="${esc(packageName)}">${esc(packageName)}</b></td>
-  <td class="ver" data-label="当前版本">${esc(current || "-")}</td>
-  <td class="ver" data-label="最近版本">${esc(outdatedDisplayTarget(it) || "-")}</td>
-  <td class="summary-cell" data-label="建议">${esc(outdatedExplanation(it))}</td>
-</tr>`;
+      const cls = needToggle && idx >= OUTDATED_SHOW ? " outdated-extra" : "";
+      return `<article class="outdated-row${cls}">
+  <div class="outdated-package" title="${esc(packageName)}">${esc(packageName)}</div>
+  <div class="outdated-version-flow">
+    <code class="outdated-current">${esc(current || "-")}</code>
+    <span class="outdated-arrow">→</span>
+    <code class="outdated-latest">${esc(outdatedDisplayTarget(it) || "-")}</code>
+  </div>
+</article>`;
     })
     .join("");
+  const hiddenCount = Math.max(0, items.length - OUTDATED_SHOW);
   const toggle = needToggle
-    ? `<tr class="outdated-toggle"><td colspan="4"><button type="button" class="fix-btn open table-toggle-btn" aria-expanded="false" onclick="toggleOutdated(this)">余下 ${items.length - OUTDATED_SHOW} 项</button></td></tr>`
+    ? `<div class="outdated-toggle"><button type="button" class="fix-btn open outdated-toggle-btn" aria-expanded="false" data-collapsed-label="余下 ${hiddenCount} 项" data-expanded-label="收起" onclick="toggleOutdated(this)">余下 ${hiddenCount} 项</button></div>`
     : "";
   return section(
     "过期依赖",
     items.length,
-    `<div class="table-scroll"><table class="stable-table outdated-table" style="${outdatedColumnWidthStyle(items)}">
-  ${renderTableColgroup(["package", "current", "latest", "summary"])}
-  <thead><tr><th>依赖名称</th><th>当前版本</th><th>最近版本</th><th>建议</th></tr></thead>
-  <tbody>${rows}${toggle}</tbody></table></div>`,
+    `<div class="outdated-list-wrap"><div class="outdated-list">${rows}</div>${toggle}</div>`,
     "",
     "long",
   );
 }
 
 function toggleOutdated(btn) {
-  const table = btn.closest("table");
-  table.classList.toggle("outdated-expanded");
-  const expanded = table.classList.contains("outdated-expanded");
-  const extras = table.querySelectorAll(".outdated-extra");
+  const root = btn.closest(".outdated-list-wrap");
+  if (!root) return;
+  const expanded = !root.classList.contains("outdated-expanded");
+  root.classList.toggle("outdated-expanded", expanded);
   btn.setAttribute("aria-expanded", expanded ? "true" : "false");
-  btn.textContent = expanded ? "收起" : `余下 ${extras.length} 项`;
+  btn.textContent = expanded
+    ? btn.dataset.expandedLabel || "收起"
+    : btn.dataset.collapsedLabel || "展开全部";
 }
 
 // ---- Yellow: manual review ----

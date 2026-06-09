@@ -482,6 +482,7 @@ tbody tr:hover {
     overflow-x: auto;
 }
 .table-scroll,
+.outdated-list-wrap,
 .summary {
     border: 1px solid var(--surface-border, var(--line-strong));
     border-radius: var(--radius);
@@ -489,12 +490,14 @@ tbody tr:hover {
     box-shadow: var(--surface-shadow);
 }
 .vuln-extra,
-.outdated-extra {
+.outdated-row.outdated-extra {
     display: none;
 }
-.vuln-expanded .vuln-extra,
-.outdated-expanded .outdated-extra {
+.vuln-expanded .vuln-extra {
     display: table-row;
+}
+.outdated-expanded .outdated-row.outdated-extra {
+    display: grid;
 }
 .vuln-detail-row {
     display: none !important;
@@ -502,10 +505,14 @@ tbody tr:hover {
 .vuln-detail-row.vuln-detail-open {
     display: table-row !important;
 }
-.vuln-toggle td,
-.outdated-toggle td {
+.vuln-toggle td {
     text-align: center;
     padding: 12px !important;
+}
+.outdated-toggle {
+    display: flex;
+    justify-content: center;
+    margin-top: 10px;
 }
 .table-scroll table {
     min-width: 680px;
@@ -518,14 +525,68 @@ tbody tr:hover {
 .vuln-table {
     min-width: max(820px, calc(620px + var(--package-col, 160px)));
 }
-.outdated-table {
-    min-width: max(
-        860px,
-        calc(
-            var(--package-col, 160px) + var(--outdated-current-col, 150px) +
-                var(--outdated-latest-col, 150px) + 360px
-        )
-    );
+.outdated-list-wrap {
+    padding: 12px;
+}
+.outdated-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 10px;
+}
+.outdated-row {
+    display: grid;
+    grid-template-columns: minmax(128px, 1fr) minmax(190px, auto);
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    border: 1px solid var(--surface-border);
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.58), transparent 74%),
+        color-mix(in srgb, var(--surface-bg) 82%, var(--panel-soft));
+    padding: 10px 12px;
+}
+.outdated-package {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 720;
+    line-height: 1.4;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.outdated-version-flow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 7px;
+    min-width: 0;
+    text-align: right;
+}
+.outdated-version-flow code {
+    max-width: 100%;
+    overflow: visible;
+    overflow-wrap: anywhere;
+    color: var(--detail-text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.35;
+    text-overflow: clip;
+    white-space: normal;
+}
+.outdated-current {
+    color: var(--sub) !important;
+}
+.outdated-latest {
+    color: var(--accent) !important;
+    font-weight: 720;
+}
+.outdated-arrow {
+    color: var(--sub);
+    font-size: 12px;
+    line-height: 1;
 }
 .col-severity {
     width: 72px;
@@ -542,12 +603,6 @@ tbody tr:hover {
 .col-current,
 .col-latest {
     width: 112px;
-}
-.outdated-table .col-current {
-    width: var(--outdated-current-col, 150px);
-}
-.outdated-table .col-latest {
-    width: var(--outdated-latest-col, 150px);
 }
 .col-advisory {
     width: 180px;
@@ -1690,25 +1745,20 @@ footer {
     }
     .table-scroll table,
     .stable-table,
-    .vuln-table,
-    .outdated-table {
+    .vuln-table {
         width: 100%;
         min-width: 0;
         table-layout: auto;
     }
     .vuln-table colgroup,
-    .outdated-table colgroup,
-    .vuln-table thead,
-    .outdated-table thead {
+    .vuln-table thead {
         display: none;
     }
-    .vuln-table tbody,
-    .outdated-table tbody {
+    .vuln-table tbody {
         display: grid;
         gap: 12px;
     }
-    .vuln-table tr,
-    .outdated-table tr {
+    .vuln-table tr {
         display: grid;
         gap: 8px;
         padding: 14px 16px;
@@ -1730,19 +1780,16 @@ footer {
         border-color: transparent;
         background: transparent;
     }
-    .vuln-extra,
-    .outdated-extra {
+    .vuln-extra {
         display: none;
     }
-    .vuln-expanded .vuln-extra:not(.vuln-detail-row),
-    .outdated-expanded .outdated-extra {
+    .vuln-expanded .vuln-extra:not(.vuln-detail-row) {
         display: grid;
     }
     .vuln-detail-row.vuln-detail-open {
         display: grid !important;
     }
-    .vuln-table td,
-    .outdated-table td {
+    .vuln-table td {
         display: grid;
         grid-template-columns: var(--mobile-risk-label-col) minmax(0, 1fr);
         gap: 4px 12px;
@@ -1751,8 +1798,7 @@ footer {
         border-bottom: 0;
         align-items: center;
     }
-    .vuln-table td::before,
-    .outdated-table td::before {
+    .vuln-table td::before {
         content: attr(data-label);
         color: var(--detail-label);
         font-size: 12px;
@@ -1760,16 +1806,13 @@ footer {
         line-height: 1.5;
         white-space: nowrap;
     }
-    .vuln-table td.sev .sev-badge,
-    .outdated-table td.sev .sev-badge {
+    .vuln-table td.sev .sev-badge {
         justify-self: start;
         width: max-content;
         max-width: 100%;
     }
     .vuln-table .package-cell b,
-    .outdated-table .package-cell b,
     .vuln-table .summary-cell,
-    .outdated-table .summary-cell,
     .vuln-table .advisory {
         min-width: 0;
         overflow-wrap: anywhere;
@@ -1783,29 +1826,24 @@ footer {
         flex-wrap: wrap;
         gap: 3px 10px;
     }
-    .vuln-table .summary-cell,
-    .outdated-table .summary-cell {
+    .vuln-table .summary-cell {
         color: var(--text-soft);
         line-height: 1.62;
     }
     .vuln-detail-row td,
-    .vuln-toggle td,
-    .outdated-toggle td {
+    .vuln-toggle td {
         display: block;
     }
     .vuln-detail-row td::before,
-    .vuln-toggle td::before,
-    .outdated-toggle td::before {
+    .vuln-toggle td::before {
         content: none;
     }
-    .vuln-toggle,
-    .outdated-toggle {
+    .vuln-toggle {
         border: 0;
         background: transparent;
         padding: 0;
     }
-    .vuln-toggle td,
-    .outdated-toggle td {
+    .vuln-toggle td {
         padding: 0 !important;
     }
 }
@@ -1829,6 +1867,17 @@ footer {
     }
     .stats {
         grid-template-columns: 1fr;
+    }
+    .outdated-list {
+        grid-template-columns: 1fr;
+    }
+    .outdated-row {
+        grid-template-columns: minmax(0, 1fr);
+        align-items: start;
+    }
+    .outdated-version-flow {
+        justify-content: flex-start;
+        text-align: left;
     }
     .sec h2 {
         align-items: center;
@@ -1864,8 +1913,7 @@ footer {
     }
 }
 @media (max-width: 440px) {
-    .vuln-table td,
-    .outdated-table td {
+    .vuln-table td {
         grid-template-columns: 1fr;
         gap: 3px;
         align-items: start;
