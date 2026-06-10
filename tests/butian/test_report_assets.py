@@ -221,7 +221,10 @@ class ReportAssetTests(unittest.TestCase):
         html = result.stdout
 
         self.assertIn("检查未完成", html)
+        self.assertIn("依赖漏洞检查不完整", html)
+        self.assertIn("不能证明无风险", html)
         self.assertIn("需复核", html)
+        self.assertNotIn("未命中已确认的依赖风险项", html)
         self.assertNotIn("未发现风险 <b>✓</b>", html)
 
     def test_fixed_versions_render_as_wrapping_chips(self):

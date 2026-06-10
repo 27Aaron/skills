@@ -2954,6 +2954,14 @@ function renderTableColgroup(columns) {
     .join("")}</colgroup>`;
 }
 
+function hasVulnerabilityErrors() {
+  return toList(DATA.errors).some((item) => {
+    const step = String((item && item.step) || "").toLowerCase();
+    const message = String((item && item.message) || "").toLowerCase();
+    return step === "vulnerability_check" || message.includes("vulnerability_check");
+  });
+}
+
 // ---- Vulnerability table (all items) ----
 
 function renderVulnTable(rows) {
@@ -2968,6 +2976,24 @@ function renderVulnTable(rows) {
             label: "结论口径",
             value:
               "这不是依赖漏洞扫描通过，而是本次未执行依赖漏洞扫描。仓库安检结论仍可参考。",
+          },
+        ])}</div>`,
+        "",
+        "search",
+      );
+    }
+    if (hasVulnerabilityErrors()) {
+      return section(
+        "当前风险",
+        0,
+        `<div class="summary vuln-empty">${miniFields([
+          {
+            label: "检查状态",
+            value: "依赖漏洞检查不完整，不能证明无风险。",
+          },
+          {
+            label: "建议动作",
+            value: "先复查扫描错误，补齐失败的官方漏洞源检查后再确认最终结论。",
           },
         ])}</div>`,
         "",

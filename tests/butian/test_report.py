@@ -373,6 +373,17 @@ class RenderVulnerabilitiesTests(unittest.TestCase):
         )
         self.assertIn("未命中已确认的依赖风险项", result)
 
+    def test_no_issues_with_vulnerability_errors_is_incomplete(self):
+        result = report.render_vulnerabilities(
+            {
+                "scan_config": {"scan_mode": "full_dependency_scan"},
+                "errors": [{"step": "vulnerability_check", "message": "OSV HTTP 403"}],
+            }
+        )
+        self.assertIn("依赖漏洞检查不完整", result)
+        self.assertIn("不能证明无风险", result)
+        self.assertNotIn("未命中已确认的依赖风险项", result)
+
     def test_no_issues_hygiene_only(self):
         result = report.render_vulnerabilities(
             {"scan_config": {"scan_mode": "hygiene_only"}}

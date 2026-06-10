@@ -198,6 +198,15 @@ def is_hygiene_only(analysis):
     return (analysis.get("scan_config") or {}).get("scan_mode") == "hygiene_only"
 
 
+def has_vulnerability_errors(analysis):
+    for item in analysis.get("errors") or []:
+        step = text(item.get("step")).lower()
+        message = text(item.get("message")).lower()
+        if step == "vulnerability_check" or "vulnerability_check" in message:
+            return True
+    return False
+
+
 def normalize_security_id(value):
     value = text(value).strip("()[]{}.,;")
     if CVE_ID_RE.match(value):
@@ -424,6 +433,11 @@ def render_vulnerabilities(analysis):
     if not issues:
         if is_hygiene_only(analysis):
             return f"本次未执行依赖漏洞扫描：{HYGIENE_ONLY_NOTICE}\n"
+        if has_vulnerability_errors(analysis):
+            return (
+                "依赖漏洞检查不完整，不能证明无风险。请先复查扫描错误，"
+                "补齐失败的官方漏洞源检查后再确认最终结论。\n"
+            )
         return "未命中已确认的依赖风险项。\n"
 
     lines = [
