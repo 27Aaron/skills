@@ -860,6 +860,7 @@ class ParseYarnLockTests(unittest.TestCase):
             names = {p["name"] for p in pkgs}
             self.assertIn("lodash", names)
             self.assertIn("@babel/core", names)
+            self.assertNotIn("__metadata", names)
 
     def test_missing_file(self):
         with tempfile.TemporaryDirectory(prefix="butian-yarn-") as root:

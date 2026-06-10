@@ -281,6 +281,8 @@ def _parse_yarn_lock_berry(content):
             for desc in re.split(r",\s*", header):
                 desc = desc.strip().strip('"')
                 name = _yarn_berry_descriptor_name(desc)
+                if name == "__metadata":
+                    continue
                 if name and name not in current_names:
                     current_names.append(name)
             continue
