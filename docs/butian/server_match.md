@@ -23,4 +23,4 @@
 
 ## 输出口径
 
-NVD/CPE、服务版本、Docker 标签或自编译二进制线索不能单独生成服务器风险项；API 失败或 ecosystem 不支持进入 `errors`，不能解释成没有漏洞。
+NVD/CPE、服务版本或自编译二进制线索不能单独生成服务器风险项；API 失败或 ecosystem 不支持进入 `errors`，不能解释成没有漏洞。
