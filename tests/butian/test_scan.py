@@ -2073,6 +2073,12 @@ class CvssToSeverityTests(unittest.TestCase):
         result = scan._cvss_to_severity("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N")
         self.assertEqual(result, "low")
 
+    def test_cvss_v4_vector_is_not_misclassified_as_low(self):
+        result = scan._cvss_to_severity(
+            "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
+        )
+        self.assertIsNone(result)
+
     def test_none_input(self):
         self.assertIsNone(scan._cvss_to_severity(None))
 
