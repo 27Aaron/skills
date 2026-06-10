@@ -271,6 +271,8 @@ def default_asset_path(project_path, filename, preflight=None):
 
 
 def is_protected_project_path(path):
+    if _looks_like_windows_drive_root(path):
+        return True
     absolute = os.path.abspath(path)
     real = os.path.realpath(path)
     if _is_filesystem_root(absolute) or _is_filesystem_root(real):
