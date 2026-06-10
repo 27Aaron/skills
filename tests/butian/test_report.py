@@ -41,6 +41,14 @@ class CellTests(unittest.TestCase):
         self.assertEqual(report.cell(None), "")
 
 
+class InlineCodeTests(unittest.TestCase):
+    def test_backticks_use_longer_fence(self):
+        self.assertEqual(report.inline_code("src/`weird`.py"), "`` src/`weird`.py ``")
+
+    def test_nested_backticks_use_longer_fence(self):
+        self.assertEqual(report.inline_code("a``b"), "``` a``b ```")
+
+
 # ---------------------------------------------------------------------------
 # to_list
 # ---------------------------------------------------------------------------
@@ -743,6 +751,22 @@ class RenderManualItemsTests(unittest.TestCase):
         self.assertIn("密钥已入 git 历史", result)
         self.assertIn("紧急", result)
         self.assertIn("需确认", result)
+
+    def test_path_with_backticks_uses_safe_inline_code(self):
+        analysis = {
+            "red": [
+                {
+                    "name": "路径包含反引号",
+                    "severity": "medium",
+                    "path": "src/`weird`.py",
+                }
+            ],
+            "yellow": [],
+        }
+        result = report.render_manual_items(analysis)
+
+        self.assertIn("位置：`` src/`weird`.py ``", result)
+        self.assertNotIn("位置：`src/`weird`.py`", result)
 
     def test_empty(self):
         result = report.render_manual_items({"red": [], "yellow": []})

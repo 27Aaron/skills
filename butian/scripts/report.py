@@ -78,7 +78,13 @@ def inline_code(value):
     value = text(value)
     if not value:
         return "-"
-    return f"`{value.replace('`', '\\`')}`"
+    max_backticks = max(
+        (len(match.group(0)) for match in re.finditer(r"`+", value)), default=0
+    )
+    fence = "`" * (max_backticks + 1)
+    if max_backticks:
+        return f"{fence} {value} {fence}"
+    return f"{fence}{value}{fence}"
 
 
 def clean_version(value):
@@ -754,7 +760,7 @@ def render_manual_items(analysis):
         if item.get("severity"):
             lines.append(f"- 影响程度：{severity_label(item.get('severity'))}")
         if item.get("path") or item.get("file"):
-            lines.append(f"- 位置：`{text(item.get('path') or item.get('file'))}`")
+            lines.append(f"- 位置：{inline_code(item.get('path') or item.get('file'))}")
         why = (
             item.get("why_manual")
             or item.get("why_keep")
