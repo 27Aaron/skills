@@ -1555,6 +1555,27 @@ class ParsePipfileLockTests(unittest.TestCase):
             self.assertEqual(len(pkgs), 1)
             self.assertEqual(pkgs[0]["version"], "2.0.3")
 
+    def test_skips_non_exact_versions(self):
+        with tempfile.TemporaryDirectory(prefix="butian-pipfile-") as root:
+            with open(os.path.join(root, "Pipfile.lock"), "w") as f:
+                json.dump(
+                    {
+                        "default": {
+                            "range": ">=2.0",
+                            "compatible": {"version": "~=1.4"},
+                            "exact": {"version": "==3.2.1"},
+                        }
+                    },
+                    f,
+                )
+
+            pkgs = scan.parse_pipfile_lock(root)
+
+            self.assertEqual(
+                [(pkg["name"], pkg["version"]) for pkg in pkgs],
+                [("exact", "3.2.1")],
+            )
+
     def test_missing_file(self):
         with tempfile.TemporaryDirectory(prefix="butian-pipfile-") as root:
             self.assertEqual(scan.parse_pipfile_lock(root), [])

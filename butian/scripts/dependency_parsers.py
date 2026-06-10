@@ -900,21 +900,19 @@ def parse_pipfile_lock(project_path):
             else:
                 version = ""
             version = str(version or "").strip()
-            specifier = ""
-            if version.startswith("=="):
-                specifier = "=="
-                version = version[2:]
-            elif version.startswith("="):
-                specifier = "="
-                version = version[1:]
-            if not version:
+            match = re.match(r"^(===|==)\s*([0-9][0-9A-Za-z.*+!_-]*)$", version)
+            if not match:
+                continue
+            specifier = match.group(1)
+            version = match.group(2)
+            if "*" in version:
                 continue
             pkgs.append(
                 {
                     "ecosystem": "pypi",
                     "name": name.lower(),
                     "version": version,
-                    "specifier": specifier or "==",
+                    "specifier": specifier,
                     "is_direct": is_direct,
                     "source": "Pipfile.lock",
                 }
