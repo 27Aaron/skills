@@ -2219,6 +2219,21 @@ class ExtractOsvFixedVersionsTests(unittest.TestCase):
 
         self.assertEqual(fixed, ["1.15.4", "1.19.2"])
 
+    def test_nuget_package_matching_is_case_insensitive(self):
+        osv_record = {
+            "affected": [
+                {
+                    "package": {"ecosystem": "NuGet", "name": "newtonsoft.json"},
+                    "ranges": [{"events": [{"fixed": "13.0.4"}]}],
+                }
+            ]
+        }
+        pkg = {"ecosystem": "nuget", "name": "Newtonsoft.Json"}
+
+        fixed = scan.extract_osv_fixed_versions(osv_record, pkg)
+
+        self.assertEqual(fixed, ["13.0.4"])
+
     def test_no_affected(self):
         pkg = {"ecosystem": "npm", "name": "lodash"}
         self.assertEqual(scan.extract_osv_fixed_versions({}, pkg), [])
