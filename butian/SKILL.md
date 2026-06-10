@@ -1,37 +1,28 @@
 ---
 name: butian
 description: |
-  补天：为本地代码仓库补上安全裂缝，围绕依赖漏洞、过期依赖、硬编码凭证、敏感文件误提交、仓库忽略规则、供应链与 IaC/容器配置做只读审计。
-  输出以简体中文为主，优先生成能给团队阅读和跟进的 Markdown/HTML 安全报告。
-  触发词包括但不限于：帮我看看项目有没有安全问题、安全扫描、扫一下项目、依赖有没有漏洞、硬编码密钥、漏洞检查、供应链安全。
+  Use when the user asks to check local dependency security, run repository security checks, scan a project for vulnerabilities, hardcoded secrets, sensitive committed files, .gitignore gaps, supply-chain risk, outdated dependencies, or IaC/container configuration issues.
+  适用于“安全扫描、扫一下项目、依赖有没有漏洞、硬编码密钥、漏洞检查、供应链安全、仓库有没有安全隐患”等本地代码仓库安全体检请求。
 ---
 
 # 补天
 
-本地安全扫描 Skill。默认面向代码项目，生成 Markdown 审计报告和只读 HTML 报告，帮助非安全背景读者理解依赖漏洞、硬编码凭证、敏感文件跟踪、`.gitignore`、依赖维护和 IaC/容器本地配置风险。
+本地代码仓库安全扫描 Skill。默认面向项目目录，生成 Markdown 审计报告和只读 HTML 报告，帮助非安全背景读者理解依赖漏洞、硬编码凭证、敏感文件跟踪、`.gitignore`、依赖维护和 IaC/容器本地配置风险。
 
-## 默认执行规则
+## When to Use
 
-1. **第一次扫描报告**：在目标项目目录中运行 `run_audit.py` 完成首次扫描。项目扫描会先生成 `docs/butian/<日期>/security-report.html`，再生成 `docs/butian/<日期>/security-report.md`，不自动打开网页；只在终端展示绝对路径和摘要，再询问是否修复。
-2. **修复前先确认**：确认开始修复后，才运行 `fix.py` 或包管理器命令。默认优先升级到已知修复版本；升级到 latest、Dependabot、凭证占位符替换、过期依赖维护都需要确认。
-3. **修复完成后的最终报告**：修复和复扫结束后，运行 `run_audit.py --final-report`。项目最终复扫会先生成 `docs/butian/<日期>/security-report-final.html`，再生成 `docs/butian/<日期>/security-report-final.md`，同样只在终端展示绝对路径。
-4. **默认只处理项目**：普通项目扫描不扫描系统 Python、全局 npm、全局 pnpm 或操作系统包，也不会碰系统升级、系统服务、数据库或日志。
+- 用户要“安全扫描”“扫一下项目”“看看有没有安全隐患”。
+- 用户关注依赖漏洞、过期依赖、硬编码密钥、敏感文件误提交、`.gitignore`、供应链风险或 IaC/容器配置。
+- 用户要一份可给团队阅读和跟进的本地安全报告。
 
-## 详细参考
+不用于系统目录、用户主目录、系统包、系统服务、数据库、日志、云账号权限、线上渗透测试或完整代码审计。
 
-- 项目的安全扫描、报告契约、数据源边界、修复交互和 AskUserQuestion：`references/project-scan.md`。
+## Default Flow
 
-## 铁律
-
-- **扫描阶段不改业务内容。** 项目扫描不会修改业务源码、依赖、数据库或日志；它会创建/更新 `.butian/` 本地报告工作区、缓存、`docs/butian/<日期>/security-report*.md/html`，以及必要的报告忽略规则，并会确保 `.gitignore` 忽略 `.butian/` 和生成的安全报告文件。
-- **报告路径必须是绝对路径。** 终端摘要、修复前后的转述和最终回复里只展示 HTML/Markdown 报告路径，必须使用 `run_audit.py` 输出的完整绝对路径，禁止改写成 `docs/butian/...` 这类相对路径；不要展示内部 `analysis.json` 路径。
-- **报告证据必须脱敏。** 普通密钥只展示脱敏预览，模板文件也只展示脱敏命中值；脱敏不要过度，尽量保留足够上下文让新手能找到对应位置。
-- **默认是项目扫描。** 不主动扫描系统目录、用户主目录、系统 Python、全局 npm、全局 pnpm、操作系统包、系统服务、数据库或日志；过期依赖维护视图默认不执行项目里的包管理器命令，只有用户确认并显式传入 `--allow-project-exec` 时才运行。
-- **修复必须先问用户。** 项目报告生成后，先用 AskUserQuestion 询问是否修复；升级方式、Dependabot、凭证占位符和过期依赖维护都需要确认。AskUserQuestion 每次只能确认一个阶段问题，禁止把修复范围和可选收尾动作放进同一个弹窗，禁止使用 `长期维护` 作为问题 header。可选收尾动作只在依赖修复、残留处理和复扫完成后，最终报告生成前单独确认。
-- **风险项和建议分开呈现。** 已确认风险、仓库安检、过期依赖不能混成一种风险。
-- **不制造恐慌。** 没有证据时说“不确定”；任何跳过、API 失败或采集失败都必须保留为不完整检查。
-
-## 默认项目流程
+1. 第一次扫描报告：在目标项目目录中运行 `run_audit.py` 完成首次扫描。项目扫描先生成 `docs/butian/<日期>/security-report.html`，再生成 `docs/butian/<日期>/security-report.md`；不自动打开网页，只在终端展示绝对路径和摘要，然后询问是否修复。
+2. 修复前先确认：确认开始修复后，才运行 `fix.py` 或包管理器命令。默认优先升级到已知修复版本；升级到 latest、Dependabot、凭证占位符替换、过期依赖维护都需要确认。
+3. 修复完成后的最终报告：修复和复扫结束后，运行 `run_audit.py --final-report`。最终复扫先生成 `docs/butian/<日期>/security-report-final.html`，再生成 `docs/butian/<日期>/security-report-final.md`，同样只在终端展示绝对路径。
+4. 默认只处理项目：普通项目扫描不扫描系统 Python、全局 npm、全局 pnpm 或操作系统包，也不会碰系统升级、系统服务、数据库或日志。
 
 默认通过本 skill 里的 `run_audit.py` 完成项目扫描，并按当前操作系统选择 Python 启动器。实际执行时可以使用脚本绝对路径，避免依赖 shell 当前目录。
 
@@ -48,18 +39,29 @@ py -3 scripts/run_audit.py <project_path>
 1. `detect.py`：识别项目根、依赖生态和扫描模式。
 2. `scan.py`：执行仓库安检、依赖解析、官方漏洞源查询和过期依赖检查。
 3. `analyze.py`：生成确定性 `analysis.json`。
-4. `visualize.py`：项目扫描先生成自包含 HTML 报告并按打开策略保持不自动打开。
+4. `visualize.py`：先生成自包含 HTML 报告，并按打开策略保持不自动打开。
 5. `report.py`：再生成 Markdown 审计报告。
 
-如果输出模式是 `hygiene_only`，必须告诉用户：
+## Hard Rules（铁律）
+
+- 扫描阶段不改业务内容。 项目扫描不会修改业务源码、依赖、数据库或日志；它会创建/更新 `.butian/` 本地报告工作区、缓存、`docs/butian/<日期>/security-report*.md/html`，以及必要的报告忽略规则，并会确保 `.gitignore` 忽略 `.butian/` 和生成的安全报告文件。
+- 默认是项目扫描。 不主动扫描系统目录、用户主目录、系统 Python、全局 npm、全局 pnpm、操作系统包、系统服务、数据库或日志；过期依赖维护视图默认不执行项目里的包管理器命令，只有用户确认并传入 `--allow-project-exec` 时才运行。
+- 报告证据必须脱敏。 普通密钥只展示脱敏预览，模板文件也只展示脱敏命中值；脱敏不要过度，尽量保留足够上下文让新手能找到对应位置。
+- 风险项和建议分开呈现。 已确认风险、仓库安检、过期依赖不能混成一种风险。
+- 不制造恐慌。 没有证据时说“不确定”；任何跳过、API 失败或采集失败都必须保留为不完整检查。
+
+## Repair Gate
+
+项目报告生成后，先用 AskUserQuestion 询问是否修复；升级方式、Dependabot、凭证占位符和过期依赖维护都需要确认。AskUserQuestion 每次只能确认一个阶段问题，禁止把修复范围和可选收尾动作放进同一个弹窗，禁止使用 `长期维护` 作为问题 header。可选收尾动作只在依赖修复、残留处理和复扫完成后，最终报告生成前单独确认。
+
+## Report Contract
+
+- 报告路径必须是绝对路径。 终端摘要、修复前后的转述和最终回复里只展示 HTML/Markdown 报告路径，必须使用 `run_audit.py` 输出的完整绝对路径，禁止改写成 `docs/butian/...` 这类相对路径；不要展示内部 `analysis.json` 路径。
+- 如果输出模式是 `hygiene_only`，必须告诉用户：
 
 ```text
-当前项目未发现支持的应用依赖文件，暂无法执行依赖漏洞扫描；本次仅做仓库安检，检查硬编码密钥、敏感文件跟踪、.gitignore、GitHub Actions、依赖配置与维护和 IaC/容器配置风险。
+当前项目未发现支持的应用依赖文件，暂无法执行依赖漏洞扫描；本次仅做仓库安检，检查硬编码密钥、敏感文件跟踪、.gitignore、依赖配置与维护和 IaC/容器配置风险。
 ```
-
-完整项目规则见 `references/project-scan.md`。
-
-## 能力边界
 
 对话最终回复如果需要转述扫描结果，必须使用 Markdown 引用格式 `>` 展示完整能力边界，不要自行压缩成短句，也不要另起“提示”类标题。
 
@@ -70,3 +72,7 @@ py -3 scripts/run_audit.py <project_path>
 
 > 安全往往不是最显眼的需求，却是产品长期稳定运行的底线。此报告基于本地可确认的依赖和仓库证据，帮助你发现应用依赖漏洞、过期依赖和仓库暴露风险，并把可处理的问题整理成清晰的修复线索。它不能替代代码审计、渗透测试或完整安全评估；业务逻辑、权限控制、输入校验、SQL 注入、XSS 等代码层风险仍需结合业务场景复核。安全的价值不只在于发现问题，更在于让团队知道风险在哪里、先处理什么，以及如何让每一次修复都成为系统可靠性的积累。
 ```
+
+## Reference（详细参考）
+
+- 项目的安全扫描、报告契约、数据源边界、修复交互和 AskUserQuestion：`references/project-scan.md`。
