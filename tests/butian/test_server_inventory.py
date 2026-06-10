@@ -151,8 +151,8 @@ class OsReleaseParsingTests(unittest.TestCase):
 class PackageParsingTests(unittest.TestCase):
     def test_parse_dpkg_query_output(self):
         raw = (
-            "nginx\t1.24.0-2ubuntu7.3\tamd64\tnginx\n"
-            "linux-image-6.8.0-53-generic\t6.8.0-53.55\tamd64\tlinux\n"
+            "nginx\t1.24.0-2ubuntu7.3\tamd64\tnginx\t1.24.0-2ubuntu7.3\tii\n"
+            "linux-image-6.8.0-53-generic\t6.8.0-53.55\tamd64\tlinux\t\tii\n"
         )
         distro = {
             "id": "ubuntu",
@@ -165,6 +165,8 @@ class PackageParsingTests(unittest.TestCase):
         self.assertEqual(packages[0]["name"], "nginx")
         self.assertEqual(packages[0]["version"], "1.24.0-2ubuntu7.3")
         self.assertEqual(packages[0]["source_name"], "nginx")
+        self.assertEqual(packages[0]["source_version"], "1.24.0-2ubuntu7.3")
+        self.assertEqual(packages[1]["source_version"], "6.8.0-53.55")
         self.assertEqual(packages[0]["ecosystem"], "Ubuntu:24.04:LTS")
         self.assertEqual(packages[0]["package_type"], "deb")
         self.assertIn("pkg:deb/ubuntu/nginx@1.24.0-2ubuntu7.3", packages[0]["purl"])
@@ -185,6 +187,23 @@ class PackageParsingTests(unittest.TestCase):
         self.assertEqual(packages[0]["version"], "1.24.0-1.el9")
         self.assertEqual(packages[0]["package_type"], "rpm")
         self.assertIn("pkg:rpm/rocky/nginx@1.24.0-1.el9", packages[0]["purl"])
+
+    def test_parse_rpm_output_preserves_vendor_and_source_rpm(self):
+        raw = (
+            "openssl\t1:3.0.7-28.el9_4\tx86_64\tRed Hat, Inc.\topenssl-3.0.7-28.el9_4.src.rpm\n"
+        )
+        distro = {
+            "id": "rhel",
+            "ecosystem": "Red Hat Enterprise Linux:9",
+            "package_type": "rpm",
+        }
+
+        packages = server_inventory.parse_rpm_packages(raw, distro)
+
+        self.assertEqual(packages[0]["name"], "openssl")
+        self.assertEqual(packages[0]["vendor"], "Red Hat, Inc.")
+        self.assertEqual(packages[0]["source_rpm"], "openssl-3.0.7-28.el9_4.src.rpm")
+        self.assertEqual(packages[0]["source_name"], "openssl")
 
     def test_parse_apk_output(self):
         raw = (
@@ -403,6 +422,89 @@ class ServerPostureParsingTests(unittest.TestCase):
         self.assertEqual(assets["ssh"]["options"]["PasswordAuthentication"], "yes")
         self.assertFalse(assets["firewall"]["has_active_firewall"])
 
+    def test_build_server_assets_reads_v1_commands_schema(self):
+        inventory = {
+            "schema_version": "butian.server_inventory.v1",
+            "target": {"hint": "prod-web", "hostname": "prod-web"},
+            "commands": {
+                "os_release": {
+                    "stdout": 'NAME="Ubuntu"\nID=ubuntu\nVERSION_ID="24.04"\n',
+                    "returncode": 0,
+                },
+                "dpkg_packages": {
+                    "stdout": (
+                        "libssl3t64\t3.0.13-0ubuntu3.5\tamd64\t"
+                        "openssl\t3.0.13-0ubuntu3.5\tii\n"
+                    ),
+                    "returncode": 0,
+                },
+                "uname_r": {"stdout": "6.8.0-53-generic\n", "returncode": 0},
+                "services": {"stdout": "", "returncode": 0},
+                "ports": {"stdout": "", "returncode": 0},
+            },
+            "errors": [],
+        }
+
+        assets = server_inventory.build_server_assets(inventory)
+
+        self.assertEqual(assets["target"]["hint"], "prod-web")
+        self.assertEqual(assets["packages"][0]["name"], "libssl3t64")
+        self.assertEqual(assets["packages"][0]["source_name"], "openssl")
+        self.assertEqual(
+            assets["packages"][0]["source_version"], "3.0.13-0ubuntu3.5"
+        )
+        self.assertNotIn("docker", assets)
+
+    def test_build_server_assets_reads_legacy_outputs_schema(self):
+        inventory = {
+            "target": "legacy-web",
+            "collection_mode": "ssh",
+            "outputs": {
+                "os_release": {
+                    "stdout": 'NAME="Debian GNU/Linux"\nID=debian\nVERSION_ID="12"\n'
+                },
+                "dpkg_packages": {
+                    "stdout": "curl\t7.88.1-10+deb12u8\tamd64\tcurl\t7.88.1-10+deb12u8\tii\n"
+                },
+                "uname_r": {"stdout": "6.1.0-18-amd64\n"},
+                "services": {"stdout": ""},
+                "ports": {"stdout": ""},
+            },
+            "errors": [],
+        }
+
+        assets = server_inventory.build_server_assets(inventory)
+
+        self.assertEqual(assets["distro"]["id"], "debian")
+        self.assertEqual(assets["packages"][0]["name"], "curl")
+        self.assertEqual(assets["packages"][0]["source_name"], "curl")
+        self.assertEqual(assets["packages"][0]["source_version"], "7.88.1-10+deb12u8")
+        self.assertNotIn("docker", assets)
+
+    def test_build_server_assets_prefers_commands_over_outputs(self):
+        inventory = {
+            "target": "prod-web",
+            "commands": {
+                "os_release": {"stdout": "ID=ubuntu\nVERSION_ID=24.04\n"},
+                "dpkg_packages": {
+                    "stdout": "libssl3t64\t3.0.13-0ubuntu3.5\tamd64\topenssl\t3.0.13-0ubuntu3.5\tii\n"
+                },
+                "uname_r": {"stdout": "6.8.0-53-generic\n"},
+            },
+            "outputs": {
+                "os_release": {"stdout": "ID=debian\nVERSION_ID=12\n"},
+                "dpkg_packages": {
+                    "stdout": "curl\t7.88.1-10+deb12u8\tamd64\tcurl\t7.88.1-10+deb12u8\tii\n"
+                },
+            },
+            "errors": [],
+        }
+
+        assets = server_inventory.build_server_assets(inventory)
+
+        self.assertEqual(assets["distro"]["id"], "ubuntu")
+        self.assertEqual(assets["packages"][0]["name"], "libssl3t64")
+
     def test_major_only_docker_tags_are_compared_as_major_zero(self):
         self.assertFalse(server_inventory.is_explicit_old_image_tag("redis", "6"))
         self.assertFalse(server_inventory.is_explicit_old_image_tag("mysql", "8"))
@@ -432,7 +534,7 @@ class ServerPostureParsingTests(unittest.TestCase):
             [item["explicit_old_tag"] for item in containers], [False, False, False]
         )
 
-    def test_build_server_assets_combines_packages_kernel_ports_and_docker(self):
+    def test_build_server_assets_combines_packages_kernel_ports_without_docker(self):
         inventory = {
             "target": "root@example.test",
             "collection_mode": "ssh",
@@ -490,7 +592,7 @@ class ServerPostureParsingTests(unittest.TestCase):
             [item["name"] for item in assets["services"]],
             ["nginx.service", "ssh.service"],
         )
-        self.assertTrue(assets["docker"]["containers"][0]["explicit_old_tag"])
+        self.assertNotIn("docker", assets)
         self.assertEqual(
             [item["name"] for item in assets["software_versions"]],
             ["nginx", "openssl", "openssh"],

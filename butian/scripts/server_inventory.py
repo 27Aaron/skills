@@ -462,6 +462,9 @@ def _package_asset(
     *,
     arch: str = "",
     source_name: str = "",
+    source_version: str = "",
+    vendor: str = "",
+    source_rpm: str = "",
 ) -> dict[str, Any]:
     package_type = distro.get("package_type") or "unknown"
     distro_id = distro.get("id") or ""
@@ -472,6 +475,9 @@ def _package_asset(
         "distro_id": distro_id,
         "name": name,
         "source_name": source_name or name,
+        "source_version": source_version or version,
+        "vendor": vendor,
+        "source_rpm": source_rpm,
         "version": version,
         "architecture": arch,
         "purl": _purl(package_type, distro_id, name, version, arch),
@@ -489,6 +495,9 @@ def parse_dpkg_packages(raw: str, distro: dict[str, Any]) -> list[dict[str, Any]
         source_name = parts[3].strip() if len(parts) > 3 and parts[3].strip() else name
         if source_name in {"(none)", "<none>"}:
             source_name = name
+        source_version = (
+            parts[4].strip() if len(parts) > 4 and parts[4].strip() else version
+        )
         if name and version:
             packages.append(
                 _package_asset(
@@ -497,9 +506,18 @@ def parse_dpkg_packages(raw: str, distro: dict[str, Any]) -> list[dict[str, Any]
                     distro,
                     arch=arch,
                     source_name=source_name,
+                    source_version=source_version,
                 )
             )
     return packages
+
+
+def _source_name_from_sourcerpm(source_rpm: str, fallback: str) -> str:
+    text = str(source_rpm or "").strip()
+    if text.endswith(".src.rpm"):
+        text = text[: -len(".src.rpm")]
+    match = re.match(r"(?P<name>.+?)-(?P<version>(?:\d+:)?\d\S*)$", text)
+    return match.group("name") if match else fallback
 
 
 def parse_rpm_packages(raw: str, distro: dict[str, Any]) -> list[dict[str, Any]]:
@@ -510,9 +528,20 @@ def parse_rpm_packages(raw: str, distro: dict[str, Any]) -> list[dict[str, Any]]
             continue
         name, version = [part.strip() for part in parts[:2]]
         arch = parts[2].strip() if len(parts) > 2 else ""
+        vendor = parts[3].strip() if len(parts) > 3 else ""
+        source_rpm = parts[4].strip() if len(parts) > 4 else ""
+        source_name = _source_name_from_sourcerpm(source_rpm, name)
         if name and version:
             packages.append(
-                _package_asset(name, version, distro, arch=arch, source_name=name)
+                _package_asset(
+                    name,
+                    version,
+                    distro,
+                    arch=arch,
+                    source_name=source_name,
+                    vendor=vendor,
+                    source_rpm=source_rpm,
+                )
             )
     return packages
 
@@ -576,8 +605,16 @@ def build_kernel_asset(
     }
 
 
+def _command_results(inventory: dict[str, Any]) -> dict[str, Any]:
+    commands = inventory.get("commands")
+    if isinstance(commands, dict):
+        return commands
+    outputs = inventory.get("outputs")
+    return outputs if isinstance(outputs, dict) else {}
+
+
 def _stdout(inventory: dict[str, Any], key: str) -> str:
-    return str(((inventory.get("outputs") or {}).get(key) or {}).get("stdout") or "")
+    return str(((_command_results(inventory).get(key) or {}).get("stdout")) or "")
 
 
 def _endpoint_from_token(token: str) -> tuple[str, int] | None:
@@ -653,7 +690,7 @@ def parse_sshd_config(raw: str) -> dict[str, Any]:
 
 
 def _output_result(inventory: dict[str, Any], key: str) -> dict[str, Any]:
-    return dict(((inventory.get("outputs") or {}).get(key) or {}))
+    return dict((_command_results(inventory).get(key) or {}))
 
 
 def _firewall_tool(
@@ -806,6 +843,9 @@ def _package_link(package: dict[str, Any]) -> dict[str, Any]:
     return {
         "name": package.get("name") or "",
         "source_name": package.get("source_name") or package.get("name") or "",
+        "source_version": package.get("source_version") or package.get("version") or "",
+        "vendor": package.get("vendor") or "",
+        "source_rpm": package.get("source_rpm") or "",
         "version": package.get("version") or "",
         "ecosystem": package.get("ecosystem") or "",
         "package_type": package.get("package_type") or "",
@@ -1054,7 +1094,6 @@ def build_server_assets(inventory: dict[str, Any]) -> dict[str, Any]:
     ssh = parse_sshd_config(_stdout(inventory, "sshd_config"))
     firewall = parse_firewall_posture(inventory)
     kernel = build_kernel_asset(_stdout(inventory, "uname_r").strip(), packages)
-    docker_containers = parse_docker_ps(_stdout(inventory, "docker_ps"))
     software_versions, version_errors = parse_software_versions(inventory, packages)
     errors.extend(version_errors)
     native_security_updates = parse_native_security_updates(inventory)
@@ -1070,6 +1109,5 @@ def build_server_assets(inventory: dict[str, Any]) -> dict[str, Any]:
         "ports": ports,
         "ssh": ssh,
         "firewall": firewall,
-        "docker": {"containers": docker_containers},
         "errors": errors,
     }
