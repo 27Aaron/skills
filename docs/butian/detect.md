@@ -94,7 +94,7 @@ python3 detect.py --compact              # 输出紧凑 JSON
       "had_butian_entry": false,
       "missing_entries": [],
       "added_butian_entry": true,
-      "added_entries": [".butian/", "docs/butian/security-report-*.md"],
+      "added_entries": [".butian/", "docs/butian/*/security-report.md", "docs/butian/*/security-report.html", "docs/butian/*/security-report-final.md", "docs/butian/*/security-report-final.html"],
       "exists_after": true
     }
   },

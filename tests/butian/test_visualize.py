@@ -87,8 +87,12 @@ class StyleAssetForHtmlTests(unittest.TestCase):
 # should_open_report
 # ---------------------------------------------------------------------------
 class ShouldOpenReportTests(unittest.TestCase):
-    def test_default_opens(self):
+    def test_default_does_not_open(self):
         args = SimpleNamespace(no_open=False)
+        self.assertFalse(visualize.should_open_report(args))
+
+    def test_force_open_opens(self):
+        args = SimpleNamespace(no_open=False, force_open=True)
         self.assertTrue(visualize.should_open_report(args))
 
     def test_no_open_flag(self):
@@ -131,22 +135,22 @@ class ShouldOpenReportTests(unittest.TestCase):
             else:
                 os.environ["BUTIAN_NO_OPEN"] = original
 
-    def test_env_var_empty_opens(self):
+    def test_env_var_empty_still_defaults_to_no_open(self):
         original = os.environ.get("BUTIAN_NO_OPEN")
         try:
             os.environ.pop("BUTIAN_NO_OPEN", None)
             args = SimpleNamespace(no_open=False)
-            self.assertTrue(visualize.should_open_report(args))
+            self.assertFalse(visualize.should_open_report(args))
         finally:
             if original is not None:
                 os.environ["BUTIAN_NO_OPEN"] = original
 
-    def test_env_var_random_value_opens(self):
+    def test_env_var_random_value_still_defaults_to_no_open(self):
         original = os.environ.get("BUTIAN_NO_OPEN")
         try:
             os.environ["BUTIAN_NO_OPEN"] = "random"
             args = SimpleNamespace(no_open=False)
-            self.assertTrue(visualize.should_open_report(args))
+            self.assertFalse(visualize.should_open_report(args))
         finally:
             if original is None:
                 os.environ.pop("BUTIAN_NO_OPEN", None)
@@ -173,32 +177,16 @@ class ShouldOpenReportTests(unittest.TestCase):
         self.assertFalse(should_open)
         self.assertEqual(reason, "environment")
 
-    def test_open_decision_reports_first_scan_marker_reason(self):
-        with tempfile.TemporaryDirectory(prefix="butian-viz-") as root:
-            output = os.path.join(
-                root, ".butian", "20260605-1200", "content", "security-report.html"
-            )
-            os.makedirs(os.path.dirname(output))
-            with open(os.path.join(root, ".butian", visualize.FIRST_SCAN_MARKER), "w"):
-                pass
-
-            args = SimpleNamespace(no_open=False)
-            should_open, reason = visualize.open_decision(args, output)
+    def test_open_decision_defaults_to_no_open(self):
+        args = SimpleNamespace(no_open=False, force_open=False)
+        should_open, reason = visualize.open_decision(args, "report.html")
 
         self.assertFalse(should_open)
-        self.assertEqual(reason, "first_scan_done")
+        self.assertEqual(reason, "default")
 
-    def test_force_open_ignores_first_scan_marker(self):
-        with tempfile.TemporaryDirectory(prefix="butian-viz-") as root:
-            output = os.path.join(
-                root, ".butian", "20260605-1200", "content", "security-report.html"
-            )
-            os.makedirs(os.path.dirname(output))
-            with open(os.path.join(root, ".butian", visualize.FIRST_SCAN_MARKER), "w"):
-                pass
-
-            args = SimpleNamespace(no_open=False, force_open=True)
-            should_open, reason = visualize.open_decision(args, output)
+    def test_force_open_explicitly_opens(self):
+        args = SimpleNamespace(no_open=False, force_open=True)
+        should_open, reason = visualize.open_decision(args, "report.html")
 
         self.assertTrue(should_open)
         self.assertEqual(reason, "open")
@@ -210,14 +198,14 @@ class ShouldOpenReportTests(unittest.TestCase):
         self.assertEqual(reason, "no_open")
 
 
-class FirstScanMarkerTests(unittest.TestCase):
-    def test_marker_is_written_when_browser_open_fails_after_html_generation(self):
+class NoAutomaticOpenTests(unittest.TestCase):
+    def test_main_does_not_call_open_report_without_force_open(self):
         with tempfile.TemporaryDirectory(prefix="butian-viz-") as root:
             analysis_path = os.path.join(
                 root, ".butian", "20260605-120000", "assets", "analysis.json"
             )
             output_path = os.path.join(
-                root, ".butian", "20260605-120000", "content", "security-report.html"
+                root, "docs", "butian", "2026-0605", "security-report.html"
             )
             os.makedirs(os.path.dirname(analysis_path))
             with open(analysis_path, "w", encoding="utf-8") as handle:
@@ -234,13 +222,12 @@ class FirstScanMarkerTests(unittest.TestCase):
                 mock.patch.object(
                     sys, "argv", ["visualize.py", analysis_path, output_path]
                 ),
-                mock.patch.object(visualize, "open_report", return_value=False),
+                mock.patch.object(visualize, "open_report") as open_report,
                 mock.patch.dict(os.environ, {"BUTIAN_NO_OPEN": ""}),
             ):
                 visualize.main()
 
-            marker_path = os.path.join(root, ".butian", visualize.FIRST_SCAN_MARKER)
-            self.assertTrue(os.path.exists(marker_path))
+            open_report.assert_not_called()
             self.assertTrue(os.path.isfile(output_path))
 
 
@@ -248,17 +235,29 @@ class FirstScanMarkerTests(unittest.TestCase):
 # default_output_path
 # ---------------------------------------------------------------------------
 class DefaultOutputPathTests(unittest.TestCase):
-    def test_generates_html_under_content(self):
+    def test_generates_html_under_dated_docs_dir(self):
         with tempfile.TemporaryDirectory(prefix="butian-viz-") as root:
             # Create a structure like .butian/run/assets/analysis.json
             assets_dir = os.path.join(root, ".butian", "20260605-120000", "assets")
             os.makedirs(assets_dir)
             analysis_path = os.path.join(assets_dir, "analysis.json")
             with open(analysis_path, "w") as f:
-                f.write("{}")
+                json.dump(
+                    {
+                        "project": {"path": root},
+                        "butian_workspace": {
+                            "run_dir": os.path.join(
+                                root, ".butian", "20260605-120000"
+                            )
+                        },
+                    },
+                    f,
+                )
             result = visualize.default_output_path(analysis_path)
-            self.assertTrue(result.endswith("security-report.html"))
-            self.assertIn("content", result)
+            self.assertTrue(
+                result.endswith("docs/butian/2026-0605/security-report.html")
+            )
+            self.assertNotIn("content", result)
 
 
 # ---------------------------------------------------------------------------

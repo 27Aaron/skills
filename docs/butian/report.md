@@ -8,8 +8,8 @@
 
 | 产物              | 路径                                                   | 定位                                                                           |
 | ----------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------ |
-| Markdown 审计报告 | `<project>/docs/butian/security-report-<run>.md`       | 适合归档、PR 讨论、复制到文档系统；保留表格化事实和修复目标                    |
-| HTML 交互报告     | `<project>/.butian/<run>/content/security-report.html` | 适合在浏览器中验收；展示更完整的解释、折叠详情、代码证据、tooltip 和响应式布局 |
+| Markdown 审计报告 | `<project>/docs/butian/<日期>/security-report.md`       | 适合归档、PR 讨论、复制到文档系统；保留表格化事实和修复目标                    |
+| HTML 交互报告     | `<project>/docs/butian/<日期>/security-report.html`     | 适合在浏览器中验收；展示更完整的解释、折叠详情、代码证据、tooltip 和响应式布局 |
 
 两端共用 `analysis.json`。`report.py` 负责 Markdown，`visualize.py` 把 `analysis.json`、`report.css`、`report.js` 内联到 HTML。报告层只做展示和兼容字段归一化，不重新计算漏洞数量、严重度或修复版本。
 
@@ -307,7 +307,7 @@ git diff --check
 python3 butian/scripts/run_audit.py --no-open /path/to/project
 ```
 
-然后检查最新 `.butian/<run>/content/security-report.html`，不要用旧 run 目录判断新代码。
+然后检查最新 `docs/butian/<日期>/security-report.html` 或 `security-report-final.html`，不要用旧日期目录判断新代码。
 
 ## 设计原则
 

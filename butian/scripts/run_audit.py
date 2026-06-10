@@ -26,7 +26,6 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 try:
     from .scan import (
-        BUTIAN_CONTENT_DIR,
         CAPABILITY_BOUNDARY,
         HYGIENE_ONLY_NOTICE,
         run_dir_from_output_file,
@@ -34,7 +33,6 @@ try:
     )
 except ImportError:
     from scan import (  # pyright: ignore[reportMissingImports]
-        BUTIAN_CONTENT_DIR,
         CAPABILITY_BOUNDARY,
         HYGIENE_ONLY_NOTICE,
         run_dir_from_output_file,
@@ -83,12 +81,12 @@ def parse_args(argv):
     parser.add_argument(
         "--no-open",
         action="store_true",
-        help="不使用默认浏览器打开生成后的 HTML 报告",
+        help="兼容旧参数；报告始终只在终端展示路径，不自动打开浏览器",
     )
     parser.add_argument(
         "--final-report",
         action="store_true",
-        help="强制生成 Markdown 报告（所有修复完成后的最后一次复扫使用）",
+        help="使用 security-report-final-* 文件名生成修复后的收尾报告",
     )
     parser.add_argument(
         "--verbose",
@@ -238,18 +236,40 @@ def report_run_id(run_dir):
     return os.path.basename(os.path.normpath(run_dir))
 
 
-def markdown_report_path(analysis, run_dir):
+def report_date_dir_name(run_dir):
+    run_id = report_run_id(run_dir)
+    match = re.match(r"^(\d{4})(\d{2})(\d{2})", run_id)
+    if match:
+        return f"{match.group(1)}-{match.group(2)}{match.group(3)}"
+    return "unknown-date"
+
+
+def report_basename(final_report=False):
+    return "security-report-final" if final_report else "security-report"
+
+
+def report_output_dir(analysis, run_dir):
     project_path = (analysis.get("project") or {}).get("path") or os.getcwd()
     return os.path.join(
         project_path,
         "docs",
         "butian",
-        f"security-report-{report_run_id(run_dir)}.md",
+        report_date_dir_name(run_dir),
     )
 
 
-def html_report_path(run_dir):
-    return os.path.join(run_dir, BUTIAN_CONTENT_DIR, "security-report.html")
+def markdown_report_path(analysis, run_dir, final_report=False):
+    return os.path.join(
+        report_output_dir(analysis, run_dir),
+        f"{report_basename(final_report=final_report)}.md",
+    )
+
+
+def html_report_path(analysis, run_dir, final_report=False):
+    return os.path.join(
+        report_output_dir(analysis, run_dir),
+        f"{report_basename(final_report=final_report)}.html",
+    )
 
 
 def version_key(value):
@@ -484,10 +504,9 @@ def format_human_summary(summary, scan, analysis, args):
     )
     errors = analysis.get("errors") or summary.get("errors") or []
     error_label = "无" if not errors else f"{len(errors)} 个"
-    html_state = "未自动打开" if args.no_open else "已自动尝试打开"
     markdown_label = "最终 Markdown" if args.final_report else "Markdown"
     if summary.get("html_report"):
-        html_report_line = f"- HTML 报告（{html_state}）：{relative_path(summary.get('html_report'), project_path)}"
+        html_report_line = f"- HTML 报告（不会自动打开）：{relative_path(summary.get('html_report'), project_path)}"
     else:
         html_report_line = "- HTML 报告：未生成"
     scope_notice = (
@@ -503,7 +522,7 @@ def format_human_summary(summary, scan, analysis, args):
         f"- 过期依赖：{analysis.get('outdated_count', len(analysis.get('outdated') or []))} 个（建议按维护窗口评估升级）",
         f"- 扫描错误：{error_label}",
     ]
-    closing_note = "如果存在紧急/高风险项，建议先处理有明确修复版本的依赖；过期依赖作为维护信号，放在风险项修复验证之后排期。"
+    closing_note = "报告只保存到本地路径，不会自动打开；想看细节可以打开上面的 Markdown 或 HTML。需要修复时，请在当前交互里选择要处理的项。"
 
     report_path_lines = [
         (
@@ -577,11 +596,8 @@ def build_visualize_cmd(args, analysis_path, html_path):
         script_path("visualize.py"),
         analysis_path,
         html_path,
+        "--no-open",
     ]
-    if args.final_report:
-        cmd.append("--force-open")
-    if args.no_open:
-        cmd.append("--no-open")
     return cmd
 
 
@@ -670,33 +686,23 @@ def main():
 
     run_dir = report_run_dir(analysis, scan)
 
-    # 中间修复复扫跳过 Markdown，除非 --final-report 要求生成归档报告。
-    butian_dir = os.path.join(analysis["project"]["path"], ".butian")
-    first_scan_marker = os.path.join(butian_dir, ".first-scan-done")
-    skip_markdown = (
-        os.path.exists(first_scan_marker)
-        and not args.final_report
+    markdown_path = markdown_report_path(
+        analysis, run_dir, final_report=args.final_report
     )
+    run_text(
+        [
+            sys.executable,
+            script_path("report.py"),
+            analysis_path,
+            markdown_path,
+        ],
+        echo=False,
+    )
+    logger.info("Markdown 报告已生成: %s", markdown_path)
 
-    if skip_markdown:
-        markdown_path = None
-        logger.info("跳过 Markdown 报告（非首次扫描）")
-    else:
-        markdown_path = markdown_report_path(analysis, run_dir)
-        run_text(
-            [
-                sys.executable,
-                script_path("report.py"),
-                analysis_path,
-                markdown_path,
-            ],
-            echo=False,
-        )
-        logger.info("Markdown 报告已生成: %s", markdown_path)
-
-    # 项目 HTML 每次都重新生成；即使跳过 Markdown，最新项目 run
-    # 也仍然有可验收的阅读界面。
-    html_path = html_report_path(run_dir)
+    # 项目 Markdown 和 HTML 每次都重新生成到 docs/butian/<日期>/，
+    # 终端摘要只展示路径，不自动打开浏览器。
+    html_path = html_report_path(analysis, run_dir, final_report=args.final_report)
     os.makedirs(os.path.dirname(html_path), exist_ok=True)
     build_report_cmd = build_visualize_cmd(args, analysis_path, html_path)
     run_text(

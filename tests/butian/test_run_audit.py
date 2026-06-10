@@ -435,7 +435,8 @@ class FormatHumanSummaryTests(unittest.TestCase):
         self.assertIn("完整依赖漏洞扫描", result)
         self.assertIn("已确认风险项", result)
         self.assertIn("lodash", result)
-        self.assertIn("风险项修复验证", result)
+        self.assertIn("需要修复时", result)
+        self.assertIn("当前交互里选择", result)
 
     def test_final_report_label_has_space_before_markdown(self):
         summary = {
@@ -464,7 +465,7 @@ class FormatHumanSummaryTests(unittest.TestCase):
 
 
 class PipelinePathTests(unittest.TestCase):
-    def test_main_writes_html_report_to_scan_run_dir(self):
+    def test_main_writes_markdown_and_html_reports_to_dated_docs_dir(self):
         original_argv = sys.argv
         original_run_json = run_audit.run_json
         original_run_text = run_audit.run_text
@@ -555,10 +556,21 @@ class PipelinePathTests(unittest.TestCase):
                 for cmd in captured["commands"]
                 if os.path.basename(cmd[1]) == "visualize.py"
             ][0]
+            report_cmd = [
+                cmd
+                for cmd in captured["commands"]
+                if os.path.basename(cmd[1]) == "report.py"
+            ][0]
+            expected_dir = os.path.join(project, "docs", "butian", "2026-0608")
+            self.assertEqual(
+                report_cmd[3],
+                os.path.join(expected_dir, "security-report.md"),
+            )
             self.assertEqual(
                 visualize_cmd[3],
-                os.path.join(run_dir, "content", "security-report.html"),
+                os.path.join(expected_dir, "security-report.html"),
             )
+            self.assertIn("--no-open", visualize_cmd)
 
 
 # ---------------------------------------------------------------------------
@@ -600,22 +612,23 @@ class BuildScanCmdTests(unittest.TestCase):
 
 
 class BuildVisualizeCmdTests(unittest.TestCase):
-    def test_final_report_forces_open(self):
+    def test_final_report_does_not_force_open(self):
         args = SimpleNamespace(no_open=False, final_report=True)
         cmd = run_audit.build_visualize_cmd(args, "analysis.json", "report.html")
-        self.assertIn("--force-open", cmd)
-        self.assertNotIn("--no-open", cmd)
-
-    def test_no_open_still_passed_for_final_report(self):
-        args = SimpleNamespace(no_open=True, final_report=True)
-        cmd = run_audit.build_visualize_cmd(args, "analysis.json", "report.html")
-        self.assertIn("--force-open", cmd)
+        self.assertNotIn("--force-open", cmd)
         self.assertIn("--no-open", cmd)
 
-    def test_normal_scan_does_not_force_open(self):
+    def test_no_open_is_always_passed_for_final_report(self):
+        args = SimpleNamespace(no_open=True, final_report=True)
+        cmd = run_audit.build_visualize_cmd(args, "analysis.json", "report.html")
+        self.assertNotIn("--force-open", cmd)
+        self.assertIn("--no-open", cmd)
+
+    def test_normal_scan_does_not_force_open_and_stays_no_open(self):
         args = SimpleNamespace(no_open=False, final_report=False)
         cmd = run_audit.build_visualize_cmd(args, "analysis.json", "report.html")
         self.assertNotIn("--force-open", cmd)
+        self.assertIn("--no-open", cmd)
 
 
 # ---------------------------------------------------------------------------

@@ -11,7 +11,7 @@
 | #   | 职责             | 说明                                                                    |
 | --- | ---------------- | ----------------------------------------------------------------------- |
 | 1   | 工作区准备       | 创建 `.butian/`、运行目录、`assets/` 和 `content/`                      |
-| 2   | 本地产物忽略规则 | 确保 `.gitignore` 忽略 `.butian/` 和 `docs/butian/security-report-*.md` |
+| 2   | 本地产物忽略规则 | 确保 `.gitignore` 忽略 `.butian/` 和 `docs/butian/*/security-report*.md/html` |
 | 3   | 项目根发现       | 从子目录向上找到最近的项目 manifest/lockfile 或 git 根                  |
 | 4   | 安全路径保护     | 阻止把系统目录、用户主目录等高风险路径作为 `project_path`               |
 

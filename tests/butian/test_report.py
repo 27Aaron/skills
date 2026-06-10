@@ -787,8 +787,7 @@ class DefaultOutputPathTests(unittest.TestCase):
                 root, ".butian", "20260608-1200"
             )
             path = report.default_output_path(analysis)
-            self.assertTrue(path.endswith("security-report-20260608-1200.md"))
-            self.assertIn("docs/butian", path)
+            self.assertTrue(path.endswith("docs/butian/2026-0608/security-report.md"))
 
 
 # ---------------------------------------------------------------------------

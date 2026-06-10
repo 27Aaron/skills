@@ -13,9 +13,9 @@ description: |
 
 ## 默认执行规则
 
-1. **第一次扫描报告**：在目标项目目录中运行 `run_audit.py` 完成首次扫描。项目扫描会生成 `.butian/<run-id>/content/security-report.html` 和 `docs/butian/security-report-<run-id>.md`，并尝试自动打开 HTML。先展示报告，再询问是否修复。
+1. **第一次扫描报告**：在目标项目目录中运行 `run_audit.py` 完成首次扫描。项目扫描会生成 `docs/butian/<日期>/security-report.md` 和 `docs/butian/<日期>/security-report.html`，不自动打开网页；只在终端展示路径和摘要，再询问是否修复。
 2. **修复前先确认**：确认开始修复后，才运行 `fix.py` 或包管理器命令。默认优先升级到已知修复版本；升级到 latest、Dependabot、凭证占位符替换、过期依赖维护都需要确认。
-3. **修复完成后的最终报告**：修复和复扫结束后，运行 `run_audit.py --final-report`。项目最终复扫会再次生成 HTML 和 Markdown，并尝试打开最终 HTML；如果传入了 `--no-open`，仍尊重不打开。
+3. **修复完成后的最终报告**：修复和复扫结束后，运行 `run_audit.py --final-report`。项目最终复扫会生成 `docs/butian/<日期>/security-report-final.md` 和 `docs/butian/<日期>/security-report-final.html`，同样只在终端展示路径。
 4. **默认只处理项目**：普通项目扫描不扫描系统 Python、全局 npm、全局 pnpm 或操作系统包，也不会碰系统升级、系统服务、数据库或日志。
 
 ## 详细参考
@@ -24,7 +24,7 @@ description: |
 
 ## 铁律
 
-- **扫描阶段不改业务内容。** 项目扫描不会修改业务源码、依赖、数据库或日志；它会创建/更新 `.butian/` 本地报告工作区、缓存、`docs/butian/security-report-*.md`，以及必要的报告忽略规则，并会确保 `.gitignore` 忽略 `.butian/` 和生成的安全报告文件。
+- **扫描阶段不改业务内容。** 项目扫描不会修改业务源码、依赖、数据库或日志；它会创建/更新 `.butian/` 本地报告工作区、缓存、`docs/butian/<日期>/security-report*.md/html`，以及必要的报告忽略规则，并会确保 `.gitignore` 忽略 `.butian/` 和生成的安全报告文件。
 - **报告证据必须脱敏。** 普通密钥只展示脱敏预览，模板文件也只展示脱敏命中值；脱敏不要过度，尽量保留足够上下文让新手能找到对应位置。
 - **默认是项目扫描。** 不主动扫描系统目录、用户主目录、系统 Python、全局 npm、全局 pnpm、操作系统包、系统服务、数据库或日志。
 - **修复必须先问用户。** 项目报告生成后，先用 AskUserQuestion 询问是否修复；升级方式、Dependabot、凭证占位符和过期依赖维护都需要确认。收尾维护动作使用多选 AskUserQuestion 统一确认。

@@ -58,8 +58,8 @@ def reset_runtime(project: Path) -> None:
 def copy_stable_reports(project: Path) -> tuple[Path, Path]:
     docs_dir = project / "docs"
     docs_dir.mkdir(exist_ok=True)
-    markdown = latest_file(docs_dir / "butian", "security-report-*.md")
-    html = latest_file(project / ".butian", "*/content/security-report.html")
+    markdown = latest_file(docs_dir / "butian", "*/security-report-final.md")
+    html = latest_file(docs_dir / "butian", "*/security-report-final.html")
 
     stable_markdown = docs_dir / "security-report.md"
     stable_html = docs_dir / "security-report.html"

@@ -1,3 +1,6 @@
 .butian/
-docs/butian/security-report-*.md
+docs/butian/*/security-report.md
+docs/butian/*/security-report.html
+docs/butian/*/security-report-final.md
+docs/butian/*/security-report-final.html
 vendor/

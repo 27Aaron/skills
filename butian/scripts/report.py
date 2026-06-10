@@ -3,7 +3,7 @@
 
 Usage:
     python3 scripts/report.py .butian/<timestamp>/assets/analysis.json
-    python3 scripts/report.py analysis.json docs/butian/security-report-<run-id>.md
+    python3 scripts/report.py analysis.json docs/butian/<date>/security-report.md
 """
 
 import argparse
@@ -191,9 +191,15 @@ def default_output_path(analysis):
         if run_dir
         else datetime_from_analysis(analysis)
     )
-    docs_dir = os.path.join(project_path, "docs", "butian")
+    match = re.match(r"^(\d{4})(\d{2})(\d{2})", report_id)
+    date_dir = (
+        f"{match.group(1)}-{match.group(2)}{match.group(3)}"
+        if match
+        else "unknown-date"
+    )
+    docs_dir = os.path.join(project_path, "docs", "butian", date_dir)
     os.makedirs(docs_dir, exist_ok=True)
-    return os.path.join(docs_dir, f"security-report-{report_id}.md")
+    return os.path.join(docs_dir, "security-report.md")
 
 
 def severity_label(value):

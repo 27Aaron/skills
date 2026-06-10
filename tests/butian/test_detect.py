@@ -311,7 +311,10 @@ class BuildPreflightTests(unittest.TestCase):
                 content = handle.read()
             lines = content.splitlines()
             self.assertIn(".butian/", lines)
-            self.assertIn("docs/butian/security-report-*.md", lines)
+            self.assertIn("docs/butian/*/security-report.md", lines)
+            self.assertIn("docs/butian/*/security-report.html", lines)
+            self.assertIn("docs/butian/*/security-report-final.md", lines)
+            self.assertIn("docs/butian/*/security-report-final.html", lines)
             self.assertNotIn("docs/butian", lines)
             self.assertTrue(result["butian_workspace"]["gitignore"]["exists_after"])
             self.assertTrue(
@@ -331,7 +334,10 @@ class BuildPreflightTests(unittest.TestCase):
             lines = content.splitlines()
             self.assertIn("node_modules/", content)
             self.assertIn(".butian/", lines)
-            self.assertIn("docs/butian/security-report-*.md", lines)
+            self.assertIn("docs/butian/*/security-report.md", lines)
+            self.assertIn("docs/butian/*/security-report.html", lines)
+            self.assertIn("docs/butian/*/security-report-final.md", lines)
+            self.assertIn("docs/butian/*/security-report-final.html", lines)
             self.assertNotIn("docs/butian", lines)
             self.assertFalse(
                 result["butian_workspace"]["gitignore"]["had_butian_entry"]

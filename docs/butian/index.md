@@ -21,8 +21,8 @@
 | 1    | `detect.py`                                                                           | 项目路径                 | `.butian/<run>/assets/preflight.json`        | 检测 lockfile、推荐扫描模式、准备本地工作区                  |
 | 2    | `scan.py`                                                                             | 项目路径或 preflight     | `.butian/<run>/assets/scan.json`             | 本地仓库安检、依赖解析、OSV/NVD/CISA/EPSS 查询、过期依赖检查 |
 | 3    | `analyze.py`                                                                          | `scan.json`              | `.butian/<run>/assets/analysis.json`         | 标准化风险项、分红黄绿行动项、生成摘要和修复建议             |
-| 4    | `report.py`                                                                           | `analysis.json`          | `docs/butian/security-report-*.md`           | 输出给人读的 Markdown 审计报告                               |
-| 5    | `visualize.py`                                                                        | `analysis.json`          | `.butian/<run>/content/security-report.html` | 项目扫描输出自包含 HTML 报告并按首次扫描策略打开             |
+| 4    | `report.py`                                                                           | `analysis.json`          | `docs/butian/<日期>/security-report*.md`     | 输出给人读的 Markdown 审计报告                               |
+| 5    | `visualize.py`                                                                        | `analysis.json`          | `docs/butian/<日期>/security-report*.html`   | 项目扫描输出自包含 HTML 报告，不自动打开浏览器               |
 | 6    | `fix.py`                                                                              | `analysis.json`          | 包管理器命令结果或配置文件                   | 用户确认后执行依赖升级策略或创建 Dependabot 配置             |
 | 7    | `run_audit.py`                                                                        | 项目路径                 | 全链路产物                                   | 串联 detect、scan、analyze、report、visualize                |
 
@@ -54,10 +54,12 @@
 | `.butian/<run>/assets/preflight.json`        | 预检结果              | 每次扫描生成                    |
 | `.butian/<run>/assets/scan.json`             | 原始扫描结果          | 每次扫描生成                    |
 | `.butian/<run>/assets/analysis.json`         | 分析结果              | 每次扫描生成                    |
-| `.butian/<run>/content/security-report.html` | 自包含 HTML 报告      | 项目扫描生成                    |
 | `.butian/<run>/logs/scan.log`                | DEBUG 日志            | `--verbose` 或 `--debug` 时生成 |
 | `.butian/cache/`                             | OSV/NVD/EPSS/KEV 缓存 | 跨 run 复用                     |
-| `docs/butian/security-report-*.md`           | Markdown 审计报告     | 首扫或最终复扫生成              |
+| `docs/butian/<日期>/security-report.md`      | Markdown 审计报告     | 普通扫描生成                    |
+| `docs/butian/<日期>/security-report.html`    | 自包含 HTML 报告      | 普通扫描生成                    |
+| `docs/butian/<日期>/security-report-final.md` | 最终 Markdown 报告   | `--final-report` 生成           |
+| `docs/butian/<日期>/security-report-final.html` | 最终 HTML 报告     | `--final-report` 生成           |
 
 ## 测试策略
 

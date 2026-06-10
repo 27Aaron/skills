@@ -84,8 +84,8 @@
 ### `run_audit.py`
 
 - 编排覆盖：按顺序调用 detect、scan、analyze、report、visualize。
-- 首扫覆盖：生成 Markdown 和 HTML，允许自动打开。
-- 复扫覆盖：中间复扫跳过 Markdown，`--final-report` 生成最终 Markdown。
+- 首扫覆盖：生成 `security-report.md` 和 `security-report.html`，不自动打开。
+- 复扫覆盖：每次复扫都刷新普通报告，`--final-report` 生成 `security-report-final.md/html`。
 - 失败覆盖：任一子命令失败时退出非零，并保留已生成路径提示。
 
 ### `scan.py`
@@ -133,6 +133,6 @@ git diff --check
 
 1. 改脚本前先找对应测试文件，新增行为先写失败测试。
 2. 修改输出 schema 时同步更新 `analyze.py`、`report.py`、`visualize.py` 的兼容测试。
-3. 修改 report 文案时同时检查 Markdown 和 HTML 两端；HTML 详情文案还要检查真实 `.butian/<run>/content/security-report.html`。
+3. 修改 report 文案时同时检查 Markdown 和 HTML 两端；HTML 详情文案还要检查真实 `docs/butian/<日期>/security-report.html`。
 4. 修改本地规则时同步检查 `finding_utils.py` schema 和 `testing-matrix.md`。
 5. 修改 CLI 参数时补 `parse_args` 和主流程测试。

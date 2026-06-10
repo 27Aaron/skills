@@ -115,7 +115,7 @@ class ScriptInventoryTests(unittest.TestCase):
 
     def test_public_docs_do_not_contain_generated_security_reports(self):
         result = subprocess.run(
-            ["git", "ls-files", "docs/butian/security-report-*.md"],
+            ["git", "ls-files", "docs/butian/*/security-report*.md"],
             cwd=ROOT,
             capture_output=True,
             text=True,
@@ -384,8 +384,8 @@ class ScriptInventoryTests(unittest.TestCase):
         )
         for phrase in (
             "预检先固定本次运行工作区",
-            "中间修复复扫跳过 Markdown",
-            "项目 HTML 每次都重新生成",
+            "项目 Markdown 和 HTML 每次都重新生成到 docs/butian/<日期>/",
+            "终端摘要只展示路径",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, text)

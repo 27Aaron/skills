@@ -14,8 +14,8 @@
 | 2   | 参数透传      | 将用户参数传递给各子阶段（verbose/debug/follow-symlinks）                                                                    |
 | 3   | 结果汇总      | 收集各阶段的文件路径和风险统计                                                                                               |
 | 4   | 终端摘要      | 输出格式化的终端摘要（包含 Unicode 表格）                                                                                    |
-| 5   | 报告打开      | 项目扫描首次自动用系统浏览器打开 HTML 报告，复扫跳过（由 `.butian/.first-scan-done` 标记控制）                           |
-| 6   | Markdown 控制 | 首次扫描 + 最终复扫（`--final-report`）生成 Markdown，中间复扫跳过                                                           |
+| 5   | 报告输出      | Markdown 和 HTML 都生成到 `docs/butian/<日期>/`，普通报告和最终报告使用固定文件名                                         |
+| 6   | 打开控制      | 不自动打开浏览器；终端只展示摘要、报告路径和后续交互提示                                                                   |
 
 ## CLI 用法
 
@@ -24,23 +24,23 @@
 python3 run_audit.py                        # 当前目录，完整扫描
 python3 run_audit.py /path/to/project       # 指定项目路径
 python3 run_audit.py --skip-outdated .      # 跳过过期依赖检查
-python3 run_audit.py --no-open .            # CI/自动化场景：不自动打开 HTML 报告
+python3 run_audit.py --no-open .            # 兼容旧参数；默认也不会自动打开 HTML 报告
 
 python3 run_audit.py --verbose .            # 详细日志输出
 python3 run_audit.py --debug .              # 调试级别日志
 python3 run_audit.py --follow-symlinks .    # 跟随符号链接
-python3 run_audit.py --final-report .       # 最终复扫：强制生成 Markdown 报告
+python3 run_audit.py --final-report .       # 最终复扫：生成 security-report-final.md/html
 
 # Windows
 py -3 run_audit.py                          # 当前目录，完整扫描
 py -3 run_audit.py C:\path\to\project       # 指定项目路径
 py -3 run_audit.py --skip-outdated .        # 跳过过期依赖检查
-py -3 run_audit.py --no-open .              # CI/自动化场景：不自动打开 HTML 报告
+py -3 run_audit.py --no-open .              # 兼容旧参数；默认也不会自动打开 HTML 报告
 
 py -3 run_audit.py --verbose .              # 详细日志输出
 py -3 run_audit.py --debug .                # 调试级别日志
 py -3 run_audit.py --follow-symlinks .      # 跟随符号链接
-py -3 run_audit.py --final-report .         # 最终复扫：强制生成 Markdown 报告
+py -3 run_audit.py --final-report .         # 最终复扫：生成 security-report-final.md/html
 ```
 
 ## CLI 参数
@@ -54,8 +54,8 @@ py -3 run_audit.py --final-report .         # 最终复扫：强制生成 Markdo
 | `--skip-hygiene`      | flag     | false  | 跳过仓库安检                     |
 | `--max-secret-files`  | int      | None   | 限制密钥扫描的文件数量           |
 | `--include-packages`  | flag     | false  | 在扫描输出中包含完整包列表       |
-| `--no-open`           | flag     | false  | 不自动打开 HTML 报告             |
-| `--final-report`      | flag     | false  | 最终复扫时强制生成 Markdown 报告 |
+| `--no-open`           | flag     | false  | 兼容旧参数；默认也不会自动打开 HTML 报告 |
+| `--final-report`      | flag     | false  | 生成 `security-report-final.md/html` |
 | `--verbose`           | flag     | false  | 输出详细日志到 stderr            |
 | `--debug`             | flag     | false  | 输出调试级别日志                 |
 | `--follow-symlinks`   | flag     | false  | 跟随符号链接扫描                 |
@@ -78,12 +78,13 @@ run_audit.py
 ├─ 3. analyze.py <scan_file> <analysis_path>
 │     → analysis.json
 │
-├─ 4. report.py <analysis_path> <markdown_path>  ← 首次扫描或 --final-report 时执行
-│     → docs/butian/security-report-YYYYMMDD-HHMM.md
-│     复扫时跳过（由 .butian/.first-scan-done 标记控制）
-├─ 5. visualize.py <analysis_path> <html_path> [--no-open]
-│     → .butian/<run>/content/security-report.html
-│     项目扫描首次自动打开浏览器，复扫跳过（.first-scan-done 标记）
+├─ 4. report.py <analysis_path> <markdown_path>
+│     → docs/butian/YYYY-MMDD/security-report.md
+│     → docs/butian/YYYY-MMDD/security-report-final.md（--final-report）
+├─ 5. visualize.py <analysis_path> <html_path> --no-open
+│     → docs/butian/YYYY-MMDD/security-report.html
+│     → docs/butian/YYYY-MMDD/security-report-final.html（--final-report）
+│     始终只保存文件，不自动打开浏览器
 │
 └─ 输出终端摘要
 ```
@@ -134,27 +135,27 @@ run_audit.py
 [核心风险包的 Unicode 表格]
 
 📁 报告路径
-- Markdown 审计报告：docs/butian/security-report-20260609-1550.md
-- HTML 报告（未自动打开）：.butian/.../content/security-report.html
+- Markdown 审计报告：docs/butian/2026-0609/security-report.md
+- HTML 报告（不会自动打开）：docs/butian/2026-0609/security-report.html
 - analysis JSON：.butian/.../assets/analysis.json
 
 # 或最终复扫时：
 📁 报告路径
-- 最终 Markdown 审计报告：docs/butian/security-report-20260609-1550.md
-- HTML 报告（已自动打开）：.butian/.../content/security-report.html
+- 最终 Markdown 审计报告：docs/butian/2026-0609/security-report-final.md
+- HTML 报告（不会自动打开）：docs/butian/2026-0609/security-report-final.html
 - analysis JSON：.butian/.../assets/analysis.json
 
-# 或中间复扫时（无 Markdown 生成）：
+# 或中间复扫时：
 📁 报告路径
-- Markdown 审计报告：复扫未生成（首次扫描已有）
-- HTML 报告（复扫已跳过自动打开）：.butian/.../content/security-report.html
+- Markdown 审计报告：docs/butian/2026-0609/security-report.md
+- HTML 报告（不会自动打开）：docs/butian/2026-0609/security-report.html
 - analysis JSON：.butian/.../assets/analysis.json
 
 ```
 
 终端摘要只展示仓库安检的基础计数，详细的 GitHub Actions、依赖配置与维护、IaC/容器 finding 会进入 Markdown 和 HTML 报告的"仓库安检"章节，并继续参与 `red/yellow/green` 风险分级。`hygiene_only` 模式只跳过依赖漏洞和过期依赖检查，不跳过这些本地 Python 仓库安检规则。
 
-终端摘要不是完整报告。判断 HTML/Markdown 展示是否准确时，应打开最新 `.butian/<run>/content/security-report.html`，并查看同一 run 生成的 `docs/butian/security-report-<run>.md`。
+终端摘要不是完整报告。判断 HTML/Markdown 展示是否准确时，应打开最新 `docs/butian/<日期>/security-report.html` 和同目录 `security-report.md`；最终复扫看 `security-report-final.*`。
 
 ## 核心辅助函数
 
@@ -189,10 +190,10 @@ run_audit.py
 - **CJK 宽度感知**：`display_width()` 正确处理中文字符的终端显示宽度
 - **参数透传**：`build_scan_cmd()` 将 verbose/debug/follow-symlinks 传递给 `scan.py`
 - **能力边界声明**：终端摘要中包含明确的能力边界说明
-- **首次标记**：`.butian/.first-scan-done` 标记控制浏览器弹出和 Markdown 生成，复扫不重复
-- **最终报告**：`--final-report` 在修复完成后强制生成最终 Markdown 审计报告
+- **报告文件名**：普通扫描写 `security-report.md/html`，最终复扫写 `security-report-final.md/html`
+- **最终报告**：`--final-report` 在修复完成后生成最终 Markdown 和 HTML 审计报告
 - **仓库安检明细下沉到报告**：终端保持短摘要，结构化本地规则的依据、处理方式和分组展示放在 Markdown/HTML 报告里，避免终端输出过长
-- **报告验收以最新 run 为准**：同一项目可能保留多个 `.butian/<run>`，不要用旧 HTML 判断当前模板。
+- **报告验收以最新日期目录为准**：同一项目可能保留多个 `docs/butian/<日期>`，不要用旧 HTML 判断当前模板。
 
 ## 相关文档
 

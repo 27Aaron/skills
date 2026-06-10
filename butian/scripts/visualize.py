@@ -12,6 +12,7 @@ analysis JSON 由 analyze.py 生成，可在解释 scan.py 输出后轻量复核
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -20,16 +21,13 @@ from pathlib import Path
 
 try:
     from .labels import SECRET_TYPE_LABELS, SENSITIVE_TYPE_LABELS
-    from .scan import BUTIAN_CONTENT_DIR, run_dir_from_output_file
+    from .scan import run_dir_from_output_file
 except ImportError:
     from labels import (  # pyright: ignore[reportMissingImports]
         SECRET_TYPE_LABELS,
         SENSITIVE_TYPE_LABELS,
     )
-    from scan import (  # pyright: ignore[reportMissingImports]
-        BUTIAN_CONTENT_DIR,
-        run_dir_from_output_file,
-    )
+    from scan import run_dir_from_output_file  # pyright: ignore[reportMissingImports]
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "..", "templates")
@@ -64,10 +62,22 @@ def style_asset_for_html(value):
 
 
 def default_output_path(analysis_path):
-    run_dir = run_dir_from_output_file(analysis_path)
-    content_dir = os.path.join(run_dir, BUTIAN_CONTENT_DIR)
-    os.makedirs(content_dir, exist_ok=True)
-    return os.path.join(content_dir, "security-report.html")
+    with open(analysis_path, "r", encoding="utf-8") as handle:
+        analysis = json.load(handle)
+    project = analysis.get("project") or {}
+    project_path = project.get("path") or os.getcwd()
+    workspace = analysis.get("butian_workspace") or {}
+    run_dir = workspace.get("run_dir") or run_dir_from_output_file(analysis_path)
+    report_id = os.path.basename(os.path.normpath(run_dir))
+    match = re.match(r"^(\d{4})(\d{2})(\d{2})", report_id)
+    date_dir = (
+        f"{match.group(1)}-{match.group(2)}{match.group(3)}"
+        if match
+        else "unknown-date"
+    )
+    output_dir = os.path.join(project_path, "docs", "butian", date_dir)
+    os.makedirs(output_dir, exist_ok=True)
+    return os.path.join(output_dir, "security-report.html")
 
 
 def parse_args(argv):
@@ -84,40 +94,9 @@ def parse_args(argv):
     parser.add_argument(
         "--force-open",
         action="store_true",
-        help="open the generated HTML report even when a previous scan already completed",
+        help="explicitly open the generated HTML report after writing it",
     )
     return parser.parse_args(argv)
-
-
-def _butian_dir_for(output_path):
-    """查找包含 *output_path* 的 .butian/ 目录。"""
-    current = os.path.dirname(os.path.abspath(output_path))
-    while current != os.path.dirname(current):
-        if os.path.basename(current) == ".butian":
-            return current
-        current = os.path.dirname(current)
-    return None
-
-
-FIRST_SCAN_MARKER = ".first-scan-done"
-
-
-def _first_scan_done(output_path):
-    """如果当前项目已有一次扫描完成，则返回 True。"""
-    butian_dir = _butian_dir_for(output_path)
-    if butian_dir:
-        return os.path.exists(os.path.join(butian_dir, FIRST_SCAN_MARKER))
-    return False
-
-
-def _mark_first_scan_done(output_path):
-    butian_dir = _butian_dir_for(output_path)
-    if butian_dir:
-        try:
-            with open(os.path.join(butian_dir, FIRST_SCAN_MARKER), "w") as f:
-                f.write("")
-        except OSError:
-            pass
 
 
 def should_open_report(args, output_path=None):
@@ -133,20 +112,15 @@ def open_decision(args, output_path=None):
         return False, "environment"
     if getattr(args, "force_open", False):
         return True, "open"
-    # 只在当前项目第一次扫描时自动打开浏览器。
-    if output_path and _first_scan_done(output_path):
-        return False, "first_scan_done"
-    return True, "open"
+    return False, "default"
 
 
 def skipped_open_message(reason):
     if reason == "no_open":
-        return "已按 --no-open 跳过自动打开报告。"
+        return "报告已保存，未自动打开。"
     if reason == "environment":
-        return "已根据 BUTIAN_NO_OPEN 跳过自动打开报告。"
-    if reason == "first_scan_done":
-        return "已跳过自动打开报告（首次扫描已完成）。"
-    return "已跳过自动打开报告。"
+        return "报告已保存，未自动打开。"
+    return "报告已保存，未自动打开。"
 
 
 def spawn_open_command(cmd):
@@ -236,9 +210,8 @@ def main():
     with open(out, "w", encoding="utf-8") as f:
         f.write(html)
     print(f"报告已生成: {out}")
-    print("HTML 报告已保存，之后也可以从 content 目录重新查看。")
+    print("HTML 报告已保存，之后也可以从 docs/butian 目录重新查看。")
     should_open, reason = open_decision(args, out)
-    _mark_first_scan_done(out)
     if should_open:
         if open_report(out):
             print("已尝试在默认浏览器中打开报告。")

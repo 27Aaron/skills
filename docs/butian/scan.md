@@ -85,7 +85,7 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 | `BUTIAN_DIR`                     | `.butian`                                                       | 工作区目录名                       |
 | `BUTIAN_ASSETS_DIR`              | `assets`                                                        | 工作区内的资产子目录               |
 | `BUTIAN_CONTENT_DIR`             | `content`                                                       | 工作区内的内容子目录               |
-| `BUTIAN_GITIGNORE_EXTRA_ENTRIES` | `("docs/butian/security-report-*.md",)`                         | 除 `.butian/` 外额外忽略的生成报告 |
+| `BUTIAN_GITIGNORE_EXTRA_ENTRIES` | `docs/butian/*/security-report*.md/html`                         | 除 `.butian/` 外额外忽略的生成报告 |
 | `CACHE_DIR_NAME`                 | `cache`                                                         | 缓存子目录名                       |
 
 ## 关键函数
@@ -572,13 +572,10 @@ main()
 
 ```
 .butian/
-├── .first-scan-done                # 首次扫描标记（控制浏览器弹出和 Markdown 生成）
 ├── <run>/                          # 每次扫描的运行目录，例如 20260609-1550
 │   ├── assets/
 │   │   ├── scan.json               # 扫描结果
 │   │   └── analysis.json           # 分析结果
-│   ├── content/
-│   │   └── security-report.html    # HTML 报告
 │   └── logs/
 │       └── scan.log                # 扫描日志（需 --verbose 或 --debug）
 ├── cache/                          # 跨 run 共享缓存
@@ -595,10 +592,13 @@ main()
 ```
 # Local security scan workspace
 .butian/
-docs/butian/security-report-*.md
+docs/butian/*/security-report.md
+docs/butian/*/security-report.html
+docs/butian/*/security-report-final.md
+docs/butian/*/security-report-final.html
 ```
 
 - `.butian/` — 本地扫描工作区（扫描结果、缓存、日志）
-- `docs/butian/security-report-*.md` — 生成的 Markdown 审计报告；`docs/butian/` 下的手写文档不应被忽略
+- `docs/butian/*/security-report*.md/html` — 生成的 Markdown 和 HTML 审计报告；`docs/butian/` 下的手写文档不应被忽略
 
 `has_butian_gitignore_entry()` 检查 `.butian/` 或 `.butian` 条目是否存在；`ensure_butian_gitignore()` 在首次扫描时追加完整条目。

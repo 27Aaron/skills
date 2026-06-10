@@ -63,7 +63,10 @@ class DemoFixtureTests(unittest.TestCase):
                 with open(gitignore_path, "r", encoding="utf-8") as handle:
                     text = handle.read()
                 self.assertIn(".butian/", text)
-                self.assertIn("docs/butian/security-report-*.md", text)
+                self.assertIn("docs/butian/*/security-report.md", text)
+                self.assertIn("docs/butian/*/security-report.html", text)
+                self.assertIn("docs/butian/*/security-report-final.md", text)
+                self.assertIn("docs/butian/*/security-report-final.html", text)
 
     def test_runner_writes_only_markdown_and_html_to_docs(self):
         with open(RUNNER_PATH, "r", encoding="utf-8") as handle:

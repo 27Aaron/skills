@@ -330,7 +330,10 @@ class DependencyParsersModuleCompatibilityTests(unittest.TestCase):
                 content = handle.read()
             lines = content.splitlines()
             self.assertIn(".butian/", lines)
-            self.assertIn("docs/butian/security-report-*.md", lines)
+            self.assertIn("docs/butian/*/security-report.md", lines)
+            self.assertIn("docs/butian/*/security-report.html", lines)
+            self.assertIn("docs/butian/*/security-report-final.md", lines)
+            self.assertIn("docs/butian/*/security-report-final.html", lines)
             self.assertNotIn("docs/butian", lines)
             self.assertTrue(
                 os.path.abspath(preflight["butian_workspace"]["run_dir"]).startswith(
@@ -376,8 +379,8 @@ class DependencyParsersModuleCompatibilityTests(unittest.TestCase):
     def test_human_summary_warns_when_hygiene_only_skips_dependency_scan(self):
         summary = {
             "scan_mode": "hygiene_only",
-            "markdown_report": "/tmp/demo/docs/security-report-2026-06-05.md",
-            "html_report": "/tmp/demo/.butian/run/content/security-report.html",
+            "markdown_report": "/tmp/demo/docs/butian/2026-0605/security-report.md",
+            "html_report": "/tmp/demo/docs/butian/2026-0605/security-report.html",
             "analysis_file": "/tmp/demo/.butian/run/assets/analysis.json",
             "errors": [],
         }
@@ -528,7 +531,8 @@ class DependencyParsersModuleCompatibilityTests(unittest.TestCase):
         self.assertIn("会创建/更新 `.butian/` 本地报告工作区", skill_doc)
         self.assertIn("会确保 `.gitignore` 忽略 `.butian/`", skill_doc)
         self.assertIn("模板文件也只展示脱敏命中值", skill_doc)
-        self.assertIn("docs/butian/security-report-<run-id>.md", skill_doc)
+        self.assertIn("docs/butian/<日期>/security-report.md", skill_doc)
+        self.assertIn("docs/butian/<日期>/security-report-final.md", skill_doc)
         self.assertIn("默认执行规则", skill_doc)
         self.assertIn("第一次扫描报告", skill_doc)
         self.assertIn("运行 `run_audit.py` 完成首次扫描", skill_doc)
@@ -2786,7 +2790,10 @@ class EnsureRunWorkspaceTests(unittest.TestCase):
                 content = f.read()
             lines = content.splitlines()
             self.assertIn(".butian/", lines)
-            self.assertIn("docs/butian/security-report-*.md", lines)
+            self.assertIn("docs/butian/*/security-report.md", lines)
+            self.assertIn("docs/butian/*/security-report.html", lines)
+            self.assertIn("docs/butian/*/security-report-final.md", lines)
+            self.assertIn("docs/butian/*/security-report-final.html", lines)
             self.assertNotIn("docs/butian", lines)
 
     def test_collision_avoidance(self):
@@ -2824,7 +2831,10 @@ class EnsureGitignoreWorkspaceTests(unittest.TestCase):
                 content = f.read()
             lines = content.splitlines()
             self.assertIn(".butian/", lines)
-            self.assertIn("docs/butian/security-report-*.md", lines)
+            self.assertIn("docs/butian/*/security-report.md", lines)
+            self.assertIn("docs/butian/*/security-report.html", lines)
+            self.assertIn("docs/butian/*/security-report-final.md", lines)
+            self.assertIn("docs/butian/*/security-report-final.html", lines)
             self.assertNotIn("docs/butian", lines)
 
     def test_appends_to_existing(self):
@@ -2838,7 +2848,10 @@ class EnsureGitignoreWorkspaceTests(unittest.TestCase):
             lines = content.splitlines()
             self.assertIn("node_modules/", content)
             self.assertIn(".butian/", lines)
-            self.assertIn("docs/butian/security-report-*.md", lines)
+            self.assertIn("docs/butian/*/security-report.md", lines)
+            self.assertIn("docs/butian/*/security-report.html", lines)
+            self.assertIn("docs/butian/*/security-report-final.md", lines)
+            self.assertIn("docs/butian/*/security-report-final.html", lines)
             self.assertNotIn("docs/butian", lines)
 
     def test_adds_report_ignore_when_butian_entry_already_exists(self):
@@ -2851,7 +2864,14 @@ class EnsureGitignoreWorkspaceTests(unittest.TestCase):
                 content = f.read()
             lines = content.splitlines()
             self.assertEqual(content.count(".butian/"), 1)
-            self.assertEqual(content.count("docs/butian/security-report-*.md"), 1)
+            self.assertEqual(content.count("docs/butian/*/security-report.md"), 1)
+            self.assertEqual(content.count("docs/butian/*/security-report.html"), 1)
+            self.assertEqual(
+                content.count("docs/butian/*/security-report-final.md"), 1
+            )
+            self.assertEqual(
+                content.count("docs/butian/*/security-report-final.html"), 1
+            )
             self.assertNotIn("docs/butian", lines)
 
     def test_does_not_duplicate_entry(self):
@@ -2864,7 +2884,14 @@ class EnsureGitignoreWorkspaceTests(unittest.TestCase):
                 content = f.read()
             lines = content.splitlines()
             self.assertEqual(content.count(".butian/"), 1)
-            self.assertEqual(content.count("docs/butian/security-report-*.md"), 1)
+            self.assertEqual(content.count("docs/butian/*/security-report.md"), 1)
+            self.assertEqual(content.count("docs/butian/*/security-report.html"), 1)
+            self.assertEqual(
+                content.count("docs/butian/*/security-report-final.md"), 1
+            )
+            self.assertEqual(
+                content.count("docs/butian/*/security-report-final.html"), 1
+            )
             self.assertNotIn("docs/butian", lines)
 
 

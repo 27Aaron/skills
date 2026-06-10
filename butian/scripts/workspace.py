@@ -11,7 +11,12 @@ import time
 BUTIAN_DIR = ".butian"
 CACHE_DIR_NAME = "cache"
 BUTIAN_GITIGNORE_ENTRY = ".butian/"
-BUTIAN_GITIGNORE_EXTRA_ENTRIES = ("docs/butian/security-report-*.md",)
+BUTIAN_GITIGNORE_EXTRA_ENTRIES = (
+    "docs/butian/*/security-report.md",
+    "docs/butian/*/security-report.html",
+    "docs/butian/*/security-report-final.md",
+    "docs/butian/*/security-report-final.html",
+)
 BUTIAN_ASSETS_DIR = "assets"
 BUTIAN_CONTENT_DIR = "content"
 
