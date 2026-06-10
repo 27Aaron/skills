@@ -8,8 +8,8 @@
 
 | 产物              | 路径                                                   | 定位                                                                           |
 | ----------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------ |
-| Markdown 审计报告 | `<project>/docs/butian/<日期>/security-report.md`       | 适合归档、PR 讨论、复制到文档系统；保留表格化事实和修复目标                    |
 | HTML 交互报告     | `<project>/docs/butian/<日期>/security-report.html`     | 适合在浏览器中验收；展示更完整的解释、折叠详情、代码证据、tooltip 和响应式布局 |
+| Markdown 审计报告 | `<project>/docs/butian/<日期>/security-report.md`       | 适合归档、PR 讨论、复制到文档系统；保留表格化事实和修复目标                    |
 
 两端共用 `analysis.json`。`report.py` 负责 Markdown，`visualize.py` 把 `analysis.json`、`report.css`、`report.js` 内联到 HTML。报告层只做展示和兼容字段归一化，不重新计算漏洞数量、严重度或修复版本。
 
@@ -314,5 +314,5 @@ python3 butian/scripts/run_audit.py --no-open /path/to/project
 - **事实优先**：先展示本地扫描和官方公告能证明的事实。
 - **条件化表达**：涉及业务影响时使用“如果项目依赖/使用该能力”。
 - **不夸大**：不把路径规范化、缓存、header 注入等问题写成更重的攻击结果。
-- **双端一致但不强行相同**：Markdown 适合归档，HTML 适合交互验收；两者可以展示层级不同。Markdown 保留完整公告编号，HTML 当前风险表只保留 CVE；风险数量、升级建议和能力边界必须一致。
+- **双端一致但不强行相同**：HTML 适合交互验收，Markdown 适合归档；两者可以展示层级不同。Markdown 保留完整公告编号，HTML 当前风险表只保留 CVE；风险数量、升级建议和能力边界必须一致。
 - **跳过不等于通过**：任何跳过、错误、API 失败都必须在报告中保留可见线索。

@@ -412,7 +412,7 @@ packages[] ──→ OSV querybatch ──→ matched (pkg, vuln_id)[]
                               build_official_vulnerability()
                                       │
                                       ▼
-                              analysis.json → report.md / report.html
+                              analysis.json → security-report.html / security-report.md
 ```
 
 ---

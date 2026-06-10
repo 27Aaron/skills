@@ -83,9 +83,9 @@
 
 ### `run_audit.py`
 
-- 编排覆盖：按顺序调用 detect、scan、analyze、report、visualize。
-- 首扫覆盖：生成 `security-report.md` 和 `security-report.html`，不自动打开。
-- 复扫覆盖：每次复扫都刷新普通报告，`--final-report` 生成 `security-report-final.md/html`。
+- 编排覆盖：按顺序调用 detect、scan、analyze、visualize、report。
+- 首扫覆盖：先生成 `security-report.html`，再生成 `security-report.md`，不自动打开。
+- 复扫覆盖：每次复扫都刷新普通报告，`--final-report` 先生成 `security-report-final.html`，再生成 `security-report-final.md`。
 - 失败覆盖：任一子命令失败时退出非零，并保留已生成路径提示。
 
 ### `scan.py`

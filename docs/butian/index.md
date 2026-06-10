@@ -2,7 +2,7 @@
 
 ## 概览
 
-`butian` 是一个面向本地仓库的安全扫描 Skill。它把预检、依赖扫描、仓库安检、分析、Markdown 报告、HTML 可视化和可选修复拆成独立 Python 脚本，便于测试、复用和逐步排错。
+`butian` 是一个面向本地仓库的安全扫描 Skill。它把预检、依赖扫描、仓库安检、分析、HTML 可视化、Markdown 报告和可选修复拆成独立 Python 脚本，便于测试、复用和逐步排错。
 
 这组文档覆盖 `butian/scripts` 下每个行为脚本，并说明测试入口、输入输出、边界和维护注意事项。新增脚本时需要同步补测试和文档，否则 `tests/butian/test_scripts_inventory.py` 会失败。
 
@@ -23,8 +23,8 @@
 | 3    | `analyze.py`                                                                          | `scan.json`              | `.butian/<run>/assets/analysis.json`         | 标准化风险项、分红黄绿行动项、生成摘要和修复建议             |
 | 4    | `visualize.py`                                                                        | `analysis.json`          | `docs/butian/<日期>/security-report*.html`   | 项目扫描先输出自包含 HTML 报告，不自动打开浏览器             |
 | 5    | `report.py`                                                                           | `analysis.json`          | `docs/butian/<日期>/security-report*.md`     | 再输出给人读的 Markdown 审计报告                             |
-| 6    | `fix.py`                                                                              | `analysis.json`          | 包管理器命令结果或配置文件                   | 用户确认后执行依赖升级策略或创建 Dependabot 配置             |
-| 7    | `run_audit.py`                                                                        | 项目路径                 | 全链路产物                                   | 串联 detect、scan、analyze、report、visualize                |
+| 6    | `fix.py`                                                                              | `analysis.json`          | 包管理器命令结果或配置文件                   | 默认只打印计划，确认后追加 `--yes` 执行依赖升级或创建配置    |
+| 7    | `run_audit.py`                                                                        | 项目路径                 | 全链路产物                                   | 串联 detect、scan、analyze、visualize、report                |
 
 ## 脚本文档索引
 
@@ -56,10 +56,10 @@
 | `.butian/<run>/assets/analysis.json`         | 分析结果              | 每次扫描生成                    |
 | `.butian/<run>/logs/scan.log`                | DEBUG 日志            | `--verbose` 或 `--debug` 时生成 |
 | `.butian/cache/`                             | OSV/NVD/EPSS/KEV 缓存 | 跨 run 复用                     |
-| `docs/butian/<日期>/security-report.md`      | Markdown 审计报告     | 普通扫描生成                    |
 | `docs/butian/<日期>/security-report.html`    | 自包含 HTML 报告      | 普通扫描生成                    |
-| `docs/butian/<日期>/security-report-final.md` | 最终 Markdown 报告   | `--final-report` 生成           |
+| `docs/butian/<日期>/security-report.md`      | Markdown 审计报告     | 普通扫描生成                    |
 | `docs/butian/<日期>/security-report-final.html` | 最终 HTML 报告     | `--final-report` 生成           |
+| `docs/butian/<日期>/security-report-final.md` | 最终 Markdown 报告   | `--final-report` 生成           |
 
 ## 测试策略
 

@@ -4,7 +4,7 @@
 
 ## 概览
 
-`fix.py` 是依赖修复执行器。它读取 `analyze.py` 的分析结果，按策略生成并执行包管理器升级命令，或创建用户确认后的治理配置文件。不参与自动管线（`run_audit.py` 不调用它），而是在确认修复方案后单独调用。
+`fix.py` 是依赖修复执行器。它读取 `analyze.py` 的分析结果，按策略生成修复计划，并在传入 `--yes` 后执行包管理器升级命令或创建用户确认后的治理配置文件。不参与自动管线（`run_audit.py` 不调用它），而是在确认修复方案后单独调用。
 
 ## 职责
 
@@ -14,16 +14,21 @@
 | 2   | npm 嵌套依赖分析 | 解析 `package-lock.json`，追踪嵌套依赖的父依赖链                         |
 | 3   | 强制覆盖         | 通过 npm `overrides` 机制强制覆盖无法追溯的残留依赖                      |
 | 4   | 配置创建         | 根据 analysis 中的 `dependabot_config` 创建 `.github/dependabot.yml`     |
-| 5   | 命令执行         | 顺序执行升级命令，收集成功/失败结果，并在任一命令失败时返回非零退出码    |
+| 5   | dry-run 边界     | 默认只打印修复计划；只有追加 `--yes` 才真正修改项目                      |
+| 6   | 命令执行         | 顺序执行升级命令，收集成功/失败结果，并在任一命令失败时返回非零退出码    |
 
 ## CLI 用法
 
 ```bash
-python3 fix.py <analysis.json> --strategy fixed             # 升级到已知修复版本
-python3 fix.py <analysis.json> --strategy latest            # 全部依赖升级到最新版本
-python3 fix.py <analysis.json> --strategy parent-upgrade    # 升级父依赖清理嵌套残留
-python3 fix.py <analysis.json> --strategy force-residual    # 强制覆盖残留依赖
-python3 fix.py <analysis.json> --strategy dependabot        # 创建 Dependabot 配置
+python3 fix.py <analysis.json> --strategy fixed             # 只打印升级到已知修复版本的计划
+python3 fix.py <analysis.json> --strategy latest            # 只打印全部依赖升级到最新版本的计划
+python3 fix.py <analysis.json> --strategy parent-upgrade    # 只打印升级父依赖清理嵌套残留的计划
+python3 fix.py <analysis.json> --strategy force-residual    # 只打印强制覆盖残留依赖的计划
+python3 fix.py <analysis.json> --strategy dependabot        # 只打印创建 Dependabot 配置的计划
+
+python3 fix.py <analysis.json> --strategy fixed --yes       # 确认后真正执行
+python3 fix.py <analysis.json> --strategy dependabot --yes  # 确认后创建配置文件
+python3 fix.py <analysis.json> --strategy latest --dry-run  # 显式只看计划，不修改项目
 ```
 
 ## CLI 参数
@@ -32,6 +37,8 @@ python3 fix.py <analysis.json> --strategy dependabot        # 创建 Dependabot 
 | --------------- | -------- | ---- | --------------------------------------------------------------------------------------------- |
 | `analysis_json` | 位置参数 | ✅   | `analyze.py` 输出的 JSON 路径                                                                 |
 | `--strategy`    | 选项     | ✅   | 修复策略，可选 `fixed`、`minimal`、`latest`、`parent-upgrade`、`force-residual`、`dependabot` |
+| `--yes`         | flag     | 否   | 真正执行生成后的修复计划；省略时只做 dry-run                                                  |
+| `--dry-run`     | flag     | 否   | 显式只打印修复计划，不修改项目；即使同时传 `--yes` 也不会执行                                 |
 
 ## 修复策略
 
@@ -54,7 +61,9 @@ python3 fix.py <analysis.json> --strategy dependabot        # 创建 Dependabot 
 | 任一命令失败           | `1`    | 保留成功/失败明细，提示用户复核包管理器输出 |
 | Dependabot 文件已存在  | `1`    | 不覆盖用户已有配置，提示人工合并            |
 
-`fix.py` 不会吞掉部分失败。即使前面的升级命令成功，只要后续任一命令失败，最终也会退出 `1`，避免自动化调用误判修复完成。
+`fix.py` 默认不会修改项目。没有 `--yes` 时，所有策略都只打印执行计划并返回 `0`；`--dry-run` 是显式只看计划的安全开关。AskUserQuestion 的确认发生在调用方决定追加 `--yes` 之前。
+
+`fix.py` 不会吞掉部分失败。真正执行时，即使前面的升级命令成功，只要后续任一命令失败，最终也会退出 `1`，避免自动化调用误判修复完成。
 
 ## 核心常量
 
@@ -118,6 +127,8 @@ _UPGRADE_BUILDERS = {
 | `execute_parent_upgrade_fixes(analysis, path)`    | 执行 parent-upgrade 策略的完整流程                |
 | `execute_force_residual_fixes(analysis, path)`    | 执行 force-residual 策略的完整流程                |
 | `execute_dependabot_config_fixes(analysis, path)` | 创建 `.github/dependabot.yml`，并拒绝覆盖已有文件 |
+| `should_execute(args)`                            | 只有传入 `--yes` 且未传 `--dry-run` 时才允许执行  |
+| `print_execution_plan(strategy, project_path, ...)` | 打印 dry-run 修复计划                            |
 | `post_fix_guidance(strategy)`                     | 返回修复后的验证指引文本                          |
 
 ### 工具函数
@@ -197,6 +208,7 @@ execute_force_residual_fixes()
 ## 设计要点
 
 - **独立于管线**：不被 `run_audit.py` 自动调用，由 SKILL.md 引导用户按需使用
+- **默认 dry-run**：不带 `--yes` 时只展示修复计划，不执行包管理器命令或写文件
 - **策略分层**：从最小影响（minimal）到最强力（force-residual），逐步升级修复力度
 - **npm 深度分析**：专门处理 npm 嵌套依赖问题，支持追溯父依赖链和 overrides 强制覆盖
 - **Python 项目管理器**：只检测 uv/poetry/pipenv，避免在不明确的环境中调用系统 pip
