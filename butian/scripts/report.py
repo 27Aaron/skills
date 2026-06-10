@@ -139,7 +139,9 @@ def best_fixed_version(versions, current_version):
     if not candidates:
         return "待确认"
 
-    current_major = version_parts(current_version)[0] if version_parts(current_version) else None
+    current_major = (
+        version_parts(current_version)[0] if version_parts(current_version) else None
+    )
     same_major = [
         version
         for version in candidates
@@ -587,11 +589,7 @@ def render_hygiene(analysis):
             if include_evidence:
                 row.append(cell(item.get("evidence") or "-"))
             row.append(cell(item.get("recommendation") or "-"))
-            lines.append(
-                "| "
-                + " | ".join(row)
-                + " |"
-            )
+            lines.append("| " + " | ".join(row) + " |")
     lines.append("")
     return "\n".join(lines)
 
@@ -650,8 +648,7 @@ def render_outdated(analysis):
 
 def render_manual_items(analysis):
     items = [
-        item
-        for item in (analysis.get("red") or []) + (analysis.get("yellow") or [])
+        item for item in (analysis.get("red") or []) + (analysis.get("yellow") or [])
     ]
     if not items:
         return "没有需要额外人工确认的事项。\n"
@@ -694,9 +691,7 @@ def render_errors(analysis):
     for item in errors:
         step = markdown_text(item.get("step")) or "unknown"
         message = markdown_text(item.get("message"))
-        lines.append(
-            f"- [{step}] {message}"
-        )
+        lines.append(f"- [{step}] {message}")
     lines.append("")
     return "\n".join(lines)
 

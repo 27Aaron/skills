@@ -247,7 +247,9 @@ class DependencyParsersModuleCompatibilityTests(unittest.TestCase):
 
             self.assertEqual(calls, [])
             self.assertTrue(
-                any("--allow-project-exec" in item.get("message", "") for item in errors)
+                any(
+                    "--allow-project-exec" in item.get("message", "") for item in errors
+                )
             )
 
     def test_pip_outdated_runs_project_virtualenv_when_opted_in(self):
@@ -2870,9 +2872,7 @@ class EnsureGitignoreWorkspaceTests(unittest.TestCase):
             self.assertEqual(content.count(".butian/"), 1)
             self.assertEqual(content.count("docs/butian/*/security-report.md"), 1)
             self.assertEqual(content.count("docs/butian/*/security-report.html"), 1)
-            self.assertEqual(
-                content.count("docs/butian/*/security-report-final.md"), 1
-            )
+            self.assertEqual(content.count("docs/butian/*/security-report-final.md"), 1)
             self.assertEqual(
                 content.count("docs/butian/*/security-report-final.html"), 1
             )
@@ -2890,9 +2890,7 @@ class EnsureGitignoreWorkspaceTests(unittest.TestCase):
             self.assertEqual(content.count(".butian/"), 1)
             self.assertEqual(content.count("docs/butian/*/security-report.md"), 1)
             self.assertEqual(content.count("docs/butian/*/security-report.html"), 1)
-            self.assertEqual(
-                content.count("docs/butian/*/security-report-final.md"), 1
-            )
+            self.assertEqual(content.count("docs/butian/*/security-report-final.md"), 1)
             self.assertEqual(
                 content.count("docs/butian/*/security-report-final.html"), 1
             )

@@ -246,9 +246,7 @@ class DefaultOutputPathTests(unittest.TestCase):
                     {
                         "project": {"path": root},
                         "butian_workspace": {
-                            "run_dir": os.path.join(
-                                root, ".butian", "20260605-120000"
-                            )
+                            "run_dir": os.path.join(root, ".butian", "20260605-120000")
                         },
                     },
                     f,

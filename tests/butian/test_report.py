@@ -29,7 +29,7 @@ class CellTests(unittest.TestCase):
         self.assertEqual(report.cell("a|b"), "a\\|b")
 
     def test_html_and_javascript_are_escaped(self):
-        result = report.cell('<script>alert(1)</script> [x](javascript:alert(1))')
+        result = report.cell("<script>alert(1)</script> [x](javascript:alert(1))")
         self.assertIn("&lt;script&gt;", result)
         self.assertNotIn("<script>", result)
         self.assertNotIn("javascript:", result)
@@ -621,9 +621,7 @@ class RenderMarkdownStructureTests(unittest.TestCase):
         self.assertNotIn("## " + "服务器" + "运行环境", markdown)
         self.assertIn("## 覆盖说明", markdown)
         self.assertNotIn("## 需要人工确认的事项", markdown)
-        self.assertLess(
-            markdown.index("## 报告总结"), markdown.index("## 当前风险")
-        )
+        self.assertLess(markdown.index("## 报告总结"), markdown.index("## 当前风险"))
 
     def test_render_markdown_omits_llm_fix_context_section(self):
         markdown = report.render_markdown(
@@ -692,6 +690,7 @@ class RenderManualItemsTests(unittest.TestCase):
     def test_empty(self):
         result = report.render_manual_items({"red": [], "yellow": []})
         self.assertIn("没有需要额外人工确认", result)
+
 
 # ---------------------------------------------------------------------------
 # render_errors

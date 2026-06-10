@@ -155,7 +155,10 @@ class ScriptInventoryTests(unittest.TestCase):
         self.assertIn("Dependabot 是 GitHub 的依赖更新助手", project_text)
         self.assertIn("建议现在运行项目构建或测试", project_text)
         self.assertIn("每次 AskUserQuestion 只能确认一个阶段问题", project_text)
-        self.assertIn("禁止把“是否修复 / 修复方式”和“可选收尾动作”放进同一个 AskUserQuestion", project_text)
+        self.assertIn(
+            "禁止把“是否修复 / 修复方式”和“可选收尾动作”放进同一个 AskUserQuestion",
+            project_text,
+        )
         self.assertIn("禁止使用 `长期维护`", project_text)
         self.assertIn("禁止临时添加 `README 记录安全策略`", project_text)
         self.assertIn("开始修复", project_text)
@@ -214,9 +217,7 @@ class ScriptInventoryTests(unittest.TestCase):
         with open(SKILL_PATH, "r", encoding="utf-8") as handle:
             text = handle.read()
 
-        for reference in (
-            "references/project-scan.md",
-        ):
+        for reference in ("references/project-scan.md",):
             with self.subTest(reference=reference):
                 self.assertIn(reference, text)
                 self.assertTrue(

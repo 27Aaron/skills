@@ -2473,8 +2473,9 @@ function parseDateLike(value) {
 
 function reportReferenceDate() {
   return (
-    parseDateLike(DATA.generated_at || DATA.generatedAt || DATA.report_generated_at) ||
-    new Date()
+    parseDateLike(
+      DATA.generated_at || DATA.generatedAt || DATA.report_generated_at,
+    ) || new Date()
   );
 }
 
@@ -2983,7 +2984,9 @@ function hasVulnerabilityErrors() {
   return toList(DATA.errors).some((item) => {
     const step = String((item && item.step) || "").toLowerCase();
     const message = String((item && item.message) || "").toLowerCase();
-    return step === "vulnerability_check" || message.includes("vulnerability_check");
+    return (
+      step === "vulnerability_check" || message.includes("vulnerability_check")
+    );
   });
 }
 

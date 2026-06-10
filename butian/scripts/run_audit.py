@@ -304,12 +304,16 @@ def best_fixed_version(issues):
         return "待确认"
     if version_key(current_version):
         versions = [
-            version for version in versions if compare_versions(version, current_version) > 0
+            version
+            for version in versions
+            if compare_versions(version, current_version) > 0
         ]
     if not versions:
         return "待确认"
 
-    current_major = version_key(current_version)[0] if version_key(current_version) else None
+    current_major = (
+        version_key(current_version)[0] if version_key(current_version) else None
+    )
     same_major = [
         version
         for version in versions
@@ -502,8 +506,7 @@ def format_human_summary(summary, scan, analysis, args):
     markdown_label = "最终 Markdown" if args.final_report else "Markdown"
     if summary.get("html_report"):
         html_report_line = (
-            f"- HTML 报告（不会自动打开）："
-            f"{absolute_path(summary.get('html_report'))}"
+            f"- HTML 报告（不会自动打开）：{absolute_path(summary.get('html_report'))}"
         )
     else:
         html_report_line = "- HTML 报告：未生成"
