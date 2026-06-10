@@ -13,7 +13,7 @@
 | 场景 | 参考文件 | 说明 |
 | ---- | -------- | ---- |
 | 项目的安全扫描 | `butian/references/project-scan.md` | 项目扫描范围、数据源边界、报告契约、AskUserQuestion 修复交互和分步调试 |
-| 服务器的安全扫描 | `butian/references/server-scan.md` | 密钥登录、只读 SSH 边界、启用方式、内核/常见软件版本、OpenSSH/防火墙维护建议、Docker 元数据和服务器风险证据标准 |
+| 服务器的安全扫描 | `butian/references/server-scan.md` | 密钥登录、只读 SSH 边界、启用方式、`server-inventory.json` 契约、OpenSSH/防火墙维护建议和服务器风险证据标准 |
 
 ## 管线总览
 
@@ -21,7 +21,7 @@
 | ---- | ------------------------------------------------------------------------------------- | ------------------------ | -------------------------------------------- | ------------------------------------------------------------ |
 | 1    | `detect.py`                                                                           | 项目路径                 | `.butian/<run>/assets/preflight.json`        | 检测 lockfile、推荐扫描模式、准备本地工作区                  |
 | 2    | `scan.py`                                                                             | 项目路径或 preflight     | `.butian/<run>/assets/scan.json`             | 本地仓库安检、依赖解析、OSV/NVD/CISA/EPSS 查询、过期依赖检查 |
-| 2a   | `server_collect.py` / `server_inventory.py` / `server_match.py` / `server_analyze.py` | SSH 目标或离线 inventory | `.butian/<run>/assets/server-*.json`         | 可选 Linux 服务器只读采集、资产标准化、漏洞匹配和服务器分析  |
+| 2a   | `server_collect.py` / `server_inventory.py` / `server_match.py` / `server_analyze.py` | SSH 目标或离线 inventory | `.butian/<run>/assets/server-inventory.json` | 可选 Linux 服务器只读采集、资产标准化、漏洞匹配和服务器分析  |
 | 3    | `analyze.py`                                                                          | `scan.json`              | `.butian/<run>/assets/analysis.json`         | 标准化风险项、分红黄绿行动项、生成摘要和修复建议             |
 | 4    | `report.py`                                                                           | `analysis.json`          | `docs/butian/security-report-*.md`           | 输出给人读的 Markdown 审计报告                               |
 | 5    | `visualize.py`                                                                        | `analysis.json`          | `.butian/<run>/content/security-report.html` | 项目扫描输出自包含 HTML 报告并按首次扫描策略打开；server_only 跳过 |
@@ -44,9 +44,9 @@
 | `report.py`           | `docs/butian/report.md`           | `tests/butian/test_report.py`           | Markdown 渲染、表格转义、风险/仓库安检/过期依赖输出          |
 | `run_audit.py`        | `docs/butian/run_audit.md`        | `tests/butian/test_run_audit.py`        | 全链路编排、首次扫描和复扫策略                               |
 | `scan.py`             | `docs/butian/scan.md`             | `tests/butian/test_scan.py`             | 扫描 CLI、并行编排、密钥扫描、过期依赖和结果汇总              |
-| `server_analyze.py`   | `docs/butian/server_analyze.md`   | `tests/butian/test_server_analyze.py`   | 服务器风险归并、Docker/端口维护建议、错误保留                |
-| `server_collect.py`   | `docs/butian/server_collect.md`   | `tests/butian/test_server_collect.py`   | 密钥登录 SSH 目标、只读 SSH 命令白名单、Docker 元数据、离线 inventory |
-| `server_inventory.py` | `docs/butian/server_inventory.md` | `tests/butian/test_server_inventory.py` | Linux 发行版、系统包、内核、常见软件版本、安全更新、运行服务、监听端口和 Docker 解析 |
+| `server_analyze.py`   | `docs/butian/server_analyze.md`   | `tests/butian/test_server_analyze.py`   | 服务器风险归并、端口维护建议、错误保留                      |
+| `server_collect.py`   | `docs/butian/server_collect.md`   | `tests/butian/test_server_collect.py`   | 密钥登录 SSH 目标、只读 SSH 命令白名单、离线 inventory       |
+| `server_inventory.py` | `docs/butian/server_inventory.md` | `tests/butian/test_server_inventory.py` | Linux 发行版、系统包、内核、常见软件版本、安全更新、运行服务和监听端口 |
 | `server_match.py`     | `docs/butian/server_match.md`     | `tests/butian/test_server_match.py`     | OSV 发行版包坐标、详情公告、CVE 富化和覆盖缺口               |
 | `visualize.py`        | `docs/butian/visualize.md`        | `tests/butian/test_visualize.py`        | HTML 注入、资产内联、交互报告和浏览器打开策略                |
 | `vulnerability_sources.py` | `docs/butian/vulnerability_sources.md` | `tests/butian/test_scan.py`        | OSV/NVD/CISA KEV/FIRST EPSS 查询、富化、缓存和风险信号合并    |
@@ -60,9 +60,6 @@
 | `.butian/<run>/assets/preflight.json`        | 预检结果              | 每次扫描生成                    |
 | `.butian/<run>/assets/scan.json`             | 原始扫描结果          | 每次扫描生成                    |
 | `.butian/<run>/assets/server-inventory.json` | 服务器原始采集结果    | 启用服务器扫描时生成            |
-| `.butian/<run>/assets/server-assets.json`    | 服务器标准化资产      | 启用服务器扫描时生成            |
-| `.butian/<run>/assets/server-vulns.json`     | 服务器漏洞匹配结果    | 启用服务器扫描时生成            |
-| `.butian/<run>/assets/server-analysis.json`  | 服务器分析结果        | 启用服务器扫描时生成            |
 | `.butian/<run>/assets/analysis.json`         | 分析结果              | 每次扫描生成                    |
 | `.butian/<run>/content/security-report.html` | 自包含 HTML 报告      | 项目扫描生成；server_only 不生成 |
 | `.butian/<run>/logs/scan.log`                | DEBUG 日志            | `--verbose` 或 `--debug` 时生成 |

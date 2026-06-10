@@ -4,6 +4,8 @@
 
 `--server-only` 只生成 Markdown 报告，不生成 HTML 展示页；项目 + 服务器混合扫描仍会生成项目 HTML，并在“服务器运行环境”章节展示服务器内容。OpenSSH 和防火墙相关结论默认作为“服务器维护建议”，用于告诉用户如何优化，不写成 confirmed CVE。
 
+v1 契约：`server-inventory.json` 是唯一写入 assets 目录的服务器事实 JSON，原始只读命令结果位于顶层 `commands`；解析器兼容早期离线 inventory 的 `outputs`。v1 不采集 Docker，不进入容器，不扫描镜像，也不自动升级系统包、不重启服务、不修改服务器配置。
+
 ## 服务器扫描入口
 
 服务器直连必须使用密钥登录，脚本会给 `ssh` 加上 `BatchMode=yes`、`PasswordAuthentication=no`、`KbdInteractiveAuthentication=no` 和 `PreferredAuthentications=publickey`，避免密码输入或交互式认证回退。
@@ -65,12 +67,11 @@ Windows 上也可以运行服务器扫描；使用 `--server` 时本机需要可
 - 包管理器返回的安全更新线索，例如 apt/dnf/yum/zypper
 - 重点运行服务和监听端口
 - 正在运行的 systemd service 摘要
-- 常见软件版本命令输出，例如 Web 服务、TLS/加密库、数据库、容器组件、语言运行时、消息队列、代理网关、运维工具和面板组件
+- 常见软件版本命令输出，例如 Web 服务、TLS/加密库、数据库、语言运行时、消息队列、代理网关、运维工具和面板组件
 - OpenSSH 服务端有效配置
 - 主机防火墙状态和可读规则摘要
-- 可选 Docker 元数据：容器名、镜像标签、端口映射
 
-Docker 版本默认读取；容器名、镜像标签和端口映射只在显式开启 Docker 元数据时读取。扫描不进入容器、不读取容器文件系统、不扫描镜像 layer。
+服务器扫描保持报告-only：报告可以给出人工处理建议，但不会自动执行升级、重启、配置修改或清理动作。
 
 ## OpenSSH 建议项
 
@@ -110,20 +111,18 @@ OpenSSH 配置检查只输出建议，不自动修改服务器。重点关注：
 - 仅 NVD/CPE 模糊匹配
 - 服务版本 banner 推断
 - 自编译二进制版本推断
-- Docker `latest`、`custom` 或无法解析的镜像标签
 - OpenSSH 配置建议
 - 防火墙配置建议
 
-常见软件版本如果能关联到发行版包，会随包坐标进入漏洞查询；如果只能从 `nginx -v`、`openssl version`、`ssh -V` 或 `docker version` 看到版本，但无法关联包管理器坐标，只能作为维护建议或扫描错误保留，不能写成已确认漏洞。
+常见软件版本如果能关联到发行版包，会随包坐标进入漏洞查询；如果只能从 `nginx -v`、`openssl version` 或 `ssh -V` 看到版本，但无法关联包管理器坐标，只能作为维护建议或扫描错误保留，不能写成已确认漏洞。
 
 ## 服务器报告契约
 
-启用服务器扫描时，assets 目录会写出：
+启用服务器扫描时，assets 目录只会写出一份服务器事实 JSON：
 
 - `server-inventory.json`
-- `server-assets.json`
-- `server-vulns.json`
-- `server-analysis.json`
+
+服务器资产、漏洞匹配和分析结果在本地内存中处理，随后并入 `scan.json` 和 `analysis.json`；不要把额外服务器 JSON 当作当前输出契约。
 
 最终 `analysis.json` 会合并：
 
@@ -132,7 +131,7 @@ OpenSSH 配置检查只输出建议，不自动修改服务器。重点关注：
 - `server_maintenance`
 - `server_issue_count`
 
-`server_issues` 只允许放证据闭环的 `confirmed` 风险；OpenSSH、防火墙、公网敏感端口、旧 Docker 镜像标签等只进入 `server_maintenance`。报告中单独展示“服务器运行环境”，不要和项目依赖漏洞混成一种风险。
+`server_issues` 只允许放证据闭环的 `confirmed` 风险；OpenSSH、防火墙、公网敏感端口等只进入 `server_maintenance`。报告中单独展示“服务器运行环境”，不要和项目依赖漏洞混成一种风险。
 
 Markdown 报告必须说明：
 
@@ -147,7 +146,7 @@ Markdown 报告必须说明：
 - OpenSSH 和防火墙建议的证据与处理方向
 - 扫描错误和采集缺口
 
-`--server-only` 不生成 HTML 报告。终端和 Markdown 中必须清楚标注 Markdown 路径、analysis JSON 路径，以及服务器 assets 路径。项目 + 服务器混合扫描可以生成项目 HTML，服务器内容只放在独立的“服务器运行环境”章节。
+`--server-only` 不生成 HTML 报告。终端和 Markdown 中必须清楚标注 Markdown 路径、analysis JSON 路径，以及 `server-inventory.json` 路径。项目 + 服务器混合扫描可以生成项目 HTML，服务器内容只放在独立的“服务器运行环境”章节。
 
 ## 与项目扫描的关系
 

@@ -261,6 +261,10 @@ class ScriptInventoryTests(unittest.TestCase):
         self.assertIn("--server", server_text)
         self.assertIn("--server-inventory", server_text)
         self.assertIn("只读 SSH", server_text)
+        self.assertIn("server-inventory.json", server_text)
+        self.assertIn("唯一", server_text)
+        self.assertIn("不采集 Docker", server_text)
+        self.assertIn("不自动升级", server_text)
 
     def test_skill_keeps_detailed_entries_in_references(self):
         with open(SKILL_PATH, "r", encoding="utf-8") as handle:

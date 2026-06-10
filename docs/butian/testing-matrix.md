@@ -21,9 +21,9 @@
 | `report.py`           | `test_report.py`, `test_report_assets.py`               | Markdown 表格转义、CVE/GHSA 链接、hygiene 渲染、空状态、模板资产一致性                                 |
 | `run_audit.py`        | `test_run_audit.py`                                     | 子命令编排、首次扫描 Markdown、最终报告、跳过逻辑、失败传播                                            |
 | `scan.py`             | `test_scan.py`, `test_scan_helpers.py`, `test_cache.py` | 扫描 CLI、并行编排、密钥扫描、敏感文件、过期依赖、工作区兼容导出                                       |
-| `server_analyze.py`   | `test_server_analyze.py`                                | 服务器已确认风险、Docker 旧标签维护建议、敏感公网端口、原生安全更新、未关联服务版本、错误合并          |
-| `server_collect.py`   | `test_server_collect.py`                                | 密钥登录 SSH 目标、SSH config/端口/私钥可选参数、只读 SSH 命令白名单、可选 Docker 元数据、命令失败保留、离线 inventory |
-| `server_inventory.py` | `test_server_inventory.py`                              | Linux 发行版识别、包清单解析、内核包匹配、常见软件版本、包管理器安全更新、运行服务、监听端口、Docker 标签解析 |
+| `server_analyze.py`   | `test_server_analyze.py`                                | 服务器已确认风险、敏感公网端口、OpenSSH/防火墙姿态、原生安全更新、未关联服务版本、错误合并            |
+| `server_collect.py`   | `test_server_collect.py`                                | 密钥登录 SSH 目标、SSH config/端口/私钥可选参数、只读 SSH 命令白名单、命令失败保留、离线 inventory     |
+| `server_inventory.py` | `test_server_inventory.py`                              | Linux 发行版识别、包清单解析、内核包匹配、常见软件版本、包管理器安全更新、运行服务、监听端口、`commands`/`outputs` 兼容 |
 | `server_match.py`     | `test_server_match.py`                                  | OSV 发行版包查询、source package 查询、详情公告、CVE 富化、不支持 ecosystem 说明                       |
 | `visualize.py`        | `test_visualize.py`, `test_report_assets.py`            | JSON/HTML 转义、资产内联、标签注入、占位符校验、HTML 报告交互、浏览器打开策略                          |
 | `vulnerability_sources.py` | `test_scan.py`, `test_server_match.py`              | OSV/NVD/CISA KEV/FIRST EPSS 查询、CVSS/CVE 归一化、富化缓存、漏洞结果合并和 `scan.py` 兼容导出          |
@@ -108,7 +108,7 @@
 ### `server_collect.py`
 
 - 命令覆盖：`/etc/os-release`、`uname -r`、dpkg/rpm/apk 包清单、`ss`/`netstat` 监听端口、常见软件版本命令。
-- 安全覆盖：命令白名单只读，不包含 install、upgrade、restart、sudo；SSH 必须使用密钥登录并禁用密码/键盘交互回退；Docker 版本默认读取，容器元数据需要显式开启。
+- 安全覆盖：命令白名单只读，不包含 install、upgrade、restart、sudo；SSH 必须使用密钥登录并禁用密码/键盘交互回退；v1 只写出 `server-inventory.json`，原始事实位于顶层 `commands`。
 - 错误覆盖：单条命令失败写入 `errors`，不把失败解释成没有风险；离线 inventory 可读写 round-trip。
 
 ### `server_inventory.py`
@@ -117,7 +117,7 @@
 - 包解析覆盖：dpkg source package、rpm、apk、内核包与 `uname -r` 关联、常见软件版本与发行版包关联、面板/CI 组件包清单兜底。
 - 安全更新覆盖：apt/dnf/yum/zypper 返回的安全更新线索进入维护建议输入。
 - 暴露面覆盖：运行中的 `.service`、TCP `LISTEN`、UDP `UNCONN`、公网地址判断、敏感服务端口。
-- Docker 覆盖：只基于明确镜像名和版本标签提示旧标签，`latest`、custom tag、无版本标签不生成风险。
+- 兼容覆盖：优先解析 v1 `commands`，旧版离线样本的 `outputs` 仍可读取；不支持或为空的 inventory 必须保留为覆盖缺口。
 
 ### `server_match.py`
 
@@ -129,7 +129,7 @@
 ### `server_analyze.py`
 
 - 风险覆盖：只保留 `confidence=confirmed` 的服务器风险进入 `server_issues`。
-- 维护覆盖：Docker 明确旧标签、高敏感服务公网监听、原生安全更新和未关联服务版本进入 `server_maintenance`，不等同于 CVE。
+- 维护覆盖：高敏感服务公网监听、OpenSSH 配置、防火墙姿态、原生安全更新和未关联服务版本进入 `server_maintenance`，不等同于 CVE。
 - 错误覆盖：资产解析错误和漏洞源错误合并保留，供报告和终端摘要展示。
 
 ### `visualize.py`
