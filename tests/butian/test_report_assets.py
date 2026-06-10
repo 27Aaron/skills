@@ -675,6 +675,43 @@ class ReportAssetTests(unittest.TestCase):
         self.assertNotIn("border-left-width: 4px", css)
         self.assertNotIn("border-left-color: var(--warning-ink)", css)
 
+    def test_best_fixed_version_ignores_versions_not_above_current(self):
+        if not shutil.which("node"):
+            self.skipTest("node is required for report asset rendering tests")
+
+        code = textwrap.dedent(
+            f"""
+            const fs = require("fs");
+            const vm = require("vm");
+            const elements = {{ meta: {{ textContent: "" }}, app: {{ innerHTML: "" }} }};
+            const context = {{
+              window: {{ __BUTIAN_REPORT_DATA__: {{}}, location: {{ href: "file:///tmp/report.html" }} }},
+              document: {{ getElementById: (id) => elements[id], addEventListener: () => {{}} }},
+              navigator: {{ clipboard: {{ writeText: () => Promise.resolve() }} }},
+              atob: (value) => Buffer.from(value, "base64").toString("binary"),
+              btoa: (value) => Buffer.from(value, "binary").toString("base64"),
+              setTimeout: () => {{}},
+              console,
+            }};
+            vm.createContext(context);
+            vm.runInContext(fs.readFileSync({json.dumps(REPORT_JS)}, "utf8"), context);
+            process.stdout.write(JSON.stringify([
+              context.bestFixedVersion(["1.9.9"], "2.0.0"),
+              context.bestFixedVersion(["2.0.1", "1.9.9"], "2.0.0")
+            ]));
+            """
+        )
+
+        result = subprocess.run(
+            ["node", "-e", code],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+        self.assertEqual(json.loads(result.stdout), ["", "2.0.1"])
+
     def test_current_risk_table_gives_detail_column_more_room(self):
         data = {
             "generated_at": "2026-06-05 09:05:50",

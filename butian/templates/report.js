@@ -435,11 +435,16 @@ function compareVersions(a, b) {
 function bestFixedVersion(versions, currentVersion) {
   const all = toList(versions).filter(Boolean);
   if (!all.length) return "";
+  const currentKnown = versionParts(currentVersion).length > 0;
+  const newer = currentKnown
+    ? all.filter((v) => compareVersions(v, currentVersion) > 0)
+    : all;
+  if (!newer.length) return "";
   const currentMajor = versionParts(currentVersion)[0];
   const sameMajor = Number.isFinite(currentMajor)
-    ? all.filter((v) => versionParts(v)[0] === currentMajor)
+    ? newer.filter((v) => versionParts(v)[0] === currentMajor)
     : [];
-  const candidates = sameMajor.length ? sameMajor : all;
+  const candidates = sameMajor.length ? sameMajor : newer;
   return candidates.slice().sort(compareVersions).pop() || "";
 }
 
