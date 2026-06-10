@@ -405,7 +405,8 @@ def _ssh_base(
     if ssh_port != 22:
         cmd.extend(["-p", str(ssh_port)])
     if identity:
-        cmd.extend(["-i", identity, "-o", "IdentitiesOnly=yes"])
+        identity_path = os.path.abspath(os.path.expanduser(identity))
+        cmd.extend(["-i", identity_path, "-o", "IdentitiesOnly=yes"])
     cmd.append(target)
     return cmd
 

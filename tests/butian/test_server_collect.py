@@ -182,6 +182,14 @@ Host *
         self.assertIn("BatchMode=yes", cmd)
         self.assertIn("PasswordAuthentication=no", cmd)
 
+    def test_ssh_base_expands_identity_path(self):
+        cmd = server_collect._ssh_base("prod-web", identity="~/.ssh/prod_ed25519")
+        expected = os.path.abspath(os.path.expanduser("~/.ssh/prod_ed25519"))
+
+        self.assertIn("-i", cmd)
+        self.assertIn(expected, cmd)
+        self.assertNotIn("~/.ssh/prod_ed25519", cmd)
+
     def test_server_scan_rejects_unsafe_target_shape(self):
         with self.assertRaisesRegex(ValueError, "SSH 目标"):
             server_collect.resolve_ssh_policy("-oProxyCommand=bad")
