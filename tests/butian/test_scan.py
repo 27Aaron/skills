@@ -541,7 +541,8 @@ class DependencyParsersModuleCompatibilityTests(unittest.TestCase):
         self.assertIn("修复和复扫结束后，运行", skill_doc)
         self.assertIn("修复完成后的最终报告", skill_doc)
         self.assertIn("不扫描系统 Python、全局 npm、全局 pnpm 或操作系统包", skill_doc)
-        self.assertIn("默认不加 `--server`", skill_doc)
+        self.assertNotIn("--" + "server" + "-only", skill_doc)
+        self.assertNotIn("--" + "server" + "-inventory", skill_doc)
         self.assertNotIn("新手快速路径", skill_doc)
         self.assertNotIn("手动运行时", skill_doc)
         self.assertNotIn("# 在本 skill 目录中", skill_doc)
@@ -3618,7 +3619,7 @@ class EntropyEngineTests(unittest.TestCase):
 
     def test_entropy_scan_skips_code_identifier_lookup(self):
         with tempfile.TemporaryDirectory(prefix="butian-ent-") as root:
-            with open(os.path.join(root, "server_inventory.py"), "w") as f:
+            with open(os.path.join(root, "config_lookup.py"), "w") as f:
                 f.write("key = SSHD_OPTION_KEYS.get(parts[0].lower())\n")
             findings = scan.scan_secrets(root)
             self.assertEqual(findings, [])
@@ -4253,7 +4254,7 @@ class ExhaustiveSecretPatternTests(unittest.TestCase):
 
     def test_airtable_api_key_does_not_match_pubkey_authentication(self):
         with tempfile.TemporaryDirectory(prefix="butian-airtable-") as root:
-            with open(os.path.join(root, "server_analyze.py"), "w") as f:
+            with open(os.path.join(root, "auth_options.py"), "w") as f:
                 f.write('pubkey_auth = options.get("PubkeyAuthentication")\n')
                 f.write('evidence = ["PubkeyAuthentication no"]\n')
             findings = scan.scan_secrets(root)

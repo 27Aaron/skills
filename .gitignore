@@ -8,3 +8,6 @@ docs/butian/security-report-*.md
 
 # Local agent planning artifacts
 docs/superpowers/
+
+# Local Claude Code permissions
+.claude/settings.local.json

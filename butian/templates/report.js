@@ -30,13 +30,6 @@ const DATA = (() => {
     [];
   d.errors = d.errors || [];
   d.hygiene = d.hygiene || {};
-  d.server = d.server || {};
-  d.server_issues = Array.isArray(d.server_issues)
-    ? d.server_issues.filter(Boolean)
-    : [];
-  d.server_maintenance = Array.isArray(d.server_maintenance)
-    ? d.server_maintenance.filter(Boolean)
-    : [];
   d.outdated = toList(d.outdated).filter(isRenderableOutdated);
   d.outdated_count = d.outdated.length;
   d.scan_config = d.scan_config || {};
@@ -66,8 +59,6 @@ const DATA = (() => {
   d.yellow = d.yellow.map(normItem);
   d.red = d.red.map(normItem);
   d.vulns = d.vulns.map(normItem);
-  d.server_issues = d.server_issues.map(normItem);
-  d.server_maintenance = d.server_maintenance.map(normItem);
   // Project: total_packages or total_dependencies
   d.project = d.project || {};
   d.project.total_packages =
@@ -3328,86 +3319,6 @@ function renderReportSummary(sm) {
   );
 }
 
-// ---- Linux server environment ----
-function renderServerEnvironment() {
-  const server = DATA.server || {};
-  const issues = DATA.server_issues || [];
-  const maintenance = DATA.server_maintenance || [];
-  if (!Object.keys(server).length && !issues.length && !maintenance.length) {
-    return "";
-  }
-
-  const summary = server.summary || {};
-  const fields = miniFields([
-    { label: "系统包", value: String(summary.package_count || 0) },
-    {
-      label: "已确认风险",
-      value: String(summary.confirmed_count || issues.length || 0),
-    },
-    {
-      label: "维护建议",
-      value: String(summary.maintenance_count || maintenance.length || 0),
-    },
-    { label: "对外端口", value: String(summary.public_port_count || 0) },
-    { label: "运行服务", value: String(summary.service_count || 0) },
-    { label: "软件版本", value: String(summary.software_version_count || 0) },
-    {
-      label: "安全更新",
-      value: String(summary.native_security_update_count || 0),
-    },
-  ]);
-
-  const issueCards = issues
-    .map((item) => {
-      const title = [
-        item.package || item.name || "服务器软件",
-        item.version || "",
-      ]
-        .filter(Boolean)
-        .join(" ");
-      const body = esc(
-        item.summary ||
-          item.advisory_summary ||
-          "服务器运行环境命中已确认风险。",
-      );
-      const ids = securityIds(item);
-      const idsHtml = ids.length
-        ? `<div class="server-issue-ids">${ids
-            .map((id) => {
-              const url = securityIdUrl(id);
-              return `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(id)}</a>`;
-            })
-            .join("")}</div>`
-        : "";
-      return `<article class="server-issue server-issue-confirmed"><div class="server-issue-top">${sevBadge(item.severity)}<b>${esc(title)}</b></div><p>${body}</p>${idsHtml}</article>`;
-    })
-    .join("");
-
-  const maintenanceCards = maintenance
-    .map((item) => {
-      const title = item.title || item.name || "维护建议";
-      const body = item.summary || item.recommendation || "";
-      return `<article class="server-issue server-issue-maintenance"><div class="server-issue-top"><span class="sev-badge sev-low">建议</span><b>${esc(title)}</b></div>${body ? `<p>${esc(body)}</p>` : ""}</article>`;
-    })
-    .join("");
-
-  const cards =
-    issueCards || maintenanceCards
-      ? `<div class="server-grid">${issueCards}${maintenanceCards}</div>`
-      : "";
-  const count =
-    Number(summary.confirmed_count || issues.length || 0) +
-    Number(summary.maintenance_count || maintenance.length || 0);
-
-  return section(
-    "服务器运行环境",
-    count,
-    `<div class="summary server-summary">${fields}${cards}</div>`,
-    "",
-    "risk",
-  );
-}
-
 // ---- Repository security checks ----
 const SECRET_TYPE_LABELS =
   typeof __SECRET_TYPE_LABELS__ === "undefined" ? {} : __SECRET_TYPE_LABELS__;
@@ -3882,7 +3793,6 @@ const app = document.getElementById("app");
 app.innerHTML =
   renderOverview(DATA.project || {}, DATA.risk_summary) +
   renderReportSummary(DATA.summary) +
-  renderServerEnvironment() +
   renderHygiene(DATA.hygiene) +
   renderVulnTable(DATA.vulns) +
   renderOutdated(DATA.outdated) +

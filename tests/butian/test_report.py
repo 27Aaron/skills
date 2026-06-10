@@ -603,146 +603,27 @@ class RenderOutdatedTests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# render_server_environment
-# ---------------------------------------------------------------------------
-class RenderServerEnvironmentTests(unittest.TestCase):
-    def test_render_server_environment_with_confirmed_issue_and_maintenance(self):
-        analysis = {
-            "server": {
-                "summary": {
-                    "distro": {
-                        "pretty_name": "Ubuntu 24.04 LTS",
-                        "ecosystem": "Ubuntu:24.04:LTS",
-                    },
-                    "package_count": 3,
-                    "confirmed_count": 1,
-                    "maintenance_count": 2,
-                    "public_port_count": 2,
-                    "service_count": 4,
-                    "software_version_count": 3,
-                    "native_security_update_count": 2,
-                },
-                "kernel": {"kernel_release": "6.8.0-53-generic"},
-            },
-            "server_issues": [
-                {
-                    "package": "libssl3t64",
-                    "source_package": "openssl",
-                    "version": "3.0.13-0ubuntu3.5",
-                    "severity": "high",
-                    "summary": "源包 openssl 命中 Ubuntu 官方漏洞数据。",
-                    "aliases": ["CVE-2026-0001"],
-                    "fixed_versions": ["3.0.13-0ubuntu3.6"],
-                }
-            ],
-            "server_maintenance": [
-                {
-                    "category": "native_security_update",
-                    "severity": "medium",
-                    "title": "系统安全更新可用：openssl",
-                    "summary": "包管理器返回了安全更新线索。",
-                    "recommendation": "建议按维护窗口升级并复扫。",
-                },
-                {
-                    "category": "ssh_password_authentication",
-                    "severity": "medium",
-                    "title": "SSH 允许密码登录",
-                    "summary": "公网服务器保留密码登录会增加爆破风险。",
-                    "recommendation": "建议确认密钥登录可用后关闭密码登录。",
-                }
-            ],
-            "server_ports": [
-                {"address": "0.0.0.0", "port": 443, "process": "nginx", "public": True}
-            ],
-            "server_errors": [
-                {"step": "vulnerability_check", "message": "Server OSV failed"}
-            ],
-            "errors": [{"step": "vulnerability_check", "message": "Project OSV failed"}],
-        }
-
-        result = report.render_server_environment(analysis)
-
-        expected_order = [
-            "### 服务器概览",
-            "### 已确认风险",
-            "### 建议优先处理",
-            "### 安全更新线索",
-            "### 暴露服务和监听端口",
-            "### SSH / 防火墙 / 系统加固建议",
-            "### 覆盖说明和采集失败项",
-        ]
-        positions = [result.index(title) for title in expected_order]
-        self.assertEqual(positions, sorted(positions))
-        self.assertIn("Ubuntu 24.04 LTS", result)
-        self.assertIn("运行内核：`6.8.0-53-generic`", result)
-        self.assertIn("系统包数量：3", result)
-        self.assertIn("已确认服务器风险：1", result)
-        self.assertIn("维护建议：2", result)
-        self.assertIn("对外监听端口：2", result)
-        self.assertIn("运行服务：4", result)
-        self.assertIn("安全更新线索：2", result)
-        self.assertIn("libssl3t64", result)
-        self.assertIn("源包 openssl", result)
-        self.assertIn("3.0.13-0ubuntu3.6", result)
-        self.assertIn(
-            "[CVE-2026-0001](https://www.cve.org/CVERecord?id=CVE-2026-0001)",
-            result,
-        )
-        self.assertIn("系统安全更新可用：openssl", result)
-        self.assertIn("SSH 允许密码登录", result)
-        self.assertIn("0.0.0.0", result)
-        self.assertIn("Server OSV failed", result)
-        self.assertNotIn("Project OSV failed", result)
-        self.assertLess(
-            result.index("### 已确认风险"), result.index("### 建议优先处理")
-        )
-
-    def test_render_server_environment_empty(self):
-        self.assertEqual(
-            report.render_server_environment({}), "未启用服务器运行环境扫描。"
-        )
-
-
-# ---------------------------------------------------------------------------
 # Markdown structure
 # ---------------------------------------------------------------------------
 class RenderMarkdownStructureTests(unittest.TestCase):
-    def test_render_markdown_includes_server_environment_section(self):
+    def test_render_markdown_omits_removed_host_environment_section(self):
         markdown = report.render_markdown(
             {
                 "project": {"name": "demo", "path": "/tmp/demo"},
                 "generated_at": "2026-06-09 12:00:00",
                 "scan_seconds": 1,
                 "summary": {"tldr": "demo", "detail": "demo", "priority": []},
-                "server": {
-                    "summary": {
-                        "package_count": 3,
-                        "confirmed_count": 1,
-                        "maintenance_count": 0,
-                        "public_port_count": 1,
-                    }
-                },
-                "server_issues": [
-                    {
-                        "package": "openssl",
-                        "version": "3.0.2",
-                        "summary": "openssl confirmed",
-                    }
-                ],
                 "hygiene": {"gitignore_missing": [".env"]},
-                "errors": [{"step": "server_collect", "message": "SSH timeout"}],
+                "errors": [],
             }
         )
 
-        self.assertIn("## 服务器运行环境", markdown)
-        self.assertNotIn("未启用服务器运行环境扫描", markdown)
-        self.assertIn("openssl confirmed", markdown)
+        self.assertNotIn("## " + "服务器" + "运行环境", markdown)
         self.assertIn("## 覆盖说明", markdown)
         self.assertNotIn("## 需要人工确认的事项", markdown)
         self.assertLess(
             markdown.index("## 报告总结"), markdown.index("## 当前风险")
         )
-        self.assertIn("[server_collect] SSH timeout", markdown)
 
     def test_render_markdown_omits_llm_fix_context_section(self):
         markdown = report.render_markdown(
@@ -811,26 +692,6 @@ class RenderManualItemsTests(unittest.TestCase):
     def test_empty(self):
         result = report.render_manual_items({"red": [], "yellow": []})
         self.assertIn("没有需要额外人工确认", result)
-
-    def test_low_evidence_server_clues_are_not_manual_items(self):
-        analysis = {
-            "red": [],
-            "yellow": [
-                {
-                    "name": "仅由服务版本推断的 nginx 风险",
-                    "source": "服务器扫描",
-                    "kind": "低证据",
-                    "evidence_level": "low",
-                    "why_manual": "只有服务 banner，没有发行版包公告闭环。",
-                }
-            ],
-        }
-
-        result = report.render_manual_items(analysis)
-
-        self.assertIn("没有需要额外人工确认", result)
-        self.assertNotIn("nginx", result)
-
 
 # ---------------------------------------------------------------------------
 # render_errors

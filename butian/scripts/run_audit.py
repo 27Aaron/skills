@@ -12,7 +12,6 @@
 """
 
 import argparse
-import importlib
 import json
 import logging
 import os
@@ -106,111 +105,7 @@ def parse_args(argv):
         action="store_true",
         help="跟随符号链接扫描",
     )
-    parser.add_argument(
-        "--server",
-        default="",
-        help="只读 SSH 扫描 Linux 服务器，例如 user@203.0.113.10 或 SSH config Host 别名",
-    )
-    parser.add_argument(
-        "--server-only",
-        action="store_true",
-        help="只生成服务器运行环境扫描结果，不执行项目依赖扫描",
-    )
-    parser.add_argument(
-        "--server-inventory",
-        default="",
-        help="读取已有 server-inventory.json 做离线分析",
-    )
-    parser.add_argument(
-        "--ssh-port",
-        type=int,
-        default=22,
-        help="服务器 SSH 端口",
-    )
-    parser.add_argument(
-        "--identity",
-        default="",
-        help="SSH 私钥路径；只传给 ssh，不写入报告",
-    )
-    parser.add_argument(
-        "--ssh-config",
-        default="",
-        help="可选 SSH config 路径",
-    )
-    args = parser.parse_args(argv)
-    if args.server_only and not (args.server or args.server_inventory):
-        parser.error("--server-only requires --server or --server-inventory")
-    return args
-
-
-def import_server_module(name):
-    if __package__:
-        qualified = f"{__package__}.{name}"
-        try:
-            return importlib.import_module(f".{name}", __package__)
-        except ImportError as exc:
-            if exc.name != qualified:
-                raise
-    return importlib.import_module(name)
-
-
-SERVER_IDENTITY_KEYS = {"identity", "identity_file", "identityfile", "ssh_identity"}
-
-
-def _is_server_identity_key(key):
-    return str(key or "").lower() in SERVER_IDENTITY_KEYS
-
-
-def _collect_server_identity_secrets(value):
-    # 服务器 identity 路径属于报告敏感信息，因为它会暴露本地密钥材料位置；
-    # 写入服务器 inventory 产物前必须剥离。
-    secrets = set()
-    if isinstance(value, dict):
-        for key, item in value.items():
-            if _is_server_identity_key(key) and isinstance(item, str) and item:
-                secrets.add(item)
-            secrets.update(_collect_server_identity_secrets(item))
-    elif isinstance(value, list):
-        for item in value:
-            secrets.update(_collect_server_identity_secrets(item))
-    return secrets
-
-
-def _redact_server_identity_text(value, secrets):
-    text = str(value)
-    for secret in sorted(secrets, key=len, reverse=True):
-        if secret:
-            text = text.replace(secret, "[redacted-identity]")
-    return text
-
-
-def _strip_server_identity(value, secrets):
-    if isinstance(value, dict):
-        return {
-            key: _strip_server_identity(item, secrets)
-            for key, item in value.items()
-            if not _is_server_identity_key(key)
-        }
-    if isinstance(value, list):
-        return [_strip_server_identity(item, secrets) for item in value]
-    if isinstance(value, str):
-        return _redact_server_identity_text(value, secrets)
-    return value
-
-
-def strip_server_identity(value, extra_secrets=None):
-    secrets = _collect_server_identity_secrets(value)
-    secrets.update(extra_secrets or set())
-    return _strip_server_identity(value, secrets)
-
-
-def write_json(path, data):
-    output_dir = os.path.dirname(os.path.abspath(path))
-    if output_dir:
-        os.makedirs(output_dir, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as handle:
-        json.dump(data, handle, ensure_ascii=False, indent=2)
-        handle.write("\n")
+    return parser.parse_args(argv)
 
 
 def run_json(cmd):
@@ -438,10 +333,7 @@ def risk_nature(issues):
         if any(needle in text for needle in needles):
             tags.append(label)
     if not tags:
-        if any(str(issue.get("scope") or "") == "server" for issue in issues):
-            tags.append("服务器运行环境风险")
-        else:
-            tags.append("依赖漏洞")
+        tags.append("依赖漏洞")
     suffix = f" 共 {len(issues)} 条" if len(issues) > 1 else ""
     return "、".join(tags) + suffix
 
@@ -450,7 +342,6 @@ def mode_label(scan_mode):
     labels = {
         "full_dependency_scan": "完整依赖漏洞扫描",
         "hygiene_only": "仓库安检",
-        "server_only": "服务器运行环境扫描",
     }
     return labels.get(scan_mode, "安全扫描")
 
@@ -485,7 +376,7 @@ def format_focus(analysis, scan_mode=None):
     if scan_mode == "hygiene_only":
         return HYGIENE_ONLY_NOTICE
 
-    issues = (analysis.get("top_issues") or []) + (analysis.get("server_issues") or [])
+    issues = analysis.get("top_issues") or []
     if not issues:
         if has_vulnerability_source_errors(analysis):
             return (
@@ -516,7 +407,7 @@ def format_focus(analysis, scan_mode=None):
             issue.get("package")
             or issue.get("name")
             or issue.get("title")
-            or ("服务器风险" if issue.get("scope") == "server" else "未知依赖")
+            or "未知依赖"
         )
         version = issue.get("version") or "-"
         groups[(package, version)].append(issue)
@@ -532,9 +423,7 @@ def format_focus(analysis, scan_mode=None):
     selected_count = sum(len(items) for _, items in ranked)
     total_priority = len(priority) if priority else len(issues)
     noun = "紧急/高风险项" if priority else "已确认风险项"
-    subject_label = (
-        "组件" if any(issue.get("scope") == "server" for issue in issues) else "包"
-    )
+    subject_label = "包"
     lines = [
         f"核心风险集中在 {len(ranked)} 个{subject_label}（{total_priority} 个{noun}中它们占 {selected_count} 个）：",
         "",
@@ -584,21 +473,7 @@ def format_human_summary(summary, scan, analysis, args):
     dependency_issue_count = analysis.get(
         "vulnerability_count", len(analysis.get("top_issues") or [])
     )
-    server_issue_count = analysis.get(
-        "server_issue_count", len(analysis.get("server_issues") or [])
-    )
-    server_maintenance_count = analysis.get(
-        "server_maintenance_count", len(analysis.get("server_maintenance") or [])
-    )
-    confirmed_issue_count = dependency_issue_count + server_issue_count
-    server_only = scan_mode == "server_only"
-    server_lines = (
-        [
-            f"- 服务器运行环境：{server_issue_count} 个已确认风险 / {server_maintenance_count} 条维护建议",
-        ]
-        if server_issue_count or server_maintenance_count or analysis.get("server")
-        else []
-    )
+    confirmed_issue_count = dependency_issue_count
     secret_count = len(hygiene.get("tracked_secrets") or [])
     sensitive_count = len(hygiene.get("sensitive_tracked") or [])
     missing_count = len(hygiene.get("gitignore_missing") or [])
@@ -613,8 +488,6 @@ def format_human_summary(summary, scan, analysis, args):
     markdown_label = "最终 Markdown" if args.final_report else "Markdown"
     if summary.get("html_report"):
         html_report_line = f"- HTML 报告（{html_state}）：{relative_path(summary.get('html_report'), project_path)}"
-    elif scan_mode == "server_only":
-        html_report_line = "- HTML 报告：服务器扫描不生成 HTML"
     else:
         html_report_line = "- HTML 报告：未生成"
     scope_notice = (
@@ -623,23 +496,14 @@ def format_human_summary(summary, scan, analysis, args):
         else []
     )
 
-    if server_only:
-        count_lines = [
-            f"- 已确认风险项：{confirmed_issue_count} 个",
-            *server_lines,
-            f"- 扫描错误：{error_label}",
-        ]
-        closing_note = "如果存在紧急/高风险服务器风险，建议先处理有明确官方公告或发行版安全更新路径的项；维护建议按变更窗口处理。"
-    else:
-        count_lines = [
-            f"- 总依赖：{total_packages} 个{dependency_unit}",
-            f"- 已确认风险项：{confirmed_issue_count} 个",
-            *server_lines,
-            f"- 仓库安检：{secret_count} 个硬编码凭证 / {sensitive_count} 个跟踪的敏感文件 / {gitignore_label}",
-            f"- 过期依赖：{analysis.get('outdated_count', len(analysis.get('outdated') or []))} 个（建议按维护窗口评估升级）",
-            f"- 扫描错误：{error_label}",
-        ]
-        closing_note = "如果存在紧急/高风险项，建议先处理有明确修复版本的依赖；过期依赖作为维护信号，放在风险项修复验证之后排期。"
+    count_lines = [
+        f"- 总依赖：{total_packages} 个{dependency_unit}",
+        f"- 已确认风险项：{confirmed_issue_count} 个",
+        f"- 仓库安检：{secret_count} 个硬编码凭证 / {sensitive_count} 个跟踪的敏感文件 / {gitignore_label}",
+        f"- 过期依赖：{analysis.get('outdated_count', len(analysis.get('outdated') or []))} 个（建议按维护窗口评估升级）",
+        f"- 扫描错误：{error_label}",
+    ]
+    closing_note = "如果存在紧急/高风险项，建议先处理有明确修复版本的依赖；过期依赖作为维护信号，放在风险项修复验证之后排期。"
 
     report_path_lines = [
         (
@@ -649,15 +513,6 @@ def format_human_summary(summary, scan, analysis, args):
         html_report_line,
         f"- analysis JSON：{relative_path(summary.get('analysis_file'), project_path)}",
     ]
-    if server_only and summary.get("analysis_file"):
-        assets_dir = os.path.dirname(os.path.abspath(summary["analysis_file"]))
-        server_asset_names = (
-            ("server inventory JSON", "server-inventory.json"),
-        )
-        for label, filename in server_asset_names:
-            path = relative_path(os.path.join(assets_dir, filename), project_path)
-            report_path_lines.append(f"- {label}：{path}")
-
     lines = [
         f"⏺ 扫描完成 ✅ 模式：{scan_mode}（{mode_label(scan_mode)}）。",
         *scope_notice,
@@ -730,58 +585,6 @@ def build_visualize_cmd(args, analysis_path, html_path):
     return cmd
 
 
-def build_server_scan_payload(inventory, project_path):
-    server_inventory = import_server_module("server_inventory")
-    server_match = import_server_module("server_match")
-    server_analyze = import_server_module("server_analyze")
-
-    assets = server_inventory.build_server_assets(inventory)
-    matched = server_match.match_server_vulnerabilities(
-        assets, project_path=project_path
-    )
-    analysis = server_analyze.build_server_analysis(assets, matched)
-    return {
-        "server": {
-            "inventory": inventory,
-            "assets": assets,
-            "matched": matched,
-            "analysis": analysis,
-        },
-        "assets": assets,
-        "analysis": analysis,
-    }
-
-
-def build_server_only_scan(preflight):
-    return {
-        "generated_at": preflight.get("generated_at"),
-        "scan_seconds": 0,
-        "project": preflight.get("project") or {},
-        "scan_config": {"scan_mode": "server_only"},
-        "vulnerabilities": [],
-        "outdated": [],
-        "hygiene": {},
-        "errors": [],
-        "package_count": 0,
-        "output_file": os.path.join(
-            os.path.dirname(os.path.abspath(preflight["output_file"])),
-            "scan.json",
-        ),
-        "butian_workspace": preflight.get("butian_workspace") or {},
-    }
-
-
-def merge_server_payload(scan, server_payload):
-    server = server_payload["server"]
-    analysis = server.get("analysis") or {}
-    scan["server"] = analysis
-    scan.setdefault("errors", []).extend(analysis.get("errors") or [])
-
-    assets_dir = os.path.dirname(os.path.abspath(scan["output_file"]))
-    write_json(os.path.join(assets_dir, "server-inventory.json"), server["inventory"])
-    return scan
-
-
 def main():
     args = parse_args(sys.argv[1:])
     # 先启用 stderr 日志；scan.json 固定运行目录后再追加文件日志。
@@ -804,36 +607,7 @@ def main():
         preflight["output_file"],
     )
 
-    server_payload = None
-    if args.server or args.server_inventory:
-        # 服务器扫描保持显式启用；默认项目扫描绝不触碰系统包。
-        server_collect = import_server_module("server_collect")
-        if args.server_inventory:
-            inventory = server_collect.read_inventory_file(args.server_inventory)
-        else:
-            inventory = server_collect.collect_server_inventory(
-                args.server,
-                port=args.ssh_port,
-                identity=args.identity,
-                ssh_config=args.ssh_config,
-            )
-        inventory = strip_server_identity(inventory)
-        project_path_for_server = (preflight.get("project") or {}).get(
-            "path"
-        ) or os.path.abspath(args.project_path)
-        server_payload = build_server_scan_payload(
-            inventory, project_path=project_path_for_server
-        )
-
-    # 只有显式 server-only 时才跳过项目扫描。
-    if args.server_only:
-        scan = build_server_only_scan(preflight)
-    else:
-        scan = run_json(build_scan_cmd(args, preflight["output_file"]))
-    if server_payload:
-        merge_server_payload(scan, server_payload)
-    if args.server_only or server_payload:
-        write_json(scan["output_file"], scan)
+    scan = run_json(build_scan_cmd(args, preflight["output_file"]))
     scan_mode = scan.get("scan_config", {}).get("scan_mode", "unknown")
 
     # 工作区布局确定后，追加本次运行范围内的文件日志。
@@ -900,8 +674,7 @@ def main():
     butian_dir = os.path.join(analysis["project"]["path"], ".butian")
     first_scan_marker = os.path.join(butian_dir, ".first-scan-done")
     skip_markdown = (
-        not args.server_only
-        and os.path.exists(first_scan_marker)
+        os.path.exists(first_scan_marker)
         and not args.final_report
     )
 
@@ -921,20 +694,16 @@ def main():
         )
         logger.info("Markdown 报告已生成: %s", markdown_path)
 
-    if args.server_only:
-        html_path = None
-        logger.info("服务器单独扫描不生成 HTML 报告")
-    else:
-        # 项目 HTML 每次都重新生成；即使跳过 Markdown，最新项目 run
-        # 也仍然有可验收的阅读界面。
-        html_path = html_report_path(run_dir)
-        os.makedirs(os.path.dirname(html_path), exist_ok=True)
-        build_report_cmd = build_visualize_cmd(args, analysis_path, html_path)
-        run_text(
-            build_report_cmd,
-            echo=True,
-        )
-        logger.info("HTML 报告已生成: %s", html_path)
+    # 项目 HTML 每次都重新生成；即使跳过 Markdown，最新项目 run
+    # 也仍然有可验收的阅读界面。
+    html_path = html_report_path(run_dir)
+    os.makedirs(os.path.dirname(html_path), exist_ok=True)
+    build_report_cmd = build_visualize_cmd(args, analysis_path, html_path)
+    run_text(
+        build_report_cmd,
+        echo=True,
+    )
+    logger.info("HTML 报告已生成: %s", html_path)
 
     summary = {
         "preflight_file": preflight["output_file"],

@@ -27,12 +27,8 @@ SCRIPT_TEST_FILES = {
     "report.py": ["test_report.py", "test_report_assets.py"],
     "run_audit.py": ["test_run_audit.py"],
     "scan.py": ["test_scan.py", "test_scan_helpers.py", "test_cache.py"],
-    "server_analyze.py": ["test_server_analyze.py"],
-    "server_collect.py": ["test_server_collect.py"],
-    "server_inventory.py": ["test_server_inventory.py"],
-    "server_match.py": ["test_server_match.py"],
     "visualize.py": ["test_visualize.py", "test_report_assets.py"],
-    "vulnerability_sources.py": ["test_scan.py", "test_server_match.py"],
+    "vulnerability_sources.py": ["test_scan.py"],
     "workspace.py": ["test_scan_helpers.py", "test_detect.py"],
     "workflow_checks.py": ["test_workflow_checks.py"],
 }
@@ -50,10 +46,6 @@ SCRIPT_DOC_FILES = {
     "report.py": "report.md",
     "run_audit.py": "run_audit.md",
     "scan.py": "scan.md",
-    "server_analyze.py": "server_analyze.md",
-    "server_collect.py": "server_collect.md",
-    "server_inventory.py": "server_inventory.md",
-    "server_match.py": "server_match.md",
     "visualize.py": "visualize.md",
     "vulnerability_sources.py": "vulnerability_sources.md",
     "workspace.py": "workspace.md",
@@ -103,23 +95,21 @@ class ScriptInventoryTests(unittest.TestCase):
                     text = handle.read()
                 self.assertIn("butian", text.lower())
 
-    def test_run_audit_docs_explain_explicit_server_scan_args(self):
+    def test_run_audit_docs_do_not_expose_removed_host_args(self):
         with open(
             os.path.join(DOC_DIR, "run_audit.md"), "r", encoding="utf-8"
         ) as handle:
             text = handle.read()
 
-        self.assertIn("服务器扫描入口", text)
         self.assertNotIn("显式要求", text)
-        self.assertIn("默认项目扫描不会连接服务器", text)
-        self.assertIn("--server", text)
-        self.assertIn("--server-only", text)
-        self.assertIn("--server-inventory", text)
         self.assertNotIn("user@example.com", text)
-        self.assertIn("--server user@203.0.113.10", text)
-        self.assertIn("--server <ssh_target>", text)
-        self.assertIn("--ssh-config", text)
-        self.assertIn(".ssh/config", text)
+        self.assertNotIn("--" + "server ", text)
+        self.assertNotIn("--" + "server" + "-only", text)
+        self.assertNotIn("--" + "server" + "-inventory", text)
+        self.assertNotIn("--ssh-", text)
+        self.assertNotIn(".ssh/config", text)
+        self.assertNotIn("server" + "-inventory.json", text)
+        self.assertNotIn("服务器" + "扫描入口", text)
         self.assertNotIn("用户明确要求", text)
         self.assertNotIn("Agent 工作流", text)
 
@@ -221,7 +211,6 @@ class ScriptInventoryTests(unittest.TestCase):
 
         for reference in (
             "references/project-scan.md",
-            "references/server-scan.md",
         ):
             with self.subTest(reference=reference):
                 self.assertIn(reference, text)
@@ -233,23 +222,20 @@ class ScriptInventoryTests(unittest.TestCase):
             "references/repair-flow.md",
             "references/sources-and-limits.md",
             "references/report-contract.md",
+            "references/" + "server" + "-scan.md",
         ):
             with self.subTest(reference=reference):
                 self.assertNotIn(reference, text)
                 self.assertFalse(
                     os.path.exists(os.path.join(ROOT, "butian", reference)),
-                    f"{reference} should be merged into project/server references",
+                    f"{reference} should be merged into project references or removed",
                 )
 
-    def test_project_and_server_reference_boundaries(self):
+    def test_project_reference_preserves_local_scan_boundaries(self):
         with open(
             os.path.join(REFERENCE_DIR, "project-scan.md"), "r", encoding="utf-8"
         ) as handle:
             project_text = handle.read()
-        with open(
-            os.path.join(REFERENCE_DIR, "server-scan.md"), "r", encoding="utf-8"
-        ) as handle:
-            server_text = handle.read()
 
         self.assertIn("不扫描系统 Python", project_text)
         self.assertIn("全局 npm", project_text)
@@ -258,13 +244,6 @@ class ScriptInventoryTests(unittest.TestCase):
         self.assertIn("系统服务", project_text)
         self.assertIn("数据库", project_text)
         self.assertIn("日志", project_text)
-        self.assertIn("--server", server_text)
-        self.assertIn("--server-inventory", server_text)
-        self.assertIn("只读 SSH", server_text)
-        self.assertIn("server-inventory.json", server_text)
-        self.assertIn("唯一", server_text)
-        self.assertIn("不采集 Docker", server_text)
-        self.assertIn("不自动升级", server_text)
 
     def test_skill_keeps_detailed_entries_in_references(self):
         with open(SKILL_PATH, "r", encoding="utf-8") as handle:
@@ -273,20 +252,11 @@ class ScriptInventoryTests(unittest.TestCase):
             os.path.join(REFERENCE_DIR, "project-scan.md"), "r", encoding="utf-8"
         ) as handle:
             project_text = handle.read()
-        with open(
-            os.path.join(REFERENCE_DIR, "server-scan.md"), "r", encoding="utf-8"
-        ) as handle:
-            server_text = handle.read()
 
-        self.assertNotIn("## 服务器扫描入口", skill_text)
+        self.assertNotIn("## " + "服务器" + "扫描入口", skill_text)
         self.assertNotIn("## 分步调试入口", skill_text)
         self.assertIn("## 分步调试入口", project_text)
-        self.assertIn("## 服务器扫描入口", server_text)
         self.assertNotIn("user@example.com", skill_text)
-        self.assertNotIn("user@example.com", server_text)
-        self.assertIn("--server user@203.0.113.10", server_text)
-        self.assertIn("--server <ssh_target>", server_text)
-        self.assertIn(".ssh/config", server_text)
 
     def test_public_markdown_avoids_internal_routing_language(self):
         paths = [SKILL_PATH]
@@ -414,27 +384,54 @@ class ScriptInventoryTests(unittest.TestCase):
         )
         for phrase in (
             "预检先固定本次运行工作区",
-            "服务器扫描保持显式启用",
             "中间修复复扫跳过 Markdown",
             "项目 HTML 每次都重新生成",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, text)
 
-    def test_server_scan_comments_preserve_safety_boundaries(self):
-        expectations = {
-            "server_collect.py": "只读 SSH 采集绝不能安装",
-            "server_inventory.py": "不支持或为空的 inventory 保留为覆盖缺口",
-            "server_match.py": "不支持的服务器生态是覆盖缺口",
-            "run_audit.py": "服务器 identity 路径属于报告敏感信息",
-        }
-        for script, phrase in expectations.items():
-            with self.subTest(script=script):
-                with open(
-                    os.path.join(SCRIPT_DIR, script), "r", encoding="utf-8"
-                ) as handle:
+    def test_removed_host_scan_capability_is_absent(self):
+        prefix = "server"
+        forbidden_files = (
+            os.path.join(SCRIPT_DIR, prefix + "_collect.py"),
+            os.path.join(SCRIPT_DIR, prefix + "_inventory.py"),
+            os.path.join(SCRIPT_DIR, prefix + "_match.py"),
+            os.path.join(SCRIPT_DIR, prefix + "_analyze.py"),
+            os.path.join(REFERENCE_DIR, prefix + "-scan.md"),
+            os.path.join(DOC_DIR, prefix + "_collect.md"),
+            os.path.join(DOC_DIR, prefix + "_inventory.md"),
+            os.path.join(DOC_DIR, prefix + "_match.md"),
+            os.path.join(DOC_DIR, prefix + "_analyze.md"),
+            os.path.join(TEST_DIR, "test_" + prefix + "_collect.py"),
+            os.path.join(TEST_DIR, "test_" + prefix + "_inventory.py"),
+            os.path.join(TEST_DIR, "test_" + prefix + "_match.py"),
+            os.path.join(TEST_DIR, "test_" + prefix + "_analyze.py"),
+        )
+        for path in forbidden_files:
+            with self.subTest(path=os.path.relpath(path, ROOT)):
+                self.assertFalse(os.path.exists(path))
+
+        searchable = [SKILL_PATH]
+        searchable.extend(glob.glob(os.path.join(REFERENCE_DIR, "*.md")))
+        searchable.extend(glob.glob(os.path.join(DOC_DIR, "*.md")))
+        searchable.extend(glob.glob(os.path.join(SCRIPT_DIR, "*.py")))
+        searchable.extend(glob.glob(os.path.join(ROOT, "butian", "templates", "*")))
+        forbidden = (
+            prefix + "-inventory",
+            prefix + "_only",
+            "--" + prefix + "-only",
+            "--" + prefix + "-inventory",
+            "render" + "Server" + "Environment",
+            "服务器" + "运行环境",
+            "服务器" + "扫描入口",
+            "服务器" + "的安全扫描",
+        )
+        for path in searchable:
+            with self.subTest(path=os.path.relpath(path, ROOT)):
+                with open(path, "r", encoding="utf-8") as handle:
                     text = handle.read()
-                self.assertIn(phrase, text)
+                for phrase in forbidden:
+                    self.assertNotIn(phrase, text)
 
     def test_analyze_comments_preserve_report_contract_boundaries(self):
         with open(
@@ -445,7 +442,6 @@ class ScriptInventoryTests(unittest.TestCase):
         for phrase in (
             "红黄绿分组是报告契约",
             "fix_config 是 fix.py 消费的机器契约",
-            "服务器已确认风险和维护建议必须分开",
             "过期依赖是维护信号",
         ):
             with self.subTest(phrase=phrase):
@@ -473,7 +469,6 @@ class ScriptInventoryTests(unittest.TestCase):
         for phrase in (
             "Markdown helper 是最后一层转义",
             "安全编号必须保持可点击",
-            "低证据服务器线索不进入人工 finding",
             "模板占位符是渲染器契约",
         ):
             with self.subTest(phrase=phrase):

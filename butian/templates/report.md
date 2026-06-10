@@ -17,10 +17,6 @@ $vulnerabilities
 
 $hygiene
 
-## 服务器运行环境
-
-$server_environment
-
 ## 过期依赖
 
 $outdated

@@ -14,7 +14,7 @@
 | 2   | 参数透传      | 将用户参数传递给各子阶段（verbose/debug/follow-symlinks）                                                                    |
 | 3   | 结果汇总      | 收集各阶段的文件路径和风险统计                                                                                               |
 | 4   | 终端摘要      | 输出格式化的终端摘要（包含 Unicode 表格）                                                                                    |
-| 5   | 报告打开      | 项目扫描首次自动用系统浏览器打开 HTML 报告，复扫跳过（由 `.butian/.first-scan-done` 标记控制）；服务器单独扫描不生成 HTML |
+| 5   | 报告打开      | 项目扫描首次自动用系统浏览器打开 HTML 报告，复扫跳过（由 `.butian/.first-scan-done` 标记控制）                           |
 | 6   | Markdown 控制 | 首次扫描 + 最终复扫（`--final-report`）生成 Markdown，中间复扫跳过                                                           |
 
 ## CLI 用法
@@ -43,31 +43,6 @@ py -3 run_audit.py --follow-symlinks .      # 跟随符号链接
 py -3 run_audit.py --final-report .         # 最终复扫：强制生成 Markdown 报告
 ```
 
-## 服务器扫描入口
-
-默认项目扫描不会连接服务器，也不会扫描系统包、系统服务、数据库或日志。服务器扫描需要 SSH 目标或离线 inventory，入口如下：
-
-`<ssh_target>` 可以是 SSH config Host 别名，也可以是 `user@203.0.113.10`。服务器扫描必须使用密钥登录；脚本会禁用密码和键盘交互回退。推荐先用 `ssh <ssh_target>` 验证可登录。
-
-```bash
-# macOS / Linux
-python3 run_audit.py --server <ssh_target> .
-python3 run_audit.py --server-only --server <ssh_target> .
-python3 run_audit.py --server prod-web --ssh-config ~/.ssh/config .
-python3 run_audit.py --server user@203.0.113.10 --ssh-port 2222 --identity ~/.ssh/prod-web_ed25519 .
-python3 run_audit.py --server-inventory <server_inventory_json> .
-
-# Windows
-py -3 run_audit.py --server <ssh_target> .
-py -3 run_audit.py --server-only --server <ssh_target> .
-py -3 run_audit.py --server prod-web --ssh-config %USERPROFILE%\.ssh\config .
-py -3 run_audit.py --server user@203.0.113.10 --ssh-port 2222 --identity %USERPROFILE%\.ssh\prod-web_ed25519 .
-py -3 run_audit.py --server-inventory <server_inventory_json> .
-```
-
-服务器扫描仍然只做只读采集；`--server-only` 必须搭配 `--server` 或 `--server-inventory`。
-服务器工作流只生成报告和本地 JSON 产物，不自动升级系统包、不重启服务、不修改服务器配置。
-
 ## CLI 参数
 
 | 参数                  | 类型     | 默认值 | 说明                             |
@@ -84,12 +59,6 @@ py -3 run_audit.py --server-inventory <server_inventory_json> .
 | `--verbose`           | flag     | false  | 输出详细日志到 stderr            |
 | `--debug`             | flag     | false  | 输出调试级别日志                 |
 | `--follow-symlinks`   | flag     | false  | 跟随符号链接扫描                 |
-| `--server`            | string   | None   | 只读 SSH 扫描 Linux 服务器；可传 SSH config Host 别名或 `user@ip` |
-| `--server-only`       | flag     | false  | 只生成服务器运行环境扫描结果     |
-| `--server-inventory`  | path     | None   | 读取已有 inventory 做离线分析    |
-| `--ssh-port`          | int      | 22     | 服务器 SSH 端口                  |
-| `--identity`          | path     | None   | SSH 私钥路径，只传给 ssh，写入报告前脱敏 |
-| `--ssh-config`        | path     | None   | 可选 SSH config 路径             |
 
 ## 管线流程
 
@@ -115,7 +84,6 @@ run_audit.py
 ├─ 5. visualize.py <analysis_path> <html_path> [--no-open]
 │     → .butian/<run>/content/security-report.html
 │     项目扫描首次自动打开浏览器，复扫跳过（.first-scan-done 标记）
-│     server_only 模式跳过本阶段，只生成 Markdown
 │
 └─ 输出终端摘要
 ```
@@ -124,7 +92,7 @@ run_audit.py
 
 修复交互在报告展示后进入 AskUserQuestion：先确认是否修复，再选择升级策略；修复后重新运行 `run_audit.py` 复扫。复扫确认仍有 npm 嵌套残留时，才进入 `parent-upgrade` 或 `force-residual` 后续轮次。Dependabot、凭证占位符和过期依赖维护属于收尾维护动作，不由 `run_audit.py` 自动执行。
 
-所有项目修复轮次结束后，运行 `run_audit.py --final-report` 生成最终 Markdown 审计报告和项目 HTML 报告。服务器单独扫描只生成 Markdown 报告，终端摘要会标注“服务器扫描不生成 HTML”；项目 + 服务器混合扫描仍生成项目 HTML，并把服务器内容放进“服务器运行环境”章节。启用服务器扫描时，本地落盘的服务器事实文件只有 `.butian/<run>/assets/server-inventory.json`；服务器资产、匹配结果和分析结果在内存中合并进 `scan.json` 与 `analysis.json`，不会单独写出额外服务器 JSON。
+所有项目修复轮次结束后，运行 `run_audit.py --final-report` 生成最终 Markdown 审计报告和项目 HTML 报告。
 
 ## 子进程调用方式
 
@@ -182,11 +150,6 @@ run_audit.py
 - HTML 报告（复扫已跳过自动打开）：.butian/.../content/security-report.html
 - analysis JSON：.butian/.../assets/analysis.json
 
-# 或 server_only 时：
-📁 报告路径
-- Markdown 审计报告：docs/butian/security-report-20260609-1550.md
-- analysis JSON：.butian/.../assets/analysis.json
-- server inventory JSON：.butian/.../assets/server-inventory.json
 ```
 
 终端摘要只展示仓库安检的基础计数，详细的 GitHub Actions、依赖配置与维护、IaC/容器 finding 会进入 Markdown 和 HTML 报告的"仓库安检"章节，并继续参与 `red/yellow/green` 风险分级。`hygiene_only` 模式只跳过依赖漏洞和过期依赖检查，不跳过这些本地 Python 仓库安检规则。
