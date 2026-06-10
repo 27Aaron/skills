@@ -33,28 +33,6 @@ SENSITIVE_PUBLIC_PORTS = {
 }
 
 
-def docker_maintenance_items(containers: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    items = []
-    for container in containers or []:
-        if not container.get("explicit_old_tag"):
-            continue
-        image = container.get("image") or ""
-        name = container.get("name") or "-"
-        items.append(
-            {
-                "scope": "server",
-                "category": "docker_image_maintenance",
-                "severity": "low",
-                "confidence": "maintenance",
-                "title": f"Docker 容器 {name} 使用旧镜像标签 {image}",
-                "summary": "该结论只基于容器名和显式镜像标签，不扫描容器内部文件系统，也不确认容器内 CVE。",
-                "evidence": [f"docker ps 显示镜像 {image}"],
-                "recommendation": "建议升级镜像标签，或使用专门的镜像扫描流程单独确认。",
-            }
-        )
-    return items
-
-
 def _process_basename(process: str) -> str:
     text = str(process or "").lower().strip()
     text = text.split()[0] if text else ""
@@ -305,14 +283,11 @@ def build_server_analysis(
         for item in (matched.get("confirmed_issues") or [])
         if item.get("confidence") == "confirmed"
     ]
-    containers = (server_assets.get("docker") or {}).get("containers") or []
     ports = server_assets.get("ports") or []
     services = server_assets.get("services") or []
     ssh = server_assets.get("ssh") or {}
     firewall = server_assets.get("firewall") or {}
-    maintenance = docker_maintenance_items(
-        containers
-    ) + public_service_maintenance_items(ports)
+    maintenance = public_service_maintenance_items(ports)
     maintenance += ssh_maintenance_items(ssh, ports)
     maintenance += firewall_maintenance_items(firewall, ports)
     maintenance += native_security_update_items(
@@ -330,7 +305,6 @@ def build_server_analysis(
             "package_count": len(server_assets.get("packages") or []),
             "confirmed_count": len(confirmed),
             "maintenance_count": len(maintenance),
-            "container_count": len(containers),
             "service_count": len(services),
             "public_port_count": len([p for p in ports if p.get("public")]),
             "software_version_count": len(server_assets.get("software_versions") or []),
@@ -342,7 +316,6 @@ def build_server_analysis(
         "maintenance_items": maintenance,
         "ports": ports,
         "services": services,
-        "docker": server_assets.get("docker") or {"containers": []},
         "kernel": server_assets.get("kernel") or {},
         "software_versions": server_assets.get("software_versions") or [],
         "native_security_updates": server_assets.get("native_security_updates") or [],

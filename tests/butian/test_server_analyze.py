@@ -4,7 +4,7 @@ from butian.scripts import server_analyze
 
 
 class ServerAnalyzeTests(unittest.TestCase):
-    def test_build_server_analysis_keeps_confirmed_and_maintenance(self):
+    def test_build_server_analysis_keeps_confirmed_and_non_docker_maintenance(self):
         assets = {
             "distro": {
                 "id": "ubuntu",
@@ -24,17 +24,6 @@ class ServerAnalyzeTests(unittest.TestCase):
             ],
             "ssh": {"available": False, "options": {}},
             "firewall": {"has_active_firewall": True, "tools": {}},
-            "docker": {
-                "containers": [
-                    {
-                        "name": "web",
-                        "image": "nginx:1.18",
-                        "image_name": "nginx",
-                        "image_tag": "1.18",
-                        "explicit_old_tag": True,
-                    }
-                ]
-            },
             "errors": [],
         }
         matched = {
@@ -48,56 +37,19 @@ class ServerAnalyzeTests(unittest.TestCase):
         result = server_analyze.build_server_analysis(assets, matched)
 
         self.assertEqual(result["summary"]["package_count"], 2)
-        self.assertEqual(len(result["confirmed_issues"]), 1)
-        self.assertEqual(len(result["maintenance_items"]), 2)
-        self.assertIn("Docker 容器", result["maintenance_items"][0]["title"])
-        self.assertIn("不扫描容器内部", result["maintenance_items"][0]["summary"])
+        self.assertEqual(
+            result["confirmed_issues"],
+            [{"package": "nginx", "severity": "high", "confidence": "confirmed"}],
+        )
+        self.assertEqual(len(result["maintenance_items"]), 1)
+        self.assertIn("redis", result["maintenance_items"][0]["title"])
+        self.assertNotIn("docker", result)
         self.assertTrue(
             all(
                 item["confidence"] == "maintenance"
                 for item in result["maintenance_items"]
             )
         )
-
-    def test_docker_latest_custom_and_unparseable_are_filtered(self):
-        assets = {
-            "distro": {},
-            "packages": [],
-            "kernel": {},
-            "ports": [],
-            "docker": {
-                "containers": [
-                    {
-                        "name": "app",
-                        "image": "private/app:latest",
-                        "image_name": "app",
-                        "image_tag": "latest",
-                        "explicit_old_tag": False,
-                    },
-                    {
-                        "name": "custom",
-                        "image": "nginx:company-build",
-                        "image_name": "nginx",
-                        "image_tag": "company-build",
-                        "explicit_old_tag": False,
-                    },
-                    {
-                        "name": "untagged",
-                        "image": "nginx",
-                        "image_name": "nginx",
-                        "image_tag": "",
-                        "explicit_old_tag": False,
-                    },
-                ]
-            },
-            "errors": [],
-        }
-
-        result = server_analyze.build_server_analysis(
-            assets, {"confirmed_issues": [], "errors": []}
-        )
-
-        self.assertEqual(result["maintenance_items"], [])
 
     def test_public_sensitive_process_names_are_normalized(self):
         ports = [
