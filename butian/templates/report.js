@@ -3432,9 +3432,16 @@ function softMaskSecretValue(value) {
   return `${value.slice(0, 7)}...${value.slice(-4)}`;
 }
 
+const SECRET_TOKEN_PATTERN =
+  /\b(?:sk-[A-Za-z0-9_-]{12,}|npm_[A-Za-z0-9_-]{12,}|pypi-[A-Za-z0-9_-]{12,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})\b/g;
+
 function softMaskSecretLine(text) {
   text = String(text || "");
   let changed = false;
+  text = text.replace(SECRET_TOKEN_PATTERN, (value) => {
+    changed = true;
+    return softMaskSecretValue(value);
+  });
   const masked = text.replace(
     /([:=]\s*["']?)([^"'\s#]{8,})(["']?)/g,
     (_match, prefix, value, suffix) => {

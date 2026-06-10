@@ -1943,6 +1943,7 @@ class ReportAssetTests(unittest.TestCase):
 
     def test_html_renders_secret_code_context_with_line_numbers(self):
         key = "sk-proj-ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+        bearer = "sk-proj-BEARERTOKENABCDEFGHIJKLMNOPQRSTUVWXYZ9876543210"
         data = {
             "generated_at": "2026-06-05 09:05:50",
             "project": {
@@ -1977,8 +1978,15 @@ class ReportAssetTests(unittest.TestCase):
                                 "content": f'OPENAI_API_KEY="{key}"',
                                 "match": True,
                             },
-                            {"line": 18, "content": "LOG_LEVEL=debug"},
-                            {"line": 19, "content": "TIMEOUT=30"},
+                            {
+                                "line": 18,
+                                "content": f"Authorization: Bearer {bearer}",
+                            },
+                            {
+                                "line": 19,
+                                "content": f"curl -H 'Authorization: Bearer {bearer}' https://api.example.test",
+                            },
+                            {"line": 20, "content": bearer},
                         ],
                     }
                 ]
@@ -1994,11 +2002,13 @@ class ReportAssetTests(unittest.TestCase):
         self.assertIn('onclick="copySecretEvidence(this)"', html)
         self.assertIn('class="secret-code-line is-hit"', html)
         self.assertIn('<span class="secret-code-no">15</span>', html)
-        self.assertIn('<span class="secret-code-no">19</span>', html)
+        self.assertIn('<span class="secret-code-no">20</span>', html)
         self.assertNotIn(f"OPENAI_API_KEY=&quot;{key}&quot;", html)
         self.assertIn("OPENAI_API_KEY=&quot;sk-proj...7890&quot;", html)
         self.assertNotIn("ABCDEFGHIJKL", html)
         self.assertNotIn("QRSTUVWXYZ", html)
+        self.assertNotIn(bearer, html)
+        self.assertIn("Authorization: Bearer sk-proj...3210", html)
         self.assertNotIn("<span>代码位置</span>", html)
 
     def test_html_renders_secret_code_context_in_yellow_card(self):
