@@ -630,6 +630,12 @@ class GitignoreIgnoresTests(unittest.TestCase):
     def test_simple_match(self):
         self.assertTrue(scan.gitignore_ignores(".butian/\n", ".butian"))
 
+    def test_glob_match(self):
+        self.assertTrue(scan.gitignore_ignores(".env*\n", ".env"))
+
+    def test_double_star_matches_root_path(self):
+        self.assertTrue(scan.gitignore_ignores("**/.env\n", ".env"))
+
     def test_negation(self):
         content = ".butian/\n!.butian\n"
         self.assertFalse(scan.gitignore_ignores(content, ".butian"))

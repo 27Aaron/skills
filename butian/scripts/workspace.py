@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 import os
 import re
 import time
@@ -296,6 +297,22 @@ def gitignore_rules(content):
     return rules
 
 
+def _gitignore_rule_matches(rule, target):
+    rule = rule.strip().lower().rstrip("/")
+    target = target.strip().lower().rstrip("/")
+    if not rule or not target:
+        return False
+    if rule == target or rule.lstrip("/") == target:
+        return True
+    if fnmatch.fnmatchcase(target, rule):
+        return True
+    if rule.startswith("**/") and _gitignore_rule_matches(rule[3:], target):
+        return True
+    if "/" not in rule and fnmatch.fnmatchcase(os.path.basename(target), rule):
+        return True
+    return False
+
+
 def gitignore_ignores(content, pattern):
     norm = pattern.strip().lower().rstrip("/")
     state = False
@@ -303,10 +320,10 @@ def gitignore_ignores(content, pattern):
         line = line.strip().lower().rstrip("/")
         if not line or line.startswith("#"):
             continue
-        if line == norm:
-            state = True
-        elif line == "!" + norm:
-            state = False
+        negated = line.startswith("!")
+        rule = line[1:] if negated else line
+        if _gitignore_rule_matches(rule, norm):
+            state = not negated
     return state
 
 
