@@ -28,6 +28,12 @@ class CellTests(unittest.TestCase):
     def test_pipe_escaped(self):
         self.assertEqual(report.cell("a|b"), "a\\|b")
 
+    def test_html_and_javascript_are_escaped(self):
+        result = report.cell('<script>alert(1)</script> [x](javascript:alert(1))')
+        self.assertIn("&lt;script&gt;", result)
+        self.assertNotIn("<script>", result)
+        self.assertNotIn("javascript:", result)
+
     def test_newline_replaced(self):
         self.assertEqual(report.cell("a\nb"), "a b")
 
@@ -754,6 +760,20 @@ class RenderErrorsTests(unittest.TestCase):
         result = report.render_errors(analysis)
         self.assertIn("vulnerability_check", result)
         self.assertIn("NVD timeout", result)
+
+    def test_escapes_error_text(self):
+        analysis = {
+            "errors": [
+                {
+                    "step": "<script>alert(1)</script>",
+                    "message": "[x](javascript:alert(1))",
+                }
+            ]
+        }
+        result = report.render_errors(analysis)
+        self.assertIn("&lt;script&gt;", result)
+        self.assertNotIn("<script>", result)
+        self.assertNotIn("javascript:", result)
 
     def test_no_errors(self):
         result = report.render_errors({})

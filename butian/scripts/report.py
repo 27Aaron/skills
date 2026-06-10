@@ -7,6 +7,7 @@ Usage:
 """
 
 import argparse
+import html
 import json
 import logging
 import os
@@ -47,6 +48,7 @@ GHSA_ID_RE = re.compile(
     r"^GHSA-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$", flags=re.IGNORECASE
 )
 OSV_ID_RE = re.compile(r"^[A-Z][A-Z0-9]+-[A-Z0-9][A-Z0-9_.-]*$", flags=re.IGNORECASE)
+JAVASCRIPT_PROTOCOL_RE = re.compile(r"\bjavascript\s*:", flags=re.IGNORECASE)
 
 
 def to_list(value):
@@ -61,10 +63,15 @@ def text(value):
     return str(value if value is not None else "").strip()
 
 
+def markdown_text(value):
+    escaped = html.escape(text(value), quote=False)
+    return JAVASCRIPT_PROTOCOL_RE.sub("javascript&#58;", escaped)
+
+
 def cell(value):
     # Markdown helper 是最后一层转义；分析器文本进入管道表格前，
-    # 需要在这里让表格分隔符和换行失效。
-    return text(value).replace("|", "\\|").replace("\n", " ")
+    # 需要在这里让 HTML、危险协议、表格分隔符和换行失效。
+    return markdown_text(value).replace("|", "\\|").replace("\n", " ")
 
 
 def inline_code(value):
@@ -413,9 +420,11 @@ def enrichment_summary(item):
 def render_summary(analysis):
     summary = analysis.get("summary") or {}
     lines = []
-    lines.append(f"- TL;DR：{text(summary.get('tldr')) or '本次扫描没有生成摘要。'}")
+    lines.append(
+        f"- TL;DR：{markdown_text(summary.get('tldr')) or '本次扫描没有生成摘要。'}"
+    )
     if summary.get("detail"):
-        lines.append(f"- 详细说明：{text(summary.get('detail'))}")
+        lines.append(f"- 详细说明：{markdown_text(summary.get('detail'))}")
     if is_hygiene_only(analysis):
         lines.append(f"- 扫描范围：{HYGIENE_ONLY_NOTICE}")
     lines.append(f"- 能力边界：{CAPABILITY_BOUNDARY}")
@@ -423,7 +432,7 @@ def render_summary(analysis):
     if priority:
         lines.append("- 优先级建议：")
         for item in priority:
-            lines.append(f"  - {text(item)}")
+            lines.append(f"  - {markdown_text(item)}")
     lines.append("")
     return "\n".join(lines)
 
@@ -732,7 +741,7 @@ def render_manual_items(analysis):
 
     lines = []
     for index, item in enumerate(items, 1):
-        lines.append(f"### {index}. {text(item.get('name')) or '待确认事项'}")
+        lines.append(f"### {index}. {markdown_text(item.get('name')) or '待确认事项'}")
         if item.get("severity"):
             lines.append(f"- 影响程度：{severity_label(item.get('severity'))}")
         if item.get("path") or item.get("file"):
@@ -751,11 +760,11 @@ def render_manual_items(analysis):
             or item.get("recommendation")
         )
         if why:
-            lines.append(f"- 为什么要关注：{text(why)}")
+            lines.append(f"- 为什么要关注：{markdown_text(why)}")
         if risk:
-            lines.append(f"- 可能影响：{text(risk)}")
+            lines.append(f"- 可能影响：{markdown_text(risk)}")
         if action:
-            lines.append(f"- 建议动作：{text(action)}")
+            lines.append(f"- 建议动作：{markdown_text(action)}")
         lines.append("")
     return "\n".join(lines)
 
@@ -766,8 +775,10 @@ def render_errors(analysis):
         return "没有记录到扫描错误。\n"
     lines = []
     for item in errors:
+        step = markdown_text(item.get("step")) or "unknown"
+        message = markdown_text(item.get("message"))
         lines.append(
-            f"- [{text(item.get('step')) or 'unknown'}] {text(item.get('message'))}"
+            f"- [{step}] {message}"
         )
     lines.append("")
     return "\n".join(lines)
@@ -783,7 +794,7 @@ def render_next_steps(analysis):
     lines = []
     if priority:
         for item in priority:
-            lines.append(f"- {text(item)}")
+            lines.append(f"- {markdown_text(item)}")
     else:
         lines.append(
             "- 阅读报告后再决定是否修复；修复前需要明确确认修复范围和升级策略。"
