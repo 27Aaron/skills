@@ -80,6 +80,7 @@ git diff --check
 
 `scan.py` 输出原始事实，`analyze.py` 负责解释和排序，`report.py` 与 `visualize.py` 只做展示层转换。完整输出合同见 [`report.md`](./report.md) 和 [`visualize.md`](./visualize.md)。核心规则：
 
+- `scan.json` 和 `analysis.json` 顶层都必须包含 `schema_version`，当前版本为 `1.0.0`。
 - Markdown 偏归档和修复表格；HTML 偏交互验收和普通人可读解释。
 - `当前风险`、`仓库安检`、`过期依赖` 是三类不同信号，不能混为同一种风险。
 - HTML 当前风险默认只展示 7 条风险行，超过后显示 `余下 N 项`。

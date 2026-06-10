@@ -8,7 +8,7 @@
     py -3 scripts/run_audit.py [project_path]  # Windows
 
 流水线：
-  detect -> scan -> analyze -> report -> visualize
+  detect -> scan -> analyze -> visualize -> report
 """
 
 import argparse

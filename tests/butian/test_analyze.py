@@ -16,6 +16,7 @@ from butian.scripts import scan as scan_mod
 def _make_scan(**overrides):
     """Return a realistic scan output dict with sensible defaults."""
     scan = {
+        "schema_version": scan_mod.SCAN_SCHEMA_VERSION,
         "generated_at": "2026-06-05 09:05:50",
         "scan_seconds": 1.23,
         "project": {
@@ -1475,6 +1476,7 @@ class TestBuildAnalysis(unittest.TestCase):
         result = analyze.build_analysis(scan, source_scan_file="/tmp/scan.json")
 
         # top-level metadata
+        self.assertEqual(result["schema_version"], analyze.ANALYSIS_SCHEMA_VERSION)
         self.assertEqual(result["generated_at"], "2026-06-05 09:05:50")
         self.assertEqual(result["scan_seconds"], 1.23)
         self.assertEqual(result["vulnerability_count"], 1)

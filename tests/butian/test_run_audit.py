@@ -37,6 +37,13 @@ class ScriptPathTests(unittest.TestCase):
         self.assertTrue(path.endswith("scan.py"))
         self.assertIn("scripts", path)
 
+    def test_module_docstring_matches_pipeline_order(self):
+        self.assertIn(
+            "detect -> scan -> analyze -> visualize -> report",
+            run_audit.__doc__,
+        )
+        self.assertNotIn("analyze -> report -> visualize", run_audit.__doc__)
+
 
 # ---------------------------------------------------------------------------
 # display_width

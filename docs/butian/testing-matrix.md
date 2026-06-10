@@ -33,7 +33,7 @@
 - 输入覆盖：空扫描、仅仓库安检、完整依赖扫描、有错误的扫描、含过期依赖的扫描。
 - 风险覆盖：critical/high/medium/low/info、未知严重度、缺失 fixed version、多个 advisory ID。
 - 依赖覆盖：直接依赖、嵌套依赖、父依赖版本范围、残留依赖指导。
-- 输出覆盖：`risk_summary`、`red`、`yellow`、`green`、`summary.priority`、`dependency_fix_items`。
+- 输出覆盖：`schema_version`、`risk_summary`、`red`、`yellow`、`green`、`summary.priority`、`dependency_fix_items`。
 
 ### `detect.py`
 
@@ -84,6 +84,7 @@
 ### `run_audit.py`
 
 - 编排覆盖：按顺序调用 detect、scan、analyze、visualize、report。
+- 源码描述覆盖：模块 docstring 的流水线顺序和真实编排一致。
 - 首扫覆盖：先生成 `security-report.html`，再生成 `security-report.md`，不自动打开。
 - 复扫覆盖：每次复扫都刷新普通报告，`--final-report` 先生成 `security-report-final.html`，再生成 `security-report-final.md`。
 - 失败覆盖：任一子命令失败时退出非零，并保留已生成路径提示。
@@ -92,6 +93,7 @@
 
 - 本地扫描覆盖：密钥正则、entropy、误报过滤、敏感文件跟踪、`.gitignore` 建议。
 - 编排覆盖：生态检测、包提取、漏洞查询、过期依赖、仓库安检并行执行。
+- 输出覆盖：`schema_version`、项目元信息、`scan_config`、工作区状态、步骤耗时和错误保留。
 - CLI 覆盖：`--skip-hygiene`、`--skip-outdated`、`--include-packages`、`--follow-symlinks`、`--api-concurrency`。
 
 ### `vulnerability_sources.py`

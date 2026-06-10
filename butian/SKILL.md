@@ -13,9 +13,9 @@ description: |
 
 ## 默认执行规则
 
-1. **第一次扫描报告**：在目标项目目录中运行 `run_audit.py` 完成首次扫描。项目扫描会生成 `docs/butian/<日期>/security-report.md` 和 `docs/butian/<日期>/security-report.html`，不自动打开网页；只在终端展示绝对路径和摘要，再询问是否修复。
+1. **第一次扫描报告**：在目标项目目录中运行 `run_audit.py` 完成首次扫描。项目扫描会先生成 `docs/butian/<日期>/security-report.html`，再生成 `docs/butian/<日期>/security-report.md`，不自动打开网页；只在终端展示绝对路径和摘要，再询问是否修复。
 2. **修复前先确认**：确认开始修复后，才运行 `fix.py` 或包管理器命令。默认优先升级到已知修复版本；升级到 latest、Dependabot、凭证占位符替换、过期依赖维护都需要确认。
-3. **修复完成后的最终报告**：修复和复扫结束后，运行 `run_audit.py --final-report`。项目最终复扫会生成 `docs/butian/<日期>/security-report-final.md` 和 `docs/butian/<日期>/security-report-final.html`，同样只在终端展示绝对路径。
+3. **修复完成后的最终报告**：修复和复扫结束后，运行 `run_audit.py --final-report`。项目最终复扫会先生成 `docs/butian/<日期>/security-report-final.html`，再生成 `docs/butian/<日期>/security-report-final.md`，同样只在终端展示绝对路径。
 4. **默认只处理项目**：普通项目扫描不扫描系统 Python、全局 npm、全局 pnpm 或操作系统包，也不会碰系统升级、系统服务、数据库或日志。
 
 ## 详细参考

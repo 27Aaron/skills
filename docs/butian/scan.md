@@ -77,6 +77,7 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 
 | 常量                             | 值                                                              | 用途                               |
 | -------------------------------- | --------------------------------------------------------------- | ---------------------------------- |
+| `SCAN_SCHEMA_VERSION`            | `1.0.0`                                                         | `scan.json` 顶层输出契约版本       |
 | `OSV_QUERYBATCH_URL`             | `https://api.osv.dev/v1/querybatch`                             | OSV 批量查询端点                   |
 | `OSV_VULN_URL_PREFIX`            | `https://api.osv.dev/v1/vulns/`                                 | OSV 单条漏洞端点                   |
 | `NVD_CVE_API_URL`                | `https://services.nvd.nist.gov/rest/json/cves/2.0`              | NVD CVE 查询端点                   |
@@ -260,6 +261,7 @@ main()
 
 ```json
 {
+  "schema_version": "1.0.0",
   "generated_at": "2026-06-09 15:50:00",
   "scan_seconds": 12.3,
   "project": {

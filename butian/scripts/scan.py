@@ -43,6 +43,8 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+SCAN_SCHEMA_VERSION = "1.0.0"
+
 try:
     from .cache import cache_clean, cache_dir, cache_read, cache_write
     from .dependency_parsers import (
@@ -2640,6 +2642,7 @@ def main():
     )
 
     output = {
+        "schema_version": SCAN_SCHEMA_VERSION,
         "generated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         "scan_seconds": round(time.time() - started, 1),
         "project": {

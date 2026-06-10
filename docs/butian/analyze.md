@@ -1,6 +1,6 @@
 # analyze.py 技术文档
 
-> 源码路径：`butian/scripts/analyze.py`（881 行）
+> 源码路径：`butian/scripts/analyze.py`
 
 ## 概览
 
@@ -31,6 +31,14 @@ python3 analyze.py scan.json output-analysis.json                          # 指
 | `output_json` | 位置参数 | ❌   | 分析结果输出路径（默认 `assets/analysis.json`） |
 
 ## 核心常量
+
+### 输出契约版本
+
+```python
+ANALYSIS_SCHEMA_VERSION = "1.0.0"
+```
+
+`analysis.json` 顶层固定写入 `schema_version`。后续如果改变字段含义、删除字段或调整下游依赖的结构，需要递增该版本，并同步更新报告、修复器和测试夹具。
 
 ### 严重度排序
 
@@ -155,6 +163,7 @@ HTML 渲染时会对凭证类 yellow 项做一次展示归并：`type == "secret
 
 ```json
 {
+  "schema_version": "1.0.0",
   "generated_at": "2026-06-09 15:50:00",
   "scan_seconds": 12.3,
   "project": { "path": "...", "name": "..." },

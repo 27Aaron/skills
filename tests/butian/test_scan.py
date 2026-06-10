@@ -191,6 +191,7 @@ class DependencyParsersModuleCompatibilityTests(unittest.TestCase):
             )
             output = json.loads(result.stdout)
 
+            self.assertEqual(output["schema_version"], scan.SCAN_SCHEMA_VERSION)
             self.assertEqual(output["scan_config"]["scan_mode"], "full_dependency_scan")
             self.assertEqual(output["package_count"], 0)
             self.assertTrue(

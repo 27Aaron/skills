@@ -16,6 +16,8 @@ import os
 import re
 import sys
 
+ANALYSIS_SCHEMA_VERSION = "1.0.0"
+
 logger = logging.getLogger("butian.scripts.analyze")
 
 try:
@@ -1060,6 +1062,7 @@ def build_analysis(scan, source_scan_file=None, output_file=None):
     local_risk_summary = count_risks(red, yellow)
 
     analysis = {
+        "schema_version": ANALYSIS_SCHEMA_VERSION,
         "generated_at": scan.get("generated_at"),
         "scan_seconds": scan.get("scan_seconds"),
         "project": scan.get("project") or {},
