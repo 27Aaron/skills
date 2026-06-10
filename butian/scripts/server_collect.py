@@ -14,24 +14,32 @@ import time
 from typing import Any
 
 
-def command_plan(include_docker_metadata: bool = False) -> list[dict[str, str]]:
+def command_plan() -> list[dict[str, str]]:
     """返回采集 inventory 使用的受限远程命令。
 
     只读 SSH 采集绝不能安装、升级、重启、使用 sudo，
-    也不能进入容器文件系统。Docker 模式只读取宿主机可见元数据。
+    也不能进入容器文件系统。v1 仅采集宿主机离线 inventory 原始事实。
     """
-    commands = [
+    return [
         {"id": "os_release", "command": "cat /etc/os-release"},
         {"id": "uname_r", "command": "uname -r"},
         {"id": "uname_m", "command": "uname -m"},
         {"id": "hostname", "command": "hostname"},
         {
+            "id": "hostnamectl",
+            "command": "if command -v hostnamectl >/dev/null 2>&1; then hostnamectl; fi",
+        },
+        {
+            "id": "virt",
+            "command": "if command -v systemd-detect-virt >/dev/null 2>&1; then systemd-detect-virt; fi",
+        },
+        {
             "id": "dpkg_packages",
-            "command": "if command -v dpkg-query >/dev/null 2>&1; then dpkg-query -W -f='${Package}\\t${Version}\\t${Architecture}\\t${source:Package}\\n'; fi",
+            "command": "if command -v dpkg-query >/dev/null 2>&1; then dpkg-query -W -f='${binary:Package}\\t${Version}\\t${Architecture}\\t${source:Package}\\t${source:Version}\\t${db:Status-Abbrev}\\n'; fi",
         },
         {
             "id": "rpm_packages",
-            "command": "if command -v rpm >/dev/null 2>&1; then rpm -qa --queryformat '%{NAME}\\t%{VERSION}-%{RELEASE}\\t%{ARCH}\\n'; fi",
+            "command": "if command -v rpm >/dev/null 2>&1; then rpm -qa --queryformat '%{NAME}\\t%{VERSION}-%{RELEASE}\\t%{ARCH}\\t%{VENDOR}\\t%{SOURCERPM}\\n'; fi",
         },
         {
             "id": "apk_packages",
@@ -42,6 +50,18 @@ def command_plan(include_docker_metadata: bool = False) -> list[dict[str, str]]:
             "command": "if command -v apt >/dev/null 2>&1; then apt list --upgradable; fi",
         },
         {
+            "id": "apt_reboot_required",
+            "command": "if [ -f /var/run/reboot-required ]; then cat /var/run/reboot-required; fi",
+        },
+        {
+            "id": "apt_reboot_required_pkgs",
+            "command": "if [ -f /var/run/reboot-required.pkgs ]; then cat /var/run/reboot-required.pkgs; fi",
+        },
+        {
+            "id": "ubuntu_pro_security_status",
+            "command": "if command -v pro >/dev/null 2>&1; then pro security-status --format json; fi",
+        },
+        {
             "id": "dnf_updateinfo",
             "command": "if command -v dnf >/dev/null 2>&1; then dnf -C updateinfo list security; fi",
         },
@@ -50,8 +70,40 @@ def command_plan(include_docker_metadata: bool = False) -> list[dict[str, str]]:
             "command": "if command -v yum >/dev/null 2>&1; then yum -C updateinfo list security; fi",
         },
         {
+            "id": "dnf_updateinfo_info",
+            "command": "if command -v dnf >/dev/null 2>&1; then dnf -C updateinfo info security; fi",
+        },
+        {
             "id": "zypper_patches",
             "command": "if command -v zypper >/dev/null 2>&1; then zypper --non-interactive --no-refresh list-patches --category security; fi",
+        },
+        {
+            "id": "zypper_all_patches",
+            "command": "if command -v zypper >/dev/null 2>&1; then zypper --non-interactive --no-refresh list-patches; fi",
+        },
+        {
+            "id": "apt_policy",
+            "command": "if command -v apt-cache >/dev/null 2>&1; then apt-cache policy; fi",
+        },
+        {
+            "id": "apt_sources",
+            "command": "if [ -f /etc/apt/sources.list ]; then cat /etc/apt/sources.list; fi; if [ -d /etc/apt/sources.list.d ]; then find /etc/apt/sources.list.d -maxdepth 1 -type f \\( -name '*.list' -o -name '*.sources' \\) -print -exec cat {} \\; 2>/dev/null; fi",
+        },
+        {
+            "id": "dnf_repolist",
+            "command": "if command -v dnf >/dev/null 2>&1; then dnf -C repolist --all; fi",
+        },
+        {
+            "id": "yum_repolist",
+            "command": "if command -v yum >/dev/null 2>&1; then yum -C repolist all; fi",
+        },
+        {
+            "id": "zypper_repos",
+            "command": "if command -v zypper >/dev/null 2>&1; then zypper --non-interactive --no-refresh repos --details; fi",
+        },
+        {
+            "id": "apk_repositories",
+            "command": "if [ -f /etc/apk/repositories ]; then cat /etc/apk/repositories; fi",
         },
         {
             "id": "services",
@@ -86,156 +138,14 @@ def command_plan(include_docker_metadata: bool = False) -> list[dict[str, str]]:
             "command": "if command -v ip6tables >/dev/null 2>&1; then ip6tables -S; fi",
         },
         {
-            "id": "nginx_v",
-            "command": "if command -v nginx >/dev/null 2>&1; then nginx -v 2>&1; fi",
+            "id": "selinux_status",
+            "command": "if command -v getenforce >/dev/null 2>&1; then getenforce; fi",
         },
         {
-            "id": "apache_v",
-            "command": "if command -v apache2 >/dev/null 2>&1; then apache2 -v 2>&1; elif command -v httpd >/dev/null 2>&1; then httpd -v 2>&1; fi",
-        },
-        {
-            "id": "caddy_v",
-            "command": "if command -v caddy >/dev/null 2>&1; then caddy version 2>&1; fi",
-        },
-        {
-            "id": "tomcat_v",
-            "command": "if command -v catalina.sh >/dev/null 2>&1; then catalina.sh version 2>&1; elif command -v version.sh >/dev/null 2>&1; then version.sh 2>&1; fi",
-        },
-        {
-            "id": "openssl_v",
-            "command": "if command -v openssl >/dev/null 2>&1; then openssl version -a; fi",
-        },
-        {
-            "id": "gnutls_v",
-            "command": "if command -v gnutls-cli >/dev/null 2>&1; then gnutls-cli --version 2>&1; fi",
-        },
-        {
-            "id": "ssh_v",
-            "command": "if command -v ssh >/dev/null 2>&1; then ssh -V 2>&1; fi",
-        },
-        {
-            "id": "mysql_v",
-            "command": "if command -v mysql >/dev/null 2>&1; then mysql --version 2>&1; fi",
-        },
-        {
-            "id": "mariadb_v",
-            "command": "if command -v mariadb >/dev/null 2>&1; then mariadb --version 2>&1; fi",
-        },
-        {
-            "id": "postgres_v",
-            "command": "if command -v psql >/dev/null 2>&1; then psql --version 2>&1; fi",
-        },
-        {
-            "id": "mongo_v",
-            "command": "if command -v mongod >/dev/null 2>&1; then mongod --version 2>&1; fi",
-        },
-        {
-            "id": "redis_v",
-            "command": "if command -v redis-server >/dev/null 2>&1; then redis-server --version 2>&1; fi",
-        },
-        {
-            "id": "elasticsearch_v",
-            "command": "if command -v elasticsearch >/dev/null 2>&1; then elasticsearch --version 2>&1; fi",
-        },
-        {
-            "id": "docker_version",
-            "command": "if command -v docker >/dev/null 2>&1; then docker --version 2>&1; fi",
-        },
-        {
-            "id": "containerd_v",
-            "command": "if command -v containerd >/dev/null 2>&1; then containerd --version 2>&1; fi",
-        },
-        {
-            "id": "runc_v",
-            "command": "if command -v runc >/dev/null 2>&1; then runc --version 2>&1; fi",
-        },
-        {
-            "id": "podman_v",
-            "command": "if command -v podman >/dev/null 2>&1; then podman --version 2>&1; fi",
-        },
-        {
-            "id": "node_v",
-            "command": "if command -v node >/dev/null 2>&1; then node --version 2>&1; fi",
-        },
-        {
-            "id": "python_v",
-            "command": "if command -v python3 >/dev/null 2>&1; then python3 --version 2>&1; elif command -v python >/dev/null 2>&1; then python --version 2>&1; fi",
-        },
-        {
-            "id": "java_v",
-            "command": "if command -v java >/dev/null 2>&1; then java -version 2>&1; fi",
-        },
-        {
-            "id": "php_v",
-            "command": "if command -v php >/dev/null 2>&1; then php -v 2>&1; fi",
-        },
-        {
-            "id": "ruby_v",
-            "command": "if command -v ruby >/dev/null 2>&1; then ruby -v 2>&1; fi",
-        },
-        {
-            "id": "go_v",
-            "command": "if command -v go >/dev/null 2>&1; then go version 2>&1; fi",
-        },
-        {
-            "id": "rabbitmq_v",
-            "command": "if command -v rabbitmqctl >/dev/null 2>&1; then rabbitmqctl version 2>&1; fi",
-        },
-        {
-            "id": "kafka_v",
-            "command": "if command -v kafka-topics.sh >/dev/null 2>&1; then kafka-topics.sh --version 2>&1; elif command -v kafka-server-start.sh >/dev/null 2>&1; then kafka-server-start.sh --version 2>&1; fi",
-        },
-        {
-            "id": "haproxy_v",
-            "command": "if command -v haproxy >/dev/null 2>&1; then haproxy -v 2>&1; fi",
-        },
-        {
-            "id": "envoy_v",
-            "command": "if command -v envoy >/dev/null 2>&1; then envoy --version 2>&1; fi",
-        },
-        {
-            "id": "traefik_v",
-            "command": "if command -v traefik >/dev/null 2>&1; then traefik version 2>&1; fi",
-        },
-        {
-            "id": "git_v",
-            "command": "if command -v git >/dev/null 2>&1; then git --version 2>&1; fi",
-        },
-        {
-            "id": "curl_v",
-            "command": "if command -v curl >/dev/null 2>&1; then curl --version 2>&1; fi",
-        },
-        {
-            "id": "wget_v",
-            "command": "if command -v wget >/dev/null 2>&1; then wget --version 2>&1; fi",
-        },
-        {
-            "id": "cron_v",
-            "command": "if command -v cron >/dev/null 2>&1; then cron -V 2>&1; elif command -v crond >/dev/null 2>&1; then crond -V 2>&1; fi",
-        },
-        {
-            "id": "systemd_v",
-            "command": "if command -v systemctl >/dev/null 2>&1; then systemctl --version 2>&1; fi",
-        },
-        {
-            "id": "grafana_v",
-            "command": "if command -v grafana-server >/dev/null 2>&1; then grafana-server -v 2>&1; fi",
-        },
-        {
-            "id": "prometheus_v",
-            "command": "if command -v prometheus >/dev/null 2>&1; then prometheus --version 2>&1; fi",
+            "id": "apparmor_status",
+            "command": "if command -v aa-status >/dev/null 2>&1; then aa-status; fi",
         },
     ]
-    if include_docker_metadata:
-        commands.extend(
-            [
-                {
-                    "id": "docker_ps",
-                    "command": "if command -v docker >/dev/null 2>&1; then docker ps --format '{{json .}}'; fi",
-                },
-            ]
-        )
-    return commands
 
 
 def default_ssh_config_path() -> str:
@@ -465,7 +375,6 @@ def collect_server_inventory(
     port: int = 22,
     identity: str = "",
     ssh_config: str = "",
-    include_docker_metadata: bool = False,
 ) -> dict[str, Any]:
     policy = resolve_ssh_policy(
         target, port=port, identity=identity, ssh_config=ssh_config
@@ -475,9 +384,9 @@ def collect_server_inventory(
     ssh_identity = policy.get("identity") or identity
     ssh_config = policy.get("ssh_config") or ssh_config
     identity_secrets = _identity_secret_values(policy)
-    outputs = {}
+    commands = {}
     errors = []
-    for item in command_plan(include_docker_metadata=include_docker_metadata):
+    for item in command_plan():
         try:
             result = run_ssh_command(
                 ssh_target,
@@ -494,7 +403,7 @@ def collect_server_inventory(
                 "stderr": _redact_identity_text(str(exc), identity_secrets),
             }
         result = _redact_command_result(result, identity_secrets)
-        outputs[item["id"]] = result
+        commands[item["id"]] = result
         if result["returncode"] != 0:
             errors.append(
                 {
@@ -506,10 +415,11 @@ def collect_server_inventory(
             if is_ssh_transport_failure(result):
                 break
     return {
-        "target": ssh_target,
+        "schema_version": "butian.server_inventory.v1",
         "collected_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-        "collection_mode": "ssh",
-        "outputs": outputs,
+        "collector": {"name": "butian", "mode": "ssh", "version": "v1"},
+        "target": {"hint": ssh_target, "hostname": ""},
+        "commands": commands,
         "errors": errors,
     }
 
@@ -543,11 +453,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default="",
         help="Optional SSH config path",
     )
-    parser.add_argument(
-        "--include-docker-metadata",
-        action="store_true",
-        help="Collect container names, image tags, and port mappings only",
-    )
     return parser.parse_args(argv)
 
 
@@ -560,7 +465,6 @@ def main(argv: list[str] | None = None) -> int:
         port=args.ssh_port,
         identity=args.identity,
         ssh_config=args.ssh_config,
-        include_docker_metadata=args.include_docker_metadata,
     )
     if args.output:
         write_inventory(args.output, inventory)

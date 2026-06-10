@@ -7,29 +7,75 @@ from butian.scripts import server_collect
 
 
 class CommandPlanTests(unittest.TestCase):
-    def test_default_commands_are_read_only(self):
-        commands = server_collect.command_plan(include_docker_metadata=False)
+    def test_v1_command_plan_contains_required_raw_fact_ids(self):
+        commands = server_collect.command_plan()
+        ids = {cmd["id"] for cmd in commands}
+
+        required_ids = {
+            "os_release",
+            "uname_r",
+            "uname_m",
+            "hostname",
+            "hostnamectl",
+            "virt",
+            "dpkg_packages",
+            "rpm_packages",
+            "apk_packages",
+            "apt_upgradable",
+            "apt_reboot_required",
+            "apt_reboot_required_pkgs",
+            "ubuntu_pro_security_status",
+            "dnf_updateinfo",
+            "yum_updateinfo",
+            "dnf_updateinfo_info",
+            "zypper_patches",
+            "zypper_all_patches",
+            "apt_policy",
+            "apt_sources",
+            "dnf_repolist",
+            "yum_repolist",
+            "zypper_repos",
+            "apk_repositories",
+            "services",
+            "ports",
+            "sshd_config",
+            "ufw_status",
+            "firewalld_status",
+            "nft_rules",
+            "iptables_rules",
+            "ip6tables_rules",
+            "selinux_status",
+            "apparmor_status",
+        }
+
+        self.assertTrue(required_ids.issubset(ids))
+
+    def test_v1_package_commands_capture_source_metadata(self):
+        commands = server_collect.command_plan()
         joined = "\n".join(cmd["command"] for cmd in commands)
 
-        self.assertIn("cat /etc/os-release", joined)
-        self.assertIn("uname -r", joined)
-        self.assertNotIn(" apt install ", joined)
-        self.assertNotIn(" apt upgrade ", joined)
-        self.assertNotIn(" dnf install ", joined)
-        self.assertNotIn(" yum install ", joined)
-        self.assertNotIn(" apk add ", joined)
-        self.assertNotIn(" sudo ", joined)
-        self.assertNotIn("|| true", joined)
-
-    def test_package_manager_commands_cover_supported_linux_families(self):
-        joined = "\n".join(
-            cmd["command"]
-            for cmd in server_collect.command_plan(include_docker_metadata=False)
-        )
-
+        self.assertIn("${source:Package}", joined)
+        self.assertIn("${source:Version}", joined)
+        self.assertIn("%{SOURCERPM}", joined)
         self.assertIn("dpkg-query -W", joined)
         self.assertIn("rpm -qa", joined)
         self.assertIn("apk info -vv", joined)
+
+    def test_v1_command_plan_excludes_container_tooling(self):
+        joined = "\n".join(cmd["command"] for cmd in server_collect.command_plan())
+        lower_joined = joined.lower()
+
+        self.assertNotIn("docker", lower_joined)
+        self.assertNotIn("containerd", lower_joined)
+        self.assertNotIn("podman", lower_joined)
+        self.assertNotIn("runc", lower_joined)
+
+    def test_v1_commands_are_read_only_and_not_remediation(self):
+        joined = "\n".join(cmd["command"] for cmd in server_collect.command_plan())
+        padded = f" {joined.lower()} "
+
+        self.assertIn("cat /etc/os-release", joined)
+        self.assertIn("uname -r", joined)
         self.assertIn("apt list --upgradable", joined)
         self.assertIn("dnf -C updateinfo list security", joined)
         self.assertIn("yum -C updateinfo list security", joined)
@@ -37,9 +83,14 @@ class CommandPlanTests(unittest.TestCase):
             "zypper --non-interactive --no-refresh list-patches --category security",
             joined,
         )
+        self.assertNotIn(" sudo ", padded)
+        self.assertNotIn(" upgrade ", padded)
+        self.assertNotIn(" install ", padded)
+        self.assertNotIn("systemctl restart", joined)
+        self.assertNotIn("|| true", joined)
 
     def test_security_posture_commands_cover_ssh_and_firewalls(self):
-        commands = server_collect.command_plan(include_docker_metadata=False)
+        commands = server_collect.command_plan()
         ids = {cmd["id"] for cmd in commands}
         joined = "\n".join(cmd["command"] for cmd in commands)
 
@@ -56,60 +107,6 @@ class CommandPlanTests(unittest.TestCase):
         self.assertIn("iptables -S", joined)
         self.assertNotIn(" sudo ", joined)
         self.assertNotIn("systemctl restart", joined)
-
-    def test_common_software_version_commands_are_read_only(self):
-        commands = server_collect.command_plan(include_docker_metadata=False)
-        ids = {cmd["id"] for cmd in commands}
-        joined = "\n".join(cmd["command"] for cmd in commands)
-
-        expected_ids = {
-            "apache_v",
-            "caddy_v",
-            "tomcat_v",
-            "gnutls_v",
-            "mysql_v",
-            "postgres_v",
-            "redis_v",
-            "containerd_v",
-            "node_v",
-            "java_v",
-            "rabbitmq_v",
-            "haproxy_v",
-            "grafana_v",
-            "prometheus_v",
-            "git_v",
-            "curl_v",
-            "wget_v",
-            "systemd_v",
-        }
-        self.assertTrue(expected_ids.issubset(ids))
-        self.assertIn("apache2 -v", joined)
-        self.assertIn("httpd -v", joined)
-        self.assertIn("docker --version", joined)
-        self.assertIn("node --version", joined)
-        self.assertIn("java -version", joined)
-        self.assertNotIn("docker exec", joined)
-        self.assertNotIn("systemctl restart", joined)
-
-    def test_docker_container_metadata_is_optional(self):
-        without_docker_ids = "\n".join(
-            cmd["id"]
-            for cmd in server_collect.command_plan(include_docker_metadata=False)
-        )
-        with_docker_ids = "\n".join(
-            cmd["id"]
-            for cmd in server_collect.command_plan(include_docker_metadata=True)
-        )
-        without_docker_commands = "\n".join(
-            cmd["command"]
-            for cmd in server_collect.command_plan(include_docker_metadata=False)
-        )
-
-        self.assertIn("docker_version", without_docker_ids)
-        self.assertNotIn("docker_ps", without_docker_ids)
-        self.assertIn("docker --version", without_docker_commands)
-        self.assertNotIn("docker ps", without_docker_commands)
-        self.assertIn("docker_ps", with_docker_ids)
 
 
 class SshKeyPolicyTests(unittest.TestCase):
@@ -205,7 +202,7 @@ Host *
 
 
 class CollectServerInventoryTests(unittest.TestCase):
-    def test_collect_records_outputs_without_installing_tools(self):
+    def test_collect_records_v1_schema_and_commands_without_installing_tools(self):
         def fake_run(target, command, **kwargs):
             if "cat /etc/os-release" in command:
                 return {
@@ -221,16 +218,20 @@ class CollectServerInventoryTests(unittest.TestCase):
             mock.patch.object(
                 server_collect,
                 "resolve_ssh_policy",
-                return_value={"target": "root@203.0.113.10", "options": {}},
+                return_value={"target": "prod-web", "options": {}},
             ),
         ):
-            inventory = server_collect.collect_server_inventory("root@203.0.113.10")
+            inventory = server_collect.collect_server_inventory("prod-web")
 
-        self.assertEqual(inventory["collection_mode"], "ssh")
-        self.assertIn("os_release", inventory["outputs"])
+        self.assertEqual(inventory["schema_version"], "butian.server_inventory.v1")
+        self.assertEqual(inventory["collector"]["name"], "butian")
+        self.assertEqual(inventory["collector"]["mode"], "ssh")
+        self.assertEqual(inventory["target"]["hint"], "prod-web")
+        self.assertIn("os_release", inventory["commands"])
+        self.assertNotIn("outputs", inventory)
         self.assertEqual(inventory["errors"], [])
         all_commands = "\n".join(
-            item["command"] for item in inventory["outputs"].values()
+            item["command"] for item in inventory["commands"].values()
         )
         self.assertNotIn("install", all_commands)
 
@@ -312,12 +313,12 @@ class CollectServerInventoryTests(unittest.TestCase):
             inventory = server_collect.collect_server_inventory("root@203.0.113.10")
 
         self.assertEqual(len(calls), 1)
-        self.assertEqual(list(inventory["outputs"]), ["os_release"])
+        self.assertEqual(list(inventory["commands"]), ["os_release"])
         self.assertEqual(len(inventory["errors"]), 1)
         self.assertIn("Permission denied", inventory["errors"][0]["message"])
 
     def test_inventory_file_round_trip(self):
-        payload = {"target": "root@example.test", "outputs": {}, "errors": []}
+        payload = {"target": "root@example.test", "commands": {}, "errors": []}
 
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "server-inventory.json")
