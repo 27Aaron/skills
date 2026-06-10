@@ -268,7 +268,10 @@ class RenderSummaryTests(unittest.TestCase):
         self.assertIn("发现高风险漏洞", result)
         self.assertIn("详细信息", result)
         self.assertIn("优先处理紧急项", result)
-        self.assertIn("能力边界", result)
+        self.assertIn("结论", result)
+        self.assertIn("扫描说明", result)
+        self.assertIn("建议动作", result)
+        self.assertIn("未覆盖与边界", result)
         self.assertIn("安全的价值不只在于发现问题", result)
         self.assertNotIn("SSH", result)
         self.assertNotIn("inventory", result)
@@ -284,7 +287,7 @@ class RenderSummaryTests(unittest.TestCase):
 
     def test_missing_summary(self):
         result = report.render_summary({})
-        self.assertIn("没有生成摘要", result)
+        self.assertIn("本次扫描没有生成摘要", result)
 
 
 # ---------------------------------------------------------------------------

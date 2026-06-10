@@ -14,6 +14,45 @@ const CAPABILITY_BOUNDARY =
 const HYGIENE_ONLY_NOTICE =
   "当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；本次仅做仓库安检，检查硬编码密钥、敏感文件跟踪、.gitignore、GitHub Actions、依赖配置与维护和 IaC/容器配置风险。";
 
+const isOutdatedSkipError = (item) => {
+  const step = String((item && item.step) || "").toLowerCase();
+  const message = String((item && item.message) || "");
+  return (
+    step === "outdated_check" &&
+    (message.includes("跳过") ||
+      message.includes("默认不执行") ||
+      message.includes("allow-project-exec"))
+  );
+};
+
+const isVulnerabilitySourceError = (item) => {
+  const step = String((item && item.step) || "").toLowerCase();
+  const message = String((item && item.message) || "").toLowerCase();
+  return ["vulnerability", "osv", "nvd", "cisa", "kev", "epss", "漏洞源"].some(
+    (token) => step.includes(token) || message.includes(token),
+  );
+};
+
+function dependencyScopeText(
+  project = {},
+  packageSources = [],
+  fallbackCount = 0,
+) {
+  const count = project.total_packages || fallbackCount || 0;
+  const ecosystems =
+    toList(project.ecosystems).length > 0
+      ? toList(project.ecosystems)
+      : toList(packageSources)
+          .map((item) => item && item.ecosystem)
+          .filter(Boolean);
+  const uniqueEcosystems = Array.from(new Set(ecosystems)).slice(0, 3);
+  const ecosystemText = uniqueEcosystems.join("、");
+  if (count && ecosystemText) return `${count} 个 ${ecosystemText} 依赖`;
+  if (count) return `${count} 个依赖`;
+  if (ecosystemText) return `${ecosystemText} 依赖`;
+  return "项目依赖";
+}
+
 // ---- Normalize: accept common field name variations from upstream producers ----
 const DATA = (() => {
   const d = Object.assign({}, RAW);
@@ -131,7 +170,12 @@ const DATA = (() => {
       d.summary.tldr =
         "命中已确认风险项，但严重度数据不足，需要结合公告复核影响范围。";
     } else if (d.errors && d.errors.length) {
-      d.summary.tldr = "暂未确认风险，但有部分检查失败，结论需要复核。";
+      const nonMaintenanceErrors = d.errors.filter(
+        (item) => !isOutdatedSkipError(item),
+      );
+      d.summary.tldr = nonMaintenanceErrors.length
+        ? "本次扫描暂未确认安全风险，但有部分检查失败，结论需要复核后再作为发布依据。"
+        : "本次未命中已确认依赖风险项；过期依赖检查未执行，版本维护结论需要补跑确认。";
     } else {
       d.summary.tldr =
         "本次扫描未发现明确风险。这份报告可以作为当前项目安全状态的基线记录。";
@@ -146,11 +190,13 @@ const DATA = (() => {
     const projectName = d.project && d.project.name;
     const pkgCount = d.project.total_packages || d.package_count || 0;
     const detailParts = [];
-    const covered = projectName
-      ? `${projectName} 项目的 ${pkgCount || "多个"} 个依赖包`
-      : `${pkgCount || "多个"} 个依赖包`;
+    const covered = dependencyScopeText(
+      d.project,
+      d.package_sources || d.packageSources || [],
+      d.package_count,
+    );
     detailParts.push(
-      `本次扫描覆盖${covered}，识别出 ${confirmed} 个已确认风险项。`,
+      `本次检查覆盖项目 ${projectName || "-"}，识别到 ${covered}，命中 ${confirmed} 个已确认依赖风险项。`,
     );
     const outdatedText = outdatedDetailText(d.outdated);
     if (outdatedText) detailParts.push(outdatedText);
@@ -186,9 +232,16 @@ const DATA = (() => {
         `对 ${d.red.length} 个高风险事项按报告步骤处理，涉及凭证时先轮换，再评估是否需要清理 git 历史。`,
       );
     }
-    if (d.errors && d.errors.length) {
+    const nonMaintenanceErrors = d.errors.filter(
+      (item) => !isOutdatedSkipError(item),
+    );
+    if (nonMaintenanceErrors.length) {
       priority.push(
-        "复查扫描错误，补齐失败的官方漏洞源、包管理器或工具链检查后再确认最终结论。",
+        "复查扫描错误，补齐失败的官方漏洞源或工具链检查后再确认最终结论。",
+      );
+    } else if (d.errors && d.errors.some(isOutdatedSkipError)) {
+      priority.push(
+        "需要过期依赖结论时，显式允许项目包管理器命令后补跑版本维护检查。",
       );
     }
     if (!priority.length) {
@@ -494,7 +547,7 @@ function hygieneStatusForTldr() {
   if (missingCount) parts.push(`.gitignore 待补充 ${missingCount} 条`);
   if (localCheckCount)
     parts.push(`本地配置/工作流待确认 ${localCheckCount} 个`);
-  return `仓库安检仍有${parts.join("、")}`;
+  return `仓库安检仍有 ${parts.join("、")}`;
 }
 
 function genericTldr(raw) {
@@ -510,9 +563,9 @@ function dataDrivenTldr() {
   const riskPhrase = riskPhraseForTldr();
   const riskText = riskPhrase ? `，其中 ${riskPhrase}` : "";
   if (!riskPhrase) {
-    return `命中已确认风险项 ${count} 个，但严重度数据不足；${hygieneStatusForTldr()}。建议结合公告复核影响范围，确认修复版本后再安排升级。`;
+    return `本次在 ${dependencyScopeText(DATA.project, DATA.package_sources || [], DATA.package_count)}中命中 ${count} 个已确认依赖风险项，但严重度数据不足；${hygieneStatusForTldr()}。`;
   }
-  return `发现 ${count} 个已确认依赖风险项${riskText}，${hygieneStatusForTldr()}。`;
+  return `本次在 ${dependencyScopeText(DATA.project, DATA.package_sources || [], DATA.package_count)}中命中 ${count} 个已确认依赖风险项${riskText}；${hygieneStatusForTldr()}。`;
 }
 
 function readableTldr(raw) {
@@ -564,11 +617,13 @@ function readableDetail(raw) {
   const outdatedCount = DATA.outdated.length;
   const parts = [];
   if (packages || vulns.length) {
-    const covered = projectName
-      ? `${projectName} 项目的 ${packages || "多个"} 个依赖包`
-      : `${packages || "多个"} 个依赖包`;
+    const covered = dependencyScopeText(
+      DATA.project,
+      DATA.package_sources || [],
+      DATA.package_count,
+    );
     parts.push(
-      `本次扫描覆盖${covered}，识别出 ${vulns.length || DATA.project.total_vulnerabilities || 0} 个已确认风险项。`,
+      `本次检查覆盖项目 ${projectName || "-"}，识别到 ${covered}，命中 ${vulns.length || DATA.project.total_vulnerabilities || 0} 个已确认依赖风险项。`,
     );
   }
   if (group.name) {
@@ -3302,15 +3357,15 @@ if (
 function renderReportSummary(sm) {
   if (!sm || (!sm.priority && !sm.tldr && !sm.detail)) return "";
   const tldr = sm.tldr
-    ? `<div class="summary-tldr"><span>TL;DR</span><p>${esc(readableTldr(sm.tldr))}</p></div>`
+    ? `<div class="summary-tldr"><span>结论</span><p>${esc(readableTldr(sm.tldr))}</p></div>`
     : "";
   const detail = sm.detail
-    ? `<p class="lead">${esc(readableDetail(sm.detail))}</p>`
+    ? `<h3>扫描说明</h3><p class="lead">${esc(readableDetail(sm.detail))}</p>`
     : "";
-  const boundary = `<div class="summary-boundary"><p>${esc(CAPABILITY_BOUNDARY)}</p></div>`;
+  const boundary = `<h3>未覆盖与边界</h3><div class="summary-boundary"><p>${esc(CAPABILITY_BOUNDARY)}</p></div>`;
   const body = sm.priority
     ? Array.isArray(sm.priority)
-      ? sumList(sm.priority)
+      ? `<h3>建议动作</h3>${sumList(sm.priority)}`
       : `<p>${esc(sm.priority)}</p>`
     : "";
   return section(
@@ -3658,7 +3713,9 @@ function renderHygiene(h) {
     })
     .join("");
   const groupHtml = `${credentialGroupHtml}${localGroupHtml}`;
-  const extra = groupHtml ? `<div class="hygiene-groups">${groupHtml}</div>` : "";
+  const extra = groupHtml
+    ? `<div class="hygiene-groups">${groupHtml}</div>`
+    : "";
   const rowHtml = rows.length ? miniFields(rows) : "";
 
   return section(

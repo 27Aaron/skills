@@ -56,13 +56,6 @@ TRANSITIVE_RESIDUAL_GUIDANCE = (
     "或在用户确认后把锁住旧子依赖的父依赖升级到 latest。"
 )
 
-INCOMPLETE_SCAN_TLDR_NOTICE = "注意：本次检查不完整，部分官方漏洞源、包管理器或工具链检查失败，需复核后再判断剩余风险。"
-
-INCOMPLETE_SCAN_DETAIL_NOTICE = (
-    "另外，本次有部分官方漏洞源、包管理器或工具链检查失败；失败项补齐前，"
-    "报告只代表成功完成的检查项。"
-)
-
 STRUCTURED_HYGIENE_GROUPS = (
     "workflow_checks",
     "repository_checks",
@@ -860,43 +853,139 @@ def is_maintenance_advice(item):
     return item.get("kind") == "maintenance_advice"
 
 
-def summary_severity_phrase(risk_summary):
-    critical = int(risk_summary.get("critical") or 0)
-    high = int(risk_summary.get("high") or 0)
-    if critical and high:
-        return f"{critical} 个为紧急项、{high} 个为高风险项"
-    if critical:
-        return f"{critical} 个为紧急项"
-    if high:
-        return f"{high} 个为高风险项"
+def project_dependency_scope(project, scan):
+    count = project.get("total_packages", scan.get("package_count", 0)) or 0
+    ecosystems = unique_values(project.get("ecosystems") or [])
+    if not ecosystems:
+        ecosystems = unique_values(
+            [
+                item.get("ecosystem")
+                for item in scan.get("package_sources") or []
+                if isinstance(item, dict)
+            ]
+        )
+    ecosystem = "、".join(map(str, ecosystems[:3]))
+    if count and ecosystem:
+        return f"{count} 个 {ecosystem} 依赖"
+    if count:
+        return f"{count} 个依赖"
+    if ecosystem:
+        return f"{ecosystem} 依赖"
+    return "项目依赖"
 
-    medium = int(risk_summary.get("medium") or 0)
-    low = int(risk_summary.get("low") or 0)
-    if medium and low:
-        return f"{medium} 个为中风险项、{low} 个为低风险项"
-    if medium:
-        return f"{medium} 个为中风险项"
-    if low:
-        return f"{low} 个为低风险项"
-    return ""
+
+def package_focus_text(issues, limit=4):
+    packages = unique_values(
+        [item.get("package") or item.get("name") for item in issues or []]
+    )
+    if not packages:
+        return ""
+    visible = "、".join(map(str, packages[:limit]))
+    if len(packages) > limit:
+        visible += f" 等 {len(packages)} 个包"
+    return f"，涉及 {visible}"
 
 
-def summary_hygiene_status_phrase(
+def summary_hygiene_signal_phrase(
     secret_count, sensitive_count, missing_count, local_check_count
 ):
     if not (secret_count or sensitive_count or missing_count or local_check_count):
         return "仓库安检未发现凭证或敏感文件问题"
-
     parts = []
     if secret_count:
-        parts.append(f"疑似硬编码凭证 {secret_count} 处")
+        parts.append(f"{secret_count} 处疑似硬编码凭证需要确认")
     if sensitive_count:
-        parts.append(f"被跟踪敏感文件 {sensitive_count} 个")
+        parts.append(f"{sensitive_count} 个被跟踪敏感文件需要确认")
     if missing_count:
-        parts.append(f".gitignore 待补充 {missing_count} 条")
+        parts.append(f"{missing_count} 条 .gitignore 规则待补充")
     if local_check_count:
-        parts.append(f"本地配置/工作流待确认 {local_check_count} 个")
-    return "仓库安检仍有" + "、".join(parts)
+        parts.append(f"{local_check_count} 个本地配置/工作流项待确认")
+    return "另有 " + "、".join(parts)
+
+
+def hygiene_detail_sentences(
+    secret_count,
+    sensitive_count,
+    missing_count,
+    local_check_count,
+    maintenance_advice_count,
+):
+    parts = []
+    if secret_count:
+        parts.append(f"{secret_count} 处疑似硬编码凭证")
+    if sensitive_count:
+        parts.append(f"{sensitive_count} 个被 git 跟踪的敏感文件")
+    if missing_count:
+        parts.append(f"{missing_count} 条 .gitignore 待补充规则")
+
+    sentences = []
+    if parts:
+        sentences.append(f"仓库安检发现 {'、'.join(parts)}。")
+    else:
+        sentences.append(
+            "仓库安检未发现疑似硬编码凭证、敏感文件跟踪或 .gitignore 缺失。"
+        )
+    if local_check_count:
+        sentences.append(f"本地配置/工作流待确认 {local_check_count} 个。")
+    if maintenance_advice_count:
+        sentences.append(f"依赖维护建议 {maintenance_advice_count} 条。")
+    return sentences
+
+
+def is_outdated_skip_error(error):
+    step = str((error or {}).get("step") or "").lower()
+    message = str((error or {}).get("message") or "")
+    return step == "outdated_check" and (
+        "跳过" in message or "默认不执行" in message or "allow-project-exec" in message
+    )
+
+
+def is_vulnerability_source_error(error):
+    step = str((error or {}).get("step") or "").lower()
+    message = str((error or {}).get("message") or "").lower()
+    return any(
+        token in step or token in message
+        for token in (
+            "vulnerability",
+            "osv",
+            "nvd",
+            "cisa",
+            "kev",
+            "epss",
+            "漏洞源",
+        )
+    )
+
+
+def dependency_upgrade_targets(green_items, limit=3):
+    targets = []
+    for item in green_items or []:
+        if item.get("type") != "dependency_upgrade":
+            continue
+        package = item.get("package") or item.get("name")
+        if not package:
+            continue
+        fix_config = item.get("fix_config") or {}
+        target = fix_config.get("target_version") or item.get("target_version")
+        text = f"{package} 到 {target}" if target else str(package)
+        if text not in targets:
+            targets.append(text)
+    if not targets:
+        return ""
+    visible = "、".join(targets[:limit])
+    if len(targets) > limit:
+        visible += f" 等 {len(targets)} 个依赖"
+    return visible
+
+
+def secret_location_phrase(secrets, limit=2):
+    files = unique_values([item.get("file") for item in secrets or []])
+    if not files:
+        return ""
+    visible = "、".join(map(str, files[:limit]))
+    if len(files) > limit:
+        visible += f" 等 {len(files)} 个文件"
+    return visible
 
 
 def build_summary(scan, analysis):
@@ -933,6 +1022,11 @@ def build_summary(scan, analysis):
     local_check_count = len(structured_hygiene_items) - maintenance_advice_count
     outdated_count = len(scan.get("outdated") or [])
     errors = scan.get("errors") or []
+    outdated_skip_errors = [item for item in errors if is_outdated_skip_error(item)]
+    other_errors = [item for item in errors if not is_outdated_skip_error(item)]
+    vulnerability_errors = [
+        item for item in other_errors if is_vulnerability_source_error(item)
+    ]
     dependency_fix_count = len(
         [
             item
@@ -940,32 +1034,39 @@ def build_summary(scan, analysis):
             if item.get("type") == "dependency_upgrade"
         ]
     )
+    dependency_scope = project_dependency_scope(project, scan)
+    hygiene_signal = summary_hygiene_signal_phrase(
+        secret_count, sensitive_count, missing_count, local_check_count
+    )
 
     if hygiene_only:
         tldr = "本次没有发现当前支持的依赖文件，因此未执行依赖漏洞扫描；报告结论仅覆盖仓库安检范围。"
     elif critical_high and vuln_count:
-        risk_scope = "依赖风险项"
-        severity_summary = dependency_risk_summary
         tldr = (
-            f"发现 {vuln_count} 个已确认{risk_scope}，其中 {summary_severity_phrase(severity_summary)}，"
-            f"{summary_hygiene_status_phrase(secret_count, sensitive_count, missing_count, local_check_count)}。"
+            f"本次在 {dependency_scope}中命中 {vuln_count} 个已确认依赖风险项，"
+            f"其中 {critical_high} 个需要优先处理；{hygiene_signal}。"
         )
     elif vuln_count and medium_low:
-        risk_scope = "依赖风险项"
-        severity_summary = dependency_risk_summary
         tldr = (
-            f"发现 {vuln_count} 个已确认{risk_scope}，其中 {summary_severity_phrase(severity_summary)}，"
-            f"{summary_hygiene_status_phrase(secret_count, sensitive_count, missing_count, local_check_count)}。"
+            f"本次在 {dependency_scope}中命中 {vuln_count} 个已确认依赖风险项，"
+            f"以中低风险为主；{hygiene_signal}。"
         )
     elif vuln_count:
-        tldr = "命中已确认风险项，但严重度数据不足，需要结合公告复核影响范围。"
+        tldr = (
+            f"本次在 {dependency_scope}中命中 {vuln_count} 个已确认依赖风险项，"
+            f"但严重度数据不足；{hygiene_signal}。"
+        )
     elif local_critical_high:
         tldr = "仓库安检发现需要优先处理的本地安全配置风险，建议先处理工作流、凭证、容器或供应链高风险项。"
     elif secret_count or sensitive_count:
         tldr = "未发现高优先级依赖漏洞，但仓库里有凭证或敏感文件迹象，需要研发确认。"
-    elif errors:
+    elif vulnerability_errors or other_errors:
         tldr = (
             "本次扫描暂未确认安全风险，但有部分检查失败，结论需要复核后再作为发布依据。"
+        )
+    elif outdated_skip_errors:
+        tldr = (
+            "本次未命中已确认依赖风险项；过期依赖检查未执行，版本维护结论需要补跑确认。"
         )
     else:
         tldr = "本次扫描没有发现明确安全风险，可作为当前项目状态记录。"
@@ -978,38 +1079,63 @@ def build_summary(scan, analysis):
             f"本地配置/工作流检查项 {local_check_count} 个、建议 {maintenance_advice_count} 条。"
         )
     else:
-        detail = (
-            f"本次检查覆盖项目 {project.get('name') or '-'}，识别到 "
-            f"{project.get('total_packages', scan.get('package_count', 0)) or 0} 个依赖包，"
-            f"命中 {vuln_count} 个已确认风险项。仓库安检方面，发现疑似硬编码凭证 {secret_count} 处、"
-            f"被 git 跟踪的敏感文件 {sensitive_count} 个、建议补充的 .gitignore 规则 {missing_count} 条、"
-            f"本地配置/工作流检查项 {local_check_count} 个、建议 {maintenance_advice_count} 条。"
-            f"过期依赖 {outdated_count} 个，建议按维护窗口和兼容性评估安排升级。"
+        detail_parts = [
+            f"本次检查覆盖项目 {project.get('name') or '-'}，识别到 {dependency_scope}，"
+            f"命中 {vuln_count} 个已确认依赖风险项{package_focus_text(analysis.get('top_issues') or [])}。"
+        ]
+        detail_parts.extend(
+            hygiene_detail_sentences(
+                secret_count,
+                sensitive_count,
+                missing_count,
+                local_check_count,
+                maintenance_advice_count,
+            )
         )
+        if outdated_count:
+            detail_parts.append(
+                f"过期依赖 {outdated_count} 个，建议按维护窗口和兼容性评估安排升级。"
+            )
+        elif outdated_skip_errors:
+            detail_parts.append("过期依赖检查未执行：默认不运行项目包管理器命令。")
+        detail = "".join(detail_parts)
 
-    if errors:
-        if "部分检查失败" not in tldr and "检查不完整" not in tldr:
-            tldr = f"{tldr} {INCOMPLETE_SCAN_TLDR_NOTICE}"
-        detail = f"{detail}{INCOMPLETE_SCAN_DETAIL_NOTICE}"
+    if vulnerability_errors:
+        if "依赖漏洞检查不完整" not in tldr:
+            tldr = f"{tldr} 依赖漏洞检查不完整，需补齐失败项后再作为发布依据。"
+        detail = (
+            f"{detail}另外，本次有官方漏洞源或工具链检查失败；失败项补齐前，"
+            "报告只代表成功完成的检查项。"
+        )
+    elif other_errors:
+        if "部分检查失败" not in tldr:
+            tldr = f"{tldr} 注意：本次有部分检查失败，需复核后再判断剩余风险。"
+        detail = f"{detail}另外，本次有部分检查失败；失败项补齐前，报告只代表成功完成的检查项。"
 
     priority = []
     if hygiene_only:
         priority.append(HYGIENE_ONLY_NOTICE)
     elif critical_high:
-        priority.append(
-            f"优先处理 {critical_high} 个紧急/高风险项；依赖漏洞先处理有明确修复版本或官方处置路径的项，仓库安检项先处理工作流权限、凭证、容器和供应链配置。"
-        )
+        targets = dependency_upgrade_targets(analysis.get("green") or [])
+        if targets:
+            priority.append(f"先升级 {targets}，完成后重新运行扫描。")
+        else:
+            priority.append(
+                f"优先处理 {critical_high} 个紧急/高风险项，先处理有明确修复版本或官方处置路径的项。"
+            )
     elif local_critical_high:
         priority.append(
             "优先处理仓库安检中的高风险本地配置项，例如工作流权限、凭证、容器或供应链配置。"
         )
     elif vuln_count:
         priority.append(
-            f"按影响程度处理 {vuln_count} 个已确认依赖风险项，优先选择有明确证据和修复路径的项。"
+            f"按影响程度处理 {vuln_count} 个已确认依赖风险项，先处理有明确修复版本或官方处置路径的项。"
         )
     if secret_count or sensitive_count:
+        location = secret_location_phrase(hygiene.get("tracked_secrets") or [])
+        prefix = f"确认 {location} 中的凭证线索" if location else "确认凭证和敏感文件"
         priority.append(
-            "安排研发确认凭证和敏感文件是否真实有效；如有效，先轮换或撤销，再清理代码中的明文。"
+            f"{prefix}是否真实有效；如有效，先轮换或撤销，再清理代码中的明文。"
         )
     if missing_count:
         priority.append("补充 .gitignore 敏感文件规则，降低后续误提交概率。")
@@ -1024,10 +1150,16 @@ def build_summary(scan, analysis):
             "依赖修复后必须重新运行扫描；如果仍出现同名旧版本，通常是间接依赖被父包锁定，"
             "需要询问用户是否确认升级父依赖到 latest。"
         )
-    if errors:
+    if outdated_skip_errors:
         priority.append(
-            "复查扫描错误，补齐失败的官方漏洞源、包管理器或工具链检查后再确认最终结论。"
+            "需要过期依赖结论时，显式允许项目包管理器命令后补跑版本维护检查。"
         )
+    if vulnerability_errors:
+        priority.append(
+            "复查扫描错误，补齐失败的官方漏洞源或工具链检查后再确认最终结论。"
+        )
+    elif other_errors:
+        priority.append("复查扫描错误，补齐失败的检查项后再确认最终结论。")
     if not priority:
         priority.append(
             "当前没有需要立即处理的明确风险，建议保留报告作为本次检查记录。"

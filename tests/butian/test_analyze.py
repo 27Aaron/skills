@@ -1193,15 +1193,16 @@ class TestBuildSummary(unittest.TestCase):
         )
         result = analyze.build_summary(scan, analysis)
 
-        self.assertIn("1 个为紧急项、2 个为高风险项", result["tldr"])
-        self.assertTrue(any("3 个紧急/高风险项" in p for p in result["priority"]))
-        self.assertIn("已确认风险项", result["detail"])
+        self.assertIn("3 个需要优先处理", result["tldr"])
+        self.assertTrue(any("优先处理" in p for p in result["priority"]))
+        self.assertIn("已确认依赖风险项", result["detail"])
 
     def test_tldr_uses_counts_focus_package_and_clean_hygiene_status(self):
         scan = _make_scan(
             project={
                 "name": "mimotion",
                 "path": "/tmp/mimotion",
+                "ecosystems": ["npm"],
                 "total_packages": 834,
             },
             hygiene={
@@ -1247,7 +1248,7 @@ class TestBuildSummary(unittest.TestCase):
 
         self.assertEqual(
             result["tldr"],
-            "发现 32 个已确认依赖风险项，其中 11 个为高风险项，仓库安检未发现凭证或敏感文件问题。",
+            "本次在 834 个 npm 依赖中命中 32 个已确认依赖风险项，其中 11 个需要优先处理；仓库安检未发现凭证或敏感文件问题。",
         )
         self.assertNotIn("主要集中", result["tldr"])
         self.assertNotIn("建议先升级", result["tldr"])
@@ -1274,9 +1275,9 @@ class TestBuildSummary(unittest.TestCase):
 
         result = analyze.build_summary(scan, analysis)
 
-        self.assertIn("发现 1 个已确认依赖风险项", result["tldr"])
-        self.assertIn("1 个为中风险项", result["tldr"])
-        self.assertIn("疑似硬编码凭证 1 处", result["tldr"])
+        self.assertIn("命中 1 个已确认依赖风险项", result["tldr"])
+        self.assertIn("以中低风险为主", result["tldr"])
+        self.assertIn("1 处疑似硬编码凭证需要确认", result["tldr"])
         self.assertNotIn("高风险项，仓库安检", result["tldr"])
 
     def test_secrets_found(self):
@@ -1291,7 +1292,7 @@ class TestBuildSummary(unittest.TestCase):
         result = analyze.build_summary(scan, analysis)
 
         self.assertIn("凭证或敏感文件", result["tldr"])
-        self.assertTrue(any("研发确认凭证" in p for p in result["priority"]))
+        self.assertTrue(any("确认凭证" in p for p in result["priority"]))
 
     def test_errors_in_scan(self):
         scan = _make_scan(errors=[{"message": "pip failed"}])
@@ -1310,11 +1311,33 @@ class TestBuildSummary(unittest.TestCase):
 
         result = analyze.build_summary(scan, analysis)
 
-        self.assertIn("发现 1 个已确认依赖风险项", result["tldr"])
-        self.assertIn("本次检查不完整", result["tldr"])
-        self.assertIn("官方漏洞源", result["tldr"])
+        self.assertIn("命中 1 个已确认依赖风险项", result["tldr"])
+        self.assertIn("依赖漏洞检查不完整", result["tldr"])
+        self.assertIn("官方漏洞源或工具链", result["detail"])
         self.assertIn("失败项补齐前", result["detail"])
         self.assertTrue(any("复查扫描错误" in p for p in result["priority"]))
+
+    def test_skipped_outdated_check_is_maintenance_gap_not_vulnerability_failure(self):
+        scan = _make_scan(
+            errors=[
+                {
+                    "step": "outdated_check",
+                    "message": "已跳过过期依赖检查：默认不执行项目内包管理器命令。",
+                }
+            ]
+        )
+        analysis = self._make_analysis(
+            risk_summary={"critical": 0, "high": 1, "medium": 0, "low": 0, "info": 0},
+            top_issues=[{"package": "demo", "severity": "high"}],
+        )
+
+        result = analyze.build_summary(scan, analysis)
+
+        self.assertIn("命中 1 个已确认依赖风险项", result["tldr"])
+        self.assertNotIn("官方漏洞源", result["tldr"])
+        self.assertNotIn("依赖漏洞检查不完整", result["tldr"])
+        self.assertIn("过期依赖检查未执行", result["detail"])
+        self.assertTrue(any("版本维护检查" in p for p in result["priority"]))
 
     def test_clean_scan(self):
         scan = _make_scan()
@@ -1332,8 +1355,8 @@ class TestBuildSummary(unittest.TestCase):
         )
         result = analyze.build_summary(scan, analysis)
 
-        self.assertIn("3 个已确认依赖风险项", result["tldr"])
-        self.assertIn("2 个为中风险项", result["tldr"])
+        self.assertIn("命中 3 个已确认依赖风险项", result["tldr"])
+        self.assertIn("以中低风险为主", result["tldr"])
         self.assertIn("已确认依赖风险项", result["tldr"])
         self.assertTrue(any("已确认依赖风险项" in p for p in result["priority"]))
 
@@ -1346,7 +1369,7 @@ class TestBuildSummary(unittest.TestCase):
         result = analyze.build_summary(scan, analysis)
 
         self.assertIn("严重度数据不足", result["tldr"])
-        self.assertIn("命中已确认风险项", result["tldr"])
+        self.assertIn("命中 5 个已确认依赖风险项", result["tldr"])
 
     def test_detail_mentions_project_name(self):
         scan = _make_scan(project={"name": "my-cool-app", "path": "/tmp/app"})
@@ -1379,8 +1402,8 @@ class TestBuildSummary(unittest.TestCase):
         analysis = self._make_analysis()
         result = analyze.build_summary(scan, analysis)
 
-        self.assertIn("本地配置/工作流检查项 1 个", result["detail"])
-        self.assertIn("建议 1 条", result["detail"])
+        self.assertIn("本地配置/工作流待确认 1 个", result["detail"])
+        self.assertIn("依赖维护建议 1 条", result["detail"])
 
     def test_tier_stats(self):
         scan = _make_scan()

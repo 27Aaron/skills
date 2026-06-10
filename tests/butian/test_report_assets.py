@@ -1692,18 +1692,22 @@ class ReportAssetTests(unittest.TestCase):
         html = self._render_html(data)
 
         self.assertIn(
-            "发现 1 个已确认依赖风险项，其中 1 个为高风险项，仓库安检未发现凭证或敏感文件问题。",
+            "本次在 3 个 npm 依赖中命中 1 个已确认依赖风险项，其中 1 个为高风险项；仓库安检未发现凭证或敏感文件问题。",
             html,
         )
         self.assertNotIn("主要集中在 focus-pkg", html)
         self.assertNotIn("建议先升级有明确修复版本", html)
         self.assertNotIn("其中 1 个高风险，主要集中在 focus-pkg", html)
-        tldr_index = html.index("TL;DR")
+        tldr_index = html.index("结论")
+        facts_index = html.index("扫描说明")
+        actions_index = html.index("建议动作")
         detail_index = html.index("本次检查覆盖项目 demo")
         priority_index = html.index("重新运行扫描")
         boundary_index = html.index("安全的价值不只在于发现问题")
-        self.assertLess(tldr_index, detail_index)
+        self.assertLess(tldr_index, facts_index)
+        self.assertLess(facts_index, detail_index)
         self.assertLess(detail_index, priority_index)
+        self.assertLess(actions_index, priority_index)
         self.assertLess(priority_index, boundary_index)
         self.assertIn('class="summary-boundary"', html)
         self.assertNotIn('class="summary-boundary warning"', html)
@@ -2583,7 +2587,7 @@ class ReportAssetTests(unittest.TestCase):
             "outdated": [],
         }
         html = self._render_html(data)
-        self.assertIn("命中已确认风险项", html)
+        self.assertIn("命中 2 个已确认依赖风险项", html)
 
     def test_detail_and_priority_fallback_use_risk_item_term(self):
         data = {
@@ -2611,7 +2615,7 @@ class ReportAssetTests(unittest.TestCase):
             "outdated": [],
         }
         html = self._render_html(data)
-        self.assertIn("识别出 1 个已确认风险项", html)
+        self.assertIn("命中 1 个已确认依赖风险项", html)
         self.assertIn("已确认依赖风险项", html)
 
     def test_readable_tldr_and_detail_use_risk_item_term(self):
@@ -2646,7 +2650,7 @@ class ReportAssetTests(unittest.TestCase):
         }
         html = self._render_html(data)
         self.assertIn("已确认依赖风险项", html)
-        self.assertIn("已确认风险项", html)
+        self.assertNotIn("识别出 1 个已确认风险项", html)
 
     def test_html_omits_outdated_section_without_outdated_items(self):
         cases = [

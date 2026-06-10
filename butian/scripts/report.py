@@ -474,18 +474,18 @@ def render_summary(analysis):
     summary = analysis.get("summary") or {}
     lines = []
     lines.append(
-        f"- TL;DR：{markdown_text(summary.get('tldr')) or '本次扫描没有生成摘要。'}"
+        f"- 结论：{markdown_text(summary.get('tldr')) or '本次扫描没有生成摘要。'}"
     )
     if summary.get("detail"):
-        lines.append(f"- 详细说明：{markdown_text(summary.get('detail'))}")
+        lines.append(f"- 扫描说明：{markdown_text(summary.get('detail'))}")
     if is_hygiene_only(analysis):
         lines.append(f"- 扫描范围：{HYGIENE_ONLY_NOTICE}")
-    lines.append(f"- 能力边界：{CAPABILITY_BOUNDARY}")
     priority = to_list(summary.get("priority"))
     if priority:
-        lines.append("- 优先级建议：")
+        lines.append("- 建议动作：")
         for item in priority:
             lines.append(f"  - {markdown_text(item)}")
+    lines.append(f"- 未覆盖与边界：{CAPABILITY_BOUNDARY}")
     lines.append("")
     return "\n".join(lines)
 
