@@ -137,11 +137,6 @@ def parse_args(argv):
         default="",
         help="可选 SSH config 路径",
     )
-    parser.add_argument(
-        "--include-docker-metadata",
-        action="store_true",
-        help="采集 Docker 容器名、镜像标签和端口映射；不进入容器、不扫描镜像内部",
-    )
     args = parser.parse_args(argv)
     if args.server_only and not (args.server or args.server_inventory):
         parser.error("--server-only requires --server or --server-inventory")
@@ -658,9 +653,6 @@ def format_human_summary(summary, scan, analysis, args):
         assets_dir = os.path.dirname(os.path.abspath(summary["analysis_file"]))
         server_asset_names = (
             ("server inventory JSON", "server-inventory.json"),
-            ("server assets JSON", "server-assets.json"),
-            ("server vulnerabilities JSON", "server-vulns.json"),
-            ("server analysis JSON", "server-analysis.json"),
         )
         for label, filename in server_asset_names:
             path = relative_path(os.path.join(assets_dir, filename), project_path)
@@ -787,9 +779,6 @@ def merge_server_payload(scan, server_payload):
 
     assets_dir = os.path.dirname(os.path.abspath(scan["output_file"]))
     write_json(os.path.join(assets_dir, "server-inventory.json"), server["inventory"])
-    write_json(os.path.join(assets_dir, "server-assets.json"), server["assets"])
-    write_json(os.path.join(assets_dir, "server-vulns.json"), server["matched"])
-    write_json(os.path.join(assets_dir, "server-analysis.json"), analysis)
     return scan
 
 
@@ -827,7 +816,6 @@ def main():
                 port=args.ssh_port,
                 identity=args.identity,
                 ssh_config=args.ssh_config,
-                include_docker_metadata=args.include_docker_metadata,
             )
         inventory = strip_server_identity(inventory)
         project_path_for_server = (preflight.get("project") or {}).get(

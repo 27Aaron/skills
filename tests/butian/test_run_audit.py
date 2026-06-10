@@ -482,9 +482,9 @@ class FormatHumanSummaryTests(unittest.TestCase):
         self.assertIn("nginx", result)
         self.assertIn("HTML 报告：服务器扫描不生成 HTML", result)
         self.assertIn("server-inventory.json", result)
-        self.assertIn("server-assets.json", result)
-        self.assertIn("server-vulns.json", result)
-        self.assertIn("server-analysis.json", result)
+        self.assertNotIn("server-assets.json", result)
+        self.assertNotIn("server-vulns.json", result)
+        self.assertNotIn("server-analysis.json", result)
         self.assertNotIn("总依赖", result)
         self.assertNotIn("仓库安检", result)
         self.assertNotIn("未发现需要优先处理的依赖漏洞", result)
@@ -681,7 +681,6 @@ class ServerArgsTests(unittest.TestCase):
                 "2222",
                 "--identity",
                 "/tmp/id_ed25519",
-                "--include-docker-metadata",
             ]
         )
 
@@ -689,7 +688,6 @@ class ServerArgsTests(unittest.TestCase):
         self.assertTrue(args.server_only)
         self.assertEqual(args.ssh_port, 2222)
         self.assertEqual(args.identity, "/tmp/id_ed25519")
-        self.assertTrue(args.include_docker_metadata)
 
     def test_parse_server_args_can_still_use_ssh_config(self):
         args = run_audit.parse_args(
@@ -871,14 +869,13 @@ class ServerOnlyPipelineTests(unittest.TestCase):
 
             modules = {
                 "butian.scripts.server_collect": SimpleNamespace(
-                    collect_server_inventory=lambda target, port, identity, ssh_config, include_docker_metadata: (
+                    collect_server_inventory=lambda target, port, identity, ssh_config: (
                         collect_calls.append(
                             {
                                 "target": target,
                                 "port": port,
                                 "identity": identity,
                                 "ssh_config": ssh_config,
-                                "include_docker_metadata": include_docker_metadata,
                             }
                         )
                         or server_inventory
@@ -955,7 +952,6 @@ class ServerOnlyPipelineTests(unittest.TestCase):
                     "2222",
                     "--identity",
                     "/tmp/id_server_only",
-                    "--include-docker-metadata",
                     "--no-open",
                     project,
                 ]
@@ -978,7 +974,6 @@ class ServerOnlyPipelineTests(unittest.TestCase):
                         "port": 2222,
                         "identity": "/tmp/id_server_only",
                         "ssh_config": "",
-                        "include_docker_metadata": True,
                     }
                 ],
             )
@@ -990,33 +985,21 @@ class ServerOnlyPipelineTests(unittest.TestCase):
                 encoding="utf-8",
             ) as handle:
                 inventory_json = json.load(handle)
-            with open(
-                os.path.join(assets_dir, "server-assets.json"),
-                "r",
-                encoding="utf-8",
-            ) as handle:
-                assets_json = json.load(handle)
-            with open(
-                os.path.join(assets_dir, "server-analysis.json"),
-                "r",
-                encoding="utf-8",
-            ) as handle:
-                server_analysis_json = json.load(handle)
-            with open(
-                os.path.join(assets_dir, "server-vulns.json"),
-                "r",
-                encoding="utf-8",
-            ) as handle:
-                server_vulns_json = json.load(handle)
 
             self.assertEqual(scan["scan_config"]["scan_mode"], "server_only")
             self.assertEqual(scan["vulnerabilities"], [])
             self.assertEqual(scan["server"], server_analysis)
             self.assertIn(server_analysis["errors"][0], scan["errors"])
             self.assertEqual(inventory_json, sanitized_server_inventory)
-            self.assertEqual(assets_json, server_assets)
-            self.assertEqual(server_analysis_json, server_analysis)
-            self.assertEqual(server_vulns_json, server_matched)
+            self.assertFalse(
+                os.path.exists(os.path.join(assets_dir, "server-assets.json"))
+            )
+            self.assertFalse(
+                os.path.exists(os.path.join(assets_dir, "server-analysis.json"))
+            )
+            self.assertFalse(
+                os.path.exists(os.path.join(assets_dir, "server-vulns.json"))
+            )
             command_names = [os.path.basename(cmd[1]) for cmd in captured["commands"]]
             self.assertIn("report.py", command_names)
             self.assertNotIn("visualize.py", command_names)
