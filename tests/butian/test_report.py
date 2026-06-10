@@ -353,6 +353,25 @@ class RenderVulnerabilitiesTests(unittest.TestCase):
         self.assertNotIn("1.11.23", result)
         self.assertNotIn("3.2.25", result)
 
+    def test_go_pseudo_version_fixed_version_is_kept(self):
+        result = report.render_vulnerabilities(
+            {
+                "top_issues": [
+                    {
+                        "severity": "critical",
+                        "package": "golang.org/x/crypto",
+                        "version": "v0.0.0-20200622213623-75b288015ac9",
+                        "fixed_versions": ["v0.0.0-20260622213623-75b288015ac9"],
+                        "advisory_id": "GO-2026-5006",
+                    }
+                ],
+                "scan_config": {"scan_mode": "full_dependency_scan"},
+            }
+        )
+
+        self.assertIn("v0.0.0-20260622213623-75b288015ac9", result)
+        self.assertNotIn("| 待确认 |", result)
+
     def test_malicious_security_id_does_not_break_markdown_link(self):
         result = report.render_vulnerabilities(
             {

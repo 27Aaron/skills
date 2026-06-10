@@ -92,6 +92,11 @@ def version_parts(value):
     return [int(part) for part in match.group(0).split(".")]
 
 
+def pseudo_version_timestamp(value):
+    match = re.search(r"-(\d{14})-[0-9A-Fa-f]+$", text(value))
+    return int(match.group(1)) if match else None
+
+
 def compare_versions(a, b):
     left = version_parts(a)
     right = version_parts(b)
@@ -101,6 +106,10 @@ def compare_versions(a, b):
         )
         if delta:
             return delta
+    left_timestamp = pseudo_version_timestamp(a)
+    right_timestamp = pseudo_version_timestamp(b)
+    if left_timestamp is not None and right_timestamp is not None:
+        return left_timestamp - right_timestamp
     return 0
 
 

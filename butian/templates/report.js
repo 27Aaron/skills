@@ -422,6 +422,11 @@ function versionParts(value) {
   return match[0].split(".").map((x) => Number(x) || 0);
 }
 
+function pseudoVersionTimestamp(value) {
+  const match = String(value || "").match(/-(\d{14})-[0-9A-Fa-f]+$/);
+  return match ? Number(match[1]) : NaN;
+}
+
 function compareVersions(a, b) {
   const pa = versionParts(a);
   const pb = versionParts(b);
@@ -429,6 +434,9 @@ function compareVersions(a, b) {
     const delta = (pa[i] || 0) - (pb[i] || 0);
     if (delta) return delta;
   }
+  const ta = pseudoVersionTimestamp(a);
+  const tb = pseudoVersionTimestamp(b);
+  if (Number.isFinite(ta) && Number.isFinite(tb)) return ta - tb;
   return 0;
 }
 
