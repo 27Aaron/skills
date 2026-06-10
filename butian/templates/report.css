@@ -1083,7 +1083,10 @@ td.summary-cell {
     font-size: 11px;
 }
 .hygiene-finding-secret .hygiene-finding-body {
-    margin-top: 10px;
+    margin-top: 6px;
+}
+.hygiene-finding-secret .secret-evidence {
+    margin-top: 0;
 }
 .hygiene-finding-loc {
     max-width: min(420px, 42vw);

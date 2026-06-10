@@ -2324,6 +2324,18 @@ class ReportAssetTests(unittest.TestCase):
         self.assertIn(".secret-evidence-head:focus-visible {", css)
         self.assertNotIn(".secret-toggle-btn", css)
 
+        secret_body_css = css.split(
+            ".hygiene-finding-secret .hygiene-finding-body {",
+            1,
+        )[1].split("}", 1)[0]
+        self.assertIn("margin-top: 6px;", secret_body_css)
+
+        secret_evidence_spacing_css = css.split(
+            ".hygiene-finding-secret .secret-evidence {",
+            1,
+        )[1].split("}", 1)[0]
+        self.assertIn("margin-top: 0;", secret_evidence_spacing_css)
+
         finding_note_css = css.split(".hygiene-finding-note {", 1)[1].split("}", 1)[0]
         self.assertIn("border: 1px solid var(--field-border);", finding_note_css)
         self.assertIn("border-radius: var(--radius-field);", finding_note_css)
