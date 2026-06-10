@@ -1230,6 +1230,38 @@ class ParseNugetTests(unittest.TestCase):
                 ],
             )
 
+    def test_packages_lock_json_direct_dependency_wins_across_targets(self):
+        with tempfile.TemporaryDirectory(prefix="butian-nuget-lock-") as root:
+            with open(
+                os.path.join(root, "packages.lock.json"), "w", encoding="utf-8"
+            ) as f:
+                json.dump(
+                    {
+                        "version": 1,
+                        "dependencies": {
+                            "net6.0": {
+                                "Shared.Package": {
+                                    "type": "Transitive",
+                                    "resolved": "1.2.3",
+                                }
+                            },
+                            "net8.0": {
+                                "Shared.Package": {
+                                    "type": "Direct",
+                                    "resolved": "1.2.3",
+                                }
+                            },
+                        },
+                    },
+                    f,
+                )
+
+            pkgs = scan.parse_nuget(root)
+
+            self.assertEqual(len(pkgs), 1)
+            self.assertEqual(pkgs[0]["name"], "Shared.Package")
+            self.assertTrue(pkgs[0]["is_direct"])
+
     def test_skips_missing_versions(self):
         with tempfile.TemporaryDirectory(prefix="butian-nuget-missing-") as root:
             with open(

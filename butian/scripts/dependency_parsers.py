@@ -608,7 +608,7 @@ def parse_packages_config(project_path):
 
 
 def parse_nuget(project_path):
-    pkgs, seen = [], set()
+    pkgs, index_by_key = [], {}
     for parser in (parse_packages_lock_json, parse_packages_config):
         for pkg in parser(project_path):
             key = (
@@ -616,9 +616,12 @@ def parse_nuget(project_path):
                 str(pkg["name"]).lower(),
                 pkg["version"],
             )
-            if key in seen:
+            if key in index_by_key:
+                existing_index = index_by_key[key]
+                if pkg.get("is_direct") and not pkgs[existing_index].get("is_direct"):
+                    pkgs[existing_index] = pkg
                 continue
-            seen.add(key)
+            index_by_key[key] = len(pkgs)
             pkgs.append(pkg)
     return pkgs
 
