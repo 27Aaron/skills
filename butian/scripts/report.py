@@ -656,9 +656,15 @@ def _server_fixed_versions(item):
 def _server_section_errors(analysis):
     seen = set()
     errors = []
-    for error in (analysis.get("server_errors") or []) + (analysis.get("errors") or []):
+    for error in analysis.get("server_errors") or []:
+        key = (error.get("step"), error.get("message"), error.get("code"))
+        if key in seen:
+            continue
+        seen.add(key)
+        errors.append(error)
+    for error in analysis.get("errors") or []:
         step = str(error.get("step") or "")
-        if not (step.startswith("server") or step == "vulnerability_check"):
+        if not step.startswith("server"):
             continue
         key = (step, error.get("message"), error.get("code"))
         if key in seen:

@@ -654,7 +654,10 @@ class RenderServerEnvironmentTests(unittest.TestCase):
             "server_ports": [
                 {"address": "0.0.0.0", "port": 443, "process": "nginx", "public": True}
             ],
-            "errors": [{"step": "vulnerability_check", "message": "OSV failed"}],
+            "server_errors": [
+                {"step": "vulnerability_check", "message": "Server OSV failed"}
+            ],
+            "errors": [{"step": "vulnerability_check", "message": "Project OSV failed"}],
         }
 
         result = report.render_server_environment(analysis)
@@ -688,7 +691,8 @@ class RenderServerEnvironmentTests(unittest.TestCase):
         self.assertIn("系统安全更新可用：openssl", result)
         self.assertIn("SSH 允许密码登录", result)
         self.assertIn("0.0.0.0", result)
-        self.assertIn("OSV failed", result)
+        self.assertIn("Server OSV failed", result)
+        self.assertNotIn("Project OSV failed", result)
         self.assertLess(
             result.index("### 已确认风险"), result.index("### 建议优先处理")
         )
