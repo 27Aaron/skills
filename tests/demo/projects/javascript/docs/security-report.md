@@ -2,8 +2,8 @@
 
 - 项目：javascript
 - 路径：`/Users/aaron/Documents/Project/skills/tests/demo/projects/javascript`
-- 生成时间：2026-06-10 17:26:24
-- 扫描耗时：7.3 秒
+- 生成时间：2026-06-10 17:45:13
+- 扫描耗时：11.9 秒
 
 ## 报告总结
 
@@ -39,8 +39,8 @@
 
 | 位置 | 类型 | 可信度 | 证据预览 |
 | --- | --- | --- | --- |
-| src/config.js:1 | 疑似密码 | medium | password = "***" |
-| src/config.js:2 | 疑似 API Key | medium | api_key = "***" |
+| src/config.js:1 | 疑似密码 | medium | password = "demo_p************report" |
+| src/config.js:2 | 疑似 API Key | medium | api_key = "demo_a***********report" |
 | src/config.js:3 | PostgreSQL 连接字符串 | high | postgre...host |
 
 ### 依赖配置与维护
