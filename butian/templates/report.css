@@ -1890,14 +1890,24 @@ footer {
 @media (max-width: 860px) {
     .table-scroll {
         --mobile-risk-label-col: clamp(76px, 18vw, 108px);
+        max-width: 100%;
         overflow-x: visible;
         padding: 8px;
     }
     .table-scroll table,
     .stable-table,
     .vuln-table {
+        display: block;
         width: 100%;
         min-width: 0;
+        max-width: 100%;
+        table-layout: auto;
+    }
+    .table-scroll table.vuln-table {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
         table-layout: auto;
     }
     .vuln-table colgroup,
@@ -1907,10 +1917,14 @@ footer {
     .vuln-table tbody {
         display: grid;
         gap: 12px;
+        min-width: 0;
+        max-width: 100%;
     }
     .vuln-table tr {
         display: grid;
         gap: 8px;
+        min-width: 0;
+        max-width: 100%;
         padding: 14px 16px;
         border: 1px solid var(--surface-border);
         border-radius: calc(var(--radius-sm) + 2px);
@@ -1944,9 +1958,11 @@ footer {
         grid-template-columns: var(--mobile-risk-label-col) minmax(0, 1fr);
         gap: 4px 12px;
         min-width: 0;
+        max-width: 100%;
         padding: 0;
         border-bottom: 0;
         align-items: center;
+        overflow-wrap: anywhere;
     }
     .vuln-table td::before {
         content: attr(data-label);
@@ -1961,15 +1977,61 @@ footer {
         width: max-content;
         max-width: 100%;
     }
+    .vuln-table td.ver {
+        overflow: visible;
+        white-space: normal;
+    }
+    .vuln-table .package-cell {
+        white-space: normal;
+    }
+    .vuln-table .package-cell b {
+        overflow: visible;
+        overflow-wrap: anywhere;
+        text-overflow: clip;
+        white-space: normal;
+    }
     .vuln-table .package-cell b,
     .vuln-table .summary-cell,
     .vuln-table .advisory {
         min-width: 0;
         overflow-wrap: anywhere;
     }
+    .vuln-table .version-scroll {
+        overflow-x: visible;
+        overflow-y: visible;
+        padding-bottom: 0;
+        white-space: normal;
+        -webkit-mask-image: none;
+        mask-image: none;
+    }
+    .vuln-table .version-scroll-inner {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        transform: none;
+        white-space: normal;
+        word-break: break-word;
+    }
+    .vuln-table .version-scroll.is-overflowing .version-scroll-inner {
+        animation: none;
+    }
+    .vuln-table .fixed-chip {
+        overflow-wrap: anywhere;
+        white-space: normal;
+    }
+    .vuln-table .fixed-empty {
+        overflow-wrap: anywhere;
+        white-space: normal;
+    }
     .vuln-table .adv-list {
         grid-template-columns: 1fr;
         justify-content: stretch;
+        overflow-x: visible;
+        overflow-y: visible;
+    }
+    .vuln-table .adv-list a {
+        overflow-wrap: anywhere;
+        white-space: normal;
+        word-break: break-word;
     }
     .vuln-table .fixed-list {
         display: grid;
@@ -1979,8 +2041,11 @@ footer {
         width: 100%;
     }
     .vuln-table .summary-cell {
+        max-width: 100%;
         color: var(--text-soft);
         line-height: 1.62;
+        white-space: normal;
+        word-break: break-word;
     }
     .vuln-detail-row td,
     .vuln-toggle td {

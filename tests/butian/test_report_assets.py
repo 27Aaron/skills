@@ -491,6 +491,100 @@ class ReportAssetTests(unittest.TestCase):
         self.assertIn(".vuln-table thead", css)
         self.assertIn("content: attr(data-label)", css)
         self.assertIn("--mobile-risk-label-col: clamp(76px, 18vw, 108px);", css)
+        mobile_risk_css = css.split("@media (max-width: 860px) {", 1)[1].split(
+            "@media (max-width: 640px)",
+            1,
+        )[0]
+        mobile_scroll_css = mobile_risk_css.split("    .table-scroll {", 1)[1].split(
+            "}",
+            1,
+        )[0]
+        self.assertIn("overflow-x: visible;", mobile_scroll_css)
+        self.assertNotIn("overflow-x: hidden;", mobile_scroll_css)
+        mobile_table_css = mobile_risk_css.split(
+            "    .table-scroll table,\n    .stable-table,\n    .vuln-table {",
+            1,
+        )[1].split("}", 1)[0]
+        self.assertIn("display: block;", mobile_table_css)
+        self.assertIn("max-width: 100%;", mobile_table_css)
+        self.assertIn("    .table-scroll table.vuln-table {", mobile_risk_css)
+        mobile_vuln_table_css = mobile_risk_css.split(
+            "    .table-scroll table.vuln-table {",
+            1,
+        )[1].split("}", 1)[0]
+        self.assertIn("display: block;", mobile_vuln_table_css)
+        self.assertIn("min-width: 0;", mobile_vuln_table_css)
+        self.assertIn("max-width: 100%;", mobile_vuln_table_css)
+        mobile_row_css = mobile_risk_css.split("    .vuln-table tr {", 1)[1].split(
+            "}",
+            1,
+        )[0]
+        self.assertIn("min-width: 0;", mobile_row_css)
+        self.assertIn("max-width: 100%;", mobile_row_css)
+        mobile_td_css = mobile_risk_css.split("    .vuln-table td {", 1)[1].split(
+            "}",
+            1,
+        )[0]
+        self.assertIn("max-width: 100%;", mobile_td_css)
+        for selector in (
+            "    .vuln-table td.ver {",
+            "    .vuln-table .package-cell b {",
+            "    .vuln-table .version-scroll {",
+            "    .vuln-table .version-scroll-inner {",
+            "    .vuln-table .fixed-chip {",
+            "    .vuln-table .adv-list a {",
+        ):
+            self.assertIn(selector, mobile_risk_css)
+        mobile_version_cell_css = mobile_risk_css.split(
+            "    .vuln-table td.ver {",
+            1,
+        )[1].split("}", 1)[0]
+        self.assertIn("overflow: visible;", mobile_version_cell_css)
+        self.assertIn("white-space: normal;", mobile_version_cell_css)
+        mobile_package_b_css = mobile_risk_css.split(
+            "    .vuln-table .package-cell b {",
+            1,
+        )[1].split("}", 1)[0]
+        self.assertIn("overflow: visible;", mobile_package_b_css)
+        self.assertIn("text-overflow: clip;", mobile_package_b_css)
+        self.assertIn("white-space: normal;", mobile_package_b_css)
+        mobile_version_scroll_css = mobile_risk_css.split(
+            "    .vuln-table .version-scroll {",
+            1,
+        )[1].split("}", 1)[0]
+        self.assertIn("overflow-x: visible;", mobile_version_scroll_css)
+        self.assertIn("white-space: normal;", mobile_version_scroll_css)
+        self.assertIn("mask-image: none;", mobile_version_scroll_css)
+        mobile_version_inner_css = mobile_risk_css.split(
+            "    .vuln-table .version-scroll-inner {",
+            1,
+        )[1].split("}", 1)[0]
+        self.assertIn("min-width: 0;", mobile_version_inner_css)
+        self.assertIn("white-space: normal;", mobile_version_inner_css)
+        self.assertIn("overflow-wrap: anywhere;", mobile_version_inner_css)
+        mobile_version_animation_css = mobile_risk_css.split(
+            "    .vuln-table .version-scroll.is-overflowing .version-scroll-inner {",
+            1,
+        )[1].split("}", 1)[0]
+        self.assertIn("animation: none;", mobile_version_animation_css)
+        mobile_fixed_chip_css = mobile_risk_css.split(
+            "    .vuln-table .fixed-chip {",
+            1,
+        )[1].split("}", 1)[0]
+        self.assertIn("white-space: normal;", mobile_fixed_chip_css)
+        self.assertIn("overflow-wrap: anywhere;", mobile_fixed_chip_css)
+        mobile_adv_css = mobile_risk_css.split(
+            "    .vuln-table .adv-list a {",
+            1,
+        )[1].split("}", 1)[0]
+        self.assertIn("white-space: normal;", mobile_adv_css)
+        self.assertIn("overflow-wrap: anywhere;", mobile_adv_css)
+        mobile_summary_css = mobile_risk_css.split(
+            "    .vuln-table .summary-cell {",
+            1,
+        )[1].split("}", 1)[0]
+        self.assertIn("white-space: normal;", mobile_summary_css)
+        self.assertIn("word-break: break-word;", mobile_summary_css)
         self.assertIn(
             "grid-template-columns: var(--mobile-risk-label-col) minmax(0, 1fr);",
             css,
