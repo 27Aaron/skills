@@ -24,6 +24,15 @@ class ServerAnalyzeTests(unittest.TestCase):
             ],
             "ssh": {"available": False, "options": {}},
             "firewall": {"has_active_firewall": True, "tools": {}},
+            "docker": {
+                "containers": [
+                    {
+                        "name": "web",
+                        "image": "nginx:1.18",
+                        "explicit_old_tag": True,
+                    }
+                ]
+            },
             "errors": [],
         }
         matched = {
@@ -43,6 +52,7 @@ class ServerAnalyzeTests(unittest.TestCase):
         )
         self.assertEqual(len(result["maintenance_items"]), 1)
         self.assertIn("redis", result["maintenance_items"][0]["title"])
+        self.assertNotIn("Docker", result["maintenance_items"][0]["title"])
         self.assertNotIn("docker", result)
         self.assertTrue(
             all(

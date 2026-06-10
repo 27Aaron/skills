@@ -171,6 +171,21 @@ class PackageParsingTests(unittest.TestCase):
         self.assertEqual(packages[0]["package_type"], "deb")
         self.assertIn("pkg:deb/ubuntu/nginx@1.24.0-2ubuntu7.3", packages[0]["purl"])
 
+    def test_parse_dpkg_query_output_ignores_removed_config_rows(self):
+        raw = (
+            "nginx\t1.24.0-2ubuntu7.3\tamd64\tnginx\t1.24.0-2ubuntu7.3\tii\n"
+            "oldlib\t0.1-1\tamd64\toldlib\t0.1-1\trc\n"
+        )
+        distro = {
+            "id": "ubuntu",
+            "ecosystem": "Ubuntu:24.04:LTS",
+            "package_type": "deb",
+        }
+
+        packages = server_inventory.parse_dpkg_packages(raw, distro)
+
+        self.assertEqual([package["name"] for package in packages], ["nginx"])
+
     def test_parse_rpm_output(self):
         raw = (
             "nginx\t1.24.0-1.el9\tx86_64\nkernel-core\t5.14.0-427.13.1.el9_4\tx86_64\n"

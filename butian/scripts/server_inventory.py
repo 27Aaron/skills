@@ -492,6 +492,9 @@ def parse_dpkg_packages(raw: str, distro: dict[str, Any]) -> list[dict[str, Any]
         if len(parts) < 3:
             continue
         name, version, arch = [part.strip() for part in parts[:3]]
+        status = parts[5].strip() if len(parts) > 5 else ""
+        if status and (len(status) < 2 or status[1] != "i"):
+            continue
         source_name = parts[3].strip() if len(parts) > 3 and parts[3].strip() else name
         if source_name in {"(none)", "<none>"}:
             source_name = name
