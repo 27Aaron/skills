@@ -437,6 +437,27 @@ def run_ssh_command(
     }
 
 
+SSH_TRANSPORT_ERROR_MARKERS = (
+    "permission denied",
+    "host key verification failed",
+    "could not resolve hostname",
+    "name or service not known",
+    "connection timed out",
+    "operation timed out",
+    "connection refused",
+    "connection reset",
+    "connection closed",
+    "no route to host",
+)
+
+
+def is_ssh_transport_failure(result: dict[str, Any]) -> bool:
+    if result.get("returncode") != 255:
+        return False
+    stderr = str(result.get("stderr") or "").lower()
+    return any(marker in stderr for marker in SSH_TRANSPORT_ERROR_MARKERS)
+
+
 def collect_server_inventory(
     target: str,
     *,
@@ -481,6 +502,8 @@ def collect_server_inventory(
                     "message": result["stderr"] or f"returncode {result['returncode']}",
                 }
             )
+            if is_ssh_transport_failure(result):
+                break
     return {
         "target": ssh_target,
         "collected_at": time.strftime("%Y-%m-%d %H:%M:%S"),

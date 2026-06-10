@@ -280,6 +280,33 @@ class CollectServerInventoryTests(unittest.TestCase):
         self.assertGreater(len(inventory["errors"]), 0)
         self.assertEqual(inventory["errors"][0]["step"], "server_collect")
 
+    def test_collect_stops_after_ssh_authentication_failure(self):
+        calls = []
+
+        def fake_run(target, command, **kwargs):
+            calls.append(command)
+            return {
+                "command": command,
+                "returncode": 255,
+                "stdout": "",
+                "stderr": "Permission denied (publickey).",
+            }
+
+        with (
+            mock.patch.object(server_collect, "run_ssh_command", side_effect=fake_run),
+            mock.patch.object(
+                server_collect,
+                "resolve_ssh_policy",
+                return_value={"target": "root@203.0.113.10", "options": {}},
+            ),
+        ):
+            inventory = server_collect.collect_server_inventory("root@203.0.113.10")
+
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(list(inventory["outputs"]), ["os_release"])
+        self.assertEqual(len(inventory["errors"]), 1)
+        self.assertIn("Permission denied", inventory["errors"][0]["message"])
+
     def test_inventory_file_round_trip(self):
         payload = {"target": "root@example.test", "outputs": {}, "errors": []}
 
