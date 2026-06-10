@@ -252,6 +252,16 @@ def _target_looks_unsafe(target: str) -> bool:
     )
 
 
+def _normalize_ssh_port(port: int | str) -> int:
+    try:
+        value = int(port)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("SSH 端口必须是 1 到 65535 之间的整数。") from exc
+    if value < 1 or value > 65535:
+        raise ValueError("SSH 端口必须是 1 到 65535 之间的整数。")
+    return value
+
+
 def _read_ssh_config_entries(path: str) -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
     current: dict[str, Any] | None = None
@@ -320,9 +330,10 @@ def resolve_ssh_policy(
         raise ValueError(
             "SSH 目标不能为空，不能以 '-' 开头，也不能包含空白、路径或通配符。"
         )
+    ssh_port = _normalize_ssh_port(port)
     policy = {
         "target": ssh_target,
-        "port": int(port or 22),
+        "port": ssh_port,
         "identity": identity or "",
         "ssh_config": ssh_config or "",
         "options": {},
@@ -373,6 +384,7 @@ def _ssh_base(
     identity: str = "",
     ssh_config: str = "",
 ) -> list[str]:
+    ssh_port = _normalize_ssh_port(port)
     cmd = [
         "ssh",
         "-o",
@@ -390,8 +402,8 @@ def _ssh_base(
     ]
     if ssh_config:
         cmd.extend(["-F", os.path.abspath(os.path.expanduser(ssh_config))])
-    if port and int(port) != 22:
-        cmd.extend(["-p", str(port)])
+    if ssh_port != 22:
+        cmd.extend(["-p", str(ssh_port)])
     if identity:
         cmd.extend(["-i", identity, "-o", "IdentitiesOnly=yes"])
     cmd.append(target)
@@ -436,16 +448,20 @@ def collect_server_inventory(
     policy = resolve_ssh_policy(
         target, port=port, identity=identity, ssh_config=ssh_config
     )
+    ssh_target = policy.get("target") or str(target or "").strip()
+    ssh_port = policy.get("port") or port
+    ssh_identity = policy.get("identity") or identity
+    ssh_config = policy.get("ssh_config") or ssh_config
     identity_secrets = _identity_secret_values(policy)
     outputs = {}
     errors = []
     for item in command_plan(include_docker_metadata=include_docker_metadata):
         try:
             result = run_ssh_command(
-                target,
+                ssh_target,
                 item["command"],
-                port=port,
-                identity=identity,
+                port=ssh_port,
+                identity=ssh_identity,
                 ssh_config=ssh_config,
             )
         except (subprocess.SubprocessError, OSError) as exc:
@@ -466,7 +482,7 @@ def collect_server_inventory(
                 }
             )
     return {
-        "target": target,
+        "target": ssh_target,
         "collected_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         "collection_mode": "ssh",
         "outputs": outputs,

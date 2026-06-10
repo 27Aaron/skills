@@ -188,6 +188,12 @@ Host *
         with self.assertRaisesRegex(ValueError, "SSH 目标"):
             server_collect.resolve_ssh_policy("root@host whoami")
 
+    def test_server_scan_rejects_invalid_port_range(self):
+        for port in (0, -1, 70000):
+            with self.subTest(port=port):
+                with self.assertRaisesRegex(ValueError, "SSH 端口"):
+                    server_collect.resolve_ssh_policy("root@203.0.113.10", port=port)
+
 
 class CollectServerInventoryTests(unittest.TestCase):
     def test_collect_records_outputs_without_installing_tools(self):
@@ -218,6 +224,39 @@ class CollectServerInventoryTests(unittest.TestCase):
             item["command"] for item in inventory["outputs"].values()
         )
         self.assertNotIn("install", all_commands)
+
+    def test_collect_uses_normalized_policy_target_and_port(self):
+        calls = []
+
+        def fake_run(target, command, **kwargs):
+            calls.append((target, kwargs))
+            return {"command": command, "returncode": 0, "stdout": "", "stderr": ""}
+
+        with (
+            mock.patch.object(server_collect, "run_ssh_command", side_effect=fake_run),
+            mock.patch.object(
+                server_collect,
+                "resolve_ssh_policy",
+                return_value={
+                    "target": "root@203.0.113.10",
+                    "port": 2222,
+                    "identity": "/tmp/id_ed25519",
+                    "ssh_config": "/tmp/ssh_config",
+                    "options": {},
+                },
+            ),
+        ):
+            server_collect.collect_server_inventory(" root@203.0.113.10 ")
+
+        self.assertTrue(calls)
+        self.assertTrue(all(target == "root@203.0.113.10" for target, _ in calls))
+        self.assertTrue(all(kwargs["port"] == 2222 for _, kwargs in calls))
+        self.assertTrue(
+            all(kwargs["identity"] == "/tmp/id_ed25519" for _, kwargs in calls)
+        )
+        self.assertTrue(
+            all(kwargs["ssh_config"] == "/tmp/ssh_config" for _, kwargs in calls)
+        )
 
     def test_collect_keeps_command_errors(self):
         def fake_run(target, command, **kwargs):
