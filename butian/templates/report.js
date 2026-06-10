@@ -2458,12 +2458,29 @@ function fullDate(iso) {
   return m ? `${m[1]}-${m[2]}-${m[3]}` : shortDate(iso);
 }
 
+function parseDateLike(value) {
+  const text = String(value || "").trim();
+  if (!text) return null;
+  const normalized = /^\d{4}-\d{2}-\d{2}\s+\d/.test(text)
+    ? `${text.replace(/\s+/, "T")}Z`
+    : text;
+  const date = new Date(normalized);
+  return isNaN(date.getTime()) ? null : date;
+}
+
+function reportReferenceDate() {
+  return (
+    parseDateLike(DATA.generated_at || DATA.generatedAt || DATA.report_generated_at) ||
+    new Date()
+  );
+}
+
 function publishedAgeText(isoDate) {
   if (!isoDate) return "";
   const d = new Date(isoDate);
   const dateStr = fullDate(isoDate);
   if (isNaN(d.getTime())) return dateStr;
-  const now = new Date();
+  const now = reportReferenceDate();
   const diffDays = Math.floor((now - d) / (1000 * 60 * 60 * 24));
   if (diffDays < 0) return dateStr;
   if (diffDays < 30) return `${dateStr}（已公开 ${diffDays} 天）`;
@@ -2480,7 +2497,7 @@ function publishedSignalTag(isoDate) {
   const d = new Date(isoDate);
   if (isNaN(d.getTime())) return "";
   const diffDays = Math.floor(
-    (Date.now() - d.getTime()) / (1000 * 60 * 60 * 24),
+    (reportReferenceDate().getTime() - d.getTime()) / (1000 * 60 * 60 * 24),
   );
   if (diffDays < 0) return "";
   if (diffDays < 30) {

@@ -712,6 +712,56 @@ class ReportAssetTests(unittest.TestCase):
 
         self.assertEqual(json.loads(result.stdout), ["", "2.0.1"])
 
+    def test_published_age_uses_report_generated_at_not_open_time(self):
+        if not shutil.which("node"):
+            self.skipTest("node is required for report asset rendering tests")
+
+        code = textwrap.dedent(
+            f"""
+            const fs = require("fs");
+            const vm = require("vm");
+            const RealDate = Date;
+            class FakeDate extends RealDate {{
+              constructor(...args) {{
+                super(args.length ? args[0] : "2027-06-10T00:00:00Z");
+              }}
+              static now() {{
+                return new RealDate("2027-06-10T00:00:00Z").getTime();
+              }}
+            }}
+            const elements = {{ meta: {{ textContent: "" }}, app: {{ innerHTML: "" }} }};
+            const context = {{
+              Date: FakeDate,
+              window: {{ __BUTIAN_REPORT_DATA__: {{ generated_at: "2026-06-10 00:00:00" }}, location: {{ href: "file:///tmp/report.html" }} }},
+              document: {{ getElementById: (id) => elements[id], addEventListener: () => {{}} }},
+              navigator: {{ clipboard: {{ writeText: () => Promise.resolve() }} }},
+              atob: (value) => Buffer.from(value, "base64").toString("binary"),
+              btoa: (value) => Buffer.from(value, "binary").toString("base64"),
+              setTimeout: () => {{}},
+              console,
+            }};
+            vm.createContext(context);
+            vm.runInContext(fs.readFileSync({json.dumps(REPORT_JS)}, "utf8"), context);
+            process.stdout.write(JSON.stringify([
+              context.publishedAgeText("2026-05-11T00:00:00Z"),
+              context.publishedSignalTag("2026-05-11T00:00:00Z")
+            ]));
+            """
+        )
+
+        result = subprocess.run(
+            ["node", "-e", code],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+        age_text, signal = json.loads(result.stdout)
+        self.assertIn("已公开 1 个月", age_text)
+        self.assertIn("已公开 1 个月", signal)
+        self.assertNotIn("公开超1年", signal)
+
     def test_current_risk_table_gives_detail_column_more_room(self):
         data = {
             "generated_at": "2026-06-05 09:05:50",
