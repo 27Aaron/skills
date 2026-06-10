@@ -673,7 +673,7 @@ def render_server_environment(analysis):
     if not server:
         return "未启用服务器运行环境扫描。"
 
-    distro = server.get("distro") or {}
+    distro = server.get("distro") or (server.get("summary") or {}).get("distro") or {}
     kernel = analysis.get("server_kernel") or server.get("kernel") or {}
     lines = [
         "### 服务器概览",

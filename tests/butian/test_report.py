@@ -610,6 +610,10 @@ class RenderServerEnvironmentTests(unittest.TestCase):
         analysis = {
             "server": {
                 "summary": {
+                    "distro": {
+                        "pretty_name": "Ubuntu 24.04 LTS",
+                        "ecosystem": "Ubuntu:24.04:LTS",
+                    },
                     "package_count": 3,
                     "confirmed_count": 1,
                     "maintenance_count": 2,
@@ -618,19 +622,17 @@ class RenderServerEnvironmentTests(unittest.TestCase):
                     "software_version_count": 3,
                     "native_security_update_count": 2,
                 },
-                "distro": {
-                    "pretty_name": "Ubuntu 24.04 LTS",
-                    "ecosystem": "Ubuntu:24.04:LTS",
-                },
                 "kernel": {"kernel_release": "6.8.0-53-generic"},
             },
             "server_issues": [
                 {
-                    "package": "nginx",
-                    "version": "1.24.0",
+                    "package": "libssl3t64",
+                    "source_package": "openssl",
+                    "version": "3.0.13-0ubuntu3.5",
                     "severity": "high",
-                    "summary": "nginx confirmed",
+                    "summary": "源包 openssl 命中 Ubuntu 官方漏洞数据。",
                     "aliases": ["CVE-2026-0001"],
+                    "fixed_versions": ["3.0.13-0ubuntu3.6"],
                 }
             ],
             "server_maintenance": [
@@ -676,7 +678,9 @@ class RenderServerEnvironmentTests(unittest.TestCase):
         self.assertIn("对外监听端口：2", result)
         self.assertIn("运行服务：4", result)
         self.assertIn("安全更新线索：2", result)
-        self.assertIn("nginx", result)
+        self.assertIn("libssl3t64", result)
+        self.assertIn("源包 openssl", result)
+        self.assertIn("3.0.13-0ubuntu3.6", result)
         self.assertIn(
             "[CVE-2026-0001](https://www.cve.org/CVERecord?id=CVE-2026-0001)",
             result,
