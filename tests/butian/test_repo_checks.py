@@ -102,7 +102,11 @@ class RepositoryChecksTests(unittest.TestCase):
             self.assertTrue(any(f["id"] == "repo.missing_dependabot" for f in findings))
             item = next(f for f in findings if f["id"] == "repo.missing_dependabot")
             self.assertIn("GitHub remote", item["evidence"])
-            self.assertIn(".github/dependabot.yml", item["recommendation"])
+            self.assertEqual(item["file"], ".github/dependabot.yml")
+            self.assertEqual(
+                item["recommendation"],
+                "建议创建覆盖 npm 的配置；推送到 GitHub 后，Dependabot 会按 schedule 检查更新。",
+            )
             self.assertEqual(item["fix_config"]["type"], "dependabot_config")
             self.assertIn('package-ecosystem: "npm"', item["fix_config"]["content"])
 

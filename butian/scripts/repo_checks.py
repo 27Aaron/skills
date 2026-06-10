@@ -592,7 +592,6 @@ def scan_repository_checks(project_path: str, ecosystems=None):
             "或 GitHub Actions 配置；可用 Dependabot 定期创建版本更新 PR。"
         )
         recommendation = (
-            ".github/dependabot.yml，"
             f"建议创建覆盖 {visible} 的配置；推送到 GitHub 后，Dependabot 会按 schedule 检查更新。"
         )
         findings.append(

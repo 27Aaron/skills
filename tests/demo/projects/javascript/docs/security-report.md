@@ -47,7 +47,7 @@
 
 | 等级 | 位置 | 检查项 | 处理 |
 | --- | --- | --- | --- |
-| 建议 | .github/dependabot.yml | 配置 Dependabot | .github/dependabot.yml，建议创建覆盖 npm 的配置；推送到 GitHub 后，Dependabot 会按 schedule 检查更新。 |
+| 建议 | .github/dependabot.yml | 配置 Dependabot | 建议创建覆盖 npm 的配置；推送到 GitHub 后，Dependabot 会按 schedule 检查更新。 |
 
 
 ## 过期依赖
