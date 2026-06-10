@@ -3,6 +3,7 @@ name: butian
 description: |
   补天：为本地代码仓库补上安全裂缝，围绕依赖漏洞、过期依赖、硬编码凭证、敏感文件误提交、仓库忽略规则、供应链与 IaC/容器配置做只读审计。
   输出以简体中文为主，优先生成能给团队阅读和跟进的 Markdown/HTML 安全报告。
+  English trigger summary: check local dependency security, run repository security checks.
   触发词：「帮我看看项目有没有安全问题」「安全扫描」「扫一下项目」「依赖有没有漏洞」「硬编码密钥」「gitignore 是否合理」「漏洞检查」「供应链安全」。
 ---
 
