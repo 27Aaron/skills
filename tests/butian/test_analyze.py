@@ -1244,6 +1244,23 @@ class ServerAnalysisMergeTests(unittest.TestCase):
                         "category": "public_sensitive_service",
                     }
                 ],
+                "ports": [
+                    {
+                        "address": "0.0.0.0",
+                        "port": 443,
+                        "process": "nginx",
+                        "public": True,
+                    }
+                ],
+                "services": [{"name": "nginx.service", "description": "nginx"}],
+                "kernel": {"kernel_release": "6.8.0-53-generic"},
+                "native_security_updates": [
+                    {
+                        "manager": "apt",
+                        "name": "openssl",
+                        "fixed_version": "3.0.13-0ubuntu3.6",
+                    }
+                ],
                 "errors": [],
             },
         )
@@ -1263,6 +1280,14 @@ class ServerAnalysisMergeTests(unittest.TestCase):
         self.assertNotIn(
             "NVD/CPE only",
             json.dumps(analysis["server_issues"], ensure_ascii=False),
+        )
+        self.assertEqual(analysis["server_ports"][0]["port"], 443)
+        self.assertEqual(analysis["server_services"][0]["name"], "nginx.service")
+        self.assertEqual(
+            analysis["server_kernel"]["kernel_release"], "6.8.0-53-generic"
+        )
+        self.assertEqual(
+            analysis["server_native_security_updates"][0]["name"], "openssl"
         )
 
 

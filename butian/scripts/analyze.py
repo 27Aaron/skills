@@ -1117,6 +1117,7 @@ def build_analysis(scan, source_scan_file=None, output_file=None):
     red, yellow, hygiene_green = build_hygiene_items(scan)
     dependency_green = build_dependency_fix_items(top_issues)
     server_issues, server_maintenance = build_server_items(scan)
+    server = scan.get("server") or {}
     green = dependency_green + hygiene_green + server_maintenance
     dependency_risk_summary = count_risks(top_issues)
     server_risk_summary = count_risks(server_issues)
@@ -1137,7 +1138,12 @@ def build_analysis(scan, source_scan_file=None, output_file=None):
         "local_risk_summary": local_risk_summary,
         "hygiene": scan.get("hygiene") or {},
         "outdated": scan.get("outdated") or [],
-        "server": scan.get("server") or {},
+        "server": server,
+        "server_ports": server.get("ports") or [],
+        "server_services": server.get("services") or [],
+        "server_kernel": server.get("kernel") or {},
+        "server_native_security_updates": server.get("native_security_updates") or [],
+        "server_errors": server.get("errors") or [],
         "top_issues": top_issues,
         "server_issues": sort_items(server_issues),
         "server_maintenance": sort_items(server_maintenance),
