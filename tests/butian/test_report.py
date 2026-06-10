@@ -612,12 +612,17 @@ class RenderServerEnvironmentTests(unittest.TestCase):
                 "summary": {
                     "package_count": 3,
                     "confirmed_count": 1,
-                    "maintenance_count": 1,
+                    "maintenance_count": 2,
                     "public_port_count": 2,
                     "service_count": 4,
                     "software_version_count": 3,
                     "native_security_update_count": 2,
                 },
+                "distro": {
+                    "pretty_name": "Ubuntu 24.04 LTS",
+                    "ecosystem": "Ubuntu:24.04:LTS",
+                },
+                "kernel": {"kernel_release": "6.8.0-53-generic"},
             },
             "server_issues": [
                 {
@@ -630,31 +635,58 @@ class RenderServerEnvironmentTests(unittest.TestCase):
             ],
             "server_maintenance": [
                 {
-                    "title": "Docker 容器 web 使用旧镜像标签 nginx:1.18",
-                    "summary": "只基于明确镜像标签，作为维护建议处理。",
+                    "category": "native_security_update",
+                    "severity": "medium",
+                    "title": "系统安全更新可用：openssl",
+                    "summary": "包管理器返回了安全更新线索。",
+                    "recommendation": "建议按维护窗口升级并复扫。",
+                },
+                {
+                    "category": "ssh_password_authentication",
+                    "severity": "medium",
+                    "title": "SSH 允许密码登录",
+                    "summary": "公网服务器保留密码登录会增加爆破风险。",
+                    "recommendation": "建议确认密钥登录可用后关闭密码登录。",
                 }
             ],
+            "server_ports": [
+                {"address": "0.0.0.0", "port": 443, "process": "nginx", "public": True}
+            ],
+            "errors": [{"step": "vulnerability_check", "message": "OSV failed"}],
         }
 
         result = report.render_server_environment(analysis)
 
+        expected_order = [
+            "### 服务器概览",
+            "### 已确认风险",
+            "### 建议优先处理",
+            "### 安全更新线索",
+            "### 暴露服务和监听端口",
+            "### SSH / 防火墙 / 系统加固建议",
+            "### 覆盖说明和采集失败项",
+        ]
+        positions = [result.index(title) for title in expected_order]
+        self.assertEqual(positions, sorted(positions))
+        self.assertIn("Ubuntu 24.04 LTS", result)
+        self.assertIn("运行内核：`6.8.0-53-generic`", result)
         self.assertIn("系统包数量：3", result)
         self.assertIn("已确认服务器风险：1", result)
-        self.assertIn("维护建议：1", result)
+        self.assertIn("维护建议：2", result)
         self.assertIn("对外监听端口：2", result)
         self.assertIn("运行服务：4", result)
-        self.assertIn("常见软件版本：3", result)
         self.assertIn("安全更新线索：2", result)
-        self.assertIn("### 已确认服务器风险", result)
         self.assertIn("nginx", result)
         self.assertIn(
             "[CVE-2026-0001](https://www.cve.org/CVERecord?id=CVE-2026-0001)",
             result,
         )
-        self.assertIn("### 维护建议", result)
-        self.assertIn("Docker 容器 web 使用旧镜像标签", result)
+        self.assertIn("系统安全更新可用：openssl", result)
+        self.assertIn("SSH 允许密码登录", result)
+        self.assertIn("0.0.0.0", result)
+        self.assertIn("OSV failed", result)
         self.assertLess(
-            result.index("### 已确认服务器风险"), result.index("### 维护建议")
+            result.index("### 已确认风险"), result.index("### 建议优先处理")
         )
 
     def test_render_server_environment_empty(self):

@@ -642,45 +642,153 @@ def render_outdated(analysis):
     return "\n".join(lines)
 
 
+def _server_summary_value(server, key, default=0):
+    return (server.get("summary") or {}).get(key, default)
+
+
+def _server_fixed_versions(item):
+    values = item.get("fixed_versions") or []
+    if not values:
+        return "-"
+    return ", ".join(inline_code(value) for value in values)
+
+
+def _server_section_errors(analysis):
+    seen = set()
+    errors = []
+    for error in (analysis.get("server_errors") or []) + (analysis.get("errors") or []):
+        step = str(error.get("step") or "")
+        if not (step.startswith("server") or step == "vulnerability_check"):
+            continue
+        key = (step, error.get("message"), error.get("code"))
+        if key in seen:
+            continue
+        seen.add(key)
+        errors.append(error)
+    return errors
+
+
 def render_server_environment(analysis):
     server = analysis.get("server") or {}
     if not server:
         return "未启用服务器运行环境扫描。"
 
-    summary = server.get("summary") or {}
+    distro = server.get("distro") or {}
+    kernel = analysis.get("server_kernel") or server.get("kernel") or {}
     lines = [
-        f"- 系统包数量：{summary.get('package_count', 0)}",
-        f"- 已确认服务器风险：{summary.get('confirmed_count', 0)}",
-        f"- 维护建议：{summary.get('maintenance_count', 0)}",
-        f"- 对外监听端口：{summary.get('public_port_count', 0)}",
-        f"- 运行服务：{summary.get('service_count', 0)}",
-        f"- 常见软件版本：{summary.get('software_version_count', 0)}",
-        f"- 安全更新线索：{summary.get('native_security_update_count', 0)}",
+        "### 服务器概览",
+        "",
+        f"- 发行版：{cell(distro.get('pretty_name') or distro.get('ecosystem') or '-')}",
+        f"- 运行内核：{inline_code(kernel.get('kernel_release') or kernel.get('version') or '-')}",
+        f"- 系统包数量：{_server_summary_value(server, 'package_count')}",
+        f"- 已确认服务器风险：{_server_summary_value(server, 'confirmed_count')}",
+        f"- 维护建议：{_server_summary_value(server, 'maintenance_count')}",
+        f"- 对外监听端口：{_server_summary_value(server, 'public_port_count')}",
+        f"- 运行服务：{_server_summary_value(server, 'service_count')}",
+        f"- 安全更新线索：{_server_summary_value(server, 'native_security_update_count')}",
+        "",
+        "### 已确认风险",
+        "",
     ]
 
     issues = analysis.get("server_issues") or []
     if issues:
-        lines.extend(["", "### 已确认服务器风险", ""])
+        lines.extend(["| 包 | 当前版本 | 证据 | 修复版本 |", "| --- | --- | --- | --- |"])
         for item in issues:
-            package = cell(item.get("package") or item.get("name") or "服务器软件")
-            version = inline_code(item.get("version") or "-")
-            summary_text = cell(
-                item.get("summary")
-                or item.get("advisory_summary")
-                or "服务器运行环境命中已确认风险。"
-            )
+            package = item.get("package") or item.get("name") or "服务器软件"
+            source = item.get("source_package") or ""
+            source_text = f"源包 {source}；" if source else ""
             ids = security_ids_markdown(item)
-            ids_text = f"（{ids}）" if ids != "-" else ""
-            lines.append(f"- **{package}** {version}：{summary_text}{ids_text}")
+            evidence = (
+                source_text
+                + (
+                    item.get("summary")
+                    or item.get("advisory_summary")
+                    or "命中发行版包坐标确认的已知漏洞。"
+                )
+            )
+            if ids != "-":
+                evidence = f"{evidence} {ids}"
+            lines.append(
+                "| "
+                + " | ".join(
+                    [
+                        cell(package),
+                        cell(item.get("version") or "-"),
+                        cell(evidence),
+                        cell(_server_fixed_versions(item)),
+                    ]
+                )
+                + " |"
+            )
+    else:
+        lines.append("没有检测到证据闭环的服务器风险。")
 
     maintenance = analysis.get("server_maintenance") or []
-    if maintenance:
-        lines.extend(["", "### 维护建议", ""])
-        for item in maintenance:
-            title = cell(item.get("title") or item.get("name") or "维护建议")
-            summary_text = cell(item.get("summary") or item.get("recommendation") or "")
-            suffix = f"：{summary_text}" if summary_text else ""
-            lines.append(f"- **{title}**{suffix}")
+    priority = [
+        item
+        for item in maintenance
+        if item.get("severity") in {"critical", "high", "medium"}
+    ]
+    lines.extend(["", "### 建议优先处理", ""])
+    if priority:
+        for item in priority:
+            lines.append(
+                f"- **{cell(item.get('title') or '维护建议')}**："
+                f"{cell(item.get('recommendation') or item.get('summary') or '-')}"
+            )
+    else:
+        lines.append("没有需要从维护建议中单独提前处理的项目。")
+
+    native_updates = [
+        item for item in maintenance if item.get("category") == "native_security_update"
+    ]
+    lines.extend(["", "### 安全更新线索", ""])
+    if native_updates:
+        for item in native_updates:
+            lines.append(
+                f"- **{cell(item.get('title') or '系统安全更新')}**："
+                f"{cell(item.get('summary') or item.get('recommendation') or '-')}"
+            )
+    else:
+        lines.append("没有采集到明确的包管理器安全更新线索。")
+
+    lines.extend(["", "### 暴露服务和监听端口", ""])
+    ports = analysis.get("server_ports") or server.get("ports") or []
+    public_ports = [port for port in ports if port.get("public")]
+    if public_ports:
+        lines.extend(["| 地址 | 端口 | 进程 |", "| --- | --- | --- |"])
+        for port in public_ports:
+            lines.append(
+                f"| {cell(port.get('address') or '-')} | "
+                f"{cell(port.get('port') or '-')} | "
+                f"{cell(port.get('process') or '-')} |"
+            )
+    else:
+        lines.append("没有采集到公网监听端口。")
+
+    hardening = [
+        item for item in maintenance if item.get("category") != "native_security_update"
+    ]
+    lines.extend(["", "### SSH / 防火墙 / 系统加固建议", ""])
+    if hardening:
+        for item in hardening:
+            lines.append(
+                f"- **{cell(item.get('title') or '系统加固建议')}**："
+                f"{cell(item.get('summary') or item.get('recommendation') or '-')}"
+            )
+    else:
+        lines.append("没有采集到需要单独提示的 SSH、防火墙或系统加固建议。")
+
+    errors = _server_section_errors(analysis)
+    lines.extend(["", "### 覆盖说明和采集失败项", ""])
+    if errors:
+        for error in errors:
+            lines.append(
+                f"- {cell(error.get('message') or error.get('code') or '服务器扫描覆盖不足')}"
+            )
+    else:
+        lines.append("服务器采集和漏洞数据源没有返回需要单独说明的错误。")
 
     return "\n".join(lines)
 
