@@ -2,8 +2,8 @@
 
 - 项目：javascript
 - 路径：`/Users/aaron/Documents/Project/skills/tests/demo/projects/javascript`
-- 生成时间：2026-06-10 18:09:41
-- 扫描耗时：7.0 秒
+- 生成时间：2026-06-10 18:20:48
+- 扫描耗时：6.8 秒
 
 ## 报告总结
 

@@ -65,6 +65,76 @@ def style_asset_for_html(value):
     return value.replace("</style", "<\\/style")
 
 
+def editor_config():
+    return {
+        "editor": detected_editor(),
+        "fallback": fallback_editor(),
+    }
+
+
+def detected_editor():
+    requested = os.environ.get("BUTIAN_EDITOR", "").strip().lower()
+    if requested in {"0", "false", "none", "off", "no"}:
+        return None
+
+    candidates = [
+        {
+            "id": "vscode",
+            "label": "VS Code",
+            "scheme": "vscode",
+            "commands": ("code", "code-insiders"),
+            "aliases": {"vscode", "vs code", "code", "visual studio code"},
+        },
+        {
+            "id": "cursor",
+            "label": "Cursor",
+            "scheme": "cursor",
+            "commands": ("cursor",),
+            "aliases": {"cursor"},
+        },
+    ]
+    for candidate in candidates:
+        if requested and (
+            requested in candidate["aliases"]
+            or requested in candidate["commands"]
+            or requested == candidate["scheme"]
+        ):
+            return {
+                "id": candidate["id"],
+                "label": candidate["label"],
+                "scheme": candidate["scheme"],
+            }
+
+    for candidate in candidates:
+        if any(shutil.which(command) for command in candidate["commands"]):
+            return {
+                "id": candidate["id"],
+                "label": candidate["label"],
+                "scheme": candidate["scheme"],
+            }
+    return None
+
+
+def fallback_editor():
+    if sys.platform == "darwin":
+        return {
+            "id": "textedit",
+            "label": "文本编辑",
+            "command_template": "open -a TextEdit {path}",
+        }
+    if os.name == "nt":
+        return {
+            "id": "notepad",
+            "label": "记事本",
+            "command_template": "notepad.exe {path}",
+        }
+    return {
+        "id": "xdg-open",
+        "label": "默认应用",
+        "command_template": "xdg-open {path}",
+    }
+
+
 def default_output_path(analysis_path):
     with open(analysis_path, "r", encoding="utf-8") as handle:
         analysis = json.load(handle)
@@ -194,9 +264,11 @@ def main():
     report_js = script_asset_for_html(report_js)
 
     blob = json_for_script(data)
+    editor_blob = json_for_script(editor_config())
     html = (
         tpl.replace("__REPORT_CSS__", report_css)
         .replace("__REPORT_DATA__", blob)
+        .replace("__EDITOR_CONFIG__", editor_blob)
         .replace("__REPORT_JS__", report_js)
     )
     placeholders = [
@@ -207,6 +279,7 @@ def main():
             "__REPORT_JS__",
             "__SECRET_TYPE_LABELS__",
             "__SENSITIVE_TYPE_LABELS__",
+            "__EDITOR_CONFIG__",
         )
         if marker in html
     ]

@@ -941,7 +941,7 @@ td.summary-cell {
     align-items: center;
     gap: 6px;
 }
-.secret-copy-btn {
+.secret-edit-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -956,7 +956,7 @@ td.summary-cell {
     line-height: 1;
     cursor: pointer;
 }
-.secret-copy-btn:hover {
+.secret-edit-btn:hover {
     border-color: color-mix(in srgb, var(--accent) 28%, var(--field-border));
     background: var(--code-button-hover-bg);
 }

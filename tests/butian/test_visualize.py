@@ -84,6 +84,54 @@ class StyleAssetForHtmlTests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# editor_config
+# ---------------------------------------------------------------------------
+class EditorConfigTests(unittest.TestCase):
+    def test_detects_vscode_editor_when_available(self):
+        def which(name):
+            return "/usr/local/bin/code" if name == "code" else None
+
+        with (
+            mock.patch.object(visualize.shutil, "which", side_effect=which),
+            mock.patch.object(visualize.sys, "platform", "darwin"),
+            mock.patch.object(visualize.os, "name", "posix"),
+            mock.patch.dict(os.environ, {"BUTIAN_EDITOR": ""}),
+        ):
+            config = visualize.editor_config()
+
+        self.assertEqual(config["editor"]["id"], "vscode")
+        self.assertEqual(config["editor"]["scheme"], "vscode")
+
+    def test_falls_back_to_textedit_on_macos_without_editor(self):
+        with (
+            mock.patch.object(visualize.shutil, "which", return_value=None),
+            mock.patch.object(visualize.sys, "platform", "darwin"),
+            mock.patch.object(visualize.os, "name", "posix"),
+            mock.patch.dict(os.environ, {"BUTIAN_EDITOR": ""}),
+        ):
+            config = visualize.editor_config()
+
+        self.assertIsNone(config["editor"])
+        self.assertEqual(config["fallback"]["id"], "textedit")
+        self.assertEqual(config["fallback"]["label"], "文本编辑")
+        self.assertEqual(config["fallback"]["command_template"], "open -a TextEdit {path}")
+
+    def test_falls_back_to_notepad_on_windows_without_editor(self):
+        with (
+            mock.patch.object(visualize.shutil, "which", return_value=None),
+            mock.patch.object(visualize.sys, "platform", "win32"),
+            mock.patch.object(visualize.os, "name", "nt"),
+            mock.patch.dict(os.environ, {"BUTIAN_EDITOR": ""}),
+        ):
+            config = visualize.editor_config()
+
+        self.assertIsNone(config["editor"])
+        self.assertEqual(config["fallback"]["id"], "notepad")
+        self.assertEqual(config["fallback"]["label"], "记事本")
+        self.assertEqual(config["fallback"]["command_template"], "notepad.exe {path}")
+
+
+# ---------------------------------------------------------------------------
 # should_open_report
 # ---------------------------------------------------------------------------
 class ShouldOpenReportTests(unittest.TestCase):
@@ -366,6 +414,9 @@ class PipelineHelpTests(unittest.TestCase):
             with open(output_path, "r", encoding="utf-8") as handle:
                 html = handle.read()
             self.assertIn("OpenAI API Key", html)
+            self.assertIn("window.__BUTIAN_EDITOR_CONFIG__ =", html)
+            self.assertNotIn('typeof {"editor"', html)
+            self.assertNotIn("__EDITOR_CONFIG__", html)
             self.assertNotIn("__SECRET_TYPE_LABELS__", html)
             self.assertNotIn("__SENSITIVE_TYPE_LABELS__", html)
 

@@ -7,7 +7,7 @@
 
 `visualize.py` 将 `analyze.py` 的 `analysis.json` 注入为一个完全自包含的 HTML 安全报告。HTML 内联 CSS、JavaScript 和报告数据，不依赖外部网络资源，适合直接通过浏览器打开、截图、发送给同事或作为本地验收面。
 
-HTML 是最完整的报告界面：它不仅展示 Markdown 中的风险和仓库安检事实，还提供折叠详情、代码证据、tooltip、响应式布局和复制按钮。
+HTML 是最完整的报告界面：它不仅展示 Markdown 中的风险和仓库安检事实，还提供折叠详情、代码证据、tooltip、响应式布局和编辑入口。
 
 ## 职责
 
@@ -38,9 +38,10 @@ python3 visualize.py --no-open analysis.json
 
 ## 环境变量
 
-| 变量             | 值                          | 效果               |
-| ---------------- | --------------------------- | ------------------ |
-| `BUTIAN_NO_OPEN` | `1` / `true` / `yes` / `on` | 等同于 `--no-open` |
+| 变量             | 值                                  | 效果                                      |
+| ---------------- | ----------------------------------- | ----------------------------------------- |
+| `BUTIAN_NO_OPEN` | `1` / `true` / `yes` / `on`         | 等同于 `--no-open`                        |
+| `BUTIAN_EDITOR`  | `vscode` / `cursor` / `none` / `off` | 指定或关闭代码证据的编辑器协议检测        |
 
 ## 核心函数
 
@@ -61,6 +62,7 @@ python3 visualize.py --no-open analysis.json
 | `skipped_open_message(reason)`       | 输出未打开报告的中文原因                                            |
 | `open_report(path)`                  | macOS/Windows/Linux/WSL 跨平台打开 HTML                             |
 | `spawn_open_command(cmd)`            | 后台启动浏览器命令，不阻塞脚本                                      |
+| `editor_config()`                    | 注入代码证据“编辑”按钮所需的编辑器协议和系统兜底命令                |
 
 ## 模板注入流程
 
@@ -68,7 +70,7 @@ python3 visualize.py --no-open analysis.json
 templates/report.html
   ├─ __REPORT_CSS__  <- templates/report.css
   ├─ __REPORT_DATA__ <- analysis.json
-  └─ __REPORT_JS__   <- templates/report.js（已注入共享中文标签）
+  └─ __REPORT_JS__   <- templates/report.js（已注入共享中文标签和编辑器配置）
 ```
 
 生成时会检查所有 `__REPORT_*__` 占位符是否已替换；若仍有残留，直接失败，避免输出损坏 HTML。
@@ -145,7 +147,7 @@ templates/report.html
 | 元素       | 说明                                                  |
 | ---------- | ----------------------------------------------------- |
 | 左上角语言 | 由文件名/扩展名推断，例如 `ENV`、`JavaScript`、`YAML` |
-| 右上角按钮 | `复制`，复制当前展示的代码文本                        |
+| 右上角按钮 | `编辑`，优先用 VS Code/Cursor 协议打开文件位置；没有协议时复制系统兜底命令 |
 | 行号       | `code_context[].line`                                 |
 | 高亮       | `code_context[].match == true` 的行                   |
 | 内容       | `code_context[].content`，是否脱敏由扫描阶段决定      |

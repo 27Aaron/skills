@@ -110,7 +110,7 @@
 - 打开覆盖：`--no-open`、`BUTIAN_NO_OPEN`、首次扫描标记、不同平台 opener fallback。
 - 当前风险覆盖：默认 7 条风险行、`余下 N 项`、详情行 click/Enter/Space 展开、只展示高于当前版本的修复版本 chip、HTML 表格只展示 CVE 编号。
 - 详情文案覆盖：SSRF、URL 路径/主机规范化、middleware/proxy bypass、DoS、buffer bounds、header/cookie injection、IP restriction、cache leakage/cache poisoning、XSS/HTML/CSS injection、JWT 时间声明等准确描述。
-- 仓库安检覆盖：空状态隐藏、`--skip-hygiene` 显示跳过说明、凭证代码块语言/复制按钮/行号/命中行、凭证类 yellow 项并入 `凭证与敏感文件`。
+- 仓库安检覆盖：空状态隐藏、`--skip-hygiene` 显示跳过说明、凭证代码块语言/编辑按钮/行号/命中行、凭证类 yellow 项并入 `凭证与敏感文件`。
 - 过期依赖覆盖：无数据隐藏章节；桌面双列默认 7 行、移动单列默认 7 项；长版本号不省略；按钮显示 desktop/mobile 不同余项数量。
 
 ### `workflow_checks.py`

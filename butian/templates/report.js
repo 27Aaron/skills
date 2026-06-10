@@ -3329,12 +3329,15 @@ const SENSITIVE_TYPE_LABELS =
   typeof __SENSITIVE_TYPE_LABELS__ === "undefined"
     ? {}
     : __SENSITIVE_TYPE_LABELS__;
+const EDITOR_CONFIG = window.__BUTIAN_EDITOR_CONFIG__ || {};
 
 function renderSecretEvidence(item) {
   const context = visibleSecretContext(item);
   if (!context.length) return "";
 
   const language = secretEvidenceLanguage(item);
+  const file = secretEvidenceFile(item);
+  const line = secretContextLine(item);
   const rows = context
     .map((line) => {
       const hitClass = line.match ? " is-hit" : "";
@@ -3342,7 +3345,7 @@ function renderSecretEvidence(item) {
     })
     .join("");
 
-  return `<div class="secret-evidence is-collapsed"><div class="secret-evidence-head" ${secretEvidenceHeadAttrs()}><span class="secret-code-lang">${esc(language)}</span><div class="secret-evidence-actions"><button type="button" class="secret-copy-btn" onclick="event.stopPropagation();copySecretEvidence(this)">复制</button></div></div><pre class="secret-code"><code>${rows}</code></pre></div>`;
+  return `<div class="secret-evidence is-collapsed" data-file="${esc(file)}" data-line="${esc(line)}"><div class="secret-evidence-head" ${secretEvidenceHeadAttrs()}><span class="secret-code-lang">${esc(language)}</span><div class="secret-evidence-actions"><button type="button" class="secret-edit-btn" onclick="event.stopPropagation();editSecretEvidence(this)">编辑</button></div></div><pre class="secret-code"><code>${rows}</code></pre></div>`;
 }
 
 function secretEvidenceHeadAttrs() {
@@ -3428,30 +3431,90 @@ function secretEvidenceLanguage(item) {
   );
 }
 
-function copySecretEvidence(button) {
-  const root =
-    button && button.closest ? button.closest(".secret-evidence") : null;
+function secretEvidenceFile(item) {
+  const direct = String((item && (item.file || item.path)) || "").trim();
+  if (direct) return direct;
+  const name = String((item && item.name) || "");
+  const match = name.match(/(?:^|[：\s])([^：\s]+):(\d+)\b/);
+  return match ? match[1] : "";
+}
+
+function isAbsoluteFilePath(path) {
+  return /^(?:\/|[A-Za-z]:[\\/]|\\\\)/.test(String(path || ""));
+}
+
+function projectRootPath() {
+  return String((DATA.project && DATA.project.path) || "").trim();
+}
+
+function resolveProjectFile(file) {
+  file = String(file || "").trim();
+  if (!file) return "";
+  if (isAbsoluteFilePath(file)) return file;
+  const root = projectRootPath();
+  if (!root) return file;
+  const sep = root.includes("\\") && !root.includes("/") ? "\\" : "/";
+  return `${root.replace(/[\\/]+$/, "")}${sep}${file.replace(/^[\\/]+/, "")}`;
+}
+
+function encodeEditorPath(path) {
+  return encodeURI(String(path || "").replace(/\\/g, "/"))
+    .replace(/#/g, "%23")
+    .replace(/\?/g, "%3F");
+}
+
+function editorUrlForFile(path, line) {
+  path = String(path || "").trim();
+  if (!path) return "";
+  const editor = (EDITOR_CONFIG && EDITOR_CONFIG.editor) || {};
+  const scheme = String(editor.scheme || "").trim();
+  if (!scheme || !/^(?:vscode|cursor)$/.test(scheme)) return "";
+  const encodedPath = encodeEditorPath(path);
+  const prefix = encodedPath.startsWith("/") ? "" : "/";
+  const linePart = line ? `:${encodeURIComponent(String(line))}` : "";
+  return `${scheme}://file${prefix}${encodedPath}${linePart}`;
+}
+
+function shellQuotePath(path) {
+  const value = String(path || "");
+  const fallback = (EDITOR_CONFIG && EDITOR_CONFIG.fallback) || {};
+  if (fallback.id === "notepad") {
+    return `"${value.replace(/"/g, '\\"')}"`;
+  }
+  return `'${value.replace(/'/g, "'\\''")}'`;
+}
+
+function fallbackEditCommand(path) {
+  const fallback = (EDITOR_CONFIG && EDITOR_CONFIG.fallback) || {};
+  const template = String(fallback.command_template || "").trim();
+  if (!template) return String(path || "");
+  return template.replace("{path}", shellQuotePath(path));
+}
+
+function copyTextToClipboard(text) {
   if (
-    !root ||
     typeof navigator === "undefined" ||
     !navigator.clipboard ||
     typeof navigator.clipboard.writeText !== "function"
   ) {
+    return Promise.reject(new Error("clipboard unavailable"));
+  }
+  return navigator.clipboard.writeText(text);
+}
+
+function editSecretEvidence(button) {
+  const root =
+    button && button.closest ? button.closest(".secret-evidence") : null;
+  if (!root) return;
+  const path = resolveProjectFile(root.getAttribute("data-file") || "");
+  if (!path) return;
+  const line = root.getAttribute("data-line") || "";
+  const editorUrl = editorUrlForFile(path, line);
+  if (editorUrl) {
+    window.location.href = editorUrl;
     return;
   }
-  const text = Array.from(root.querySelectorAll(".secret-code-text"))
-    .map((node) => node.textContent || "")
-    .join("\n");
-  const label = button.textContent || "复制";
-  navigator.clipboard
-    .writeText(text)
-    .then(() => {
-      button.textContent = "已复制";
-      setTimeout(() => {
-        button.textContent = label;
-      }, 1200);
-    })
-    .catch(() => {});
+  copyTextToClipboard(fallbackEditCommand(path)).catch(() => {});
 }
 
 function toggleSecretEvidence(trigger) {
