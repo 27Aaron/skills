@@ -1348,6 +1348,41 @@ class ParseMavenPomTests(unittest.TestCase):
                 ],
             )
 
+    def test_resolves_versions_from_dependency_management_for_direct_dependencies(self):
+        with tempfile.TemporaryDirectory(prefix="butian-maven-pom-") as root:
+            with open(os.path.join(root, "pom.xml"), "w", encoding="utf-8") as f:
+                f.write(
+                    "<project>\n"
+                    "  <dependencyManagement>\n"
+                    "    <dependencies>\n"
+                    "      <dependency>\n"
+                    "        <groupId>org.example</groupId>\n"
+                    "        <artifactId>managed-direct</artifactId>\n"
+                    "        <version>2.3.4</version>\n"
+                    "      </dependency>\n"
+                    "      <dependency>\n"
+                    "        <groupId>org.example</groupId>\n"
+                    "        <artifactId>managed-only</artifactId>\n"
+                    "        <version>9.9.9</version>\n"
+                    "      </dependency>\n"
+                    "    </dependencies>\n"
+                    "  </dependencyManagement>\n"
+                    "  <dependencies>\n"
+                    "    <dependency>\n"
+                    "      <groupId>org.example</groupId>\n"
+                    "      <artifactId>managed-direct</artifactId>\n"
+                    "    </dependency>\n"
+                    "  </dependencies>\n"
+                    "</project>\n"
+                )
+
+            pkgs = scan.parse_maven_pom(root)
+
+            self.assertEqual(
+                [(pkg["name"], pkg["version"]) for pkg in pkgs],
+                [("org.example:managed-direct", "2.3.4")],
+            )
+
     def test_parses_namespaced_pom(self):
         with tempfile.TemporaryDirectory(prefix="butian-maven-pom-") as root:
             with open(os.path.join(root, "pom.xml"), "w", encoding="utf-8") as f:

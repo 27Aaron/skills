@@ -663,6 +663,29 @@ def resolve_maven_property(value, properties):
     return properties.get(match.group(1), text)
 
 
+def maven_dependency_management_versions(root, properties):
+    versions = {}
+    for dependency_management in xml_direct_children(root, "dependencyManagement"):
+        for dependencies in xml_direct_children(dependency_management, "dependencies"):
+            for dependency in xml_direct_children(dependencies, "dependency"):
+                group_id = resolve_maven_property(
+                    xml_child_text(dependency, "groupId"), properties
+                )
+                artifact_id = resolve_maven_property(
+                    xml_child_text(dependency, "artifactId"), properties
+                )
+                version = resolve_maven_property(
+                    xml_child_text(dependency, "version"), properties
+                )
+                if (
+                    is_exact_maven_coordinate_part(group_id)
+                    and is_exact_maven_coordinate_part(artifact_id)
+                    and is_exact_dependency_version(version)
+                ):
+                    versions[(group_id, artifact_id)] = version
+    return versions
+
+
 def is_exact_dependency_version(version):
     version = str(version or "").strip()
     if not version or version.startswith("${") or re.search(r"[\[\](),]", version):
@@ -688,6 +711,7 @@ def parse_maven_pom(project_path):
 
     pkgs, seen = [], set()
     properties = maven_properties(root)
+    managed_versions = maven_dependency_management_versions(root, properties)
     direct_dependencies = []
     for dependencies in xml_direct_children(root, "dependencies"):
         direct_dependencies.extend(xml_direct_children(dependencies, "dependency"))
@@ -697,6 +721,8 @@ def parse_maven_pom(project_path):
             xml_child_text(dependency, "artifactId"), properties
         )
         version = resolve_maven_property(xml_child_text(dependency, "version"), properties)
+        if not version:
+            version = managed_versions.get((group_id, artifact_id), "")
         if (
             not is_exact_maven_coordinate_part(group_id)
             or not is_exact_maven_coordinate_part(artifact_id)
