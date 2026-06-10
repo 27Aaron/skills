@@ -322,6 +322,57 @@ class ServerBatchQueryTests(unittest.TestCase):
         fetch_kev.assert_not_called()
         fetch_epss.assert_not_called()
 
+    def test_detail_errors_keep_partial_official_match(self):
+        assets = {
+            "packages": [
+                {
+                    "asset_type": "system_package",
+                    "ecosystem": "Ubuntu:24.04:LTS",
+                    "name": "nginx",
+                    "version": "1.24.0-2ubuntu7.3",
+                    "package_type": "deb",
+                }
+            ],
+            "kernel": {},
+        }
+
+        with (
+            mock.patch.object(
+                server_match.scan,
+                "fetch_osv_querybatch",
+                return_value={
+                    "results": [{"vulns": [{"id": "UBUNTU-CVE-2026-0001"}]}]
+                },
+            ),
+            mock.patch.object(
+                server_match.scan,
+                "fetch_osv_vulnerability",
+                side_effect=TimeoutError("timeout"),
+            ),
+            mock.patch.object(server_match.scan, "fetch_nvd_enrichments") as fetch_nvd,
+            mock.patch.object(
+                server_match.scan, "fetch_cisa_kev_enrichments"
+            ) as fetch_kev,
+            mock.patch.object(
+                server_match.scan, "fetch_epss_enrichments"
+            ) as fetch_epss,
+        ):
+            result = server_match.match_server_vulnerabilities(
+                assets, project_path="/tmp/demo"
+            )
+
+        self.assertEqual(len(result["confirmed_issues"]), 1)
+        issue = result["confirmed_issues"][0]
+        self.assertEqual(issue["advisory_id"], "UBUNTU-CVE-2026-0001")
+        self.assertEqual(issue["package"], "nginx")
+        self.assertEqual(issue["confidence"], "partial_official_match")
+        self.assertEqual(issue["severity"], "unknown")
+        self.assertTrue(result["errors"])
+        self.assertIn("详情查询", result["errors"][0]["message"])
+        fetch_nvd.assert_not_called()
+        fetch_kev.assert_not_called()
+        fetch_epss.assert_not_called()
+
     def test_osv_query_errors_are_returned_not_silenced_as_no_risk(self):
         assets = {
             "packages": [

@@ -18,7 +18,7 @@ from unittest import mock
 
 # Import scan module
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "butian", "scripts"))
-from butian.scripts import analyze, run_audit, scan, workspace
+from butian.scripts import analyze, run_audit, scan, vulnerability_sources, workspace
 
 
 class ScanPipelineTests(unittest.TestCase):
@@ -2119,6 +2119,35 @@ class CheckVulnerabilitiesTests(unittest.TestCase):
         self.assertEqual(vulns, [])
         self.assertEqual(calls, [])
         self.assertTrue(any("缺少版本" in item["message"] for item in errors))
+
+    def test_batch_match_keeps_partial_finding_when_detail_fetch_fails(self):
+        package = {"ecosystem": "npm", "name": "lodash", "version": "4.17.20"}
+        with tempfile.TemporaryDirectory(prefix="butian-osv-partial-") as root:
+            with (
+                mock.patch.object(
+                    vulnerability_sources,
+                    "fetch_osv_querybatch",
+                    return_value={
+                        "results": [{"vulns": [{"id": "GHSA-xxxx-yyyy-zzzz"}]}]
+                    },
+                ),
+                mock.patch.object(
+                    vulnerability_sources,
+                    "fetch_osv_vulnerability",
+                    side_effect=TimeoutError("timeout"),
+                ),
+            ):
+                vulns, errors = scan.check_vulnerability_batch(
+                    1, [package], project_path=root
+                )
+
+        self.assertEqual(len(vulns), 1)
+        self.assertEqual(vulns[0]["advisory_id"], "GHSA-xxxx-yyyy-zzzz")
+        self.assertEqual(vulns[0]["package"], "lodash")
+        self.assertEqual(vulns[0]["confidence"], "partial_official_match")
+        self.assertEqual(vulns[0]["severity"], "unknown")
+        self.assertTrue(errors)
+        self.assertIn("详情查询", errors[0]["message"])
 
 
 class ParseOsvQueryResultsTests(unittest.TestCase):

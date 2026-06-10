@@ -231,8 +231,51 @@ def build_confirmed_issue(
     }
 
 
+def build_partial_issue(asset: dict[str, Any], vuln_id: str) -> dict[str, Any]:
+    query_name = asset.get("name") or ""
+    source_name = asset.get("source_name") or query_name
+    installed_name = asset.get("installed_name") or query_name
+    version = asset.get("version") or ""
+    summary = f"{source_name} {version} 已在 OSV querybatch 命中 {vuln_id}，但详情查询失败，需复核。"
+    if source_name and source_name != installed_name:
+        summary = (
+            f"{installed_name} {version} 的源包 {source_name} 已在 OSV querybatch "
+            f"命中 {vuln_id}，但详情查询失败，需复核。"
+        )
+    return {
+        "scope": "server",
+        "category": "server_package_vulnerability",
+        "asset_type": asset.get("asset_type") or "system_package",
+        "package": installed_name,
+        "name": installed_name,
+        "source_package": source_name if source_name != installed_name else "",
+        "version": version,
+        "ecosystem": asset.get("ecosystem") or "",
+        "package_type": asset.get("package_type") or "",
+        "severity": "unknown",
+        "confidence": "partial_official_match",
+        "advisory_id": vuln_id,
+        "aliases": [vuln_id],
+        "cve_id": vuln_id if vuln_id.upper().startswith("CVE-") else "",
+        "cve_enrichments": [],
+        "advisory_summary": "",
+        "summary": summary,
+        "cvss": None,
+        "cwe": [],
+        "fixed_versions": [],
+        "kev_listed": False,
+        "epss": None,
+        "epss_percentile": None,
+        "evidence": asset.get("evidence") or [],
+    }
+
+
 def filter_reportable_issues(issues: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return [item for item in issues if item.get("confidence") == "confirmed"]
+    return [
+        item
+        for item in issues
+        if item.get("confidence") in {"confirmed", "partial_official_match"}
+    ]
 
 
 def _extract_osv_matches(
@@ -286,6 +329,7 @@ def match_server_vulnerabilities(
 
     details: dict[str, dict[str, Any]] = {}
     records: list[tuple[dict[str, Any], dict[str, Any]]] = []
+    partial_issues: list[dict[str, Any]] = []
     for asset, vuln_id in matches:
         if vuln_id not in details:
             try:
@@ -294,6 +338,7 @@ def match_server_vulnerabilities(
                 errors.append(
                     scan.official_source_error("OSV", f"{vuln_id} 详情查询", str(exc))
                 )
+                partial_issues.append(build_partial_issue(asset, vuln_id))
                 continue
         records.append((asset, details[vuln_id]))
 
@@ -307,7 +352,7 @@ def match_server_vulnerabilities(
     epss = scan.fetch_epss_enrichments(cve_ids, errors) if cve_ids else {}
     enrichments = _merge_enrichments(nvd, kev, epss)
 
-    issues = [
+    issues = partial_issues + [
         build_confirmed_issue(asset, record, enrichments) for asset, record in records
     ]
     return {
