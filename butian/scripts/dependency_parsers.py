@@ -641,6 +641,28 @@ def xml_direct_children(element, name):
     return [child for child in list(element) if xml_local_name(child.tag) == name]
 
 
+MAVEN_PROPERTY_REF_RE = re.compile(r"^\$\{([A-Za-z0-9_.-]+)\}$")
+
+
+def maven_properties(root):
+    properties = {}
+    for properties_node in xml_direct_children(root, "properties"):
+        for child in list(properties_node):
+            key = xml_local_name(child.tag)
+            value = str(child.text or "").strip()
+            if key and value:
+                properties[key] = value
+    return properties
+
+
+def resolve_maven_property(value, properties):
+    text = str(value or "").strip()
+    match = MAVEN_PROPERTY_REF_RE.match(text)
+    if not match:
+        return text
+    return properties.get(match.group(1), text)
+
+
 def is_exact_dependency_version(version):
     version = str(version or "").strip()
     if not version or version.startswith("${") or re.search(r"[\[\](),]", version):
@@ -665,13 +687,16 @@ def parse_maven_pom(project_path):
         return []
 
     pkgs, seen = [], set()
+    properties = maven_properties(root)
     direct_dependencies = []
     for dependencies in xml_direct_children(root, "dependencies"):
         direct_dependencies.extend(xml_direct_children(dependencies, "dependency"))
     for dependency in direct_dependencies:
-        group_id = xml_child_text(dependency, "groupId")
-        artifact_id = xml_child_text(dependency, "artifactId")
-        version = xml_child_text(dependency, "version")
+        group_id = resolve_maven_property(xml_child_text(dependency, "groupId"), properties)
+        artifact_id = resolve_maven_property(
+            xml_child_text(dependency, "artifactId"), properties
+        )
+        version = resolve_maven_property(xml_child_text(dependency, "version"), properties)
         if (
             not is_exact_maven_coordinate_part(group_id)
             or not is_exact_maven_coordinate_part(artifact_id)

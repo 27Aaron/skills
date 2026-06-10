@@ -1304,11 +1304,14 @@ class ParseMavenPomTests(unittest.TestCase):
                 ],
             )
 
-    def test_skips_property_versions_and_ranges(self):
+    def test_resolves_simple_property_versions_and_skips_ranges(self):
         with tempfile.TemporaryDirectory(prefix="butian-maven-pom-") as root:
             with open(os.path.join(root, "pom.xml"), "w", encoding="utf-8") as f:
                 f.write(
                     "<project>\n"
+                    "  <properties>\n"
+                    "    <example.version>1.2.3</example.version>\n"
+                    "  </properties>\n"
                     "  <dependencies>\n"
                     "    <dependency>\n"
                     "      <groupId>org.example</groupId>\n"
@@ -1333,7 +1336,10 @@ class ParseMavenPomTests(unittest.TestCase):
 
             self.assertEqual(
                 [(pkg["name"], pkg["version"]) for pkg in pkgs],
-                [("org.example:exact", "1.0.0-RC1")],
+                [
+                    ("org.example:from-property", "1.2.3"),
+                    ("org.example:exact", "1.0.0-RC1"),
+                ],
             )
 
     def test_parses_namespaced_pom(self):
