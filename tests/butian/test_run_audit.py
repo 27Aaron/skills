@@ -528,7 +528,7 @@ class PipelinePathTests(unittest.TestCase):
             os.makedirs(assets_dir)
             preflight_path = os.path.join(assets_dir, "preflight.json")
             scan_path = os.path.join(assets_dir, "scan.json")
-            captured = {"commands": []}
+            captured = {"commands": [], "json_commands": []}
 
             def fake_run_json(cmd):
                 if cmd[1].endswith("detect.py"):
@@ -810,6 +810,212 @@ class ServerIdentityRedactionTests(unittest.TestCase):
 
 
 class ServerOnlyPipelineTests(unittest.TestCase):
+    def test_main_project_scan_with_server_persists_only_inventory_json(self):
+        original_argv = sys.argv
+        original_run_json = run_audit.run_json
+        original_run_text = run_audit.run_text
+        original_setup_logging = run_audit.setup_logging
+        with tempfile.TemporaryDirectory(prefix="butian-server-mixed-") as root:
+            project = os.path.join(root, "project")
+            run_dir = os.path.join(project, ".butian", "20260609-2200")
+            assets_dir = os.path.join(run_dir, "assets")
+            content_dir = os.path.join(run_dir, "content")
+            os.makedirs(assets_dir)
+            preflight_path = os.path.join(assets_dir, "preflight.json")
+            scan_path = os.path.join(assets_dir, "scan.json")
+            analysis_path = os.path.join(assets_dir, "analysis.json")
+            html_path = os.path.join(content_dir, "security-report.html")
+            server_inventory = {
+                "schema_version": "butian.server_inventory.v1",
+                "target": {"hint": "root@example.test", "hostname": ""},
+                "commands": {
+                    "os_release": {"stdout": "ID=ubuntu\nVERSION_ID=24.04\n"}
+                },
+                "errors": [],
+            }
+            server_assets = {"distro": {"id": "ubuntu"}, "packages": []}
+            server_matched = {"confirmed_issues": [], "errors": []}
+            server_analysis = {
+                "summary": {"package_count": 0, "confirmed_count": 0},
+                "confirmed_issues": [],
+                "maintenance_items": [],
+                "errors": [],
+            }
+            collect_calls = []
+            captured = {"commands": [], "json_commands": []}
+
+            modules = {
+                "butian.scripts.server_collect": SimpleNamespace(
+                    collect_server_inventory=lambda target, port, identity, ssh_config: (
+                        collect_calls.append(
+                            {
+                                "target": target,
+                                "port": port,
+                                "identity": identity,
+                                "ssh_config": ssh_config,
+                            }
+                        )
+                        or server_inventory
+                    ),
+                    read_inventory_file=lambda path: server_inventory,
+                ),
+                "butian.scripts.server_inventory": SimpleNamespace(
+                    build_server_assets=lambda inventory: server_assets
+                ),
+                "butian.scripts.server_match": SimpleNamespace(
+                    match_server_vulnerabilities=lambda assets, project_path: (
+                        server_matched
+                    )
+                ),
+                "butian.scripts.server_analyze": SimpleNamespace(
+                    build_server_analysis=lambda assets, matched: server_analysis
+                ),
+            }
+
+            def fake_run_json(cmd):
+                captured["json_commands"].append(cmd)
+                script = os.path.basename(cmd[1])
+                if script == "detect.py":
+                    return {
+                        "generated_at": "2026-06-09 22:00:00",
+                        "output_file": preflight_path,
+                        "recommended_scan_mode": "full_dependency_scan",
+                        "project": {
+                            "path": project,
+                            "name": "demo",
+                            "ecosystems": ["npm"],
+                            "total_packages": 1,
+                        },
+                        "butian_workspace": {
+                            "run_dir": run_dir,
+                            "assets_dir": assets_dir,
+                            "content_dir": content_dir,
+                        },
+                    }
+                if script == "scan.py":
+                    return {
+                        "generated_at": "2026-06-09 22:00:00",
+                        "output_file": scan_path,
+                        "scan_config": {"scan_mode": "full_dependency_scan"},
+                        "project": {
+                            "path": project,
+                            "name": "demo",
+                            "ecosystems": ["npm"],
+                            "total_packages": 1,
+                        },
+                        "vulnerabilities": [],
+                        "errors": [],
+                        "butian_workspace": {
+                            "run_dir": run_dir,
+                            "assets_dir": assets_dir,
+                            "content_dir": content_dir,
+                        },
+                    }
+                raise AssertionError(f"unexpected JSON command: {cmd}")
+
+            def fake_run_text(cmd, echo=True):
+                captured["commands"].append(cmd)
+                script = os.path.basename(cmd[1])
+                if script == "analyze.py":
+                    self.assertEqual(cmd[2], scan_path)
+                    self.assertEqual(cmd[3], analysis_path)
+                    with open(analysis_path, "w", encoding="utf-8") as handle:
+                        json.dump(
+                            {
+                                "generated_at": "2026-06-09 22:00:00",
+                                "project": {
+                                    "path": project,
+                                    "name": "demo",
+                                    "total_packages": 1,
+                                },
+                                "scan_config": {"scan_mode": "full_dependency_scan"},
+                                "risk_summary": {},
+                                "top_issues": [],
+                                "server": server_analysis,
+                                "server_issues": [],
+                                "server_maintenance": [],
+                                "hygiene": {},
+                                "outdated": [],
+                                "errors": [],
+                                "butian_workspace": {
+                                    "run_dir": run_dir,
+                                    "assets_dir": assets_dir,
+                                    "content_dir": content_dir,
+                                },
+                            },
+                            handle,
+                        )
+                elif script == "report.py":
+                    os.makedirs(os.path.dirname(cmd[3]), exist_ok=True)
+                    with open(cmd[3], "w", encoding="utf-8") as handle:
+                        handle.write("# report\n")
+                elif script == "visualize.py":
+                    with open(cmd[3], "w", encoding="utf-8") as handle:
+                        handle.write("<html></html>\n")
+                return ""
+
+            try:
+                sys.argv = [
+                    "run_audit.py",
+                    "--server",
+                    "root@203.0.113.10",
+                    "--ssh-port",
+                    "2222",
+                    "--no-open",
+                    project,
+                ]
+                run_audit.run_json = fake_run_json
+                run_audit.run_text = fake_run_text
+                run_audit.setup_logging = lambda *args, **kwargs: None
+                with mock.patch.dict(sys.modules, modules):
+                    self.assertEqual(run_audit.main(), 0)
+            finally:
+                sys.argv = original_argv
+                run_audit.run_json = original_run_json
+                run_audit.run_text = original_run_text
+                run_audit.setup_logging = original_setup_logging
+
+            self.assertEqual(
+                collect_calls,
+                [
+                    {
+                        "target": "root@203.0.113.10",
+                        "port": 2222,
+                        "identity": "",
+                        "ssh_config": "",
+                    }
+                ],
+            )
+            with open(scan_path, "r", encoding="utf-8") as handle:
+                scan = json.load(handle)
+            with open(
+                os.path.join(assets_dir, "server-inventory.json"),
+                "r",
+                encoding="utf-8",
+            ) as handle:
+                inventory_json = json.load(handle)
+
+            self.assertEqual(scan["scan_config"]["scan_mode"], "full_dependency_scan")
+            self.assertEqual(scan["server"], server_analysis)
+            self.assertEqual(inventory_json, server_inventory)
+            self.assertFalse(
+                os.path.exists(os.path.join(assets_dir, "server-assets.json"))
+            )
+            self.assertFalse(
+                os.path.exists(os.path.join(assets_dir, "server-analysis.json"))
+            )
+            self.assertFalse(
+                os.path.exists(os.path.join(assets_dir, "server-vulns.json"))
+            )
+            command_names = [os.path.basename(cmd[1]) for cmd in captured["commands"]]
+            json_command_names = [
+                os.path.basename(cmd[1]) for cmd in captured["json_commands"]
+            ]
+            self.assertIn("scan.py", json_command_names)
+            self.assertIn("report.py", command_names)
+            self.assertIn("visualize.py", command_names)
+            self.assertTrue(os.path.exists(html_path))
+
     def test_main_server_only_writes_scan_and_artifacts_without_identity(self):
         original_argv = sys.argv
         original_run_json = run_audit.run_json
