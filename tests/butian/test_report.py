@@ -335,7 +335,12 @@ class RenderVulnerabilitiesTests(unittest.TestCase):
             "[CVE-2024-0001](https://www.cve.org/CVERecord?id=CVE-2024-0001)", result
         )
         self.assertIn(
-            "| 影响程度 | 依赖名称 | 当前版本 | 修复版本 | 安全编号 |", result
+            "| 影响程度 | 依赖名称 | 当前版本 | 修复版本 | 安全编号 | 可利用性 | 发现时间 |",
+            result,
+        )
+        self.assertIn(
+            "| 高风险 | lodash | 4.17.20 | 4.17.21 | [CVE-2024-0001](https://www.cve.org/CVERecord?id=CVE-2024-0001)、[GHSA-aaaa-bbbb-cccc](https://osv.dev/vulnerability/GHSA-aaaa-bbbb-cccc) | 已知利用 | 2024-05-01 |",
+            result,
         )
         self.assertNotIn("说明", result)
         self.assertNotIn("Prototype pollution", result)
@@ -358,6 +363,7 @@ class RenderVulnerabilitiesTests(unittest.TestCase):
         )
 
         self.assertIn("| 高风险 | django | 2.2.0 | 2.2.28 |", result)
+        self.assertIn(" | - | - |", result)
         self.assertNotIn("1.11.23", result)
         self.assertNotIn("3.2.25", result)
 

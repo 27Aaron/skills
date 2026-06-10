@@ -448,6 +448,28 @@ def enrichment_summary(item):
     return "；".join(parts)
 
 
+def exploitability_text(item):
+    signals = aggregate_enrichments(item)
+    if not signals:
+        return "-"
+    if signals.get("ransomware"):
+        return "勒索利用"
+    if signals.get("kev_listed"):
+        return "已知利用"
+    percentile = signals.get("max_epss_percentile")
+    epss = signals.get("max_epss")
+    if percentile is not None:
+        return f"EPSS {percent_text(percentile, digits=1)}"
+    if epss is not None:
+        return f"EPSS {percent_text(epss, digits=2)}"
+    return "-"
+
+
+def discovered_date_text(item):
+    signals = aggregate_enrichments(item)
+    return signals.get("published_at") or "-"
+
+
 def render_summary(analysis):
     summary = analysis.get("summary") or {}
     lines = []
@@ -481,8 +503,8 @@ def render_vulnerabilities(analysis):
         return "未命中已确认的依赖风险项。\n"
 
     lines = [
-        "| 影响程度 | 依赖名称 | 当前版本 | 修复版本 | 安全编号 |",
-        "| --- | --- | --- | --- | --- |",
+        "| 影响程度 | 依赖名称 | 当前版本 | 修复版本 | 安全编号 | 可利用性 | 发现时间 |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
     ]
     for item in issues:
         ids = security_ids_markdown(item)
@@ -501,6 +523,8 @@ def render_vulnerabilities(analysis):
                     cell(item.get("version") or "-"),
                     cell(fixed),
                     cell(ids),
+                    cell(exploitability_text(item)),
+                    cell(discovered_date_text(item)),
                 ]
             )
             + " |"

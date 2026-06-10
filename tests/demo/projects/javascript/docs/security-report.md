@@ -19,15 +19,15 @@
 
 ## 当前风险
 
-| 影响程度 | 依赖名称 | 当前版本 | 修复版本 | 安全编号 |
-| --- | --- | --- | --- | --- |
-| 紧急 | minimist | 0.0.8 | 0.2.4 | [CVE-2021-44906](https://www.cve.org/CVERecord?id=CVE-2021-44906)、[GHSA-xvch-5gv4-984h](https://osv.dev/vulnerability/GHSA-xvch-5gv4-984h) |
-| 紧急 | lodash | 4.17.20 | 4.18.0 | [CVE-2026-4800](https://www.cve.org/CVERecord?id=CVE-2026-4800)、[GHSA-r5fr-rjxr-66jc](https://osv.dev/vulnerability/GHSA-r5fr-rjxr-66jc) |
-| 高风险 | lodash | 4.17.20 | 4.17.21 | [CVE-2021-23337](https://www.cve.org/CVERecord?id=CVE-2021-23337)、[GHSA-35jh-r3h4-6jhm](https://osv.dev/vulnerability/GHSA-35jh-r3h4-6jhm) |
-| 中风险 | lodash | 4.17.20 | 4.17.21 | [CVE-2020-28500](https://www.cve.org/CVERecord?id=CVE-2020-28500)、[GHSA-29mw-wpgm-hmr9](https://osv.dev/vulnerability/GHSA-29mw-wpgm-hmr9) |
-| 中风险 | minimist | 0.0.8 | 0.2.1 | [CVE-2020-7598](https://www.cve.org/CVERecord?id=CVE-2020-7598)、[GHSA-vh95-rmgr-6w4m](https://osv.dev/vulnerability/GHSA-vh95-rmgr-6w4m) |
-| 中风险 | lodash | 4.17.20 | 4.17.23 | [CVE-2025-13465](https://www.cve.org/CVERecord?id=CVE-2025-13465)、[GHSA-xxjr-mmjv-4gpg](https://osv.dev/vulnerability/GHSA-xxjr-mmjv-4gpg) |
-| 中风险 | lodash | 4.17.20 | 4.18.0 | [CVE-2026-2950](https://www.cve.org/CVERecord?id=CVE-2026-2950)、[GHSA-f23m-r3pf-42rh](https://osv.dev/vulnerability/GHSA-f23m-r3pf-42rh) |
+| 影响程度 | 依赖名称 | 当前版本 | 修复版本 | 安全编号 | 可利用性 | 发现时间 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 紧急 | minimist | 0.0.8 | 0.2.4 | [CVE-2021-44906](https://www.cve.org/CVERecord?id=CVE-2021-44906)、[GHSA-xvch-5gv4-984h](https://osv.dev/vulnerability/GHSA-xvch-5gv4-984h) | EPSS 74.3% | 2022-03-17 |
+| 紧急 | lodash | 4.17.20 | 4.18.0 | [CVE-2026-4800](https://www.cve.org/CVERecord?id=CVE-2026-4800)、[GHSA-r5fr-rjxr-66jc](https://osv.dev/vulnerability/GHSA-r5fr-rjxr-66jc) | EPSS 14.7% | 2026-03-31 |
+| 高风险 | lodash | 4.17.20 | 4.17.21 | [CVE-2021-23337](https://www.cve.org/CVERecord?id=CVE-2021-23337)、[GHSA-35jh-r3h4-6jhm](https://osv.dev/vulnerability/GHSA-35jh-r3h4-6jhm) | EPSS 89.1% | 2021-02-15 |
+| 中风险 | lodash | 4.17.20 | 4.17.21 | [CVE-2020-28500](https://www.cve.org/CVERecord?id=CVE-2020-28500)、[GHSA-29mw-wpgm-hmr9](https://osv.dev/vulnerability/GHSA-29mw-wpgm-hmr9) | EPSS 48% | 2021-02-15 |
+| 中风险 | minimist | 0.0.8 | 0.2.1 | [CVE-2020-7598](https://www.cve.org/CVERecord?id=CVE-2020-7598)、[GHSA-vh95-rmgr-6w4m](https://osv.dev/vulnerability/GHSA-vh95-rmgr-6w4m) | EPSS 40.6% | 2020-03-11 |
+| 中风险 | lodash | 4.17.20 | 4.17.23 | [CVE-2025-13465](https://www.cve.org/CVERecord?id=CVE-2025-13465)、[GHSA-xxjr-mmjv-4gpg](https://osv.dev/vulnerability/GHSA-xxjr-mmjv-4gpg) | EPSS 8.3% | 2026-01-21 |
+| 中风险 | lodash | 4.17.20 | 4.18.0 | [CVE-2026-2950](https://www.cve.org/CVERecord?id=CVE-2026-2950)、[GHSA-f23m-r3pf-42rh](https://osv.dev/vulnerability/GHSA-f23m-r3pf-42rh) | EPSS 7.9% | 2026-03-31 |
 
 
 ## 仓库安检
