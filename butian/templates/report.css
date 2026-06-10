@@ -916,32 +916,42 @@ td.summary-cell {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    padding: 7px 11px;
+    gap: 8px;
+    padding: 5px 9px;
     border-bottom: 1px solid var(--field-border);
     background: var(--code-header-bg);
     color: var(--accent);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 720;
+    cursor: pointer;
+}
+.secret-evidence-head:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--accent) 42%, transparent);
+    outline-offset: -2px;
 }
 .secret-code-lang {
     color: var(--accent);
     font-family: var(--mono);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 720;
     letter-spacing: 0;
+}
+.secret-evidence-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 .secret-copy-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 26px;
+    min-height: 22px;
     border: 1px solid var(--field-border);
-    border-radius: 8px;
+    border-radius: 7px;
     background: var(--code-button-bg);
     color: var(--accent);
-    padding: 3px 10px;
-    font-size: 12px;
+    padding: 2px 8px;
+    font-size: 11px;
     font-weight: 700;
     line-height: 1;
     cursor: pointer;
@@ -949,6 +959,9 @@ td.summary-cell {
 .secret-copy-btn:hover {
     border-color: color-mix(in srgb, var(--accent) 28%, var(--field-border));
     background: var(--code-button-hover-bg);
+}
+.secret-evidence.is-collapsed .secret-code {
+    display: none;
 }
 .secret-code {
     margin: 0;
@@ -1055,9 +1068,11 @@ td.summary-cell {
     font-size: 14px;
     line-height: 1.5;
 }
-.hygiene-finding-title b {
+.hygiene-finding-name {
     min-width: 0;
+    color: var(--text-soft);
     overflow-wrap: anywhere;
+    font-weight: 500;
 }
 .hygiene-finding-title .sev-badge {
     padding: 2px 7px;

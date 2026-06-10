@@ -1205,13 +1205,16 @@ class ReportAssetTests(unittest.TestCase):
         self.assertIn("initVersionScroll(app)", js)
         self.assertIn("initVersionScroll(table)", js)
 
-    def test_html_report_assets_only_ship_secret_evidence_copy_handler(self):
+    def test_html_report_assets_ship_secret_evidence_click_and_copy_handlers(self):
         with open(REPORT_JS, "r", encoding="utf-8") as handle:
             js = handle.read()
 
         self.assertIn("function copySecretEvidence(button)", js)
+        self.assertIn("function toggleSecretEvidence(trigger)", js)
+        self.assertIn("function handleSecretEvidenceKey(event, trigger)", js)
         self.assertIn("navigator.clipboard.writeText", js)
         self.assertIn("secret-copy-btn", js)
+        self.assertNotIn("secret-toggle-btn", js)
         self.assertNotIn('class="copy"', js)
         self.assertNotIn("function copyBtn", js)
         self.assertNotIn("function cmdBlock", js)
@@ -1959,10 +1962,25 @@ class ReportAssetTests(unittest.TestCase):
 
         html = self._render_html(data)
 
-        self.assertIn('class="secret-evidence"', html)
+        self.assertIn('class="secret-evidence is-collapsed"', html)
         self.assertIn('<span class="secret-code-lang">ENV</span>', html)
+        self.assertIn('class="secret-evidence-head"', html)
+        self.assertIn('role="button"', html)
+        self.assertIn('tabindex="0"', html)
+        self.assertIn('aria-expanded="false"', html)
+        self.assertIn('onclick="toggleSecretEvidence(this)"', html)
+        self.assertIn('onkeydown="handleSecretEvidenceKey(event, this)"', html)
         self.assertIn('class="secret-copy-btn"', html)
-        self.assertIn('onclick="copySecretEvidence(this)"', html)
+        self.assertIn('onclick="event.stopPropagation();copySecretEvidence(this)"', html)
+        self.assertNotIn('class="secret-toggle-btn"', html)
+        self.assertNotIn("secret-toggle-label", html)
+        self.assertIn(
+            '<div class="hygiene-finding-title"><span class="sev-badge sev-high">高风险</span><span class="tier-badge yellow">需要确认</span></div>',
+            html,
+        )
+        self.assertNotIn('<span class="hygiene-finding-name">疑似硬编码凭证</span>', html)
+        self.assertNotIn("<b>疑似硬编码凭证", html)
+        self.assertNotIn("疑似硬编码凭证：.env.example:17", html)
         self.assertIn('class="secret-code-line is-hit"', html)
         self.assertNotIn('<span class="secret-code-no">15</span>', html)
         self.assertIn('<span class="secret-code-no">16</span>', html)
@@ -2027,11 +2045,19 @@ class ReportAssetTests(unittest.TestCase):
 
         html = self._render_html(data)
 
-        title_pos = html.index("疑似硬编码凭证：.env.example:17")
-        evidence_pos = html.index('class="secret-evidence"', title_pos)
+        expected_title = '<div class="hygiene-finding-title"><span class="sev-badge sev-medium">中风险</span><span class="tier-badge yellow">需要确认</span></div>'
+        title_pos = html.index(expected_title)
+        evidence_pos = html.index('class="secret-evidence is-collapsed"', title_pos)
         self.assertGreater(evidence_pos, title_pos)
+        self.assertNotIn('<span class="hygiene-finding-name">疑似硬编码凭证</span>', html)
+        self.assertNotIn("疑似硬编码凭证：.env.example:17", html)
         self.assertIn('<span class="secret-code-lang">ENV</span>', html[evidence_pos:])
+        self.assertIn('class="secret-evidence-head"', html[evidence_pos:])
+        self.assertIn('role="button"', html[evidence_pos:])
+        self.assertIn('onclick="toggleSecretEvidence(this)"', html[evidence_pos:])
+        self.assertIn('aria-expanded="false"', html[evidence_pos:])
         self.assertIn('class="secret-copy-btn"', html[evidence_pos:])
+        self.assertNotIn('class="secret-toggle-btn"', html[evidence_pos:])
         self.assertIn('class="secret-code-line is-hit"', html[evidence_pos:])
         self.assertNotIn(f"OPENAI_API_KEY=&quot;{key}&quot;", html[evidence_pos:])
         self.assertIn(
@@ -2102,16 +2128,20 @@ class ReportAssetTests(unittest.TestCase):
 
         hygiene_pos = html.index('section-title">仓库安检')
         credentials_pos = html.index("凭证与敏感文件", hygiene_pos)
-        title_pos = html.index("疑似硬编码凭证：.env.example:17", credentials_pos)
-        evidence_pos = html.index('class="secret-evidence"', title_pos)
+        expected_title = '<div class="hygiene-finding-title"><span class="sev-badge sev-medium">中风险</span><span class="tier-badge yellow">需要确认</span></div>'
+        title_pos = html.index(expected_title, credentials_pos)
+        evidence_pos = html.index('class="secret-evidence is-collapsed"', title_pos)
         self.assertGreater(title_pos, credentials_pos)
         self.assertGreater(evidence_pos, title_pos)
+        self.assertNotIn('<span class="hygiene-finding-name">疑似硬编码凭证</span>', html)
+        self.assertNotIn("疑似硬编码凭证：.env.example:17", html)
         self.assertIn('class="hygiene-group hygiene-credentials-group"', html)
         self.assertIn(
             '<div class="hygiene-group-head"><span>凭证与敏感文件</span></div>',
             html,
         )
         self.assertIn('class="hygiene-finding hygiene-finding-secret"', html)
+        self.assertNotIn("<b>疑似硬编码凭证", html)
         self.assertNotIn(
             '<div class="field"><div class="label">凭证与敏感文件</div>',
             html,
@@ -2222,7 +2252,8 @@ class ReportAssetTests(unittest.TestCase):
             html,
         )
         self.assertIn('class="sev-badge sev-low">建议</span>', html)
-        self.assertIn("配置 Dependabot", html)
+        self.assertIn('<span class="hygiene-finding-name">配置 Dependabot</span>', html)
+        self.assertNotIn("<b>配置 Dependabot</b>", html)
         self.assertNotIn("<b>1 项</b>", html)
         self.assertNotIn("检测到 .github/workflows/", html)
         self.assertNotIn("dependabot.yml not found", html)
@@ -2256,6 +2287,7 @@ class ReportAssetTests(unittest.TestCase):
         self.assertNotIn("var(--tile-bg-strong)", group_head_css)
 
         self.assertNotIn(".hygiene-group-head b", css)
+        self.assertNotIn(".hygiene-finding-title b", css)
 
         group_list_css = css.split(".hygiene-group-list {", 1)[1].split("}", 1)[0]
         self.assertIn("gap: 8px;", group_list_css)
@@ -2274,6 +2306,23 @@ class ReportAssetTests(unittest.TestCase):
         self.assertIn("border: 1px solid var(--pill-border);", finding_loc_css)
         self.assertIn("border-radius: var(--radius-pill);", finding_loc_css)
         self.assertIn("background: var(--pill-bg);", finding_loc_css)
+
+        finding_name_css = css.split(".hygiene-finding-name {", 1)[1].split(
+            "}",
+            1,
+        )[0]
+        self.assertIn("color: var(--text-soft);", finding_name_css)
+        self.assertIn("font-weight: 500;", finding_name_css)
+
+        secret_head_css = css.split(".secret-evidence-head {", 1)[1].split(
+            "}",
+            1,
+        )[0]
+        self.assertIn("padding: 5px 9px;", secret_head_css)
+        self.assertIn("cursor: pointer;", secret_head_css)
+        self.assertIn(".secret-evidence.is-collapsed .secret-code {", css)
+        self.assertIn(".secret-evidence-head:focus-visible {", css)
+        self.assertNotIn(".secret-toggle-btn", css)
 
         finding_note_css = css.split(".hygiene-finding-note {", 1)[1].split("}", 1)[0]
         self.assertIn("border: 1px solid var(--field-border);", finding_note_css)

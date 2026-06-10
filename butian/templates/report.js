@@ -3342,7 +3342,11 @@ function renderSecretEvidence(item) {
     })
     .join("");
 
-  return `<div class="secret-evidence"><div class="secret-evidence-head"><span class="secret-code-lang">${esc(language)}</span><button type="button" class="secret-copy-btn" onclick="copySecretEvidence(this)">复制</button></div><pre class="secret-code"><code>${rows}</code></pre></div>`;
+  return `<div class="secret-evidence is-collapsed"><div class="secret-evidence-head" ${secretEvidenceHeadAttrs()}><span class="secret-code-lang">${esc(language)}</span><div class="secret-evidence-actions"><button type="button" class="secret-copy-btn" onclick="event.stopPropagation();copySecretEvidence(this)">复制</button></div></div><pre class="secret-code"><code>${rows}</code></pre></div>`;
+}
+
+function secretEvidenceHeadAttrs() {
+  return 'role="button" tabindex="0" aria-expanded="false" onclick="toggleSecretEvidence(this)" onkeydown="handleSecretEvidenceKey(event, this)"';
 }
 
 function visibleSecretContext(item, maxLines = 3) {
@@ -3388,6 +3392,10 @@ function softMaskSecretLine(text) {
     return softMaskSecretValue(text);
   }
   return masked;
+}
+
+function hygieneFindingName(value) {
+  return `<span class="hygiene-finding-name">${esc(value)}</span>`;
 }
 
 function secretEvidenceLanguage(item) {
@@ -3444,6 +3452,22 @@ function copySecretEvidence(button) {
       }, 1200);
     })
     .catch(() => {});
+}
+
+function toggleSecretEvidence(trigger) {
+  const root =
+    trigger && trigger.closest ? trigger.closest(".secret-evidence") : null;
+  if (!root) return;
+  const shouldExpand = root.classList.contains("is-collapsed");
+  root.classList.toggle("is-collapsed", !shouldExpand);
+  const head = root.querySelector(".secret-evidence-head");
+  if (head) head.setAttribute("aria-expanded", shouldExpand ? "true" : "false");
+}
+
+function handleSecretEvidenceKey(event, trigger) {
+  if (!event || (event.key !== "Enter" && event.key !== " ")) return;
+  event.preventDefault();
+  toggleSecretEvidence(trigger);
 }
 
 function renderHygiene(h) {
@@ -3526,7 +3550,7 @@ function renderHygiene(h) {
     ...sensitive.slice(0, 5).map((x) => {
       const loc = `${x.file || "-"}`;
       const label = SENSITIVE_TYPE_LABELS[x.type] || x.type || "敏感文件";
-      return `<article class="hygiene-finding hygiene-finding-sensitive"><div class="hygiene-finding-top"><div class="hygiene-finding-title">${sevBadge("medium")}<b>被跟踪敏感文件：${esc(label)}</b></div><div class="hygiene-finding-loc">${esc(loc)}</div></div></article>`;
+      return `<article class="hygiene-finding hygiene-finding-sensitive"><div class="hygiene-finding-top"><div class="hygiene-finding-title">${sevBadge("medium")}${hygieneFindingName(`被跟踪敏感文件：${label}`)}</div><div class="hygiene-finding-loc">${esc(loc)}</div></div></article>`;
     }),
   ];
   const basicTotal = credentialCount;
@@ -3560,7 +3584,7 @@ function renderHygiene(h) {
           const recommendation = x.recommendation
             ? `<p class="hygiene-finding-advice">${esc(x.recommendation)}</p>`
             : "";
-          return `<article class="hygiene-finding"><div class="hygiene-finding-top"><div class="hygiene-finding-title">${badge}<b>${esc(x.title || x.id || "仓库安检项")}</b></div><div class="hygiene-finding-loc">${esc(loc)}</div></div><div class="hygiene-finding-body">${evidence}${recommendation}</div></article>`;
+          return `<article class="hygiene-finding"><div class="hygiene-finding-top"><div class="hygiene-finding-title">${badge}${hygieneFindingName(x.title || x.id || "仓库安检项")}</div><div class="hygiene-finding-loc">${esc(loc)}</div></div><div class="hygiene-finding-body">${evidence}${recommendation}</div></article>`;
         })
         .join("");
       const groupMore =
@@ -3686,9 +3710,6 @@ function secretLocationKey(item) {
 function renderCredentialFinding(item, fallback) {
   const merged = Object.assign({}, fallback || {}, item || {});
   const path = merged.path || merged.file || "";
-  const name =
-    merged.name ||
-    `疑似硬编码凭证：${path || "未知位置"}${merged.line ? ":" + merged.line : ""}`;
   const loc = `${path || "-"}${merged.line ? ":" + merged.line : ""}`;
   const severity =
     merged.severity ||
@@ -3700,7 +3721,7 @@ function renderCredentialFinding(item, fallback) {
     ? `<code class="secret-preview">${esc(softMaskSecretLine(merged.preview))}</code>`
     : "";
   const body = evidence || fallbackPreview;
-  return `<article class="hygiene-finding hygiene-finding-secret"><div class="hygiene-finding-top"><div class="hygiene-finding-title">${tierBadge("yellow")}${sevBadge(severity)}<b>${esc(normalizeSecurityLanguage(name))}</b></div><div class="hygiene-finding-loc">${esc(loc)}</div></div>${body ? `<div class="hygiene-finding-body">${body}</div>` : ""}</article>`;
+  return `<article class="hygiene-finding hygiene-finding-secret"><div class="hygiene-finding-top"><div class="hygiene-finding-title">${sevBadge(severity)}${tierBadge("yellow")}</div><div class="hygiene-finding-loc">${esc(loc)}</div></div>${body ? `<div class="hygiene-finding-body">${body}</div>` : ""}</article>`;
 }
 
 // ---- Red: high-risk ----

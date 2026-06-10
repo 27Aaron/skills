@@ -17,7 +17,7 @@ description: |
 
 不用于系统目录、用户主目录、系统包、系统服务、数据库、日志、云账号权限、线上渗透测试或完整代码审计。
 
-## 默认执行规则 / Default Flow
+## Default Flow
 
 1. 第一次扫描报告：在目标项目目录中运行 `run_audit.py` 完成首次扫描。项目扫描先生成 `docs/butian/<日期>/security-report.html`，再生成 `docs/butian/<日期>/security-report.md`；不自动打开网页，只在终端展示绝对路径和摘要，然后询问是否修复。
 2. 修复前先确认：确认开始修复后，才运行 `fix.py` 或包管理器命令。默认优先升级到已知修复版本；升级到 latest、Dependabot、凭证占位符替换、过期依赖维护都需要确认。
