@@ -623,7 +623,7 @@ class RenderServerEnvironmentTests(unittest.TestCase):
 # Markdown structure
 # ---------------------------------------------------------------------------
 class RenderMarkdownStructureTests(unittest.TestCase):
-    def test_render_markdown_omits_server_environment_section(self):
+    def test_render_markdown_includes_server_environment_section(self):
         markdown = report.render_markdown(
             {
                 "project": {"name": "demo", "path": "/tmp/demo"},
@@ -650,9 +650,9 @@ class RenderMarkdownStructureTests(unittest.TestCase):
             }
         )
 
-        self.assertNotIn("## 服务器运行环境", markdown)
+        self.assertIn("## 服务器运行环境", markdown)
         self.assertNotIn("未启用服务器运行环境扫描", markdown)
-        self.assertNotIn("openssl confirmed", markdown)
+        self.assertIn("openssl confirmed", markdown)
         self.assertIn("## 覆盖说明", markdown)
         self.assertNotIn("## 需要人工确认的事项", markdown)
         self.assertLess(
