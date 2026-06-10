@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import os
 import shlex
@@ -290,13 +291,21 @@ def _find_ssh_config_entry(target: str, ssh_config: str = "") -> dict[str, Any]:
     )
     if not os.path.exists(config_path):
         return {}
+    matched_options: dict[str, Any] = {}
+    matched = False
     for entry in _read_ssh_config_entries(config_path):
         patterns = entry.get("patterns", [])
-        if target in patterns and not any(
-            marker in pattern for pattern in patterns for marker in "*?"
-        ):
-            return {"config": config_path, "options": entry.get("options") or {}}
-    return {}
+        if not any(fnmatch.fnmatchcase(target, pattern) for pattern in patterns):
+            continue
+        matched = True
+        for key, value in (entry.get("options") or {}).items():
+            if key == "identityfile":
+                matched_options.setdefault(key, []).extend(value or [])
+            elif key not in matched_options:
+                matched_options[key] = value
+    if not matched:
+        return {}
+    return {"config": config_path, "options": matched_options}
 
 
 def resolve_ssh_policy(

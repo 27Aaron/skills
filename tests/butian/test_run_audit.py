@@ -793,6 +793,19 @@ class ServerIdentityRedactionTests(unittest.TestCase):
         self.assertNotIn("/tmp/id_prod", rendered)
         self.assertIn("[redacted-identity]", rendered)
 
+    def test_strip_server_identity_handles_case_insensitive_identity_keys(self):
+        payload = {
+            "IdentityFile": "/tmp/id_prod",
+            "errors": [{"message": "using /tmp/id_prod"}],
+        }
+
+        result = run_audit.strip_server_identity(payload)
+
+        rendered = json.dumps(result, ensure_ascii=False)
+        self.assertNotIn("IdentityFile", rendered)
+        self.assertNotIn("/tmp/id_prod", rendered)
+        self.assertIn("[redacted-identity]", rendered)
+
 
 class ServerOnlyPipelineTests(unittest.TestCase):
     def test_main_server_only_writes_scan_and_artifacts_without_identity(self):

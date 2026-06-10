@@ -162,13 +162,17 @@ def import_server_module(name):
 SERVER_IDENTITY_KEYS = {"identity", "identity_file", "identityfile", "ssh_identity"}
 
 
+def _is_server_identity_key(key):
+    return str(key or "").lower() in SERVER_IDENTITY_KEYS
+
+
 def _collect_server_identity_secrets(value):
     # 服务器 identity 路径属于报告敏感信息，因为它会暴露本地密钥材料位置；
     # 写入服务器 inventory 产物前必须剥离。
     secrets = set()
     if isinstance(value, dict):
         for key, item in value.items():
-            if key in SERVER_IDENTITY_KEYS and isinstance(item, str) and item:
+            if _is_server_identity_key(key) and isinstance(item, str) and item:
                 secrets.add(item)
             secrets.update(_collect_server_identity_secrets(item))
     elif isinstance(value, list):
@@ -190,7 +194,7 @@ def _strip_server_identity(value, secrets):
         return {
             key: _strip_server_identity(item, secrets)
             for key, item in value.items()
-            if key not in SERVER_IDENTITY_KEYS
+            if not _is_server_identity_key(key)
         }
     if isinstance(value, list):
         return [_strip_server_identity(item, secrets) for item in value]

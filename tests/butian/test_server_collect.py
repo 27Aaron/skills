@@ -136,6 +136,23 @@ Host prod-web
         self.assertEqual(policy["target"], "prod-web")
         self.assertIn("identityfile", policy["options"])
 
+    def test_ssh_config_wildcard_identity_file_is_collected(self):
+        config = """
+Host *
+  IdentityFile /tmp/id_shared
+  BatchMode yes
+"""
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8") as handle:
+            handle.write(config)
+            handle.flush()
+
+            policy = server_collect.resolve_ssh_policy(
+                "prod-web", ssh_config=handle.name
+            )
+
+        self.assertIn("/tmp/id_shared", policy["options"].get("identityfile", []))
+        self.assertIn("/tmp/id_shared", server_collect._identity_secret_values(policy))
+
     def test_server_scan_accepts_direct_user_ip_with_key_only_ssh_options(self):
         policy = server_collect.resolve_ssh_policy(
             "root@203.0.113.10", identity="/tmp/id_ed25519"
