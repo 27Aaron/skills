@@ -84,7 +84,6 @@ python3 scan.py --follow-symlinks               # 跟随符号链接扫描
 | `EPSS_API_URL`                   | `https://api.first.org/data/v1/epss`                            | EPSS 漏洞利用预测评分              |
 | `BUTIAN_DIR`                     | `.butian`                                                       | 工作区目录名                       |
 | `BUTIAN_ASSETS_DIR`              | `assets`                                                        | 工作区内的资产子目录               |
-| `BUTIAN_CONTENT_DIR`             | `content`                                                       | 工作区内的内容子目录               |
 | `BUTIAN_GITIGNORE_EXTRA_ENTRIES` | `docs/butian/*/security-report*.md/html`                         | 除 `.butian/` 外额外忽略的生成报告 |
 | `CACHE_DIR_NAME`                 | `cache`                                                         | 缓存子目录名                       |
 

@@ -210,14 +210,10 @@ def table(headers, rows, min_widths=None, aligns=None):
     return "\n".join(lines)
 
 
-def relative_path(path: str, project_path: str) -> str:
+def absolute_path(path: str) -> str:
     if not path:
         return "-"
-    try:
-        rel = os.path.relpath(os.path.abspath(path), os.path.abspath(project_path))
-    except ValueError:
-        return path
-    return rel if not rel.startswith("..") else path
+    return os.path.abspath(path)
 
 
 def report_run_dir(analysis, scan=None):
@@ -479,7 +475,6 @@ def format_focus(analysis, scan_mode=None):
 
 def format_human_summary(summary, scan, analysis, args):
     project = analysis.get("project") or scan.get("project") or {}
-    project_path = project.get("path") or os.getcwd()
     risk_summary = analysis.get("risk_summary") or {}
     hygiene = analysis.get("hygiene") or scan.get("hygiene") or {}
     scan_mode = (
@@ -506,7 +501,10 @@ def format_human_summary(summary, scan, analysis, args):
     error_label = "无" if not errors else f"{len(errors)} 个"
     markdown_label = "最终 Markdown" if args.final_report else "Markdown"
     if summary.get("html_report"):
-        html_report_line = f"- HTML 报告（不会自动打开）：{relative_path(summary.get('html_report'), project_path)}"
+        html_report_line = (
+            f"- HTML 报告（不会自动打开）："
+            f"{absolute_path(summary.get('html_report'))}"
+        )
     else:
         html_report_line = "- HTML 报告：未生成"
     scope_notice = (
@@ -527,10 +525,10 @@ def format_human_summary(summary, scan, analysis, args):
     report_path_lines = [
         (
             f"- {markdown_label} 审计报告："
-            f"{relative_path(summary.get('markdown_report'), project_path) if summary.get('markdown_report') else '复扫未生成（首次扫描已有）'}"
+            f"{absolute_path(summary.get('markdown_report')) if summary.get('markdown_report') else '复扫未生成（首次扫描已有）'}"
         ),
         html_report_line,
-        f"- analysis JSON：{relative_path(summary.get('analysis_file'), project_path)}",
+        f"- analysis JSON：{absolute_path(summary.get('analysis_file'))}",
     ]
     lines = [
         f"⏺ 扫描完成 ✅ 模式：{scan_mode}（{mode_label(scan_mode)}）。",

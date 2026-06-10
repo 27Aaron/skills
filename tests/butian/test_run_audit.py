@@ -116,24 +116,6 @@ class TableTests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# relative_path
-# ---------------------------------------------------------------------------
-class RelativePathTests(unittest.TestCase):
-    def test_within_project(self):
-        self.assertEqual(run_audit.relative_path("/proj/src/a.py", "/proj"), "src/a.py")
-
-    def test_empty_path(self):
-        self.assertEqual(run_audit.relative_path("", "/proj"), "-")
-
-    def test_outside_project(self):
-        # If relative path starts with .., return original
-        result = run_audit.relative_path("/other/file.py", "/proj")
-        # On same filesystem, relpath works; may return ../...
-        # The function returns original if starts with ..
-        self.assertTrue(isinstance(result, str))
-
-
-# ---------------------------------------------------------------------------
 # version_key
 # ---------------------------------------------------------------------------
 class VersionKeyTests(unittest.TestCase):
@@ -438,6 +420,46 @@ class FormatHumanSummaryTests(unittest.TestCase):
         self.assertIn("需要修复时", result)
         self.assertIn("当前交互里选择", result)
 
+    def test_report_paths_are_absolute_in_terminal_summary(self):
+        with tempfile.TemporaryDirectory(prefix="butian-summary-") as root:
+            project = os.path.join(root, "project")
+            report_dir = os.path.join(project, "docs", "butian", "2026-0610")
+            assets_dir = os.path.join(project, ".butian", "20260610-1200", "assets")
+            markdown_report = os.path.join(report_dir, "security-report.md")
+            html_report = os.path.join(report_dir, "security-report.html")
+            analysis_file = os.path.join(assets_dir, "analysis.json")
+            summary = {
+                "scan_mode": "full_dependency_scan",
+                "markdown_report": markdown_report,
+                "html_report": html_report,
+                "analysis_file": analysis_file,
+                "errors": [],
+            }
+            scan = {"scan_config": {"scan_mode": "full_dependency_scan"}, "hygiene": {}}
+            analysis = {
+                "project": {
+                    "path": project,
+                    "name": "demo",
+                    "ecosystems": ["npm"],
+                    "total_packages": 0,
+                },
+                "risk_summary": {"critical": 0, "high": 0, "medium": 0, "low": 0},
+                "hygiene": {},
+                "top_issues": [],
+                "vulnerability_count": 0,
+                "outdated_count": 0,
+                "errors": [],
+            }
+            args = SimpleNamespace(no_open=True, final_report=False)
+
+            result = run_audit.format_human_summary(summary, scan, analysis, args)
+
+            self.assertIn(f"- Markdown 审计报告：{markdown_report}", result)
+            self.assertIn(f"- HTML 报告（不会自动打开）：{html_report}", result)
+            self.assertIn(f"- analysis JSON：{analysis_file}", result)
+            self.assertNotIn("- Markdown 审计报告：docs/butian", result)
+            self.assertNotIn("- analysis JSON：.butian", result)
+
     def test_final_report_label_has_space_before_markdown(self):
         summary = {
             "scan_mode": "hygiene_only",
@@ -487,7 +509,6 @@ class PipelinePathTests(unittest.TestCase):
                         "butian_workspace": {
                             "run_dir": run_dir,
                             "assets_dir": assets_dir,
-                            "content_dir": os.path.join(run_dir, "content"),
                         },
                     }
                 return {
@@ -505,7 +526,6 @@ class PipelinePathTests(unittest.TestCase):
                     "butian_workspace": {
                         "run_dir": run_dir,
                         "assets_dir": assets_dir,
-                        "content_dir": os.path.join(run_dir, "content"),
                     },
                 }
 
@@ -531,7 +551,6 @@ class PipelinePathTests(unittest.TestCase):
                                 "butian_workspace": {
                                     "run_dir": run_dir,
                                     "assets_dir": assets_dir,
-                                    "content_dir": os.path.join(run_dir, "content"),
                                 },
                             },
                             handle,

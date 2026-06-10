@@ -39,7 +39,7 @@
 
 - 输入覆盖：根目录、子目录、`--no-root-discovery`、自定义输出路径。
 - 行为覆盖：存在 lockfile 时推荐 `full_dependency_scan`，不存在时推荐 `hygiene_only`。
-- 产物覆盖：`preflight.json` 文件写入、stdout JSON、run 目录、assets/content 目录。
+- 产物覆盖：`preflight.json` 文件写入、stdout JSON、run 目录、assets 目录。
 
 ### `finding_utils.py`
 

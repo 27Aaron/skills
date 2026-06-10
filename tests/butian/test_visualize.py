@@ -329,7 +329,7 @@ class PipelineHelpTests(unittest.TestCase):
                 temp_dir, ".butian", "20260605-1200", "assets", "analysis.json"
             )
             output_path = os.path.join(
-                temp_dir, ".butian", "20260605-1200", "content", "security-report.html"
+                temp_dir, "docs", "butian", "2026-0605", "security-report.html"
             )
             os.makedirs(os.path.dirname(analysis_path))
             with open(analysis_path, "w", encoding="utf-8") as handle:

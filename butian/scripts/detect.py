@@ -102,7 +102,6 @@ def build_preflight(project_path, args):
         "butian_workspace": {
             "run_dir": run_dir,
             "assets_dir": os.path.join(run_dir, "assets"),
-            "content_dir": os.path.join(run_dir, "content"),
             "gitignore": butian_gitignore_status(project_path),
         },
         "output_file": output_file,

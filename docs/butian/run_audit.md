@@ -135,21 +135,21 @@ run_audit.py
 [核心风险包的 Unicode 表格]
 
 📁 报告路径
-- Markdown 审计报告：docs/butian/2026-0609/security-report.md
-- HTML 报告（不会自动打开）：docs/butian/2026-0609/security-report.html
-- analysis JSON：.butian/.../assets/analysis.json
+- Markdown 审计报告：/path/to/project/docs/butian/2026-0609/security-report.md
+- HTML 报告（不会自动打开）：/path/to/project/docs/butian/2026-0609/security-report.html
+- analysis JSON：/path/to/project/.butian/20260609-1200/assets/analysis.json
 
 # 或最终复扫时：
 📁 报告路径
-- 最终 Markdown 审计报告：docs/butian/2026-0609/security-report-final.md
-- HTML 报告（不会自动打开）：docs/butian/2026-0609/security-report-final.html
-- analysis JSON：.butian/.../assets/analysis.json
+- 最终 Markdown 审计报告：/path/to/project/docs/butian/2026-0609/security-report-final.md
+- HTML 报告（不会自动打开）：/path/to/project/docs/butian/2026-0609/security-report-final.html
+- analysis JSON：/path/to/project/.butian/20260609-1200/assets/analysis.json
 
 # 或中间复扫时：
 📁 报告路径
-- Markdown 审计报告：docs/butian/2026-0609/security-report.md
-- HTML 报告（不会自动打开）：docs/butian/2026-0609/security-report.html
-- analysis JSON：.butian/.../assets/analysis.json
+- Markdown 审计报告：/path/to/project/docs/butian/2026-0609/security-report.md
+- HTML 报告（不会自动打开）：/path/to/project/docs/butian/2026-0609/security-report.html
+- analysis JSON：/path/to/project/.butian/20260609-1200/assets/analysis.json
 
 ```
 
@@ -182,7 +182,7 @@ run_audit.py
 
 | 函数                                | 作用                                 |
 | ----------------------------------- | ------------------------------------ |
-| `relative_path(path, project_path)` | 将绝对路径转为相对于项目根的相对路径 |
+| `absolute_path(path)`               | 将报告摘要里的路径格式化为绝对路径   |
 
 ## 设计要点
 

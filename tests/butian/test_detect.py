@@ -272,7 +272,7 @@ class BuildPreflightTests(unittest.TestCase):
             result = detect.build_preflight(root, args)
             self.assertEqual(result["output_file"], custom)
 
-    def test_workspace_dirs_are_under_run_dir(self):
+    def test_workspace_assets_dir_is_under_run_dir(self):
         with tempfile.TemporaryDirectory(prefix="butian-detect-") as root:
             args = self._make_args()
             result = detect.build_preflight(root, args)
@@ -281,10 +281,7 @@ class BuildPreflightTests(unittest.TestCase):
                 result["butian_workspace"]["assets_dir"],
                 os.path.join(run_dir, "assets"),
             )
-            self.assertEqual(
-                result["butian_workspace"]["content_dir"],
-                os.path.join(run_dir, "content"),
-            )
+            self.assertNotIn("content_dir", result["butian_workspace"])
 
     def test_butian_dir_is_created_on_disk(self):
         with tempfile.TemporaryDirectory(prefix="butian-detect-") as root:

@@ -69,7 +69,7 @@ class WorkspaceModuleCompatibilityTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="butian-workspace-") as tmp:
             run_dir = workspace.ensure_butian_run(tmp, run_id="20260610-010203")
             self.assertTrue(os.path.isdir(os.path.join(run_dir, "assets")))
-            self.assertTrue(os.path.isdir(os.path.join(run_dir, "content")))
+            self.assertFalse(os.path.exists(os.path.join(run_dir, "content")))
             self.assertEqual(os.path.basename(run_dir), "20260610-010203")
 
     def test_workspace_rejects_windows_drive_roots(self):

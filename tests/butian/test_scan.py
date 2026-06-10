@@ -2785,7 +2785,7 @@ class EnsureRunWorkspaceTests(unittest.TestCase):
             run_dir = scan.ensure_butian_run(root)
             self.assertTrue(os.path.isdir(run_dir))
             self.assertTrue(os.path.isdir(os.path.join(run_dir, "assets")))
-            self.assertTrue(os.path.isdir(os.path.join(run_dir, "content")))
+            self.assertFalse(os.path.exists(os.path.join(run_dir, "content")))
             with open(os.path.join(root, ".gitignore"), "r", encoding="utf-8") as f:
                 content = f.read()
             lines = content.splitlines()
@@ -2818,7 +2818,7 @@ class EnsureRunWorkspaceTests(unittest.TestCase):
 
             self.assertNotEqual(new_run, old_run)
             self.assertTrue(os.path.isdir(os.path.join(new_run, "assets")))
-            self.assertTrue(os.path.isdir(os.path.join(new_run, "content")))
+            self.assertFalse(os.path.exists(os.path.join(new_run, "content")))
 
 
 class EnsureGitignoreWorkspaceTests(unittest.TestCase):

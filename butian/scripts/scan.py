@@ -151,7 +151,6 @@ try:
     from .workspace import (
         _GITIGNORE_STATUS_BY_PROJECT,
         BUTIAN_ASSETS_DIR,
-        BUTIAN_CONTENT_DIR,
         BUTIAN_DIR,
         BUTIAN_GITIGNORE_ENTRY,
         BUTIAN_GITIGNORE_EXTRA_ENTRIES,
@@ -287,7 +286,6 @@ except ImportError:  # pragma: no cover - direct script execution
     from workspace import (  # pyright: ignore[reportMissingImports]
         _GITIGNORE_STATUS_BY_PROJECT,
         BUTIAN_ASSETS_DIR,
-        BUTIAN_CONTENT_DIR,
         BUTIAN_DIR,
         BUTIAN_GITIGNORE_ENTRY,
         BUTIAN_GITIGNORE_EXTRA_ENTRIES,

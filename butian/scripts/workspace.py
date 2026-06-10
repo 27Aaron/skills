@@ -18,7 +18,6 @@ BUTIAN_GITIGNORE_EXTRA_ENTRIES = (
     "docs/butian/*/security-report-final.html",
 )
 BUTIAN_ASSETS_DIR = "assets"
-BUTIAN_CONTENT_DIR = "content"
 
 PROJECT_ROOT_MARKERS = (
     "package-lock.json",
@@ -233,7 +232,6 @@ def ensure_butian_run(project_path, run_id=None):
             except FileExistsError:
                 suffix += 1
     os.makedirs(os.path.join(run_dir, BUTIAN_ASSETS_DIR), exist_ok=True)
-    os.makedirs(os.path.join(run_dir, BUTIAN_CONTENT_DIR), exist_ok=True)
     return run_dir
 
 
@@ -268,7 +266,6 @@ def default_asset_path(project_path, filename, preflight=None):
         )
         run_dir = ensure_project_run_dir(project_path, run_dir)
         os.makedirs(os.path.join(run_dir, BUTIAN_ASSETS_DIR), exist_ok=True)
-        os.makedirs(os.path.join(run_dir, BUTIAN_CONTENT_DIR), exist_ok=True)
         ensure_butian_gitignore(project_path)
     else:
         run_dir = ensure_butian_run(project_path)
