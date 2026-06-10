@@ -69,10 +69,11 @@ def parse_npm_lock(project_path):
     seen = set()
     packages = data.get("packages")
     if isinstance(packages, dict):
-        root_info = packages.get("") if isinstance(packages.get(""), dict) else {}
+        root_info = packages.get("")
         root_deps = set()
         for section in ("dependencies", "devDependencies", "optionalDependencies"):
-            root_deps.update((root_info.get(section) or {}).keys())
+            section_map = root_info.get(section) if isinstance(root_info, dict) else None
+            root_deps.update(section_map.keys() if section_map else ())
         for key, info in packages.items():
             if not key or not isinstance(info, dict):
                 continue
@@ -719,11 +720,15 @@ def parse_maven_pom(project_path):
     for dependencies in xml_direct_children(root, "dependencies"):
         direct_dependencies.extend(xml_direct_children(dependencies, "dependency"))
     for dependency in direct_dependencies:
-        group_id = resolve_maven_property(xml_child_text(dependency, "groupId"), properties)
+        group_id = resolve_maven_property(
+            xml_child_text(dependency, "groupId"), properties
+        )
         artifact_id = resolve_maven_property(
             xml_child_text(dependency, "artifactId"), properties
         )
-        version = resolve_maven_property(xml_child_text(dependency, "version"), properties)
+        version = resolve_maven_property(
+            xml_child_text(dependency, "version"), properties
+        )
         if not version:
             version = managed_versions.get((group_id, artifact_id), "")
         if (

@@ -141,14 +141,13 @@ def scan_workflows(project_path: str):
                     )
                 )
 
-        run_block_indent = None
+        run_block_indent: int | None = None
         for line_no, line in enumerate(text.splitlines(), 1):
             stripped = line.strip()
             indent = len(line) - len(line.lstrip(" "))
-            in_run_block = run_block_indent is not None
-            if in_run_block and stripped and indent <= run_block_indent:
+            if run_block_indent is not None and stripped and indent <= run_block_indent:
                 run_block_indent = None
-                in_run_block = False
+            in_run_block = run_block_indent is not None
 
             if (in_run_block or "run:" in line) and UNTRUSTED_CONTEXT_RE.search(line):
                 findings.append(

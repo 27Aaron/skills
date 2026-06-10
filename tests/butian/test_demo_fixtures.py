@@ -41,8 +41,8 @@ BLOCKED_SECRET_SNIPPETS = (
 
 def load_demo_runner():
     spec = importlib.util.spec_from_file_location("demo_runner", RUNNER_PATH)
+    assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
     spec.loader.exec_module(module)
     return module
 

@@ -1724,7 +1724,7 @@ def build_secret_code_context(
 
 def scan_secrets(
     project_path,
-    max_files=500,
+    max_files: int | None = 500,
     max_bytes=1024 * 1024,
     follow_symlinks=False,
     stats=None,
