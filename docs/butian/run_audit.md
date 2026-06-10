@@ -4,18 +4,18 @@
 
 ## 概览
 
-`run_audit.py` 是完整管线编排器。它按顺序调用 `detect → scan → analyze → report → visualize` 五个阶段，一次性完成从预检到报告生成的全流程。
+`run_audit.py` 是完整管线编排器。它按顺序调用 `detect → scan → analyze → visualize → report` 五个阶段，一次性完成从预检到报告生成的全流程。
 
 ## 职责
 
 | #   | 职责          | 说明                                                                                                                         |
 | --- | ------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| 1   | 管线编排      | 按序调用 detect → scan → analyze → report → visualize                                                                        |
+| 1   | 管线编排      | 按序调用 detect → scan → analyze → visualize → report                                                                        |
 | 2   | 参数透传      | 将用户参数传递给各子阶段（verbose/debug/follow-symlinks）                                                                    |
 | 3   | 结果汇总      | 收集各阶段的文件路径和风险统计                                                                                               |
 | 4   | 终端摘要      | 输出格式化的终端摘要（包含 Unicode 表格）                                                                                    |
-| 5   | 报告输出      | Markdown 和 HTML 都生成到 `docs/butian/<日期>/`，普通报告和最终报告使用固定文件名                                         |
-| 6   | 打开控制      | 不自动打开浏览器；终端只展示摘要、报告路径和后续交互提示                                                                   |
+| 5   | 报告输出      | HTML 和 Markdown 都生成到 `docs/butian/<日期>/`，普通报告和最终报告使用固定文件名                                         |
+| 6   | 打开控制      | 不自动打开浏览器；终端只展示摘要、报告绝对路径和后续交互提示                                                               |
 
 ## CLI 用法
 
@@ -78,22 +78,22 @@ run_audit.py
 ├─ 3. analyze.py <scan_file> <analysis_path>
 │     → analysis.json
 │
-├─ 4. report.py <analysis_path> <markdown_path>
-│     → docs/butian/YYYY-MMDD/security-report.md
-│     → docs/butian/YYYY-MMDD/security-report-final.md（--final-report）
-├─ 5. visualize.py <analysis_path> <html_path> --no-open
+├─ 4. visualize.py <analysis_path> <html_path> --no-open
 │     → docs/butian/YYYY-MMDD/security-report.html
 │     → docs/butian/YYYY-MMDD/security-report-final.html（--final-report）
 │     始终只保存文件，不自动打开浏览器
+├─ 5. report.py <analysis_path> <markdown_path>
+│     → docs/butian/YYYY-MMDD/security-report.md
+│     → docs/butian/YYYY-MMDD/security-report-final.md（--final-report）
 │
 └─ 输出终端摘要
 ```
 
 `run_audit.py` 不执行依赖升级，也不询问用户是否修复。完整修复交互契约以 `butian/references/project-scan.md` 为准；本页只说明脚本编排和输出边界。
 
-修复交互在报告展示后进入 AskUserQuestion：先确认是否修复，再选择升级策略；修复后重新运行 `run_audit.py` 复扫。复扫确认仍有 npm 嵌套残留时，才进入 `parent-upgrade` 或 `force-residual` 后续轮次。Dependabot、凭证占位符和过期依赖维护属于收尾维护动作，不由 `run_audit.py` 自动执行。
+修复交互在报告展示后进入 AskUserQuestion：先确认是否修复，再选择升级策略；修复后重新运行 `run_audit.py` 复扫。复扫确认仍有 npm 嵌套残留时，才进入 `parent-upgrade` 或 `force-residual` 后续轮次。Dependabot、凭证占位符和过期依赖维护属于可选收尾动作，不由 `run_audit.py` 自动执行，也不能和修复确认放在同一个 AskUserQuestion 中。
 
-所有项目修复轮次结束后，运行 `run_audit.py --final-report` 生成最终 Markdown 审计报告和项目 HTML 报告。
+所有项目修复轮次结束后，运行 `run_audit.py --final-report` 生成最终 HTML 报告和 Markdown 审计报告。
 
 ## 子进程调用方式
 
@@ -135,21 +135,18 @@ run_audit.py
 [核心风险包的 Unicode 表格]
 
 📁 报告路径
-- Markdown 审计报告：/path/to/project/docs/butian/2026-0609/security-report.md
 - HTML 报告（不会自动打开）：/path/to/project/docs/butian/2026-0609/security-report.html
-- analysis JSON：/path/to/project/.butian/20260609-1200/assets/analysis.json
+- Markdown 审计报告：/path/to/project/docs/butian/2026-0609/security-report.md
 
 # 或最终复扫时：
 📁 报告路径
-- 最终 Markdown 审计报告：/path/to/project/docs/butian/2026-0609/security-report-final.md
 - HTML 报告（不会自动打开）：/path/to/project/docs/butian/2026-0609/security-report-final.html
-- analysis JSON：/path/to/project/.butian/20260609-1200/assets/analysis.json
+- 最终 Markdown 审计报告：/path/to/project/docs/butian/2026-0609/security-report-final.md
 
 # 或中间复扫时：
 📁 报告路径
-- Markdown 审计报告：/path/to/project/docs/butian/2026-0609/security-report.md
 - HTML 报告（不会自动打开）：/path/to/project/docs/butian/2026-0609/security-report.html
-- analysis JSON：/path/to/project/.butian/20260609-1200/assets/analysis.json
+- Markdown 审计报告：/path/to/project/docs/butian/2026-0609/security-report.md
 
 ```
 
@@ -191,7 +188,7 @@ run_audit.py
 - **参数透传**：`build_scan_cmd()` 将 verbose/debug/follow-symlinks 传递给 `scan.py`
 - **能力边界声明**：终端摘要中包含明确的能力边界说明
 - **报告文件名**：普通扫描写 `security-report.md/html`，最终复扫写 `security-report-final.md/html`
-- **最终报告**：`--final-report` 在修复完成后生成最终 Markdown 和 HTML 审计报告
+- **最终报告**：`--final-report` 在修复完成后生成最终 HTML 和 Markdown 审计报告
 - **仓库安检明细下沉到报告**：终端保持短摘要，结构化本地规则的依据、处理方式和分组展示放在 Markdown/HTML 报告里，避免终端输出过长
 - **报告验收以最新日期目录为准**：同一项目可能保留多个 `docs/butian/<日期>`，不要用旧 HTML 判断当前模板。
 

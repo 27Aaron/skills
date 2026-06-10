@@ -142,27 +142,31 @@ class ScriptInventoryTests(unittest.TestCase):
             os.path.exists(os.path.join(REFERENCE_DIR, "repair-flow.md")),
             "AskUserQuestion 契约应合并回项目扫描 reference，避免拆分过碎",
         )
-        self.assertIn("待确认动作队列", project_text)
+        self.assertIn("可选收尾动作队列", project_text)
         self.assertIn("硬编码凭证占位符", project_text)
         self.assertIn("创建 Dependabot 配置", project_text)
         self.assertIn("更新过期依赖", project_text)
         self.assertIn("处理凭证占位符", project_text)
-        self.assertIn("多选 AskUserQuestion", text)
-        self.assertIn("取消/暂不处理", project_text)
+        self.assertIn("AskUserQuestion 每次只能确认一个阶段问题", text)
+        self.assertIn("跳过收尾动作", project_text)
         self.assertIn("建议优先处理本次发现的已确认风险项", project_text)
         self.assertIn("建议优先选择改动较小的修复方式", project_text)
-        self.assertIn("建议顺手处理下面这些维护动作", project_text)
+        self.assertIn("下面是报告中发现的可选收尾动作", project_text)
         self.assertIn("Dependabot 是 GitHub 的依赖更新助手", project_text)
         self.assertIn("建议现在运行项目构建或测试", project_text)
+        self.assertIn("每次 AskUserQuestion 只能确认一个阶段问题", project_text)
+        self.assertIn("禁止把“是否修复 / 修复方式”和“可选收尾动作”放进同一个 AskUserQuestion", project_text)
+        self.assertIn("禁止使用 `长期维护`", project_text)
+        self.assertIn("禁止临时添加 `README 记录安全策略`", project_text)
         self.assertIn("开始修复", project_text)
         self.assertIn("先不修复", project_text)
         self.assertIn("升级到修复版本", project_text)
         self.assertIn("全部升级到最新版", project_text)
         self.assertIn("运行验证", project_text)
         self.assertNotIn("AskUserQuestion 单独确认", project_text)
-        self.assertIn("用户选择暂不处理", project_text)
+        self.assertIn("用户选择 `先不修复` 时，不弹出可选收尾动作队列", project_text)
         self.assertIn("升级父依赖并重新扫描", project_text)
-        self.assertIn("不弹出待确认动作队列", project_text)
+        self.assertIn("不弹出可选收尾动作队列", project_text)
 
     def test_run_audit_docs_delegate_repair_contract_to_reference(self):
         with open(
@@ -174,6 +178,7 @@ class ScriptInventoryTests(unittest.TestCase):
             "完整修复交互契约以 `butian/references/project-scan.md` 为准", text
         )
         self.assertNotIn("建议顺手处理下面这些维护动作", text)
+        self.assertNotIn("长期维护", text)
         self.assertNotIn("Dependabot 是 GitHub 的依赖更新助手", text)
 
     def test_public_docs_avoid_known_readability_typos(self):
@@ -384,8 +389,8 @@ class ScriptInventoryTests(unittest.TestCase):
         )
         for phrase in (
             "预检先固定本次运行工作区",
-            "项目 Markdown 和 HTML 每次都重新生成到 docs/butian/<日期>/",
-            "终端摘要只展示路径",
+            "项目 HTML 和 Markdown 每次都重新生成到 docs/butian/<日期>/",
+            "终端摘要只展示绝对路径",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, text)

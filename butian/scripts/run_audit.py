@@ -520,15 +520,14 @@ def format_human_summary(summary, scan, analysis, args):
         f"- 过期依赖：{analysis.get('outdated_count', len(analysis.get('outdated') or []))} 个（建议按维护窗口评估升级）",
         f"- 扫描错误：{error_label}",
     ]
-    closing_note = "报告只保存到本地路径，不会自动打开；想看细节可以打开上面的 Markdown 或 HTML。需要修复时，请在当前交互里选择要处理的项。"
+    closing_note = "报告只保存到本地路径，不会自动打开；想看细节可以打开上面的 HTML 或 Markdown。需要修复时，请在当前交互里选择要处理的项。"
 
     report_path_lines = [
+        html_report_line,
         (
             f"- {markdown_label} 审计报告："
             f"{absolute_path(summary.get('markdown_report')) if summary.get('markdown_report') else '复扫未生成（首次扫描已有）'}"
         ),
-        html_report_line,
-        f"- analysis JSON：{absolute_path(summary.get('analysis_file'))}",
     ]
     lines = [
         f"⏺ 扫描完成 ✅ 模式：{scan_mode}（{mode_label(scan_mode)}）。",
@@ -684,6 +683,17 @@ def main():
 
     run_dir = report_run_dir(analysis, scan)
 
+    html_path = html_report_path(analysis, run_dir, final_report=args.final_report)
+    os.makedirs(os.path.dirname(html_path), exist_ok=True)
+    build_report_cmd = build_visualize_cmd(args, analysis_path, html_path)
+    run_text(
+        build_report_cmd,
+        echo=True,
+    )
+    logger.info("HTML 报告已生成: %s", html_path)
+
+    # 项目 HTML 和 Markdown 每次都重新生成到 docs/butian/<日期>/，
+    # 终端摘要只展示绝对路径，不自动打开浏览器。
     markdown_path = markdown_report_path(
         analysis, run_dir, final_report=args.final_report
     )
@@ -697,17 +707,6 @@ def main():
         echo=False,
     )
     logger.info("Markdown 报告已生成: %s", markdown_path)
-
-    # 项目 Markdown 和 HTML 每次都重新生成到 docs/butian/<日期>/，
-    # 终端摘要只展示路径，不自动打开浏览器。
-    html_path = html_report_path(analysis, run_dir, final_report=args.final_report)
-    os.makedirs(os.path.dirname(html_path), exist_ok=True)
-    build_report_cmd = build_visualize_cmd(args, analysis_path, html_path)
-    run_text(
-        build_report_cmd,
-        echo=True,
-    )
-    logger.info("HTML 报告已生成: %s", html_path)
 
     summary = {
         "preflight_file": preflight["output_file"],

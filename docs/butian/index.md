@@ -21,8 +21,8 @@
 | 1    | `detect.py`                                                                           | 项目路径                 | `.butian/<run>/assets/preflight.json`        | 检测 lockfile、推荐扫描模式、准备本地工作区                  |
 | 2    | `scan.py`                                                                             | 项目路径或 preflight     | `.butian/<run>/assets/scan.json`             | 本地仓库安检、依赖解析、OSV/NVD/CISA/EPSS 查询、过期依赖检查 |
 | 3    | `analyze.py`                                                                          | `scan.json`              | `.butian/<run>/assets/analysis.json`         | 标准化风险项、分红黄绿行动项、生成摘要和修复建议             |
-| 4    | `report.py`                                                                           | `analysis.json`          | `docs/butian/<日期>/security-report*.md`     | 输出给人读的 Markdown 审计报告                               |
-| 5    | `visualize.py`                                                                        | `analysis.json`          | `docs/butian/<日期>/security-report*.html`   | 项目扫描输出自包含 HTML 报告，不自动打开浏览器               |
+| 4    | `visualize.py`                                                                        | `analysis.json`          | `docs/butian/<日期>/security-report*.html`   | 项目扫描先输出自包含 HTML 报告，不自动打开浏览器             |
+| 5    | `report.py`                                                                           | `analysis.json`          | `docs/butian/<日期>/security-report*.md`     | 再输出给人读的 Markdown 审计报告                             |
 | 6    | `fix.py`                                                                              | `analysis.json`          | 包管理器命令结果或配置文件                   | 用户确认后执行依赖升级策略或创建 Dependabot 配置             |
 | 7    | `run_audit.py`                                                                        | 项目路径                 | 全链路产物                                   | 串联 detect、scan、analyze、report、visualize                |
 

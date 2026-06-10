@@ -456,9 +456,13 @@ class FormatHumanSummaryTests(unittest.TestCase):
 
             self.assertIn(f"- Markdown 审计报告：{markdown_report}", result)
             self.assertIn(f"- HTML 报告（不会自动打开）：{html_report}", result)
-            self.assertIn(f"- analysis JSON：{analysis_file}", result)
+            self.assertLess(
+                result.index(f"- HTML 报告（不会自动打开）：{html_report}"),
+                result.index(f"- Markdown 审计报告：{markdown_report}"),
+            )
             self.assertNotIn("- Markdown 审计报告：docs/butian", result)
-            self.assertNotIn("- analysis JSON：.butian", result)
+            self.assertNotIn("analysis JSON", result)
+            self.assertNotIn(analysis_file, result)
 
     def test_final_report_label_has_space_before_markdown(self):
         summary = {
@@ -590,6 +594,11 @@ class PipelinePathTests(unittest.TestCase):
                 os.path.join(expected_dir, "security-report.html"),
             )
             self.assertIn("--no-open", visualize_cmd)
+            script_order = [os.path.basename(cmd[1]) for cmd in captured["commands"]]
+            self.assertLess(
+                script_order.index("visualize.py"),
+                script_order.index("report.py"),
+            )
 
 
 # ---------------------------------------------------------------------------
