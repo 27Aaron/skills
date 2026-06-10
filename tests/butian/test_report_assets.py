@@ -1105,6 +1105,33 @@ class ReportAssetTests(unittest.TestCase):
         self.assertIn("PYSEC-2026-1", pysec_only_row)
         self.assertIn("https://osv.dev/vulnerability/PYSEC-2026-1", pysec_only_row)
 
+    def test_current_risk_table_rejects_malicious_security_ids(self):
+        data = {
+            "generated_at": "2026-06-05 09:05:50",
+            "project": {"name": "demo", "path": "/tmp/demo", "ecosystems": ["npm"]},
+            "scan_config": {"scan_mode": "full_dependency_scan"},
+            "risk_summary": {"critical": 0, "high": 1, "medium": 0, "low": 0, "info": 0},
+            "summary": {"tldr": "demo", "detail": "demo", "priority": []},
+            "top_issues": [
+                {
+                    "package": "bad-lib",
+                    "version": "1.0.0",
+                    "severity": "high",
+                    "advisory_id": "GHSA-aaaa-bbbb-cccc](javascript:alert(1))",
+                    "summary": "Bad advisory",
+                }
+            ],
+            "hygiene": {},
+            "outdated": [],
+        }
+
+        html = self._render_html(data)
+        row = html.split('title="bad-lib"', 1)[1].split("</tr>", 1)[0]
+
+        self.assertIn('data-label="安全编号"><span style="color:var(--sub)">-</span>', row)
+        self.assertNotIn("javascript:", row)
+        self.assertNotIn("GHSA-aaaa-bbbb-cccc]", row)
+
     def test_current_risk_long_versions_use_horizontal_scroll_cells(self):
         data = {
             "generated_at": "2026-06-05 09:05:50",

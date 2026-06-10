@@ -2347,6 +2347,9 @@ function isRenderableOutdated(it) {
 
 function securityIds(r) {
   const ids = [];
+  const isSecurityId = (id) =>
+    /^CVE-\d{4}-\d+$/i.test(id) ||
+    /^[A-Z][A-Z0-9]+-[A-Z0-9][A-Z0-9_.-]*$/i.test(id);
   const push = (v) => {
     if (Array.isArray(v)) {
       v.forEach(push);
@@ -2358,6 +2361,7 @@ function securityIds(r) {
       .map((x) => x.trim())
       .filter(Boolean)
       .forEach((id) => {
+        if (!isSecurityId(id)) return;
         if (!ids.some((x) => x.toLowerCase() === id.toLowerCase()))
           ids.push(id);
       });
