@@ -1652,7 +1652,8 @@ def soft_secret_preview(secret_type, match_text):
 
 
 def should_reveal_secret_evidence(path):
-    return is_env_template(path)
+    # 模板文件也可能误放真实凭据；报告只保留强脱敏定位信息。
+    return False
 
 
 def soft_mask_secret_context_line(line):

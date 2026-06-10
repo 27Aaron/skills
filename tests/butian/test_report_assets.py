@@ -1882,9 +1882,9 @@ class ReportAssetTests(unittest.TestCase):
         self.assertIn('<span class="secret-code-no">15</span>', html)
         self.assertIn('<span class="secret-code-no">19</span>', html)
         self.assertNotIn(f"OPENAI_API_KEY=&quot;{key}&quot;", html)
-        self.assertIn("OPENAI_API_KEY=&quot;sk-proj-", html)
-        self.assertIn(key[-6:], html)
-        self.assertIn("****", html)
+        self.assertIn("OPENAI_API_KEY=&quot;sk-proj...7890&quot;", html)
+        self.assertNotIn("ABCDEFGHIJKL", html)
+        self.assertNotIn("QRSTUVWXYZ", html)
         self.assertNotIn("<span>代码位置</span>", html)
 
     def test_html_renders_secret_code_context_in_yellow_card(self):
@@ -1944,7 +1944,7 @@ class ReportAssetTests(unittest.TestCase):
         self.assertIn('class="secret-code-line is-hit"', html[evidence_pos:])
         self.assertNotIn(f"OPENAI_API_KEY=&quot;{key}&quot;", html[evidence_pos:])
         self.assertIn(
-            "OPENAI_API_KEY=&quot;sk-proj-ABCDEFGHIJKL****QRSTUVWXYZ1234567890&quot;",
+            "OPENAI_API_KEY=&quot;sk-proj...7890&quot;",
             html[evidence_pos:],
         )
         self.assertNotIn('<div class="label">为什么要关注</div>', html)
@@ -2021,7 +2021,7 @@ class ReportAssetTests(unittest.TestCase):
         self.assertIn('<span class="secret-code-lang">ENV</span>', html[evidence_pos:])
         self.assertNotIn(f"OPENAI_API_KEY=&quot;{key}&quot;", html[evidence_pos:])
         self.assertIn(
-            "OPENAI_API_KEY=&quot;sk-proj-ABCDEFGHIJKL****QRSTUVWXYZ1234567890&quot;",
+            "OPENAI_API_KEY=&quot;sk-proj...7890&quot;",
             html[evidence_pos:],
         )
         self.assertNotIn('<span class="mini-label">硬编码密钥</span>', html)

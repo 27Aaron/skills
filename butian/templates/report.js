@@ -3402,23 +3402,25 @@ function renderSecretEvidence(item) {
 function softMaskSecretValue(value) {
   value = String(value || "");
   if (!value) return value;
-  if (value.length <= 4) return "*".repeat(value.length);
-  const hidden = Math.min(4, Math.max(3, Math.floor(value.length / 4)));
-  const visible = value.length - hidden;
-  const left = Math.max(1, Math.floor(visible / 2));
-  const right = visible - left;
-  return `${value.slice(0, left)}${"*".repeat(hidden)}${
-    right ? value.slice(-right) : ""
-  }`;
+  if (value.length <= 12) return "***";
+  return `${value.slice(0, 7)}...${value.slice(-4)}`;
 }
 
 function softMaskSecretLine(text) {
   text = String(text || "");
-  return text.replace(
+  let changed = false;
+  const masked = text.replace(
     /([:=]\s*["']?)([^"'\s#]{8,})(["']?)/g,
-    (_match, prefix, value, suffix) =>
-      `${prefix}${softMaskSecretValue(value)}${suffix}`,
+    (_match, prefix, value, suffix) => {
+      changed = true;
+      return `${prefix}${softMaskSecretValue(value)}${suffix}`;
+    },
   );
+  if (changed) return masked;
+  if (/^[A-Za-z0-9_.:+/=-]{13,}$/.test(text)) {
+    return softMaskSecretValue(text);
+  }
+  return masked;
 }
 
 function secretEvidenceLanguage(item) {
@@ -3554,7 +3556,7 @@ function renderHygiene(h) {
       const loc = `${x.file || "-"}${x.line ? ":" + x.line : ""}`;
       const label = SECRET_TYPE_LABELS[x.type] || x.type || "密钥";
       const preview = x.preview
-        ? `<code class="secret-preview">${esc(x.preview)}</code>`
+        ? `<code class="secret-preview">${esc(softMaskSecretLine(x.preview))}</code>`
         : "";
       return `<div class="finding-item finding-item-secret"><span class="finding-loc">${esc(loc)}</span><span class="finding-type">${esc(label)}</span>${preview}${renderSecretEvidence(x)}</div>`;
     }),
