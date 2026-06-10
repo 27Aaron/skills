@@ -349,6 +349,16 @@ def _major_version(version_id: str) -> str:
     return str(version_id or "").split(".", 1)[0]
 
 
+def _is_ubuntu_lts(version_id: str) -> bool:
+    parts = str(version_id or "").split(".")
+    if len(parts) < 2 or parts[1] != "04":
+        return False
+    try:
+        return int(parts[0]) % 2 == 0
+    except ValueError:
+        return False
+
+
 def parse_os_release(raw: str) -> dict[str, Any]:
     fields: dict[str, str] = {}
     for line in str(raw or "").splitlines():
@@ -371,7 +381,11 @@ def parse_os_release(raw: str) -> dict[str, Any]:
     if distro_id == "ubuntu":
         family = "debian"
         package_type = "deb"
-        ecosystem = f"Ubuntu:{version_id}:LTS" if version_id else "Ubuntu"
+        if version_id:
+            suffix = ":LTS" if _is_ubuntu_lts(version_id) else ""
+            ecosystem = f"Ubuntu:{version_id}{suffix}"
+        else:
+            ecosystem = "Ubuntu"
     elif distro_id == "debian":
         family = "debian"
         package_type = "deb"

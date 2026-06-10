@@ -17,6 +17,14 @@ class OsReleaseParsingTests(unittest.TestCase):
         self.assertEqual(result["ecosystem"], "Ubuntu:24.04:LTS")
         self.assertTrue(result["supported"])
 
+    def test_parse_ubuntu_non_lts_does_not_add_lts_suffix(self):
+        raw = 'NAME="Ubuntu"\nID=ubuntu\nVERSION_ID="23.10"\nVERSION_CODENAME=mantic\n'
+
+        result = server_inventory.parse_os_release(raw)
+
+        self.assertEqual(result["ecosystem"], "Ubuntu:23.10")
+        self.assertTrue(result["supported"])
+
     def test_parse_debian_os_release(self):
         raw = (
             'PRETTY_NAME="Debian GNU/Linux 12 (bookworm)"\n'
