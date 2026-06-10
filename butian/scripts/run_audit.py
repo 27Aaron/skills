@@ -646,6 +646,26 @@ def format_human_summary(summary, scan, analysis, args):
         ]
         closing_note = "如果存在紧急/高风险项，建议先处理有明确修复版本的依赖；过期依赖作为维护信号，放在风险项修复验证之后排期。"
 
+    report_path_lines = [
+        (
+            f"- {markdown_label} 审计报告："
+            f"{relative_path(summary.get('markdown_report'), project_path) if summary.get('markdown_report') else '复扫未生成（首次扫描已有）'}"
+        ),
+        html_report_line,
+        f"- analysis JSON：{relative_path(summary.get('analysis_file'), project_path)}",
+    ]
+    if server_only and summary.get("analysis_file"):
+        assets_dir = os.path.dirname(os.path.abspath(summary["analysis_file"]))
+        server_asset_names = (
+            ("server inventory JSON", "server-inventory.json"),
+            ("server assets JSON", "server-assets.json"),
+            ("server vulnerabilities JSON", "server-vulns.json"),
+            ("server analysis JSON", "server-analysis.json"),
+        )
+        for label, filename in server_asset_names:
+            path = relative_path(os.path.join(assets_dir, filename), project_path)
+            report_path_lines.append(f"- {label}：{path}")
+
     lines = [
         f"⏺ 扫描完成 ✅ 模式：{scan_mode}（{mode_label(scan_mode)}）。",
         *scope_notice,
@@ -671,9 +691,7 @@ def format_human_summary(summary, scan, analysis, args):
         "",
         "📁 报告路径",
         "",
-        f"- {markdown_label} 审计报告：{relative_path(summary.get('markdown_report'), project_path) if summary.get('markdown_report') else '复扫未生成（首次扫描已有）'}",
-        html_report_line,
-        f"- analysis JSON：{relative_path(summary.get('analysis_file'), project_path)}",
+        *report_path_lines,
         "",
         quote_line(closing_note),
     ]
