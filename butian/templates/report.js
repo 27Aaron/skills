@@ -3331,9 +3331,7 @@ const SENSITIVE_TYPE_LABELS =
     : __SENSITIVE_TYPE_LABELS__;
 
 function renderSecretEvidence(item) {
-  const context = Array.isArray(item && item.code_context)
-    ? item.code_context.filter((line) => line && line.line)
-    : [];
+  const context = visibleSecretContext(item);
   if (!context.length) return "";
 
   const language = secretEvidenceLanguage(item);
@@ -3347,6 +3345,18 @@ function renderSecretEvidence(item) {
   return `<div class="secret-evidence"><div class="secret-evidence-head"><span class="secret-code-lang">${esc(language)}</span><button type="button" class="secret-copy-btn" onclick="copySecretEvidence(this)">复制</button></div><pre class="secret-code"><code>${rows}</code></pre></div>`;
 }
 
+function visibleSecretContext(item, maxLines = 3) {
+  const context = Array.isArray(item && item.code_context)
+    ? item.code_context.filter((line) => line && line.line)
+    : [];
+  if (context.length <= maxLines) return context;
+  let hitIndex = context.findIndex((line) => line && line.match);
+  if (hitIndex < 0) hitIndex = 0;
+  let start = hitIndex - Math.floor(maxLines / 2);
+  start = Math.max(0, Math.min(start, context.length - maxLines));
+  return context.slice(start, start + maxLines);
+}
+
 function softMaskSecretValue(value) {
   value = String(value || "");
   if (!value) return value;
@@ -3356,6 +3366,8 @@ function softMaskSecretValue(value) {
 
 const SECRET_TOKEN_PATTERN =
   /\b(?:sk-[A-Za-z0-9_-]{12,}|npm_[A-Za-z0-9_-]{12,}|pypi-[A-Za-z0-9_-]{12,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})\b/g;
+const SECRET_ASSIGNMENT_PATTERN =
+  /((?:[A-Za-z_$][\w$.-]*\s+)?[A-Za-z_$][\w$.-]*(?:secret|token|password|credential|auth|api[_-]?key|access[_-]?key|secret[_-]?key|database[_-]?url|db[_-]?url|connection[_-]?string)[\w$.-]*\s*[:=]\s*["']?)([^"'\s#]{8,})(["']?)/gi;
 
 function softMaskSecretLine(text) {
   text = String(text || "");
@@ -3365,7 +3377,7 @@ function softMaskSecretLine(text) {
     return softMaskSecretValue(value);
   });
   const masked = text.replace(
-    /([:=]\s*["']?)([^"'\s#]{8,})(["']?)/g,
+    SECRET_ASSIGNMENT_PATTERN,
     (_match, prefix, value, suffix) => {
       changed = true;
       return `${prefix}${softMaskSecretValue(value)}${suffix}`;
@@ -3501,25 +3513,20 @@ function renderHygiene(h) {
     return "";
   }
 
-  const basicFindingItems = [
+  const credentialFindingItems = [
     ...secrets.slice(0, 5).map((x) => {
       const reviewKey = secretLocationKey(x);
       const review = reviewKey ? reviewBySecretLocation.get(reviewKey) : null;
       if (review) {
-        return renderCredentialReview(review, x);
+        return renderCredentialFinding(review, x);
       }
-      const loc = `${x.file || "-"}${x.line ? ":" + x.line : ""}`;
-      const label = SECRET_TYPE_LABELS[x.type] || x.type || "密钥";
-      const preview = x.preview
-        ? `<code class="secret-preview">${esc(softMaskSecretLine(x.preview))}</code>`
-        : "";
-      return `<div class="finding-item finding-item-secret"><span class="finding-loc">${esc(loc)}</span><span class="finding-type">${esc(label)}</span>${preview}${renderSecretEvidence(x)}</div>`;
+      return renderCredentialFinding(x);
     }),
-    ...reviewOnlyCredentials.slice(0, 5).map((x) => renderCredentialReview(x)),
+    ...reviewOnlyCredentials.slice(0, 5).map((x) => renderCredentialFinding(x)),
     ...sensitive.slice(0, 5).map((x) => {
       const loc = `${x.file || "-"}`;
       const label = SENSITIVE_TYPE_LABELS[x.type] || x.type || "敏感文件";
-      return `<div class="finding-item"><span class="finding-loc">${esc(loc)}</span><span class="finding-type">${esc(label)}</span></div>`;
+      return `<article class="hygiene-finding hygiene-finding-sensitive"><div class="hygiene-finding-top"><div class="hygiene-finding-title">${sevBadge("medium")}<b>被跟踪敏感文件：${esc(label)}</b></div><div class="hygiene-finding-loc">${esc(loc)}</div></div></article>`;
     }),
   ];
   const basicTotal = credentialCount;
@@ -3531,8 +3538,8 @@ function renderHygiene(h) {
     basicTotal > basicShown
       ? `<div class="finding-more">…及其他 ${basicTotal - basicShown} 处</div>`
       : "";
-  const basicFindings = basicFindingItems.length
-    ? `<div class="field"><div class="label">凭证与敏感文件</div><div class="finding-list">${basicFindingItems.join("")}${basicExtra}</div></div>`
+  const credentialGroupHtml = credentialFindingItems.length
+    ? `<div class="hygiene-group hygiene-credentials-group"><div class="hygiene-group-head"><span>凭证与敏感文件</span></div><div class="hygiene-group-list">${credentialFindingItems.join("")}${basicExtra}</div></div>`
     : "";
 
   const localGroupHtml = localGroups
@@ -3563,7 +3570,8 @@ function renderHygiene(h) {
       return `<div class="hygiene-group"><div class="hygiene-group-head"><span>${esc(groupLabel)}</span></div><div class="hygiene-group-list">${cards}${groupMore}</div></div>`;
     })
     .join("");
-  const extra = `${basicFindings}${localGroupHtml ? `<div class="hygiene-groups">${localGroupHtml}</div>` : ""}`;
+  const groupHtml = `${credentialGroupHtml}${localGroupHtml}`;
+  const extra = groupHtml ? `<div class="hygiene-groups">${groupHtml}</div>` : "";
   const rowHtml = rows.length ? miniFields(rows) : "";
 
   return section(
@@ -3675,33 +3683,24 @@ function secretLocationKey(item) {
   return `${file}:${line || ""}`;
 }
 
-function renderCredentialReview(item, fallback) {
+function renderCredentialFinding(item, fallback) {
   const merged = Object.assign({}, fallback || {}, item || {});
   const path = merged.path || merged.file || "";
   const name =
     merged.name ||
     `疑似硬编码凭证：${path || "未知位置"}${merged.line ? ":" + merged.line : ""}`;
-  const sevHtml = merged.severity
-    ? `<span class="item-sev">${sevBadge(merged.severity)}</span>`
-    : "";
-  const route = path
-    ? `<span class="item-route" title="${esc(path)}">${esc(path)}</span>`
-    : "";
+  const loc = `${path || "-"}${merged.line ? ":" + merged.line : ""}`;
+  const severity =
+    merged.severity ||
+    (String(merged.confidence || "").toLowerCase() === "high"
+      ? "high"
+      : "medium");
   const evidence = renderSecretEvidence(merged);
   const fallbackPreview = merged.preview
     ? `<code class="secret-preview">${esc(softMaskSecretLine(merged.preview))}</code>`
     : "";
-  return `<div class="hygiene-secret-review item yellow">
-  <div class="item-head" ${itemCardHeadAttrs()}>
-    <div class="item-main">
-      <div class="item-kicker">${tierBadge("yellow")}${sevHtml}${route}</div>
-      <div class="item-name">${esc(normalizeSecurityLanguage(name))}</div>
-    </div>
-    <span class="item-badge"></span>
-  </div>
-  <div class="item-body">
-    ${evidence || fallbackPreview}
-  </div></div>`;
+  const body = evidence || fallbackPreview;
+  return `<article class="hygiene-finding hygiene-finding-secret"><div class="hygiene-finding-top"><div class="hygiene-finding-title">${tierBadge("yellow")}${sevBadge(severity)}<b>${esc(normalizeSecurityLanguage(name))}</b></div><div class="hygiene-finding-loc">${esc(loc)}</div></div>${body ? `<div class="hygiene-finding-body">${body}</div>` : ""}</article>`;
 }
 
 // ---- Red: high-risk ----

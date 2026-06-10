@@ -878,16 +878,6 @@ td.summary-cell {
 .finding-item-secret {
     width: 100%;
 }
-.hygiene-secret-review.item {
-    width: 100%;
-    margin: 0;
-}
-.hygiene-secret-review .item-head {
-    padding: 13px 14px;
-}
-.hygiene-secret-review .item-body {
-    padding: 12px 14px 14px;
-}
 .finding-loc {
     color: var(--ink);
     font-weight: 600;
@@ -963,6 +953,7 @@ td.summary-cell {
 .secret-code {
     margin: 0;
     overflow-x: auto;
+    max-width: 100%;
     background: transparent;
     color: var(--ink);
     font-family: var(--mono);
@@ -971,7 +962,8 @@ td.summary-cell {
 }
 .secret-code code {
     display: block;
-    min-width: max-content;
+    width: 100%;
+    min-width: 0;
     padding: 8px 0;
 }
 .secret-code-line {
@@ -993,8 +985,10 @@ td.summary-cell {
     user-select: none;
 }
 .secret-code-text {
+    min-width: 0;
     color: var(--detail-text);
-    white-space: pre;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
 }
 .finding-more {
     color: var(--sub);
@@ -1014,6 +1008,9 @@ td.summary-cell {
     border: 0;
     border-radius: 0;
     background: transparent;
+}
+.hygiene-credentials-group {
+    min-width: 0;
 }
 .hygiene-group-head {
     display: flex;
@@ -1065,6 +1062,13 @@ td.summary-cell {
 .hygiene-finding-title .sev-badge {
     padding: 2px 7px;
     font-size: 11px;
+}
+.hygiene-finding-title .tier-badge {
+    padding: 2px 7px;
+    font-size: 11px;
+}
+.hygiene-finding-secret .hygiene-finding-body {
+    margin-top: 10px;
 }
 .hygiene-finding-loc {
     max-width: min(420px, 42vw);

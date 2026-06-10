@@ -1964,8 +1964,12 @@ class ReportAssetTests(unittest.TestCase):
         self.assertIn('class="secret-copy-btn"', html)
         self.assertIn('onclick="copySecretEvidence(this)"', html)
         self.assertIn('class="secret-code-line is-hit"', html)
-        self.assertIn('<span class="secret-code-no">15</span>', html)
-        self.assertIn('<span class="secret-code-no">20</span>', html)
+        self.assertNotIn('<span class="secret-code-no">15</span>', html)
+        self.assertIn('<span class="secret-code-no">16</span>', html)
+        self.assertIn('<span class="secret-code-no">17</span>', html)
+        self.assertIn('<span class="secret-code-no">18</span>', html)
+        self.assertNotIn('<span class="secret-code-no">19</span>', html)
+        self.assertNotIn('<span class="secret-code-no">20</span>', html)
         self.assertNotIn(f"OPENAI_API_KEY=&quot;{key}&quot;", html)
         self.assertIn("OPENAI_API_KEY=&quot;sk-proj...7890&quot;", html)
         self.assertNotIn("ABCDEFGHIJKL", html)
@@ -2102,8 +2106,17 @@ class ReportAssetTests(unittest.TestCase):
         evidence_pos = html.index('class="secret-evidence"', title_pos)
         self.assertGreater(title_pos, credentials_pos)
         self.assertGreater(evidence_pos, title_pos)
-        self.assertIn('class="hygiene-secret-review item yellow"', html)
-        self.assertNotIn('class="hygiene-secret-review item yellow open"', html)
+        self.assertIn('class="hygiene-group hygiene-credentials-group"', html)
+        self.assertIn(
+            '<div class="hygiene-group-head"><span>凭证与敏感文件</span></div>',
+            html,
+        )
+        self.assertIn('class="hygiene-finding hygiene-finding-secret"', html)
+        self.assertNotIn(
+            '<div class="field"><div class="label">凭证与敏感文件</div>',
+            html,
+        )
+        self.assertNotIn('class="hygiene-secret-review item yellow"', html)
         self.assertNotIn('<span class="chev">▶</span>', html)
         self.assertIn('<span class="secret-code-lang">ENV</span>', html[evidence_pos:])
         self.assertNotIn(f"OPENAI_API_KEY=&quot;{key}&quot;", html[evidence_pos:])
@@ -2247,6 +2260,9 @@ class ReportAssetTests(unittest.TestCase):
         group_list_css = css.split(".hygiene-group-list {", 1)[1].split("}", 1)[0]
         self.assertIn("gap: 8px;", group_list_css)
 
+        self.assertIn(".hygiene-credentials-group", css)
+        self.assertNotIn(".hygiene-secret-review", css)
+
         finding_css = css.split(".hygiene-finding {", 1)[1].split("}", 1)[0]
         self.assertIn("margin: 0;", finding_css)
         self.assertIn("border: 1px solid var(--summary-point-border);", finding_css)
@@ -2317,6 +2333,16 @@ class ReportAssetTests(unittest.TestCase):
         secret_line_css = css.split(".secret-code-line {", 1)[1].split("}", 1)[0]
         self.assertIn("grid-template-columns: 4ch minmax(0, 1fr);", secret_line_css)
         self.assertIn("width: 100%;", secret_line_css)
+
+        secret_code_css = css.split(".secret-code code {", 1)[1].split("}", 1)[0]
+        self.assertIn("width: 100%;", secret_code_css)
+        self.assertIn("min-width: 0;", secret_code_css)
+        self.assertNotIn("max-content", secret_code_css)
+
+        secret_text_css = css.split(".secret-code-text {", 1)[1].split("}", 1)[0]
+        self.assertIn("min-width: 0;", secret_text_css)
+        self.assertIn("overflow-wrap: anywhere;", secret_text_css)
+        self.assertIn("white-space: pre-wrap;", secret_text_css)
 
         secret_hit_css = css.split(".secret-code-line.is-hit {", 1)[1].split(
             "}",

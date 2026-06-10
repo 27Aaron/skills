@@ -748,7 +748,21 @@ class IsEnvSecretScanFileTests(unittest.TestCase):
         # (actual template filtering happens in is_env_template / sensitive_file_type)
         self.assertTrue(scan.is_env_secret_scan_file(".env.example"))
 
-    def test_env_example_secret_strictly_masks_preview_and_context(self):
+    def test_secret_code_context_uses_three_line_window(self):
+        lines = [f"line {idx}\n" for idx in range(1, 6)]
+
+        first = scan.build_secret_code_context(lines, 1)
+        middle = scan.build_secret_code_context(lines, 3)
+        last = scan.build_secret_code_context(lines, 5)
+
+        self.assertEqual([item["line"] for item in first], [1, 2, 3])
+        self.assertTrue(first[0]["match"])
+        self.assertEqual([item["line"] for item in middle], [2, 3, 4])
+        self.assertTrue(middle[1]["match"])
+        self.assertEqual([item["line"] for item in last], [3, 4, 5])
+        self.assertTrue(last[2]["match"])
+
+    def test_env_example_secret_uses_readable_three_line_masked_context(self):
         with tempfile.TemporaryDirectory(prefix="butian-env-example-secret-") as root:
             key = "sk-proj-" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
             lines = [f"SETTING_{i}=value{i}" for i in range(1, 18)]
@@ -767,14 +781,13 @@ class IsEnvSecretScanFileTests(unittest.TestCase):
             self.assertNotIn("ABCDEFGHIJKL", finding["preview"])
             self.assertNotIn("QRSTUVWXYZ", finding["preview"])
             context = finding.get("code_context") or []
-            self.assertEqual([item["line"] for item in context], [15, 16, 17, 18, 19])
+            self.assertEqual([item["line"] for item in context], [15, 16, 17])
             self.assertNotIn(key, context[2]["content"])
-            self.assertIn('OPENAI_API_KEY="***"', context[2]["content"])
+            self.assertIn('OPENAI_API_KEY="sk-proj', context[2]["content"])
+            self.assertIn(key[-4:], context[2]["content"])
             self.assertNotIn("ABCDEFGHIJKL", context[2]["content"])
             self.assertNotIn("QRSTUVWXYZ", context[2]["content"])
             self.assertTrue(context[2]["match"])
-            self.assertEqual(context[3]["content"], "")
-            self.assertEqual(context[4]["content"], "")
 
 
 class NpmLockPackageNameTests(unittest.TestCase):

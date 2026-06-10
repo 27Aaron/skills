@@ -1460,7 +1460,7 @@ def _soft_mask_value(value: str, mask_chars: int = 4) -> str:
         return value
     if len(value) <= mask_chars:
         return "*" * len(value)
-    hidden = min(mask_chars, max(3, len(value) // 4))
+    hidden = max(mask_chars, min(len(value) - 2, len(value) // 2))
     visible = len(value) - hidden
     left = max(1, visible // 2)
     right = visible - left
@@ -1470,6 +1470,23 @@ def _soft_mask_value(value: str, mask_chars: int = 4) -> str:
 _ASSIGNMENT_VALUE_RE = re.compile(
     r"""(?P<prefix>[:=]\s*["']?)(?P<value>[^"'\s#]+)(?P<suffix>["']?)"""
 )
+
+
+def _mask_assignment_literal(value: str) -> str:
+    return "***" if len(value) <= 8 else _soft_mask_value(value)
+
+
+def _mask_assignment_value(match_text: str) -> str:
+    masked = _ASSIGNMENT_VALUE_RE.sub(
+        lambda match: (
+            f"{match.group('prefix')}"
+            f"{_mask_assignment_literal(match.group('value'))}"
+            f"{match.group('suffix')}"
+        ),
+        match_text,
+        count=1,
+    )
+    return masked if masked != match_text else "***"
 
 
 # ---------------------------------------------------------------------------
@@ -1492,12 +1509,7 @@ def secret_preview(secret_type, match_text):
         "netrc_password",
         "encryption_key",
     }:
-        masked = re.sub(
-            r"""([:=]\s*["']?)[^"']+(["']?)$""",
-            r"\1***\2",
-            match_text,
-        )
-        return masked if masked != match_text else "***"
+        return _mask_assignment_value(match_text)
 
     if secret_type in HIGH_CONFIDENCE_SECRET_TYPES:
         if len(match_text) <= 12:
@@ -1550,19 +1562,24 @@ def soft_mask_secret_context_line(line):
 
 def mask_secret_context_line(line):
     masked = line
+    changed = False
     for secret_type, pattern in SECRET_REGEXES:
-        masked = pattern.sub(
+        masked, replacements = pattern.subn(
             lambda match, kind=secret_type: secret_preview(kind, match.group(0)),
             masked,
         )
+        changed = changed or replacements > 0
 
     assignment = _extract_assignment_value(masked.strip())
-    if assignment:
+    if assignment and not changed:
         key, _ = assignment
         if any(hint in key.lower() for hint in _SECRET_HINT_KEYWORDS):
-            masked = re.sub(
-                r"""([:=]\s*["']?)[^"'\s#]+(["']?)""",
-                r"\1***\2",
+            masked = _ASSIGNMENT_VALUE_RE.sub(
+                lambda match: (
+                    f"{match.group('prefix')}"
+                    f"{_mask_assignment_literal(match.group('value'))}"
+                    f"{match.group('suffix')}"
+                ),
                 masked,
                 count=1,
             )
@@ -1577,15 +1594,31 @@ def build_secret_code_context(
     reveal=False,
     soft_mask=False,
     radius=2,
+    max_lines=3,
 ):
     if not lines or not line_num:
         return []
 
-    start = max(1, line_num - radius)
-    end = line_num + radius
+    total = len(lines)
+    if total <= 0:
+        return []
+    try:
+        line_num = int(line_num)
+    except (TypeError, ValueError):
+        return []
+    line_num = max(1, min(line_num, total))
+    try:
+        max_lines = max(1, int(max_lines))
+    except (TypeError, ValueError):
+        max_lines = 3
+    max_lines = min(max_lines, total)
+    before = min(max(0, int(radius)), max_lines // 2)
+    start = line_num - before
+    start = max(1, min(start, total - max_lines + 1))
+    end = start + max_lines - 1
     context = []
     for idx in range(start, end + 1):
-        content = lines[idx - 1].rstrip("\n").rstrip("\r") if idx <= len(lines) else ""
+        content = lines[idx - 1].rstrip("\n").rstrip("\r")
         if content and not reveal:
             content = (
                 soft_mask_secret_context_line(content)
