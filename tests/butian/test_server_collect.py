@@ -31,10 +31,11 @@ class CommandPlanTests(unittest.TestCase):
         self.assertIn("rpm -qa", joined)
         self.assertIn("apk info -vv", joined)
         self.assertIn("apt list --upgradable", joined)
-        self.assertIn("dnf updateinfo list security", joined)
-        self.assertIn("yum updateinfo list security", joined)
+        self.assertIn("dnf -C updateinfo list security", joined)
+        self.assertIn("yum -C updateinfo list security", joined)
         self.assertIn(
-            "zypper --non-interactive list-patches --category security", joined
+            "zypper --non-interactive --no-refresh list-patches --category security",
+            joined,
         )
 
     def test_security_posture_commands_cover_ssh_and_firewalls(self):

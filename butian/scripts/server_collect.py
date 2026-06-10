@@ -43,15 +43,15 @@ def command_plan(include_docker_metadata: bool = False) -> list[dict[str, str]]:
         },
         {
             "id": "dnf_updateinfo",
-            "command": "if command -v dnf >/dev/null 2>&1; then dnf updateinfo list security; fi",
+            "command": "if command -v dnf >/dev/null 2>&1; then dnf -C updateinfo list security; fi",
         },
         {
             "id": "yum_updateinfo",
-            "command": "if command -v yum >/dev/null 2>&1; then yum updateinfo list security; fi",
+            "command": "if command -v yum >/dev/null 2>&1; then yum -C updateinfo list security; fi",
         },
         {
             "id": "zypper_patches",
-            "command": "if command -v zypper >/dev/null 2>&1; then zypper --non-interactive list-patches --category security; fi",
+            "command": "if command -v zypper >/dev/null 2>&1; then zypper --non-interactive --no-refresh list-patches --category security; fi",
         },
         {
             "id": "services",
