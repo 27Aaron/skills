@@ -2,8 +2,8 @@
 
 - 项目：go
 - 路径：`/Users/aaron/Documents/Project/skills/tests/demo/projects/go`
-- 生成时间：2026-06-10 07:19:11
-- 扫描耗时：37.2 秒
+- 生成时间：2026-06-10 17:27:30
+- 扫描耗时：23.5 秒
 
 ## 报告总结
 
@@ -32,12 +32,12 @@
 | 高风险 | golang.org/x/crypto | v0.0.0-20200622213623-75b288015ac9 | 0.35.0 | [CVE-2025-22869](https://www.cve.org/CVERecord?id=CVE-2025-22869)、[GHSA-hcg3-q754-cr77](https://osv.dev/vulnerability/GHSA-hcg3-q754-cr77)、[GO-2025-3487](https://osv.dev/vulnerability/GO-2025-3487) |
 | 高风险 | github.com/gin-gonic/gin | v1.6.3 | 1.7.7 | [CVE-2020-28483](https://www.cve.org/CVERecord?id=CVE-2020-28483)、[GHSA-h395-qcrw-5vmq](https://osv.dev/vulnerability/GHSA-h395-qcrw-5vmq)、[GO-2021-0052](https://osv.dev/vulnerability/GO-2021-0052) |
 | 高风险 | github.com/gin-gonic/gin | v1.6.3 | 1.9.0 | [CVE-2023-26125](https://www.cve.org/CVERecord?id=CVE-2023-26125)、[GHSA-3vp4-m3rf-835h](https://osv.dev/vulnerability/GHSA-3vp4-m3rf-835h) |
-| 高风险 | golang.org/x/crypto | v0.0.0-20200622213623-75b288015ac9 | 待确认 | [CVE-2022-30636](https://www.cve.org/CVERecord?id=CVE-2022-30636)、[GO-2024-2961](https://osv.dev/vulnerability/GO-2024-2961) |
-| 高风险 | golang.org/x/crypto | v0.0.0-20200622213623-75b288015ac9 | 待确认 | [CVE-2022-27191](https://www.cve.org/CVERecord?id=CVE-2022-27191)、[GHSA-8c26-wmh5-6g9v](https://osv.dev/vulnerability/GHSA-8c26-wmh5-6g9v)、[GO-2021-0356](https://osv.dev/vulnerability/GO-2021-0356) |
+| 高风险 | golang.org/x/crypto | v0.0.0-20200622213623-75b288015ac9 | 0.0.0-20220525230936-793ad666bf5e | [CVE-2022-30636](https://www.cve.org/CVERecord?id=CVE-2022-30636)、[GO-2024-2961](https://osv.dev/vulnerability/GO-2024-2961) |
+| 高风险 | golang.org/x/crypto | v0.0.0-20200622213623-75b288015ac9 | 0.0.0-20220314234659-1baeb1ce4c0b | [CVE-2022-27191](https://www.cve.org/CVERecord?id=CVE-2022-27191)、[GHSA-8c26-wmh5-6g9v](https://osv.dev/vulnerability/GHSA-8c26-wmh5-6g9v)、[GO-2021-0356](https://osv.dev/vulnerability/GO-2021-0356) |
 | 高风险 | golang.org/x/crypto | v0.0.0-20200622213623-75b288015ac9 | 0.52.0 | [CVE-2026-46597](https://www.cve.org/CVERecord?id=CVE-2026-46597)、[GO-2026-5013](https://osv.dev/vulnerability/GO-2026-5013) |
 | 高风险 | golang.org/x/crypto | v0.0.0-20200622213623-75b288015ac9 | 0.52.0 | [CVE-2026-39829](https://www.cve.org/CVERecord?id=CVE-2026-39829)、[GO-2026-5018](https://osv.dev/vulnerability/GO-2026-5018) |
-| 高风险 | golang.org/x/crypto | v0.0.0-20200622213623-75b288015ac9 | 待确认 | [CVE-2020-29652](https://www.cve.org/CVERecord?id=CVE-2020-29652)、[GHSA-3vm4-22fp-5rfm](https://osv.dev/vulnerability/GHSA-3vm4-22fp-5rfm)、[GO-2021-0227](https://osv.dev/vulnerability/GO-2021-0227) |
-| 高风险 | golang.org/x/crypto | v0.0.0-20200622213623-75b288015ac9 | 待确认 | [CVE-2021-43565](https://www.cve.org/CVERecord?id=CVE-2021-43565)、[GHSA-gwc9-m7rh-j2ww](https://osv.dev/vulnerability/GHSA-gwc9-m7rh-j2ww)、[GO-2022-0968](https://osv.dev/vulnerability/GO-2022-0968) |
+| 高风险 | golang.org/x/crypto | v0.0.0-20200622213623-75b288015ac9 | 0.0.0-20201216223049-8b5274cf687f | [CVE-2020-29652](https://www.cve.org/CVERecord?id=CVE-2020-29652)、[GHSA-3vm4-22fp-5rfm](https://osv.dev/vulnerability/GHSA-3vm4-22fp-5rfm)、[GO-2021-0227](https://osv.dev/vulnerability/GO-2021-0227) |
+| 高风险 | golang.org/x/crypto | v0.0.0-20200622213623-75b288015ac9 | 0.0.0-20211202192323-5770296d904e | [CVE-2021-43565](https://www.cve.org/CVERecord?id=CVE-2021-43565)、[GHSA-gwc9-m7rh-j2ww](https://osv.dev/vulnerability/GHSA-gwc9-m7rh-j2ww)、[GO-2022-0968](https://osv.dev/vulnerability/GO-2022-0968) |
 | 高风险 | golang.org/x/crypto | v0.0.0-20200622213623-75b288015ac9 | 0.43.0 | [CVE-2025-47913](https://www.cve.org/CVERecord?id=CVE-2025-47913)、[GHSA-56w8-48fp-6mgv](https://osv.dev/vulnerability/GHSA-56w8-48fp-6mgv)、[GO-2025-4116](https://osv.dev/vulnerability/GO-2025-4116) |
 | 中风险 | golang.org/x/crypto | v0.0.0-20200622213623-75b288015ac9 | 0.17.0 | [CVE-2023-48795](https://www.cve.org/CVERecord?id=CVE-2023-48795)、[GHSA-45x7-px36-x8w8](https://osv.dev/vulnerability/GHSA-45x7-px36-x8w8)、[GO-2023-2402](https://osv.dev/vulnerability/GO-2023-2402) |
 | 中风险 | github.com/gin-gonic/gin | v1.6.3 | 1.9.1 | [CVE-2023-29401](https://www.cve.org/CVERecord?id=CVE-2023-29401)、[GHSA-2c4m-59x9-fr2g](https://osv.dev/vulnerability/GHSA-2c4m-59x9-fr2g)、[GO-2023-1737](https://osv.dev/vulnerability/GO-2023-1737) |
@@ -86,7 +86,7 @@
 
 ## 扫描错误
 
-- [outdated_check] 命令不可用：go
+- [outdated_check] 已跳过过期依赖检查：默认不执行项目内包管理器命令；如需执行 npm/pnpm/yarn/uv/go/cargo 等项目工具，请显式传入 --allow-project-exec。
 
 
 ## 下一步建议

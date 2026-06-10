@@ -2,8 +2,8 @@
 
 - 项目：python
 - 路径：`/Users/aaron/Documents/Project/skills/tests/demo/projects/python`
-- 生成时间：2026-06-10 07:17:40
-- 扫描耗时：66.6 秒
+- 生成时间：2026-06-10 17:27:06
+- 扫描耗时：41.6 秒
 
 ## 报告总结
 
@@ -121,7 +121,7 @@
 
 ## 扫描错误
 
-- [outdated_check] 未发现项目本地虚拟环境，已跳过 PyPI 过期依赖检查，避免扫描系统 Python 环境
+- [outdated_check] 已跳过过期依赖检查：默认不执行项目内包管理器命令；如需执行 npm/pnpm/yarn/uv/go/cargo 等项目工具，请显式传入 --allow-project-exec。
 
 
 ## 下一步建议

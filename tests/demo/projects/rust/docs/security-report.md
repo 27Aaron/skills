@@ -2,8 +2,8 @@
 
 - 项目：rust
 - 路径：`/Users/aaron/Documents/Project/skills/tests/demo/projects/rust`
-- 生成时间：2026-06-10 07:19:19
-- 扫描耗时：7.5 秒
+- 生成时间：2026-06-10 17:27:36
+- 扫描耗时：5.6 秒
 
 ## 报告总结
 
@@ -62,7 +62,7 @@
 
 ## 扫描错误
 
-- [outdated_check] 未发现 cargo-outdated 子命令，已跳过 Rust 过期依赖检查；安装 cargo-outdated 后可获得维护视图
+- [outdated_check] 已跳过过期依赖检查：默认不执行项目内包管理器命令；如需执行 npm/pnpm/yarn/uv/go/cargo 等项目工具，请显式传入 --allow-project-exec。
 
 
 ## 下一步建议
