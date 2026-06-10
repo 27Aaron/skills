@@ -46,268 +46,154 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 SCAN_SCHEMA_VERSION = "1.0.0"
 
 try:
-    from .cache import cache_clean, cache_dir, cache_read, cache_write
-    from .dependency_parsers import (
-        LOCKFILE_MAP,
-        PARSERS,
-        _parse_cargo_lock_fallback,
-        _parse_toml_lock,
-        _parse_toml_lock_fallback,
-        _parse_yarn_lock_berry,
-        _parse_yarn_lock_v1,
-        _tomllib,
-        _yarn_berry_descriptor_name,
-        _yarn_v1_descriptor_name,
-        clean_version,
-        current_version_for,
-        detect_ecosystems,
-        extract_packages,
-        is_exact_dependency_version,
-        is_exact_maven_coordinate_part,
-        normalized_plain_version,
-        normalized_rubygems_version,
-        npm_lock_package_name,
-        package_source_summary,
-        package_version_index,
-        parse_cargo_lock,
-        parse_composer_lock,
-        parse_gemfile_lock,
-        parse_go_sum,
-        parse_maven_pom,
-        parse_mix_lock,
-        parse_npm_lock,
-        parse_nuget,
-        parse_packages_config,
-        parse_packages_lock_json,
-        parse_pipfile_lock,
-        parse_pnpm_lock,
-        parse_poetry_lock,
-        parse_pubspec_lock,
-        parse_pypi,
-        parse_requirements_txt,
-        parse_uv_lock,
-        parse_yarn_lock,
-        xml_child_text,
-        xml_direct_children,
-        xml_local_name,
-    )
+    from . import cache as _cache
+    from . import dependency_parsers as _dependency_parsers
+    from . import vulnerability_sources as _vulnerability_sources
+    from . import workspace as _workspace
     from .iac_checks import scan_iac_checks
     from .repo_checks import scan_repository_checks
-    from .vulnerability_sources import (
-        CISA_KEV_JSON_URL,
-        EPSS_API_URL,
-        HTTP_USER_AGENT,
-        NVD_CVE_API_URL,
-        OSV_ECOSYSTEMS,
-        OSV_QUERYBATCH_URL,
-        OSV_VULN_URL_PREFIX,
-        _cvss_to_severity,
-        _kev_cache_path,
-        _load_kev_cache,
-        _request_with_retry,
-        _save_kev_cache,
-        best_advisory_alias,
-        build_official_vulnerability,
-        build_risk_signals,
-        check_vulnerabilities,
-        check_vulnerability_batch,
-        chunked,
-        cvss_score_to_severity,
-        extract_cve_aliases,
-        extract_cvss_metrics,
-        extract_cwe_ids,
-        extract_osv_cvss,
-        extract_osv_fixed_versions,
-        fetch_cisa_kev_enrichments,
-        fetch_cve_enrichments,
-        fetch_epss_enrichments,
-        fetch_nvd_enrichments,
-        fetch_osv_querybatch,
-        fetch_osv_vulnerability,
-        first_english_description,
-        get_json,
-        iso_date_or_none,
-        merge_cve_patch,
-        normalize_cve_id,
-        normalize_cvss_metric,
-        normalized_ecosystem,
-        normalized_package_name,
-        number_or_none,
-        official_source_error,
-        osv_ecosystem_for,
-        osv_query_for_package,
-        package_matches_affected,
-        parse_cisa_kev_catalog,
-        parse_epss_response,
-        parse_nvd_response,
-        parse_nvd_vulnerability_entry,
-        parse_osv_query_results,
-        post_json,
-        select_best_cvss_metric,
-        severity_from_enrichments,
-        to_decimal_string,
-        to_string_or_none,
-        unique_nonempty,
-    )
     from .workflow_checks import scan_workflows
-    from .workspace import (
-        _GITIGNORE_STATUS_BY_PROJECT,
-        BUTIAN_ASSETS_DIR,
-        BUTIAN_DIR,
-        BUTIAN_GITIGNORE_ENTRY,
-        BUTIAN_GITIGNORE_EXTRA_ENTRIES,
-        CACHE_DIR_NAME,
-        butian_gitignore_status,
-        default_asset_path,
-        ensure_butian_gitignore,
-        ensure_butian_run,
-        ensure_butian_workspace,
-        ensure_safe_project_path,
-        find_project_root,
-        gitignore_ignores,
-        gitignore_rules,
-        has_butian_gitignore_entry,
-        has_gitignore_entry,
-        inspect_butian_gitignore,
-        is_protected_project_path,
-        make_run_id,
-        run_dir_from_output_file,
-    )
 except ImportError:  # pragma: no cover - direct script execution
-    from cache import (  # pyright: ignore[reportMissingImports]
-        cache_clean,
-        cache_dir,
-        cache_read,
-        cache_write,
-    )
-    from dependency_parsers import (  # pyright: ignore[reportMissingImports]
-        LOCKFILE_MAP,
-        PARSERS,
-        _parse_cargo_lock_fallback,
-        _parse_toml_lock,
-        _parse_toml_lock_fallback,
-        _parse_yarn_lock_berry,
-        _parse_yarn_lock_v1,
-        _tomllib,
-        _yarn_berry_descriptor_name,
-        _yarn_v1_descriptor_name,
-        clean_version,
-        current_version_for,
-        detect_ecosystems,
-        extract_packages,
-        is_exact_dependency_version,
-        is_exact_maven_coordinate_part,
-        normalized_plain_version,
-        normalized_rubygems_version,
-        npm_lock_package_name,
-        package_source_summary,
-        package_version_index,
-        parse_cargo_lock,
-        parse_composer_lock,
-        parse_gemfile_lock,
-        parse_go_sum,
-        parse_maven_pom,
-        parse_mix_lock,
-        parse_npm_lock,
-        parse_nuget,
-        parse_packages_config,
-        parse_packages_lock_json,
-        parse_pipfile_lock,
-        parse_pnpm_lock,
-        parse_poetry_lock,
-        parse_pubspec_lock,
-        parse_pypi,
-        parse_requirements_txt,
-        parse_uv_lock,
-        parse_yarn_lock,
-        xml_child_text,
-        xml_direct_children,
-        xml_local_name,
-    )
+    import cache as _cache  # pyright: ignore[reportMissingImports]
+    import dependency_parsers as _dependency_parsers  # pyright: ignore[reportMissingImports]
+    import vulnerability_sources as _vulnerability_sources  # pyright: ignore[reportMissingImports]
+    import workspace as _workspace  # pyright: ignore[reportMissingImports]
     from iac_checks import scan_iac_checks  # pyright: ignore[reportMissingImports]
     from repo_checks import (
         scan_repository_checks,  # pyright: ignore[reportMissingImports]
     )
-    from vulnerability_sources import (  # pyright: ignore[reportMissingImports]
-        CISA_KEV_JSON_URL,
-        EPSS_API_URL,
-        HTTP_USER_AGENT,
-        NVD_CVE_API_URL,
-        OSV_ECOSYSTEMS,
-        OSV_QUERYBATCH_URL,
-        OSV_VULN_URL_PREFIX,
-        _cvss_to_severity,
-        _kev_cache_path,
-        _load_kev_cache,
-        _request_with_retry,
-        _save_kev_cache,
-        best_advisory_alias,
-        build_official_vulnerability,
-        build_risk_signals,
-        check_vulnerabilities,
-        check_vulnerability_batch,
-        chunked,
-        cvss_score_to_severity,
-        extract_cve_aliases,
-        extract_cvss_metrics,
-        extract_cwe_ids,
-        extract_osv_cvss,
-        extract_osv_fixed_versions,
-        fetch_cisa_kev_enrichments,
-        fetch_cve_enrichments,
-        fetch_epss_enrichments,
-        fetch_nvd_enrichments,
-        fetch_osv_querybatch,
-        fetch_osv_vulnerability,
-        first_english_description,
-        get_json,
-        iso_date_or_none,
-        merge_cve_patch,
-        normalize_cve_id,
-        normalize_cvss_metric,
-        normalized_ecosystem,
-        normalized_package_name,
-        number_or_none,
-        official_source_error,
-        osv_ecosystem_for,
-        osv_query_for_package,
-        package_matches_affected,
-        parse_cisa_kev_catalog,
-        parse_epss_response,
-        parse_nvd_response,
-        parse_nvd_vulnerability_entry,
-        parse_osv_query_results,
-        post_json,
-        select_best_cvss_metric,
-        severity_from_enrichments,
-        to_decimal_string,
-        to_string_or_none,
-        unique_nonempty,
-    )
     from workflow_checks import scan_workflows  # pyright: ignore[reportMissingImports]
-    from workspace import (  # pyright: ignore[reportMissingImports]
-        _GITIGNORE_STATUS_BY_PROJECT,
-        BUTIAN_ASSETS_DIR,
-        BUTIAN_DIR,
-        BUTIAN_GITIGNORE_ENTRY,
-        BUTIAN_GITIGNORE_EXTRA_ENTRIES,
-        CACHE_DIR_NAME,
-        butian_gitignore_status,
-        default_asset_path,
-        ensure_butian_gitignore,
-        ensure_butian_run,
-        ensure_butian_workspace,
-        ensure_safe_project_path,
-        find_project_root,
-        gitignore_ignores,
-        gitignore_rules,
-        has_butian_gitignore_entry,
-        has_gitignore_entry,
-        inspect_butian_gitignore,
-        is_protected_project_path,
-        make_run_id,
-        run_dir_from_output_file,
-    )
+
+# Compatibility re-exports. Older tests and external scripts import helper
+# functions from scan.py even though the implementations live in smaller modules.
+cache_clean = _cache.cache_clean
+cache_dir = _cache.cache_dir
+cache_read = _cache.cache_read
+cache_write = _cache.cache_write
+
+LOCKFILE_MAP = _dependency_parsers.LOCKFILE_MAP
+PARSERS = _dependency_parsers.PARSERS
+_parse_cargo_lock_fallback = _dependency_parsers._parse_cargo_lock_fallback
+_parse_toml_lock = _dependency_parsers._parse_toml_lock
+_parse_toml_lock_fallback = _dependency_parsers._parse_toml_lock_fallback
+_parse_yarn_lock_berry = _dependency_parsers._parse_yarn_lock_berry
+_parse_yarn_lock_v1 = _dependency_parsers._parse_yarn_lock_v1
+_tomllib = _dependency_parsers._tomllib
+_yarn_berry_descriptor_name = _dependency_parsers._yarn_berry_descriptor_name
+_yarn_v1_descriptor_name = _dependency_parsers._yarn_v1_descriptor_name
+clean_version = _dependency_parsers.clean_version
+current_version_for = _dependency_parsers.current_version_for
+detect_ecosystems = _dependency_parsers.detect_ecosystems
+extract_packages = _dependency_parsers.extract_packages
+is_exact_dependency_version = _dependency_parsers.is_exact_dependency_version
+is_exact_maven_coordinate_part = (
+    _dependency_parsers.is_exact_maven_coordinate_part
+)
+normalized_plain_version = _dependency_parsers.normalized_plain_version
+normalized_rubygems_version = _dependency_parsers.normalized_rubygems_version
+npm_lock_package_name = _dependency_parsers.npm_lock_package_name
+package_source_summary = _dependency_parsers.package_source_summary
+package_version_index = _dependency_parsers.package_version_index
+parse_cargo_lock = _dependency_parsers.parse_cargo_lock
+parse_composer_lock = _dependency_parsers.parse_composer_lock
+parse_gemfile_lock = _dependency_parsers.parse_gemfile_lock
+parse_go_sum = _dependency_parsers.parse_go_sum
+parse_maven_pom = _dependency_parsers.parse_maven_pom
+parse_mix_lock = _dependency_parsers.parse_mix_lock
+parse_npm_lock = _dependency_parsers.parse_npm_lock
+parse_nuget = _dependency_parsers.parse_nuget
+parse_packages_config = _dependency_parsers.parse_packages_config
+parse_packages_lock_json = _dependency_parsers.parse_packages_lock_json
+parse_pipfile_lock = _dependency_parsers.parse_pipfile_lock
+parse_pnpm_lock = _dependency_parsers.parse_pnpm_lock
+parse_poetry_lock = _dependency_parsers.parse_poetry_lock
+parse_pubspec_lock = _dependency_parsers.parse_pubspec_lock
+parse_pypi = _dependency_parsers.parse_pypi
+parse_requirements_txt = _dependency_parsers.parse_requirements_txt
+parse_uv_lock = _dependency_parsers.parse_uv_lock
+parse_yarn_lock = _dependency_parsers.parse_yarn_lock
+xml_child_text = _dependency_parsers.xml_child_text
+xml_direct_children = _dependency_parsers.xml_direct_children
+xml_local_name = _dependency_parsers.xml_local_name
+
+CISA_KEV_JSON_URL = _vulnerability_sources.CISA_KEV_JSON_URL
+EPSS_API_URL = _vulnerability_sources.EPSS_API_URL
+HTTP_USER_AGENT = _vulnerability_sources.HTTP_USER_AGENT
+NVD_CVE_API_URL = _vulnerability_sources.NVD_CVE_API_URL
+OSV_ECOSYSTEMS = _vulnerability_sources.OSV_ECOSYSTEMS
+OSV_QUERYBATCH_URL = _vulnerability_sources.OSV_QUERYBATCH_URL
+OSV_VULN_URL_PREFIX = _vulnerability_sources.OSV_VULN_URL_PREFIX
+_cvss_to_severity = _vulnerability_sources._cvss_to_severity
+_kev_cache_path = _vulnerability_sources._kev_cache_path
+_load_kev_cache = _vulnerability_sources._load_kev_cache
+_request_with_retry = _vulnerability_sources._request_with_retry
+_save_kev_cache = _vulnerability_sources._save_kev_cache
+best_advisory_alias = _vulnerability_sources.best_advisory_alias
+build_official_vulnerability = _vulnerability_sources.build_official_vulnerability
+build_risk_signals = _vulnerability_sources.build_risk_signals
+check_vulnerabilities = _vulnerability_sources.check_vulnerabilities
+check_vulnerability_batch = _vulnerability_sources.check_vulnerability_batch
+chunked = _vulnerability_sources.chunked
+cvss_score_to_severity = _vulnerability_sources.cvss_score_to_severity
+extract_cve_aliases = _vulnerability_sources.extract_cve_aliases
+extract_cvss_metrics = _vulnerability_sources.extract_cvss_metrics
+extract_cwe_ids = _vulnerability_sources.extract_cwe_ids
+extract_osv_cvss = _vulnerability_sources.extract_osv_cvss
+extract_osv_fixed_versions = _vulnerability_sources.extract_osv_fixed_versions
+fetch_cisa_kev_enrichments = _vulnerability_sources.fetch_cisa_kev_enrichments
+fetch_cve_enrichments = _vulnerability_sources.fetch_cve_enrichments
+fetch_epss_enrichments = _vulnerability_sources.fetch_epss_enrichments
+fetch_nvd_enrichments = _vulnerability_sources.fetch_nvd_enrichments
+fetch_osv_querybatch = _vulnerability_sources.fetch_osv_querybatch
+fetch_osv_vulnerability = _vulnerability_sources.fetch_osv_vulnerability
+first_english_description = _vulnerability_sources.first_english_description
+get_json = _vulnerability_sources.get_json
+iso_date_or_none = _vulnerability_sources.iso_date_or_none
+merge_cve_patch = _vulnerability_sources.merge_cve_patch
+normalize_cve_id = _vulnerability_sources.normalize_cve_id
+normalize_cvss_metric = _vulnerability_sources.normalize_cvss_metric
+normalized_ecosystem = _vulnerability_sources.normalized_ecosystem
+normalized_package_name = _vulnerability_sources.normalized_package_name
+number_or_none = _vulnerability_sources.number_or_none
+official_source_error = _vulnerability_sources.official_source_error
+osv_ecosystem_for = _vulnerability_sources.osv_ecosystem_for
+osv_query_for_package = _vulnerability_sources.osv_query_for_package
+package_matches_affected = _vulnerability_sources.package_matches_affected
+parse_cisa_kev_catalog = _vulnerability_sources.parse_cisa_kev_catalog
+parse_epss_response = _vulnerability_sources.parse_epss_response
+parse_nvd_response = _vulnerability_sources.parse_nvd_response
+parse_nvd_vulnerability_entry = (
+    _vulnerability_sources.parse_nvd_vulnerability_entry
+)
+parse_osv_query_results = _vulnerability_sources.parse_osv_query_results
+post_json = _vulnerability_sources.post_json
+select_best_cvss_metric = _vulnerability_sources.select_best_cvss_metric
+severity_from_enrichments = _vulnerability_sources.severity_from_enrichments
+to_decimal_string = _vulnerability_sources.to_decimal_string
+to_string_or_none = _vulnerability_sources.to_string_or_none
+unique_nonempty = _vulnerability_sources.unique_nonempty
+
+_GITIGNORE_STATUS_BY_PROJECT = _workspace._GITIGNORE_STATUS_BY_PROJECT
+BUTIAN_ASSETS_DIR = _workspace.BUTIAN_ASSETS_DIR
+BUTIAN_DIR = _workspace.BUTIAN_DIR
+BUTIAN_GITIGNORE_ENTRY = _workspace.BUTIAN_GITIGNORE_ENTRY
+BUTIAN_GITIGNORE_EXTRA_ENTRIES = _workspace.BUTIAN_GITIGNORE_EXTRA_ENTRIES
+CACHE_DIR_NAME = _workspace.CACHE_DIR_NAME
+butian_gitignore_status = _workspace.butian_gitignore_status
+default_asset_path = _workspace.default_asset_path
+ensure_butian_gitignore = _workspace.ensure_butian_gitignore
+ensure_butian_run = _workspace.ensure_butian_run
+ensure_butian_workspace = _workspace.ensure_butian_workspace
+ensure_safe_project_path = _workspace.ensure_safe_project_path
+find_project_root = _workspace.find_project_root
+gitignore_ignores = _workspace.gitignore_ignores
+gitignore_rules = _workspace.gitignore_rules
+has_butian_gitignore_entry = _workspace.has_butian_gitignore_entry
+has_gitignore_entry = _workspace.has_gitignore_entry
+inspect_butian_gitignore = _workspace.inspect_butian_gitignore
+is_protected_project_path = _workspace.is_protected_project_path
+make_run_id = _workspace.make_run_id
+run_dir_from_output_file = _workspace.run_dir_from_output_file
 
 HYGIENE_ONLY_NOTICE = (
     "当前项目未发现支持的依赖文件，暂无法执行依赖漏洞扫描；"

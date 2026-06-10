@@ -7,7 +7,6 @@ import sys
 import tempfile
 import unittest
 from types import SimpleNamespace
-from unittest import mock
 
 from butian.scripts import run_audit
 
