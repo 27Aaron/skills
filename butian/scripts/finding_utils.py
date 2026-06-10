@@ -46,6 +46,8 @@ def relpath(path: str, project_path: str) -> str:
 
 def read_text(path: str, max_bytes: int = 1024 * 1024) -> str:
     try:
+        if os.path.islink(path):
+            return ""
         if os.path.getsize(path) > max_bytes:
             return ""
         with open(path, "r", encoding="utf-8", errors="ignore") as handle:
@@ -73,6 +75,8 @@ def iter_files(
                 return
             lowered = filename.lower()
             path = os.path.join(root, filename)
+            if os.path.islink(path):
+                continue
             if suffix_set and not any(lowered.endswith(s) for s in suffix_set):
                 if lowered not in name_set:
                     continue

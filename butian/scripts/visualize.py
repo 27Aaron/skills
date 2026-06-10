@@ -22,12 +22,16 @@ from pathlib import Path
 try:
     from .labels import SECRET_TYPE_LABELS, SENSITIVE_TYPE_LABELS
     from .scan import run_dir_from_output_file
+    from .workspace import ensure_project_subpath
 except ImportError:
     from labels import (  # pyright: ignore[reportMissingImports]
         SECRET_TYPE_LABELS,
         SENSITIVE_TYPE_LABELS,
     )
     from scan import run_dir_from_output_file  # pyright: ignore[reportMissingImports]
+    from workspace import (
+        ensure_project_subpath,  # pyright: ignore[reportMissingImports]
+    )
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "..", "templates")
@@ -75,7 +79,11 @@ def default_output_path(analysis_path):
         if match
         else "unknown-date"
     )
-    output_dir = os.path.join(project_path, "docs", "butian", date_dir)
+    output_dir = ensure_project_subpath(
+        project_path,
+        os.path.join("docs", "butian", date_dir),
+        label="HTML 报告输出目录",
+    )
     os.makedirs(output_dir, exist_ok=True)
     return os.path.join(output_dir, "security-report.html")
 

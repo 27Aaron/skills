@@ -100,7 +100,12 @@ def has_butian_gitignore_entry(content):
 
 
 def inspect_butian_gitignore(project_path):
-    gitignore_path = os.path.join(project_path, ".gitignore")
+    gitignore_path = ensure_project_subpath(
+        project_path,
+        ".gitignore",
+        label=".gitignore",
+        reject_symlink=True,
+    )
     try:
         with open(gitignore_path, "r", encoding="utf-8") as handle:
             content = handle.read()
@@ -188,7 +193,12 @@ def butian_gitignore_status(project_path):
 
 
 def ensure_butian_workspace(project_path):
-    workspace = os.path.join(project_path, BUTIAN_DIR)
+    workspace = ensure_project_subpath(
+        project_path,
+        BUTIAN_DIR,
+        label=".butian 工作区",
+        reject_symlink=True,
+    )
     os.makedirs(workspace, exist_ok=True)
     ensure_butian_gitignore(project_path)
     return workspace
@@ -244,6 +254,12 @@ def run_dir_from_output_file(output_file):
 
 
 def ensure_project_run_dir(project_path, run_dir):
+    ensure_project_subpath(
+        project_path,
+        BUTIAN_DIR,
+        label=".butian 工作区",
+        reject_symlink=True,
+    )
     project_workspace = os.path.realpath(os.path.join(project_path, BUTIAN_DIR))
     run_real = os.path.realpath(run_dir)
     try:
@@ -289,6 +305,38 @@ def ensure_safe_project_path(project_path):
             "只扫描项目目录，不能把系统目录或用户主目录作为 project_path。"
             "请切换到具体代码仓库后重新运行。"
         )
+
+
+def ensure_project_subpath(
+    project_path, rel_path, *, label="路径", reject_symlink=False
+):
+    """Return a project-local path and reject traversal or symlink escape.
+
+    This is used for scanner-owned write locations. It intentionally accepts
+    only relative child paths because generated artifacts should never be
+    directed by project input to an arbitrary filesystem location.
+    """
+    raw = str(rel_path or "").replace("\\", "/")
+    if os.path.isabs(raw):
+        raise ValueError(f"{label} 必须是项目内相对路径。")
+    parts = [part for part in raw.split("/") if part]
+    if not parts or ".." in parts:
+        raise ValueError(f"{label} 必须位于项目目录内，不能包含路径穿越。")
+
+    root_real = os.path.realpath(project_path)
+    target = os.path.join(project_path, *parts)
+    target_real = os.path.realpath(target)
+    try:
+        if os.path.commonpath([root_real, target_real]) != root_real:
+            raise ValueError
+    except ValueError as exc:
+        raise ValueError(
+            f"{label} 必须位于项目目录内，不能通过符号链接指向项目外。"
+        ) from exc
+
+    if reject_symlink and os.path.islink(target):
+        raise ValueError(f"{label} 不能是符号链接。")
+    return target
 
 
 def gitignore_rules(content):

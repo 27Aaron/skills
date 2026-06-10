@@ -8,23 +8,23 @@
 
 ## 职责
 
-| #   | 职责             | 说明                                                                    |
-| --- | ---------------- | ----------------------------------------------------------------------- |
-| 1   | 工作区准备       | 创建 `.butian/`、运行目录和 `assets/`                                   |
+| #   | 职责             | 说明                                                                          |
+| --- | ---------------- | ----------------------------------------------------------------------------- |
+| 1   | 工作区准备       | 创建 `.butian/`、运行目录和 `assets/`                                         |
 | 2   | 本地产物忽略规则 | 确保 `.gitignore` 忽略 `.butian/` 和 `docs/butian/*/security-report*.md/html` |
-| 3   | 项目根发现       | 从子目录向上找到最近的项目 manifest/lockfile 或 git 根                  |
-| 4   | 安全路径保护     | 阻止把系统目录、用户主目录等高风险路径作为 `project_path`               |
+| 3   | 项目根发现       | 从子目录向上找到最近的项目 manifest/lockfile 或 git 根                        |
+| 4   | 安全路径保护     | 阻止把系统目录、用户主目录等高风险路径作为 `project_path`                     |
 
 ## 核心函数
 
-| 函数 | 作用 |
-| ---- | ---- |
-| `ensure_butian_run(project_path, run_id=None)` | 创建并返回 `.butian/<run-id>/` |
-| `default_asset_path(project_path, filename, preflight=None)` | 返回默认 assets 输出路径 |
-| `run_dir_from_output_file(output_file)` | 从 assets 文件路径反推 run 目录 |
-| `find_project_root(start_path=".")` | 自动识别最近项目根目录 |
-| `ensure_safe_project_path(project_path)` | 拒绝系统目录和用户主目录 |
-| `butian_gitignore_status(project_path)` | 返回本地产物忽略规则状态 |
+| 函数                                                         | 作用                            |
+| ------------------------------------------------------------ | ------------------------------- |
+| `ensure_butian_run(project_path, run_id=None)`               | 创建并返回 `.butian/<run-id>/`  |
+| `default_asset_path(project_path, filename, preflight=None)` | 返回默认 assets 输出路径        |
+| `run_dir_from_output_file(output_file)`                      | 从 assets 文件路径反推 run 目录 |
+| `find_project_root(start_path=".")`                          | 自动识别最近项目根目录          |
+| `ensure_safe_project_path(project_path)`                     | 拒绝系统目录和用户主目录        |
+| `butian_gitignore_status(project_path)`                      | 返回本地产物忽略规则状态        |
 
 ## 兼容关系
 

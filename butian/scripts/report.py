@@ -24,6 +24,7 @@ TEMPLATE_PATH = os.path.join(HERE, "..", "templates", "report.md")
 try:
     from .labels import SECRET_TYPE_LABELS, SENSITIVE_TYPE_LABELS
     from .scan import CAPABILITY_BOUNDARY, HYGIENE_ONLY_NOTICE, setup_logging
+    from .workspace import ensure_project_subpath
 except ImportError:
     from labels import (  # pyright: ignore[reportMissingImports]
         SECRET_TYPE_LABELS,
@@ -33,6 +34,9 @@ except ImportError:
         CAPABILITY_BOUNDARY,
         HYGIENE_ONLY_NOTICE,
         setup_logging,
+    )
+    from workspace import (
+        ensure_project_subpath,  # pyright: ignore[reportMissingImports]
     )
 
 SEVERITY_LABELS = {
@@ -199,7 +203,11 @@ def default_output_path(analysis):
         if match
         else "unknown-date"
     )
-    docs_dir = os.path.join(project_path, "docs", "butian", date_dir)
+    docs_dir = ensure_project_subpath(
+        project_path,
+        os.path.join("docs", "butian", date_dir),
+        label="Markdown 报告输出目录",
+    )
     os.makedirs(docs_dir, exist_ok=True)
     return os.path.join(docs_dir, "security-report.md")
 

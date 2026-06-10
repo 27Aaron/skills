@@ -3,6 +3,62 @@
 > 生成时间：2026-06-06
 > 目的：梳理 OSV / NVD / CISA KEV / EPSS 四个 API 返回的全部字段，对比 `scan.py` 中已提取的字段，识别可丰富展示的增量内容。
 
+## 当前实现总览
+
+`butian` 当前没有自建业务 API；项目扫描阶段会调用外部官方漏洞情报 API，并把返回结果归一化到 `scan.json` / `analysis.json` / HTML / Markdown 报告中。外发字段保持最小化：依赖漏洞查询只发送本地解析出的 `ecosystem`、`name`、`version`，后续富化只发送 OSV 返回的 CVE 编号；不会上传源码、lockfile、`.env`、私钥、证书、数据库、日志或任意项目文件。
+
+当前 HTTP API 来源和实际使用情况如下：
+
+| 来源       | 主要用途                                       | 请求输入                                  | 当前已提取进结果的内容                                                                                                                          | API 可提供但当前未提取的高价值内容                                                                                                                       |
+| ---------- | ---------------------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OSV        | 按包坐标匹配开源依赖漏洞，并获取 advisory 详情 | `ecosystem`、`name`、`version`、`vuln_id` | advisory ID、aliases、summary/details 备选、CVSS score、受影响版本命中、fixed versions                                                          | references、published、modified、withdrawn、introduced、last_affected、affected versions、package-level severity、credits、related/upstream、purl        |
+| NVD        | 在 OSV 返回 CVE 后补充 CVE 详情                | CVE ID                                    | 英文描述/title、CVSS version/vector/baseScore/baseSeverity、exploitabilityScore、impactScore、CWE、published、lastModified                      | references、vulnStatus、cveTags、sourceIdentifier、CVSS 攻击条件拆解、CIA 影响维度、CPE configurations、vendorComments、evaluatorComment/Solution/Impact |
+| CISA KEV   | 判断 CVE 是否属于已知被利用漏洞                | CVE ID                                    | cveID、vulnerabilityName、shortDescription、dateAdded、dueDate、knownRansomwareCampaignUse、requiredAction、vendorProject、product、notes、cwes | 当前字段基本完整提取                                                                                                                                     |
+| FIRST EPSS | 补充漏洞未来 30 天被利用概率和相对排名         | CVE ID                                    | cve、epss、percentile、date、model_version                                                                                                      | 当前字段完整提取                                                                                                                                         |
+
+每条确认漏洞当前会被标准化为：
+
+```json
+{
+  "package": "string",
+  "version": "string",
+  "ecosystem": "string",
+  "affected": true,
+  "match_reason": "osv_query_match",
+  "match_summary": "string",
+  "confidence": "high",
+  "advisory_id": "string",
+  "aliases": ["string"],
+  "cve_id": "string",
+  "severity": "critical | high | medium | low | unknown",
+  "cvss": "string | null",
+  "fixed_versions": ["string"],
+  "summary": "string",
+  "risk_signals": ["affected_version_match", "fixed_version_available"],
+  "cve_enrichments": [
+    {
+      "cveId": "string",
+      "description": "string",
+      "cvssMetrics": [],
+      "cweIds": [],
+      "nvdPublishedAt": "string",
+      "nvdModifiedAt": "string",
+      "kevListed": false,
+      "epss": "string",
+      "epssPercentile": "string",
+      "epssScoreDate": "string",
+      "epssModelVersion": "string"
+    }
+  ],
+  "vulnerability_source": "official-osv",
+  "enrichment_sources": ["nvd", "cisa-kev", "first-epss"]
+}
+```
+
+另有一类“过期依赖”信息不来自上述四个 HTTP API，而是由包管理器命令获取：`npm outdated`、`pnpm outdated`、`yarn outdated`、`uv/pip list --outdated`、`go list -u -m -json all`、`cargo outdated`。这类结果只表示版本维护状态，字段主要是 `package`、`current`、`wanted`、`latest`、`ecosystem`，不能和已确认漏洞混为一类。
+
+优先可补强的 API 字段：OSV / NVD 参考链接、OSV / NVD 发布时间、NVD CVSS 攻击条件拆解、NVD 厂商声明、NVD 漏洞状态标签、OSV 受影响版本范围。这些字段能直接提升报告的可复核性和决策质量。
+
 ---
 
 ## 1. OSV (`api.osv.dev`) — 主漏洞源

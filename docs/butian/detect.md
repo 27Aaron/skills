@@ -93,7 +93,13 @@ python3 detect.py --compact              # 输出紧凑 JSON
       "had_butian_entry": false,
       "missing_entries": [],
       "added_butian_entry": true,
-      "added_entries": [".butian/", "docs/butian/*/security-report.md", "docs/butian/*/security-report.html", "docs/butian/*/security-report-final.md", "docs/butian/*/security-report-final.html"],
+      "added_entries": [
+        ".butian/",
+        "docs/butian/*/security-report.md",
+        "docs/butian/*/security-report.html",
+        "docs/butian/*/security-report-final.md",
+        "docs/butian/*/security-report-final.html"
+      ],
       "exists_after": true
     }
   },
@@ -105,14 +111,14 @@ python3 detect.py --compact              # 输出紧凑 JSON
 
 从 `scan.py` 导入以下工具函数：
 
-| 导入项                     | 用途                                   |
-| -------------------------- | -------------------------------------- |
-| `LOCKFILE_MAP`             | 生态 → lockfile 文件名的映射           |
+| 导入项                     | 用途                           |
+| -------------------------- | ------------------------------ |
+| `LOCKFILE_MAP`             | 生态 → lockfile 文件名的映射   |
 | `butian_gitignore_status`  | 获取本地工作区相关忽略规则状态 |
-| `default_asset_path`       | 构建默认资产文件路径                   |
-| `ensure_butian_run`        | 创建运行目录                           |
-| `find_project_root`        | 向上遍历查找项目根                     |
-| `run_dir_from_output_file` | 从输出文件路径反推运行目录             |
+| `default_asset_path`       | 构建默认资产文件路径           |
+| `ensure_butian_run`        | 创建运行目录                   |
+| `find_project_root`        | 向上遍历查找项目根             |
+| `run_dir_from_output_file` | 从输出文件路径反推运行目录     |
 
 ## 设计要点
 

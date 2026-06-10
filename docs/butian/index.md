@@ -10,56 +10,63 @@
 
 公开发布后的 `butian/SKILL.md` 是轻量入口。详细内容下沉到 `butian/references/`，减少普通扫描时的阅读负担。
 
-| 场景 | 参考文件 | 说明 |
-| ---- | -------- | ---- |
+| 场景           | 参考文件                            | 说明                                                                   |
+| -------------- | ----------------------------------- | ---------------------------------------------------------------------- |
 | 项目的安全扫描 | `butian/references/project-scan.md` | 项目扫描范围、数据源边界、报告契约、AskUserQuestion 修复交互和分步调试 |
+
+## 数据源参考
+
+| 文档                                                 | 说明                                                                    |
+| ---------------------------------------------------- | ----------------------------------------------------------------------- |
+| [`api-fields-research.md`](./api-fields-research.md) | OSV、NVD、CISA KEV、FIRST EPSS 可用字段、当前提取范围和后续展示增强方向 |
+| [`api-limits.md`](./api-limits.md)                   | 外部漏洞情报 API 的限流、重试、缓存和离线降级策略                       |
 
 ## 管线总览
 
-| 步骤 | 脚本                                                                                  | 主要输入                 | 主要输出                                     | 说明                                                         |
-| ---- | ------------------------------------------------------------------------------------- | ------------------------ | -------------------------------------------- | ------------------------------------------------------------ |
-| 1    | `detect.py`                                                                           | 项目路径                 | `.butian/<run>/assets/preflight.json`        | 检测 lockfile、推荐扫描模式、准备本地工作区                  |
-| 2    | `scan.py`                                                                             | 项目路径或 preflight     | `.butian/<run>/assets/scan.json`             | 本地仓库安检、依赖解析、OSV/NVD/CISA/EPSS 查询、过期依赖检查 |
-| 3    | `analyze.py`                                                                          | `scan.json`              | `.butian/<run>/assets/analysis.json`         | 标准化风险项、分红黄绿行动项、生成摘要和修复建议             |
-| 4    | `visualize.py`                                                                        | `analysis.json`          | `docs/butian/<日期>/security-report*.html`   | 项目扫描先输出自包含 HTML 报告，不自动打开浏览器             |
-| 5    | `report.py`                                                                           | `analysis.json`          | `docs/butian/<日期>/security-report*.md`     | 再输出给人读的 Markdown 审计报告                             |
-| 6    | `fix.py`                                                                              | `analysis.json`          | 包管理器命令结果或配置文件                   | 默认只打印计划，确认后追加 `--yes` 执行依赖升级或创建配置    |
-| 7    | `run_audit.py`                                                                        | 项目路径                 | 全链路产物                                   | 串联 detect、scan、analyze、visualize、report                |
+| 步骤 | 脚本           | 主要输入             | 主要输出                                   | 说明                                                         |
+| ---- | -------------- | -------------------- | ------------------------------------------ | ------------------------------------------------------------ |
+| 1    | `detect.py`    | 项目路径             | `.butian/<run>/assets/preflight.json`      | 检测 lockfile、推荐扫描模式、准备本地工作区                  |
+| 2    | `scan.py`      | 项目路径或 preflight | `.butian/<run>/assets/scan.json`           | 本地仓库安检、依赖解析、OSV/NVD/CISA/EPSS 查询、过期依赖检查 |
+| 3    | `analyze.py`   | `scan.json`          | `.butian/<run>/assets/analysis.json`       | 标准化风险项、分红黄绿行动项、生成摘要和修复建议             |
+| 4    | `visualize.py` | `analysis.json`      | `docs/butian/<日期>/security-report*.html` | 项目扫描先输出自包含 HTML 报告，不自动打开浏览器             |
+| 5    | `report.py`    | `analysis.json`      | `docs/butian/<日期>/security-report*.md`   | 再输出给人读的 Markdown 审计报告                             |
+| 6    | `fix.py`       | `analysis.json`      | 包管理器命令结果或配置文件                 | 默认只打印计划，确认后追加 `--yes` 执行依赖升级或创建配置    |
+| 7    | `run_audit.py` | 项目路径             | 全链路产物                                 | 串联 detect、scan、analyze、visualize、report                |
 
 ## 脚本文档索引
 
-| 脚本                  | 文档                              | 测试入口                                | 关注点                                                       |
-| --------------------- | --------------------------------- | --------------------------------------- | ------------------------------------------------------------ |
-| `analyze.py`          | `docs/butian/analyze.md`          | `tests/butian/test_analyze.py`          | 风险排序、摘要、依赖修复项、仓库安检归一化                   |
-| `cache.py`            | `docs/butian/cache.md`            | `tests/butian/test_cache.py`            | 官方漏洞源本地缓存目录、读写和过期清理                       |
-| `dependency_parsers.py` | `docs/butian/dependency_parsers.md` | `tests/butian/test_scan.py`             | 依赖生态检测、lockfile 解析、包坐标去重和来源汇总            |
-| `detect.py`           | `docs/butian/detect.md`           | `tests/butian/test_detect.py`           | 项目根发现、lockfile 识别、preflight 输出                    |
-| `finding_utils.py`    | `docs/butian/finding_utils.md`    | `tests/butian/test_finding_utils.py`    | finding schema、文件遍历、证据截断、去重                     |
-| `fix.py`              | `docs/butian/fix.md`              | `tests/butian/test_fix.py`              | fixed/latest/parent-upgrade/force-residual/dependabot 策略   |
-| `iac_checks.py`       | `docs/butian/iac_checks.md`       | `tests/butian/test_iac_checks.py`       | Docker、Compose、Kubernetes、Terraform 本地规则              |
-| `labels.py`           | `docs/butian/labels.md`           | `tests/butian/test_labels.py`           | 密钥和敏感文件类型的中文标签                                 |
-| `repo_checks.py`      | `docs/butian/repo_checks.md`      | `tests/butian/test_repo_checks.py`      | Dependabot、GitHub remote、lockfile、安装脚本、registry 配置 |
-| `report.py`           | `docs/butian/report.md`           | `tests/butian/test_report.py`           | Markdown 渲染、表格转义、风险/仓库安检/过期依赖输出          |
-| `run_audit.py`        | `docs/butian/run_audit.md`        | `tests/butian/test_run_audit.py`        | 全链路编排、首次扫描和复扫策略                               |
-| `scan.py`             | `docs/butian/scan.md`             | `tests/butian/test_scan.py`             | 扫描 CLI、并行编排、密钥扫描、过期依赖和结果汇总              |
-| `visualize.py`        | `docs/butian/visualize.md`        | `tests/butian/test_visualize.py`        | HTML 注入、资产内联、交互报告和浏览器打开策略                |
-| `vulnerability_sources.py` | `docs/butian/vulnerability_sources.md` | `tests/butian/test_scan.py`        | OSV/NVD/CISA KEV/FIRST EPSS 查询、富化、缓存和风险信号合并    |
-| `workspace.py`        | `docs/butian/workspace.md`        | `tests/butian/test_scan_helpers.py`     | 本地工作区、运行目录、项目根发现和扫描路径保护               |
-| `workflow_checks.py`  | `docs/butian/workflow_checks.md`  | `tests/butian/test_workflow_checks.py`  | GitHub Actions 工作流安全规则                                |
+| 脚本                       | 文档                                   | 测试入口                               | 关注点                                                       |
+| -------------------------- | -------------------------------------- | -------------------------------------- | ------------------------------------------------------------ |
+| `analyze.py`               | `docs/butian/analyze.md`               | `tests/butian/test_analyze.py`         | 风险排序、摘要、依赖修复项、仓库安检归一化                   |
+| `cache.py`                 | `docs/butian/cache.md`                 | `tests/butian/test_cache.py`           | 官方漏洞源本地缓存目录、读写和过期清理                       |
+| `dependency_parsers.py`    | `docs/butian/dependency_parsers.md`    | `tests/butian/test_scan.py`            | 依赖生态检测、lockfile 解析、包坐标去重和来源汇总            |
+| `detect.py`                | `docs/butian/detect.md`                | `tests/butian/test_detect.py`          | 项目根发现、lockfile 识别、preflight 输出                    |
+| `finding_utils.py`         | `docs/butian/finding_utils.md`         | `tests/butian/test_finding_utils.py`   | finding schema、文件遍历、证据截断、去重                     |
+| `fix.py`                   | `docs/butian/fix.md`                   | `tests/butian/test_fix.py`             | fixed/latest/parent-upgrade/force-residual/dependabot 策略   |
+| `iac_checks.py`            | `docs/butian/iac_checks.md`            | `tests/butian/test_iac_checks.py`      | Docker、Compose、Kubernetes、Terraform 本地规则              |
+| `labels.py`                | `docs/butian/labels.md`                | `tests/butian/test_labels.py`          | 密钥和敏感文件类型的中文标签                                 |
+| `repo_checks.py`           | `docs/butian/repo_checks.md`           | `tests/butian/test_repo_checks.py`     | Dependabot、GitHub remote、lockfile、安装脚本、registry 配置 |
+| `report.py`                | `docs/butian/report.md`                | `tests/butian/test_report.py`          | Markdown 渲染、表格转义、风险/仓库安检/过期依赖输出          |
+| `run_audit.py`             | `docs/butian/run_audit.md`             | `tests/butian/test_run_audit.py`       | 全链路编排、首次扫描和复扫策略                               |
+| `scan.py`                  | `docs/butian/scan.md`                  | `tests/butian/test_scan.py`            | 扫描 CLI、并行编排、密钥扫描、过期依赖和结果汇总             |
+| `visualize.py`             | `docs/butian/visualize.md`             | `tests/butian/test_visualize.py`       | HTML 注入、资产内联、交互报告和浏览器打开策略                |
+| `vulnerability_sources.py` | `docs/butian/vulnerability_sources.md` | `tests/butian/test_scan.py`            | OSV/NVD/CISA KEV/FIRST EPSS 查询、富化、缓存和风险信号合并   |
+| `workspace.py`             | `docs/butian/workspace.md`             | `tests/butian/test_scan_helpers.py`    | 本地工作区、运行目录、项目根发现和扫描路径保护               |
+| `workflow_checks.py`       | `docs/butian/workflow_checks.md`       | `tests/butian/test_workflow_checks.py` | GitHub Actions 工作流安全规则                                |
 
 ## 产物目录
 
-| 路径                                         | 内容                  | 生命周期                        |
-| -------------------------------------------- | --------------------- | ------------------------------- |
-| `.butian/<run>/assets/preflight.json`        | 预检结果              | 每次扫描生成                    |
-| `.butian/<run>/assets/scan.json`             | 原始扫描结果          | 每次扫描生成                    |
-| `.butian/<run>/assets/analysis.json`         | 分析结果              | 每次扫描生成                    |
-| `.butian/<run>/logs/scan.log`                | DEBUG 日志            | `--verbose` 或 `--debug` 时生成 |
-| `.butian/cache/`                             | OSV/NVD/EPSS/KEV 缓存 | 跨 run 复用                     |
-| `docs/butian/<日期>/security-report.html`    | 自包含 HTML 报告      | 普通扫描生成                    |
-| `docs/butian/<日期>/security-report.md`      | Markdown 审计报告     | 普通扫描生成                    |
-| `docs/butian/<日期>/security-report-final.html` | 最终 HTML 报告     | `--final-report` 生成           |
-| `docs/butian/<日期>/security-report-final.md` | 最终 Markdown 报告   | `--final-report` 生成           |
+| 路径                                            | 内容                  | 生命周期                        |
+| ----------------------------------------------- | --------------------- | ------------------------------- |
+| `.butian/<run>/assets/preflight.json`           | 预检结果              | 每次扫描生成                    |
+| `.butian/<run>/assets/scan.json`                | 原始扫描结果          | 每次扫描生成                    |
+| `.butian/<run>/assets/analysis.json`            | 分析结果              | 每次扫描生成                    |
+| `.butian/<run>/logs/scan.log`                   | DEBUG 日志            | `--verbose` 或 `--debug` 时生成 |
+| `.butian/cache/`                                | OSV/NVD/EPSS/KEV 缓存 | 跨 run 复用                     |
+| `docs/butian/<日期>/security-report.html`       | 自包含 HTML 报告      | 普通扫描生成                    |
+| `docs/butian/<日期>/security-report.md`         | Markdown 审计报告     | 普通扫描生成                    |
+| `docs/butian/<日期>/security-report-final.html` | 最终 HTML 报告        | `--final-report` 生成           |
+| `docs/butian/<日期>/security-report-final.md`   | 最终 Markdown 报告    | `--final-report` 生成           |
 
 ## 测试策略
 

@@ -121,15 +121,15 @@ _UPGRADE_BUILDERS = {
 
 ### 执行与输出
 
-| 函数                                              | 作用                                              |
-| ------------------------------------------------- | ------------------------------------------------- |
-| `execute_fixes(commands, project_path)`           | 顺序执行升级命令，返回成功/失败列表               |
-| `execute_parent_upgrade_fixes(analysis, path)`    | 执行 parent-upgrade 策略的完整流程                |
-| `execute_force_residual_fixes(analysis, path)`    | 执行 force-residual 策略的完整流程                |
-| `execute_dependabot_config_fixes(analysis, path)` | 创建 `.github/dependabot.yml`，并拒绝覆盖已有文件 |
-| `should_execute(args)`                            | 只有传入 `--yes` 且未传 `--dry-run` 时才允许执行  |
-| `print_execution_plan(strategy, project_path, ...)` | 打印 dry-run 修复计划                            |
-| `post_fix_guidance(strategy)`                     | 返回修复后的验证指引文本                          |
+| 函数                                                | 作用                                              |
+| --------------------------------------------------- | ------------------------------------------------- |
+| `execute_fixes(commands, project_path)`             | 顺序执行升级命令，返回成功/失败列表               |
+| `execute_parent_upgrade_fixes(analysis, path)`      | 执行 parent-upgrade 策略的完整流程                |
+| `execute_force_residual_fixes(analysis, path)`      | 执行 force-residual 策略的完整流程                |
+| `execute_dependabot_config_fixes(analysis, path)`   | 创建 `.github/dependabot.yml`，并拒绝覆盖已有文件 |
+| `should_execute(args)`                              | 只有传入 `--yes` 且未传 `--dry-run` 时才允许执行  |
+| `print_execution_plan(strategy, project_path, ...)` | 打印 dry-run 修复计划                             |
+| `post_fix_guidance(strategy)`                       | 返回修复后的验证指引文本                          |
 
 ### 工具函数
 
@@ -198,11 +198,11 @@ execute_force_residual_fixes()
 
 `fix.py` 只在检测到项目级 Python 管理器时生成 PyPI 修复命令，不回退到系统 pip。
 
-| 管理器                          | 检测方式            | fixed 命令                | latest 命令             |
-| -------------------------------- | ------------------- | ------------------------- | ----------------------- |
-| uv                               | `uv.lock` 存在      | `uv add pkg==ver`         | `uv add pkg`            |
-| poetry                           | `poetry.lock` 存在  | `poetry add pkg@ver`      | `poetry add pkg@latest` |
-| pipenv                           | `Pipfile.lock` 存在 | `pipenv install pkg==ver` | `pipenv install pkg`    |
+| 管理器                            | 检测方式            | fixed 命令                | latest 命令             |
+| --------------------------------- | ------------------- | ------------------------- | ----------------------- |
+| uv                                | `uv.lock` 存在      | `uv add pkg==ver`         | `uv add pkg`            |
+| poetry                            | `poetry.lock` 存在  | `poetry add pkg@ver`      | `poetry add pkg@latest` |
+| pipenv                            | `Pipfile.lock` 存在 | `pipenv install pkg==ver` | `pipenv install pkg`    |
 | requirements.txt / 无项目级管理器 | —                   | 不自动生成命令            | 不自动生成命令          |
 
 ## 设计要点

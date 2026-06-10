@@ -59,6 +59,18 @@ class ReadTextTests(unittest.TestCase):
             write(path, b"ok\xffdone", mode="wb")
             self.assertEqual(finding_utils.read_text(path), "okdone")
 
+    def test_returns_empty_for_symlinked_file(self):
+        with tempfile.TemporaryDirectory(prefix="butian-findings-") as parent:
+            outside = os.path.join(parent, "outside.txt")
+            link = os.path.join(parent, "project-link.txt")
+            write(outside, "outside")
+            try:
+                os.symlink(outside, link)
+            except (AttributeError, OSError) as exc:
+                self.skipTest(f"symlink unavailable: {exc}")
+
+            self.assertEqual(finding_utils.read_text(link), "")
+
 
 class IterFilesTests(unittest.TestCase):
     def test_iterates_files_with_suffix_filter(self):
@@ -137,6 +149,26 @@ class IterFilesTests(unittest.TestCase):
             )
 
             self.assertEqual(len(result), 2)
+
+    def test_skips_symlinked_files_by_default(self):
+        with tempfile.TemporaryDirectory(prefix="butian-findings-") as parent:
+            project = os.path.join(parent, "project")
+            os.makedirs(project)
+            outside = os.path.join(parent, "outside.py")
+            link = os.path.join(project, "linked.py")
+            write(outside, "print('outside')\n")
+            write(os.path.join(project, "inside.py"), "print('inside')\n")
+            try:
+                os.symlink(outside, link)
+            except (AttributeError, OSError) as exc:
+                self.skipTest(f"symlink unavailable: {exc}")
+
+            result = sorted(
+                os.path.relpath(p, project)
+                for p in finding_utils.iter_files(project, suffixes=[".py"])
+            )
+
+            self.assertEqual(result, ["inside.py"])
 
 
 class LineForTextTests(unittest.TestCase):

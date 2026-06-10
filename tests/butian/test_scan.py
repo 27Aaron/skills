@@ -70,6 +70,38 @@ class WorkspaceSafetyTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 workspace.ensure_safe_project_path(link_path)
 
+    def test_rejects_gitignore_symlink_before_appending_rules(self):
+        with tempfile.TemporaryDirectory(prefix="butian-gitignore-link-") as parent:
+            project = os.path.join(parent, "project")
+            os.makedirs(project)
+            outside = os.path.join(parent, "outside.gitignore")
+            with open(outside, "w", encoding="utf-8") as handle:
+                handle.write("# outside\n")
+            try:
+                os.symlink(outside, os.path.join(project, ".gitignore"))
+            except (AttributeError, OSError) as exc:
+                self.skipTest(f"symlink unavailable: {exc}")
+
+            with self.assertRaises(ValueError):
+                workspace.ensure_butian_gitignore(project)
+
+            with open(outside, "r", encoding="utf-8") as handle:
+                self.assertEqual(handle.read(), "# outside\n")
+
+    def test_rejects_butian_workspace_symlink_before_creating_run(self):
+        with tempfile.TemporaryDirectory(prefix="butian-workspace-link-") as parent:
+            project = os.path.join(parent, "project")
+            outside = os.path.join(parent, "outside-workspace")
+            os.makedirs(project)
+            os.makedirs(outside)
+            try:
+                os.symlink(outside, os.path.join(project, ".butian"))
+            except (AttributeError, OSError) as exc:
+                self.skipTest(f"symlink unavailable: {exc}")
+
+            with self.assertRaises(ValueError):
+                workspace.ensure_butian_run(project)
+
 
 # ---------------------------------------------------------------------------
 # dependency_parsers module compatibility
@@ -250,6 +282,29 @@ class DependencyParsersModuleCompatibilityTests(unittest.TestCase):
                 any(
                     "--allow-project-exec" in item.get("message", "") for item in errors
                 )
+            )
+
+    def test_uv_outdated_skips_project_tool_without_opt_in(self):
+        with tempfile.TemporaryDirectory(prefix="butian-pypi-uv-") as root:
+            with open(os.path.join(root, "uv.lock"), "w", encoding="utf-8") as handle:
+                handle.write("")
+            calls = []
+            original = scan.run_cmd_checked
+
+            def fake_run_cmd_checked(*args, **kwargs):
+                calls.append((args, kwargs))
+                return "[]"
+
+            scan.run_cmd_checked = fake_run_cmd_checked
+            try:
+                errors = []
+                self.assertEqual(scan._pip_outdated(root, errors), [])
+            finally:
+                scan.run_cmd_checked = original
+
+            self.assertEqual(calls, [])
+            self.assertTrue(
+                any("--allow-project-exec" in item.get("message", "") for item in errors)
             )
 
     def test_pip_outdated_runs_project_virtualenv_when_opted_in(self):

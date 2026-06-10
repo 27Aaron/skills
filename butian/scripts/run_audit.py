@@ -31,12 +31,16 @@ try:
         run_dir_from_output_file,
         setup_logging,
     )
+    from .workspace import ensure_project_subpath
 except ImportError:
     from scan import (  # pyright: ignore[reportMissingImports]
         CAPABILITY_BOUNDARY,
         HYGIENE_ONLY_NOTICE,
         run_dir_from_output_file,
         setup_logging,
+    )
+    from workspace import (
+        ensure_project_subpath,  # pyright: ignore[reportMissingImports]
     )
 
 
@@ -246,11 +250,10 @@ def report_basename(final_report=False):
 
 def report_output_dir(analysis, run_dir):
     project_path = (analysis.get("project") or {}).get("path") or os.getcwd()
-    return os.path.join(
+    return ensure_project_subpath(
         project_path,
-        "docs",
-        "butian",
-        report_date_dir_name(run_dir),
+        os.path.join("docs", "butian", report_date_dir_name(run_dir)),
+        label="报告输出目录",
     )
 
 

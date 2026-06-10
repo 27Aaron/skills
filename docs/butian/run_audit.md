@@ -8,14 +8,14 @@
 
 ## 职责
 
-| #   | 职责          | 说明                                                                                                                         |
-| --- | ------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| 1   | 管线编排      | 按序调用 detect → scan → analyze → visualize → report                                                                        |
-| 2   | 参数透传      | 将用户参数传递给各子阶段（verbose/debug/follow-symlinks）                                                                    |
-| 3   | 结果汇总      | 收集各阶段的文件路径和风险统计                                                                                               |
-| 4   | 终端摘要      | 输出格式化的终端摘要（包含 Unicode 表格）                                                                                    |
-| 5   | 报告输出      | HTML 和 Markdown 都生成到 `docs/butian/<日期>/`，普通报告和最终报告使用固定文件名                                         |
-| 6   | 打开控制      | 不自动打开浏览器；终端只展示摘要、报告绝对路径和后续交互提示                                                               |
+| #   | 职责     | 说明                                                                              |
+| --- | -------- | --------------------------------------------------------------------------------- |
+| 1   | 管线编排 | 按序调用 detect → scan → analyze → visualize → report                             |
+| 2   | 参数透传 | 将用户参数传递给各子阶段（verbose/debug/follow-symlinks）                         |
+| 3   | 结果汇总 | 收集各阶段的文件路径和风险统计                                                    |
+| 4   | 终端摘要 | 输出格式化的终端摘要（包含 Unicode 表格）                                         |
+| 5   | 报告输出 | HTML 和 Markdown 都生成到 `docs/butian/<日期>/`，普通报告和最终报告使用固定文件名 |
+| 6   | 打开控制 | 不自动打开浏览器；终端只展示摘要、报告绝对路径和后续交互提示                      |
 
 ## CLI 用法
 
@@ -45,20 +45,20 @@ py -3 run_audit.py --final-report .         # 最终复扫：生成 security-rep
 
 ## CLI 参数
 
-| 参数                  | 类型     | 默认值 | 说明                             |
-| --------------------- | -------- | ------ | -------------------------------- |
-| `project_path`        | 位置参数 | `.`    | 项目路径                         |
-| `--no-root-discovery` | flag     | false  | 不向上遍历查找项目根             |
-| `--skip-outdated`     | flag     | false  | 跳过过期依赖检查                 |
-| `--allow-project-exec` | flag     | false  | 允许过期检查执行项目内工具       |
-| `--skip-hygiene`      | flag     | false  | 跳过仓库安检                     |
-| `--max-secret-files`  | int      | None   | 限制密钥扫描的文件数量           |
-| `--include-packages`  | flag     | false  | 在扫描输出中包含完整包列表       |
-| `--no-open`           | flag     | false  | 兼容旧参数；默认也不会自动打开 HTML 报告 |
-| `--final-report`      | flag     | false  | 生成 `security-report-final.html` 和 `security-report-final.md` |
-| `--verbose`           | flag     | false  | 输出详细日志到 stderr            |
-| `--debug`             | flag     | false  | 输出调试级别日志                 |
-| `--follow-symlinks`   | flag     | false  | 跟随符号链接扫描                 |
+| 参数                   | 类型     | 默认值 | 说明                                                            |
+| ---------------------- | -------- | ------ | --------------------------------------------------------------- |
+| `project_path`         | 位置参数 | `.`    | 项目路径                                                        |
+| `--no-root-discovery`  | flag     | false  | 不向上遍历查找项目根                                            |
+| `--skip-outdated`      | flag     | false  | 跳过过期依赖检查                                                |
+| `--allow-project-exec` | flag     | false  | 允许过期检查执行项目内工具                                      |
+| `--skip-hygiene`       | flag     | false  | 跳过仓库安检                                                    |
+| `--max-secret-files`   | int      | None   | 限制密钥扫描的文件数量                                          |
+| `--include-packages`   | flag     | false  | 在扫描输出中包含完整包列表                                      |
+| `--no-open`            | flag     | false  | 兼容旧参数；默认也不会自动打开 HTML 报告                        |
+| `--final-report`       | flag     | false  | 生成 `security-report-final.html` 和 `security-report-final.md` |
+| `--verbose`            | flag     | false  | 输出详细日志到 stderr                                           |
+| `--debug`              | flag     | false  | 输出调试级别日志                                                |
+| `--follow-symlinks`    | flag     | false  | 跟随符号链接扫描                                                |
 
 ## 管线流程
 
@@ -177,9 +177,9 @@ run_audit.py
 
 ### 路径工具
 
-| 函数                                | 作用                                 |
-| ----------------------------------- | ------------------------------------ |
-| `absolute_path(path)`               | 将报告摘要里的路径格式化为绝对路径   |
+| 函数                  | 作用                               |
+| --------------------- | ---------------------------------- |
+| `absolute_path(path)` | 将报告摘要里的路径格式化为绝对路径 |
 
 ## 设计要点
 

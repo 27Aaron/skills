@@ -72,7 +72,9 @@ def parse_npm_lock(project_path):
         root_info = packages.get("")
         root_deps = set()
         for section in ("dependencies", "devDependencies", "optionalDependencies"):
-            section_map = root_info.get(section) if isinstance(root_info, dict) else None
+            section_map = (
+                root_info.get(section) if isinstance(root_info, dict) else None
+            )
             root_deps.update(section_map.keys() if section_map else ())
         for key, info in packages.items():
             if not key or not isinstance(info, dict):

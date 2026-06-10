@@ -29,12 +29,12 @@ python3 visualize.py --no-open analysis.json
 
 ## CLI 参数
 
-| 参数            | 类型     | 必需 | 说明                                                              |
-| --------------- | -------- | ---- | ----------------------------------------------------------------- |
-| `analysis_json` | 位置参数 | 是   | `analyze.py` 输出的 JSON 路径                                     |
-| `output_html`   | 位置参数 | 否   | 输出 HTML 路径，默认 `docs/butian/<日期>/security-report.html`    |
-| `--no-open`     | flag     | 否   | 兼容旧参数；默认也不自动打开浏览器                                |
-| `--force-open`  | flag     | 否   | 直接调用 `visualize.py` 时显式尝试打开浏览器                       |
+| 参数            | 类型     | 必需 | 说明                                                           |
+| --------------- | -------- | ---- | -------------------------------------------------------------- |
+| `analysis_json` | 位置参数 | 是   | `analyze.py` 输出的 JSON 路径                                  |
+| `output_html`   | 位置参数 | 否   | 输出 HTML 路径，默认 `docs/butian/<日期>/security-report.html` |
+| `--no-open`     | flag     | 否   | 兼容旧参数；默认也不自动打开浏览器                             |
+| `--force-open`  | flag     | 否   | 直接调用 `visualize.py` 时显式尝试打开浏览器                   |
 
 ## 环境变量
 
@@ -54,13 +54,13 @@ python3 visualize.py --no-open analysis.json
 
 ### 路径与打开策略
 
-| 函数                                 | 作用                                                         |
-| ------------------------------------ | ------------------------------------------------------------ |
-| `default_output_path(analysis_path)` | 返回 `docs/butian/<日期>/security-report.html`               |
+| 函数                                 | 作用                                                                |
+| ------------------------------------ | ------------------------------------------------------------------- |
+| `default_output_path(analysis_path)` | 返回 `docs/butian/<日期>/security-report.html`                      |
 | `open_decision(args, output_path)`   | 默认不打开；仅 `--force-open` 且未被 `--no-open`/环境变量禁止时打开 |
-| `skipped_open_message(reason)`       | 输出未打开报告的中文原因                                     |
-| `open_report(path)`                  | macOS/Windows/Linux/WSL 跨平台打开 HTML                      |
-| `spawn_open_command(cmd)`            | 后台启动浏览器命令，不阻塞脚本                               |
+| `skipped_open_message(reason)`       | 输出未打开报告的中文原因                                            |
+| `open_report(path)`                  | macOS/Windows/Linux/WSL 跨平台打开 HTML                             |
+| `spawn_open_command(cmd)`            | 后台启动浏览器命令，不阻塞脚本                                      |
 
 ## 模板注入流程
 

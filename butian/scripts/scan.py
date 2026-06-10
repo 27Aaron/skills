@@ -86,9 +86,7 @@ current_version_for = _dependency_parsers.current_version_for
 detect_ecosystems = _dependency_parsers.detect_ecosystems
 extract_packages = _dependency_parsers.extract_packages
 is_exact_dependency_version = _dependency_parsers.is_exact_dependency_version
-is_exact_maven_coordinate_part = (
-    _dependency_parsers.is_exact_maven_coordinate_part
-)
+is_exact_maven_coordinate_part = _dependency_parsers.is_exact_maven_coordinate_part
 normalized_plain_version = _dependency_parsers.normalized_plain_version
 normalized_rubygems_version = _dependency_parsers.normalized_rubygems_version
 npm_lock_package_name = _dependency_parsers.npm_lock_package_name
@@ -162,9 +160,7 @@ package_matches_affected = _vulnerability_sources.package_matches_affected
 parse_cisa_kev_catalog = _vulnerability_sources.parse_cisa_kev_catalog
 parse_epss_response = _vulnerability_sources.parse_epss_response
 parse_nvd_response = _vulnerability_sources.parse_nvd_response
-parse_nvd_vulnerability_entry = (
-    _vulnerability_sources.parse_nvd_vulnerability_entry
-)
+parse_nvd_vulnerability_entry = _vulnerability_sources.parse_nvd_vulnerability_entry
 parse_osv_query_results = _vulnerability_sources.parse_osv_query_results
 post_json = _vulnerability_sources.post_json
 select_best_cvss_metric = _vulnerability_sources.select_best_cvss_metric
@@ -1867,6 +1863,18 @@ def check_outdated(
 ):
     if errors is None:
         errors = []
+    if ecosystems and not allow_project_exec:
+        errors.append(
+            {
+                "step": "outdated_check",
+                "message": (
+                    "已跳过过期依赖检查：默认不执行项目内包管理器命令；"
+                    "如需执行 npm/pnpm/yarn/uv/go/cargo 等项目工具，请显式传入 "
+                    "--allow-project-exec。"
+                ),
+            }
+        )
+        return []
     version_index = package_version_index(packages)
     tasks = []
     if "npm" in ecosystems:
@@ -2051,6 +2059,15 @@ def project_python_executable(cwd):
 def _pip_outdated(cwd, errors=None, *, allow_project_exec=False):
     # uv 管理的项目：使用 uv pip list 做过期检查。
     if os.path.isfile(os.path.join(cwd, "uv.lock")):
+        if not allow_project_exec:
+            if errors is not None:
+                errors.append(
+                    {
+                        "step": "outdated_check",
+                        "message": "已跳过 PyPI 过期依赖检查：发现 uv.lock，但默认不执行项目内 uv；如需执行请显式传入 --allow-project-exec。",
+                    }
+                )
+            return []
         output = run_cmd_checked(
             ["uv", "pip", "list", "--outdated", "--format=json"],
             cwd=cwd,
@@ -2551,6 +2568,7 @@ def main():
             "skip_dependency_checks": skip_dependency_checks,
             "skip_hygiene": bool(args.skip_hygiene),
             "skip_outdated": bool(args.skip_outdated),
+            "allow_project_exec": bool(args.allow_project_exec),
             "include_packages": bool(args.include_packages),
             "max_secret_files": max(0, int(args.max_secret_files or 0)),
             "vulnerability_sources": (

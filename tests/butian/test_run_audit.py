@@ -252,6 +252,26 @@ class ModeLabelTests(unittest.TestCase):
         self.assertEqual(run_audit.mode_label("custom"), "安全扫描")
 
 
+class ReportOutputDirSafetyTests(unittest.TestCase):
+    def test_rejects_docs_symlink_that_points_outside_project(self):
+        with tempfile.TemporaryDirectory(prefix="butian-report-dir-") as parent:
+            project = os.path.join(parent, "project")
+            outside = os.path.join(parent, "outside-docs")
+            os.makedirs(project)
+            os.makedirs(outside)
+            os.makedirs(os.path.join(project, ".butian", "20260610-120000"))
+            try:
+                os.symlink(outside, os.path.join(project, "docs"))
+            except (AttributeError, OSError) as exc:
+                self.skipTest(f"symlink unavailable: {exc}")
+
+            analysis = {"project": {"path": project}}
+            run_dir = os.path.join(project, ".butian", "20260610-120000")
+
+            with self.assertRaises(ValueError):
+                run_audit.report_output_dir(analysis, run_dir)
+
+
 # ---------------------------------------------------------------------------
 # format_risk_rows
 # ---------------------------------------------------------------------------
