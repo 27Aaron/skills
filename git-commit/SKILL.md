@@ -1,9 +1,11 @@
 ---
 name: git-commit
-description: Use when the user needs a commit message or title, wants to rewrite an existing commit, prepares to commit staged changes, asks about Conventional Commits format or commitlint rules, or needs help choosing a commit type (feat, fix, docs, refactor, etc). Also applies to squash and merge commit messages, semantic versioning via commits, and breaking change markers.
+description: Create Git commits with Conventional Commit messages by inspecting changes, grouping related files, staging the intended set, and generating a concise message. Use when the user asks to commit changes, create a commit, or generate or rewrite a commit message from repository changes. Only mutate the repository when the user explicitly asks to commit.
 ---
 
-Write commit messages following [Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1.0.0/).
+# Git Commit with Conventional Commits
+
+Analyze the actual changes and create a clear, focused commit using [Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1.0.0/). Follow repository-specific instructions and commitlint rules when present.
 
 ## Format
 
@@ -15,143 +17,82 @@ Write commit messages following [Conventional Commits v1.0.0](https://www.conven
 [optional footer(s)]
 ```
 
-## Type Selection
+## Types
 
-| Type       | Purpose                                | SemVer |
-| ---------- | -------------------------------------- | ------ |
-| `feat`     | New feature                            | MINOR  |
-| `fix`      | Bug fix                                | PATCH  |
-| `docs`     | Documentation                          | —      |
-| `style`    | Formatting (no logic change)           | —      |
-| `refactor` | Restructure (no behavior change)       | —      |
-| `perf`     | Performance improvement                | —      |
-| `test`     | Add / update / delete tests            | —      |
-| `build`    | Build system, dependencies             | —      |
-| `ci`       | CI workflow                            | —      |
-| `chore`    | Maintenance, tooling                   | —      |
-| `revert`   | Revert a commit (community convention) | —      |
+The specification defines `feat`, `fix`, and breaking-change semantics. The other types below are common conventions; repository rules take precedence.
 
-> `feat` and `fix` are **required** by spec. Others come from Angular convention (@commitlint/config-conventional); custom types allowed with team consensus.
-
-`BREAKING CHANGE` → **MAJOR** (any type). Multiple types fit → pick the **user-visible outcome**.
-
-## Language
-
-Detect the user's request language and match the output:
-
-- **Chinese request** → description in Chinese, tech terms in English. E.g., `feat(parser): 新增 CSV 导出功能`
-- **English (default)** → description in English. E.g., `feat(parser): add CSV export feature`
-- Type, scope, and footer tokens are always in English.
-
-## Spec Rules (v1.0.0)
-
-### Commit Structure
-
-1. Every commit **MUST** use a type prefix (a noun such as `feat` or `fix`), followed by an **optional** scope, an **optional** `!`, and a **required** colon + space
-2. Commits that introduce a new feature **MUST** use type `feat`
-3. Commits that fix a bug **MUST** use type `fix`
-
-### Scope
-
-4. A scope **MAY** follow the type. It **MUST** be a noun describing a section of code, enclosed in parentheses. E.g., `fix(parser):`
-
-### Description
-
-5. The description **MUST** immediately follow the colon + space after the type(scope) prefix
-6. A longer commit body **MAY** be provided after the description, separated by **one blank line**
-
-### Body
-
-7. Body content is free-form and **MAY** use blank lines to separate paragraphs
-
-### Footer
-
-8. One or more footers **MAY** be provided after the body, separated by one blank line
-9. Each footer line **MUST** contain a token followed by `:<space>` or `<space>#` as separator, then the value
-10. Footer tokens **MUST** use `-` as hyphen (e.g., `Acked-by`), except `BREAKING CHANGE`
-11. Footer values **MAY** contain spaces and newlines; parsing **MUST** continue until the next footer token/separator
-12. `BREAKING-CHANGE` (hyphen) and `BREAKING CHANGE` (space) are **synonyms**
-
-### Breaking Changes
-
-13. Breaking changes **MUST** be marked in the commit message, either in the type(scope) prefix or as a footer
-14. In a footer: **MUST** contain uppercase `BREAKING CHANGE: <description>`
-15. In the prefix: **MUST** be marked with `!` directly before `:`. If `!` is used, the footer **MAY** omit `BREAKING CHANGE:`, but the description **SHOULD** explain what breaks
-
-### Other
-
-16. Types other than `feat` and `fix` **MAY** be used
-17. Tool parsing **MUST** be case-insensitive, except `BREAKING CHANGE` which **MUST** be uppercase
-
-## Project Conventions
-
-18. Description **MUST NOT** exceed 72 characters and **MUST NOT** end with a period
+| Type       | Use for                                    |
+| ---------- | ------------------------------------------ |
+| `feat`     | New feature                                |
+| `fix`      | Bug fix                                    |
+| `docs`     | Documentation only                         |
+| `style`    | Formatting with no logic change            |
+| `refactor` | Restructuring without a feature or bug fix |
+| `perf`     | Performance improvement                    |
+| `test`     | Adding or updating tests                   |
+| `build`    | Build system or dependencies               |
+| `ci`       | CI configuration or workflows              |
+| `chore`    | Maintenance not covered by another type    |
+| `revert`   | Reverting changes when tooling supports it  |
 
 ## Workflow
 
-1. Check staged changes: `git diff --cached`.
-2. **Staged changes exist**: Generate message → execute `git commit -m "<message>"`.
-3. **No staged changes**: Inform user to `git add` first, provide the recommended message.
+### 1. Analyze Changes
 
-## Heuristics
-
-- Infer type from diff, changed files, and user description before asking questions.
-- If type is ambiguous, give 1-2 alternatives with a brief note on the difference.
-- If scope is unclear, omit rather than guess.
-- If changes mix several concerns, pick the dominant one and suggest a split.
-
-## Rewrite Guidance
-
-- Preserve original intent.
-- Remove vague wording (`update stuff`, `fix issue`, `changes`).
-- Normalize into valid conventional structure.
-- Convert breaking-change notes to `!` or `BREAKING CHANGE:`.
-
-## Examples (English — default)
-
-```text
-feat: add CSV export for billing reports
+```bash
+git status --short
+git diff --staged
+git diff
 ```
 
-```text
-fix(auth): prevent refresh token reuse after logout
+Use the staged diff when it is non-empty. Otherwise, inspect the working-tree diff. Check recent commits or repository configuration when needed to match established language, scopes, and style.
+
+### 2. Stage a Logical Change
+
+Stage files or hunks only for an explicit commit request. Keep one logical change per commit and avoid unrelated files. After staging, inspect `git diff --staged` again and base the message only on that snapshot.
+
+```bash
+git add path/to/file
+git add -p
 ```
 
-```text
-feat(api)!: remove legacy v1 search endpoint
-```
+Never stage secrets or private keys. Inspect credential and environment files carefully before including them.
+
+### 3. Generate the Message
+
+- Choose the type from the change's primary intent.
+- Use a scope only when the affected component is clear.
+- Write a specific, imperative description such as `add`, `fix`, or `remove`.
+- Follow repository language and rules; otherwise match the user's language.
+- Keep the header concise. Prefer at most 72 characters when the repository defines no limit.
+- Add a body only when the reason or impact is not clear from the header.
+- Do not invent issue references, reviewers, co-authors, or sign-offs.
+
+For breaking changes, add `!` before `:` and/or a `BREAKING CHANGE:` footer. When using only `!`, describe what breaks in the header.
 
 ```text
-feat: support config inheritance
+feat(api)!: remove the legacy search endpoint
 
-BREAKING CHANGE: rename extendsPath to extends
+BREAKING CHANGE: use the v2 search endpoint instead
 ```
 
-```text
-fix: prevent racing of requests
+### 4. Execute the Commit
 
-Introduce a request id and a reference to latest request. Dismiss
-incoming responses other than from latest request.
+Run `git commit` only when the user explicitly asks to commit. Pass the complete message through stdin with `git commit --file=-` or another argv-safe interface; do not interpolate generated text into a shell command.
 
-Remove timeouts which were used to mitigate the racing issue but are
-obsolete now.
+Allow hooks to run. If a hook fails, fix the cause and retry; do not bypass it automatically. Verify the result with:
 
-Reviewed-by: Z
-Refs: #123
+```bash
+git status --short
+git log -1 --oneline
 ```
 
-## Examples (Chinese — when requested in Chinese)
+Report the commit hash and subject.
 
-> Structure is identical to English; only the description language changes.
+## Safety
 
-```text
-feat: 新增账单报告的 CSV 导出功能
-```
-
-```text
-fix(auth): 修复登出后 refresh token 仍可复用的问题
-```
-
-```text
-feat(api)!: 移除旧版 v1 搜索端点
-```
+- Never change Git configuration.
+- Never use `--no-verify`, destructive commands, or history rewriting unless explicitly requested.
+- Never force-push `main` or `master`; do not force-push another branch unless explicitly requested.
+- Never push merely because the user asked to commit.
+- For a message-only request, return the message without staging or committing.
